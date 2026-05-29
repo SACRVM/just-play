@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JustPlay.App.ViewModels"
+        xmlns:views="using:JustPlay.App.Views"
+        x:Class="JustPlay.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Just Play"
+        Width="1320" Height="864"
+        MinWidth="680" MinHeight="644"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None"
+        DragDrop.AllowDrop="True">
+
+    <!--
+      Outer card: rounded corners + soft drop shadow + the layered Aurora background.
+      The window itself is slightly larger than the visible card (Margin=20/22) so the
+      shadow has room to bloom OUTSIDE the rounded card into the transparent surround.
+
+      ClipToBounds=False on the Card so the play-button halo can extend past the card
+      edge. The card's own BACKGROUND still paints as a rounded rect — BUT children
+      (the Aurora background Rectangles below) would also spill past the rounded corners
+      and fill them squarely. Fix: give those rectangles their own RadiusX/RadiusY=14 so
+      they round themselves. Now: corners stay rounded AND halo can render outside.
+
+      Shadow: dialed back from the original 50/80-px monster (it was visibly heavy).
+      Now: a soft 22-px black drop, a 1-px inner highlight stroke, and a very subtle
+      purple haze for the Aurora hint. Roughly half the previous strength.
+    -->
+    <Border CornerRadius="14" ClipToBounds="False"
+            Margin="20,20,20,22"
+            Background="#01000000"
+            DragDrop.AllowDrop="True"
+            BoxShadow="0 10 22 -6 #80000000, 0 0 0 1 #14FFFFFF, 0 16 40 -18 #2A8a5fff">
+        <Panel DragDrop.AllowDrop="True">
+            <!-- Background layers carry their OWN rounded corners (RadiusX/RadiusY=14)
+                 so they don't visually square off the card's rounded edges when the
+                 parent Border is ClipToBounds=False. -->
+            <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
+            <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+            <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+
+            <!-- View switch: Max vs Mini, same shared DataContext (the shell VM) -->
+            <Panel>
+                <views:MaxView IsVisible="{Binding !IsMini}"/>
+                <views:MiniView IsVisible="{Binding IsMini}"/>
+            </Panel>
+        </Panel>
+    </Border>
+</Window>

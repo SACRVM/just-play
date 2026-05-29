@@ -1,0 +1,48 @@
+using System;
+using Avalonia;
+using JustPlay.App.ViewModels;
+using JustPlay.Audio.Bass;
+using JustPlay.Core.Abstractions;
+using JustPlay.Core.Playback;
+using JustPlay.Metadata;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace JustPlay.App;
+
+sealed class Program
+{
+    /// <summary>Composition root — the one place that knows the concrete backends.</summary>
+    public static IServiceProvider Services { get; private set; } = default!;
+
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        Services = ConfigureServices();
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+    }
+
+    private static IServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+
+        // Backends — swapped here (and only here) when going cross-platform.
+        services.AddSingleton<IAudioEngine, BassAudioEngine>();
+        services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
+        services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
+
+        // Core logic.
+        services.AddSingleton<PlaybackController>();
+
+        // ViewModels.
+        services.AddSingleton<MainWindowViewModel>();
+
+        return services.BuildServiceProvider();
+    }
+
+    // Parameterless — used by Main and by the Avalonia visual designer.
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
+}

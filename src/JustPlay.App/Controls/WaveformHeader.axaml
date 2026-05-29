@@ -1,0 +1,16 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="JustPlay.App.Controls.WaveformHeader"
+             Height="90" ClipToBounds="False">
+    <!--
+      Four sine-wave polylines stacked across the top, matching the design's Waveform.jsx.
+      Static for now — will dance to BPM/energy in a later turn (the design's
+      beat-driven scaleY algorithm needs the audio-engine analysis loop wired up).
+    -->
+    <Canvas x:Name="Canvas">
+        <Polyline x:Name="P0" Stroke="#FF5FAE" StrokeThickness="2.4" StrokeLineCap="Round" Opacity="0.85"/>
+        <Polyline x:Name="P1" Stroke="#6CE0FF" StrokeThickness="1.9" StrokeLineCap="Round" Opacity="0.75"/>
+        <Polyline x:Name="P2" Stroke="#8A5FFF" StrokeThickness="2.6" StrokeLineCap="Round" Opacity="0.6"/>
+        <Polyline x:Name="P3" Stroke="#FF5FAE" StrokeThickness="1.4" StrokeLineCap="Round" Opacity="0.5"/>
+    </Canvas>
+</UserControl>

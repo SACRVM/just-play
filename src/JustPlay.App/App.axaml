@@ -1,0 +1,374 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="JustPlay.App.App"
+             xmlns:conv="using:JustPlay.App.Converters"
+             RequestedThemeVariant="Dark">
+
+    <Application.Resources>
+        <!--
+          Aurora theme tokens — direct port of the design's THEMES.aurora.
+          Future themes (Sunset / Midnight / Neon) will swap these via a theme service.
+        -->
+        <Color x:Key="BgFrom">#3a1d6b</Color>
+        <Color x:Key="BgVia">#251347</Color>
+        <Color x:Key="BgTo">#120a26</Color>
+
+        <Color x:Key="AccentA">#6ce0ff</Color>   <!-- cyan  -->
+        <Color x:Key="AccentB">#ff5fae</Color>   <!-- pink  -->
+        <Color x:Key="AccentC">#8a5fff</Color>   <!-- purple -->
+        <Color x:Key="Glow">#8C69FF</Color>      <!-- = rgba(140,105,255) -->
+
+        <SolidColorBrush x:Key="AccentABrush" Color="{StaticResource AccentA}"/>
+        <SolidColorBrush x:Key="AccentBBrush" Color="{StaticResource AccentB}"/>
+        <SolidColorBrush x:Key="AccentCBrush" Color="{StaticResource AccentC}"/>
+
+        <!-- Cyan → Pink gradient used on progress, primary button, gradient text -->
+        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
+            <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+        </LinearGradientBrush>
+
+        <!-- Cyan → White → Pink — for gradient track-title text -->
+        <LinearGradientBrush x:Key="TitleGradient" StartPoint="0%,0%" EndPoint="100%,0%">
+            <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
+            <GradientStop Offset="0.5" Color="White"/>
+            <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+        </LinearGradientBrush>
+
+        <!-- Window background: linear base + two radial blooms layered on top -->
+        <LinearGradientBrush x:Key="BgLinear" StartPoint="10%,0%" EndPoint="90%,100%">
+            <GradientStop Offset="0" Color="{StaticResource BgFrom}"/>
+            <GradientStop Offset="0.5" Color="{StaticResource BgVia}"/>
+            <GradientStop Offset="1" Color="{StaticResource BgTo}"/>
+        </LinearGradientBrush>
+        <RadialGradientBrush x:Key="BgGlowA" Center="70%,20%" GradientOrigin="70%,20%" RadiusX="55%" RadiusY="55%">
+            <GradientStop Offset="0" Color="#8C69FF"/>
+            <GradientStop Offset="1" Color="#008C69FF"/>
+        </RadialGradientBrush>
+        <RadialGradientBrush x:Key="BgGlowB" Center="10%,80%" GradientOrigin="10%,80%" RadiusX="55%" RadiusY="55%">
+            <GradientStop Offset="0" Color="#558A5FFF"/>
+            <GradientStop Offset="1" Color="#008A5FFF"/>
+        </RadialGradientBrush>
+
+        <!-- Text -->
+        <SolidColorBrush x:Key="TextBrush" Color="White"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#A6FFFFFF"/>        <!-- white .65 -->
+        <SolidColorBrush x:Key="MutedDimBrush" Color="#73FFFFFF"/>     <!-- white .45 -->
+        <SolidColorBrush x:Key="MutedFaintBrush" Color="#40FFFFFF"/>   <!-- white .25 -->
+        <SolidColorBrush x:Key="HairlineBrush" Color="#14FFFFFF"/>     <!-- white .08 -->
+
+        <conv:CamelotToBrushConverter x:Key="CamelotToBrush"/>
+        <conv:CamelotBorderBrushConverter x:Key="CamelotBorder"/>
+        <conv:PlayPausePathConverter x:Key="PlayPausePath"/>
+        <conv:EnergyBarColorConverter x:Key="EnergyBarColor"/>
+        <conv:StringEqualsConverter x:Key="StringEquals"/>
+
+        <!--
+          Per-theme palette previews used as the swatches in the tweaks panel's palette
+          radio (no theme swap wired yet — values come straight from the design's THEMES).
+        -->
+        <LinearGradientBrush x:Key="SwatchAurora" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#6ce0ff"/>
+            <GradientStop Offset="0.5" Color="#8a5fff"/>
+            <GradientStop Offset="1" Color="#ff5fae"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="SwatchSunset" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#ffd166"/>
+            <GradientStop Offset="0.5" Color="#ff9966"/>
+            <GradientStop Offset="1" Color="#ff6f91"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="SwatchMidnight" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#7ad7ff"/>
+            <GradientStop Offset="0.5" Color="#2a7bff"/>
+            <GradientStop Offset="1" Color="#7c5cff"/>
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="SwatchNeon" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#5cffd4"/>
+            <GradientStop Offset="0.5" Color="#5cd0ff"/>
+            <GradientStop Offset="1" Color="#a8ff5c"/>
+        </LinearGradientBrush>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme/>
+
+        <!--
+          Global text styling:
+          • ClipToBounds=False: descenders (y, g, p, J, Y…) sometimes get cut by tight bounding
+            boxes. Letting TextBlock render past its own bounds is the cheap fix.
+          • DropShadowEffect: a soft 1-px black drop under every TextBlock. Keeps glyphs legible
+            against the aurora background, gives the whole UI a "lifted" feel. Kept small
+            (blur=2, opacity=0.4) to stay cheap to render even on dense lists.
+        -->
+        <Style Selector="TextBlock">
+            <Setter Property="ClipToBounds" Value="False"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+            </Setter>
+        </Style>
+
+        <!--
+          Caption buttons à la ../firepit-ai: square 36×36, transparent until hovered,
+          dark grey on hover, Close goes red. Path icons inside Content scale via the
+          button's Foreground so hover automatically brightens the glyph too.
+        -->
+        <Style Selector="Button.cap">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.cap:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.cap:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.cap:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+        <!--
+          The close button sits in the TOP-RIGHT corner of the window. Without this corner
+          radius its hover/pressed background paints a square red — which sticks out past
+          the card's rounded top-right corner (CornerRadius=14 on the Card Border). Giving
+          the button the same top-right radius keeps the hover red flush inside the rounded
+          window edge instead of clipping into a notch.
+        -->
+        <Style Selector="Button.cap.close">
+            <Setter Property="CornerRadius" Value="0,14,0,0"/>
+        </Style>
+        <Style Selector="Button.cap.close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123"/>
+            <Setter Property="CornerRadius" Value="0,14,0,0"/>
+        </Style>
+        <Style Selector="Button.cap.close:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.cap.close:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#A21020"/>
+            <Setter Property="CornerRadius" Value="0,14,0,0"/>
+        </Style>
+
+        <!--
+          Primary play button: vertical cyan→pink gradient, layered inset bevel + outer rings
+          + pink glow, hover scales up. Faithful port of CtrlButton(primary=true) in player.jsx.
+        -->
+        <Style Selector="Button.primary">
+            <Setter Property="Width" Value="70"/>
+            <Setter Property="Height" Value="70"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+            <Setter Property="CornerRadius" Value="35"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <!--
+                      ClipToBounds=False so the Halo's BoxShadow can extend past the 70×70
+                      button bounds. Parent chain (Button inline, transport Grid, Card) also
+                      has ClipToBounds=False.
+                    -->
+                    <Grid ClipToBounds="False">
+                        <!--
+                          Halo = transparent rounded Border with a big-blur pink BoxShadow.
+                          This is the faithful port of the mockup CSS `box-shadow: 0 0 30px
+                          accentBxx` — BoxShadow inherits the Border's CornerRadius shape so
+                          a circular border gives a circular glow, no rectangular clipping.
+
+                          BoxShadow syntax: "Xoffset Yoffset Blur Spread Color".
+                          Default (0,0,30,0,#99ff5fae) ≈ 60% alpha pink glow extending 30 px
+                          out from the button edge. Hover bumps blur to 40 and alpha to 0xCC
+                          (80%) so the glow visibly intensifies when the user is on the button.
+                        -->
+                        <Border Name="Halo"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Background="Transparent"
+                                IsHitTestVisible="False"/>
+
+                        <Border Name="MainBorder"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="37%,0%" EndPoint="63%,100%">
+                                    <GradientStop Offset="0" Color="#6ce0ff"/>
+                                    <GradientStop Offset="1" Color="#ff5fae"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <!-- Glossy top-left specular highlight -->
+                        <Border CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False">
+                            <Border.Background>
+                                <RadialGradientBrush Center="0.3,0.25" GradientOrigin="0.3,0.25" RadiusX="0.45" RadiusY="0.45">
+                                    <GradientStop Offset="0" Color="#80FFFFFF"/>
+                                    <GradientStop Offset="1" Color="#00FFFFFF"/>
+                                </RadialGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <ContentPresenter Background="Transparent"
+                                          Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <!--
+          Halo BoxShadow lives OUTSIDE the Template so :pointerover wins (inside-template
+          inline values have Local-precedence). Two states, BoxShadowsTransition gives a
+          smooth fade between them.
+        -->
+        <Style Selector="Button.primary /template/ Border#Halo">
+            <Setter Property="BoxShadow" Value="0 0 30 0 #99ff5fae"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ Border#Halo">
+            <Setter Property="BoxShadow" Value="0 0 40 0 #CCff5fae"/>
+        </Style>
+        <!--
+          BoxShadow base/hover/pressed live OUTSIDE the Template as Style Setters so :pointerover
+          and :pressed actually win (inline values inside the Template have Local-precedence and
+          would override any state Setter). Reduced blur compared to first attempt so the glow
+          doesn't extend past the card's clip-bounds.
+        -->
+        <!--
+          Halo is now drawn by a separate Ellipse BEHIND the button (in MaxView) — see there.
+          The BoxShadow here only has the 6 short-range layers (bevel + drop shadow + rings).
+          The 50-px pink ring layer was being clipped to a rectangle by Avalonia's parent-bounds
+          render constraint when on a Button.
+        -->
+        <Style Selector="Button.primary /template/ Border#MainBorder">
+            <Setter Property="BoxShadow"
+                    Value="inset 0 1 1 0 #80FFFFFF, inset 0 -2 4 0 #59000000, 0 1 0 0 #26FFFFFF, 0 6 14 0 #73000000, 0 0 0 1 #4D000000, 0 0 0 3 #0FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ Border#MainBorder">
+            <Setter Property="BoxShadow"
+                    Value="inset 0 1 1 0 #99FFFFFF, inset 0 -2 4 0 #59000000, 0 1 0 0 #26FFFFFF, 0 6 14 0 #73000000, 0 0 0 1 #4D000000, 0 0 0 3 #1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ Border#MainBorder">
+            <Setter Property="BoxShadow"
+                    Value="inset 0 3 6 0 #73000000, inset 0 -1 1 0 #33FFFFFF, 0 1 2 0 #66000000, 0 0 0 3 #0AFFFFFF"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.04)"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.primary:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!--
+          Belt-and-braces ContentPresenter overrides for ALL states. FluentTheme has
+          rules for both Background and BorderBrush on the templated ContentPresenter
+          (matched by type even without #PART_ContentPresenter name). Override here so
+          nothing leaks through and creates the "box behind the icon" the user sees.
+        -->
+        <Style Selector="Button.primary /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.primary:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.ctrl /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.ctrl:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.ctrl:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+
+        <!--
+          Secondary ctrl button (prev/next): subtle radial glass-button look, inset bevel,
+          gentle outer ring. Hover scales up slightly. Port of CtrlButton(primary=false).
+        -->
+        <Style Selector="Button.ctrl">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="CornerRadius" Value="23"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Border Name="MainBorder"
+                                CornerRadius="{TemplateBinding CornerRadius}">
+                            <Border.Background>
+                                <RadialGradientBrush Center="0.35,0.3" GradientOrigin="0.35,0.3" RadiusX="0.7" RadiusY="0.7">
+                                    <GradientStop Offset="0" Color="#33FFFFFF"/>
+                                    <GradientStop Offset="0.6" Color="#08FFFFFF"/>
+                                    <GradientStop Offset="1" Color="#33000000"/>
+                                </RadialGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Border CornerRadius="{TemplateBinding CornerRadius}" IsHitTestVisible="False">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,50%">
+                                    <GradientStop Offset="0" Color="#33FFFFFF"/>
+                                    <GradientStop Offset="1" Color="#00FFFFFF"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <ContentPresenter Background="Transparent"
+                                          Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.ctrl /template/ Border#MainBorder">
+            <Setter Property="BoxShadow"
+                    Value="inset 0 1 0 0 #80FFFFFF, inset 0 -1 2 0 #66000000, 0 2 4 0 #66000000, 0 0 0 1 #29FFFFFF"/>
+        </Style>
+        <Style Selector="Button.ctrl:pointerover /template/ Border#MainBorder">
+            <Setter Property="BoxShadow"
+                    Value="inset 0 1 0 0 #B3FFFFFF, inset 0 -1 2 0 #66000000, 0 2 4 0 #80000000, 0 0 0 1 #4DFFFFFF, 0 0 14 0 #40FFFFFF"/>
+        </Style>
+        <Style Selector="Button.ctrl:pressed /template/ Border#MainBorder">
+            <Setter Property="BoxShadow"
+                    Value="inset 0 2 5 0 #80000000, inset 0 -1 1 0 #14FFFFFF, 0 0 0 1 #66000000"/>
+        </Style>
+        <Style Selector="Button.ctrl:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.06)"/>
+        </Style>
+        <Style Selector="Button.ctrl:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+        </Style>
+    </Application.Styles>
+</Application>

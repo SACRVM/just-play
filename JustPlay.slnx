@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JustPlay.Analysis/JustPlay.Analysis.csproj" />
+    <Project Path="src/JustPlay.App/JustPlay.App.csproj" />
+    <Project Path="src/JustPlay.Audio.Bass/JustPlay.Audio.Bass.csproj" />
+    <Project Path="src/JustPlay.Core/JustPlay.Core.csproj" />
+    <Project Path="src/JustPlay.Metadata/JustPlay.Metadata.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JustPlay.Analysis.Tests/JustPlay.Analysis.Tests.csproj" />
+    <Project Path="tests/JustPlay.Core.Tests/JustPlay.Core.Tests.csproj" />
+  </Folder>
+</Solution>

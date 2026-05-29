@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280" />
+<title>Just Play — Desktop Music Player</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Major+Mono+Display&display=swap" rel="stylesheet" />
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #07050f;
+    color: #fff;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+  }
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse at 30% 0%, rgba(60,40,90,.25), transparent 60%),
+      radial-gradient(ellipse at 70% 100%, rgba(40,60,120,.2), transparent 55%),
+      #07050f;
+  }
+  #canvas {
+    position: relative;
+    width: var(--canvas-w, 1280px);
+    height: var(--canvas-h, 820px);
+    flex-shrink: 0;
+    transform-origin: center center;
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.06),
+      0 40px 80px -20px rgba(0,0,0,.8),
+      0 80px 160px -40px rgba(120,80,200,.25);
+    overflow: hidden;
+    transition: width .35s cubic-bezier(.4,0,.2,1), height .35s cubic-bezier(.4,0,.2,1);
+  }
+  #root {
+    position: absolute; inset: 0;
+  }
+  /* Hide preview chrome scrollbars completely */
+  body::-webkit-scrollbar { display: none; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="canvas">
+      <div id="root"></div>
+    </div>
+  </div>
+
+  <script>
+    // Scale-to-fit the canvas in the viewport. Reads its own computed width/height
+    // so it tracks --canvas-w / --canvas-h changes (e.g. compact mode toggle).
+    (function() {
+      const canvas = document.getElementById('canvas');
+      const fit = () => {
+        const w = canvas.offsetWidth || 1280;
+        const h = canvas.offsetHeight || 820;
+        const sx = window.innerWidth / w;
+        const sy = window.innerHeight / h;
+        const s = Math.min(sx, sy, 1);
+        canvas.style.transform = `scale(${s})`;
+      };
+      window.addEventListener('resize', fit);
+      // Also rescale once the transition between sizes settles
+      canvas.addEventListener('transitionend', fit);
+      fit();
+    })();
+  </script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="player.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

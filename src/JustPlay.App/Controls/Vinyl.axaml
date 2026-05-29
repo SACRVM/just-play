@@ -1,0 +1,180 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:JustPlay.App.Controls"
+             x:Class="JustPlay.App.Controls.Vinyl"
+             x:DataType="controls:Vinyl"
+             Width="468" Height="360">
+
+    <Grid>
+        <!-- VINYL — sits BEHIND the sleeve, pushed right so ~30% pokes out. Spins.
+             RenderTransformOrigin is INTENTIONALLY NOT set here — the rotation pivot lives
+             on the RotateTransform itself (CenterX/CenterY=180, set in code-behind). If we
+             set RenderTransformOrigin AS WELL, Avalonia stacks them and the disc rotates
+             around (360, 360) = bottom-right corner instead of the centre. -->
+        <Grid x:Name="VinylGroup" Width="360" Height="360" HorizontalAlignment="Right">
+
+            <Ellipse Width="360" Height="360">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                        <GradientStop Offset="0" Color="#1a1216"/>
+                        <GradientStop Offset="0.78" Color="#080406"/>
+                        <GradientStop Offset="0.95" Color="#000000"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <!-- A few groove suggestions -->
+            <Ellipse Width="340" Height="340" Stroke="#14FFFFFF" StrokeThickness="0.7"/>
+            <Ellipse Width="300" Height="300" Stroke="#0DFFFFFF" StrokeThickness="0.6"/>
+            <Ellipse Width="260" Height="260" Stroke="#14FFFFFF" StrokeThickness="0.7"/>
+            <Ellipse Width="220" Height="220" Stroke="#0DFFFFFF" StrokeThickness="0.6"/>
+            <Ellipse Width="180" Height="180" Stroke="#14FFFFFF" StrokeThickness="0.7"/>
+
+            <Ellipse Width="356" Height="356">
+                <Ellipse.Fill>
+                    <LinearGradientBrush StartPoint="20%,10%" EndPoint="80%,90%">
+                        <GradientStop Offset="0" Color="#00FFFFFF"/>
+                        <GradientStop Offset="0.5" Color="#26FFFFFF"/>
+                        <GradientStop Offset="1" Color="#00FFFFFF"/>
+                    </LinearGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <Ellipse Width="126" Height="126" Fill="#99000000"/>
+            <Ellipse Width="120" Height="120">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.55" RadiusY="0.55">
+                        <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
+                        <GradientStop Offset="0.45" Color="{StaticResource AccentC}"/>
+                        <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <Ellipse Width="120" Height="120">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="0.4,0.4" GradientOrigin="0.4,0.4" RadiusX="0.6" RadiusY="0.6">
+                        <GradientStop Offset="0" Color="#59FFFFFF"/>
+                        <GradientStop Offset="0.6" Color="#00FFFFFF"/>
+                        <GradientStop Offset="1" Color="#59000000"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <TextBlock Text="JUST PLAY" FontWeight="Bold" FontSize="9" Foreground="#E6FFFFFF"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,28"/>
+            <TextBlock Text="A · 33⅓" FontSize="7" Foreground="#73FFFFFF"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,28,0,0"/>
+
+            <Ellipse Width="6" Height="6" Fill="Black"/>
+        </Grid>
+
+        <!--
+          SLEEVE — square cardboard sleeve in FRONT of the vinyl.
+          Stronger BoxShadow stack so the sleeve clearly separates from the aurora background:
+            • Layer 1: a deep, slightly offset black drop (the cardboard's gravity).
+            • Layer 2: a 1-px white inner highlight (top edge of the sleeve catching light).
+            • Layer 3: a soft purple aura — picks up the BgGlow tint so the sleeve feels lit by
+              the room, not pasted on top.
+        -->
+        <Border x:Name="Sleeve" Width="360" Height="360" HorizontalAlignment="Left"
+                CornerRadius="6" ClipToBounds="True"
+                BoxShadow="0 30 60 -8 #BF000000, 0 0 0 1 #1FFFFFFF, 0 0 50 -10 #408a5fff">
+            <Panel>
+                <!--
+                  Source bound EXPLICITLY to the Vinyl ancestor's Cover styled-property via
+                  $parent. The earlier `DataContext = this`-in-ctor approach was a known
+                  source of intermittent failures (compiled bindings can evaluate against
+                  the inherited DataContext before our ctor's assignment takes effect, and
+                  then never re-bind). $parent[controls:Vinyl] is element-relative and
+                  doesn't depend on DataContext at all — it just walks up to find Vinyl.
+                -->
+                <Image Source="{Binding $parent[controls:Vinyl].Cover}" Stretch="UniformToFill"/>
+
+                <!--
+                  Themed placeholder mirroring the design's AlbumCover (LOUD / RIHANNA),
+                  visible whenever no real cover bitmap is present. Same $parent binding.
+                -->
+                <Panel IsVisible="{Binding $parent[controls:Vinyl].Cover, Converter={x:Static ObjectConverters.IsNull}}"
+                       ClipToBounds="True">
+
+                    <!-- Pink → purple → cyan gradient base -->
+                    <Border>
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="10%,0%" EndPoint="90%,100%">
+                                <GradientStop Offset="0" Color="{StaticResource AccentB}"/>
+                                <GradientStop Offset="0.55" Color="{StaticResource AccentC}"/>
+                                <GradientStop Offset="1" Color="{StaticResource AccentA}"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+
+                    <!-- Top-right specular highlight -->
+                    <Border>
+                        <Border.Background>
+                            <RadialGradientBrush Center="0.78,0.22" GradientOrigin="0.78,0.22" RadiusX="0.55" RadiusY="0.55">
+                                <GradientStop Offset="0" Color="#2EFFFFFF"/>
+                                <GradientStop Offset="1" Color="#00FFFFFF"/>
+                            </RadialGradientBrush>
+                        </Border.Background>
+                    </Border>
+
+                    <!-- Centered subtle radial spot -->
+                    <Border>
+                        <Border.Background>
+                            <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                                <GradientStop Offset="0" Color="#0FFFFFFF"/>
+                                <GradientStop Offset="0.8" Color="#00FFFFFF"/>
+                            </RadialGradientBrush>
+                        </Border.Background>
+                    </Border>
+
+                    <!--
+                      Concentric "sound-wave" rings in the bottom-right area.
+                      Centered at (78%, 78%) of the 360-px sleeve = (281, 281).
+                      Radii from the design (38/28/20/14/9 in a 100-unit viewBox) scaled ×3.6.
+                    -->
+                    <Canvas Width="360" Height="360">
+                        <Ellipse Width="274" Height="274" Canvas.Left="144" Canvas.Top="144"
+                                 Stroke="#52FFFFFF" StrokeThickness="0.7"/>
+                        <Ellipse Width="202" Height="202" Canvas.Left="180" Canvas.Top="180"
+                                 Stroke="#52FFFFFF" StrokeThickness="0.6"/>
+                        <Ellipse Width="144" Height="144" Canvas.Left="209" Canvas.Top="209"
+                                 Stroke="#52FFFFFF" StrokeThickness="0.5"/>
+                        <Ellipse Width="100" Height="100" Canvas.Left="231" Canvas.Top="231"
+                                 Stroke="#52FFFFFF" StrokeThickness="0.45"/>
+                        <Ellipse Width="64" Height="64" Canvas.Left="249" Canvas.Top="249"
+                                 Stroke="#52FFFFFF" StrokeThickness="0.4"/>
+                    </Canvas>
+
+                    <!-- LOUD title — more breathing room above the divider so it doesn't sit on the text. -->
+                    <TextBlock Text="LOUD" FontSize="78" FontWeight="Black"
+                               Foreground="#F7FFFFFF" LineHeight="74"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,82,0,0"/>
+                    <Border Width="72" Height="2" Background="#D9FFFFFF"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,184,0,0"/>
+                    <TextBlock Text="RIHANNA" FontSize="15" FontWeight="SemiBold" LetterSpacing="6"
+                               Foreground="#C7FFFFFF"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,196,0,0"/>
+
+                    <!-- SIDE · A bottom-left -->
+                    <TextBlock Text="SIDE · A" FontSize="11" FontWeight="SemiBold" LetterSpacing="4"
+                               Foreground="#73FFFFFF"
+                               HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="32,0,0,24"/>
+                    <!-- Year bottom-right -->
+                    <TextBlock Text="2010" FontSize="12" FontWeight="Medium" LetterSpacing="3"
+                               Foreground="#8CFFFFFF"
+                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,32,22"/>
+                </Panel>
+
+                <!-- Soft right-edge shadow where the vinyl emerges -->
+                <Border HorizontalAlignment="Right" Width="14" IsHitTestVisible="False">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="100%,0%" EndPoint="0%,0%">
+                            <GradientStop Offset="0" Color="#3D000000"/>
+                            <GradientStop Offset="1" Color="#00000000"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+            </Panel>
+        </Border>
+    </Grid>
+</UserControl>

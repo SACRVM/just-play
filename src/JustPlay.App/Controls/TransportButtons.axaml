@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustPlay.App.ViewModels"
+             xmlns:controls="using:JustPlay.App.Controls"
+             x:Class="JustPlay.App.Controls.TransportButtons"
+             x:DataType="vm:MainWindowViewModel"
+             ClipToBounds="False">
+
+    <!--
+      Shared prev / play / next transport cluster — used by BOTH MaxView and MiniView.
+      Sizes default to MaxView (46 ctrl / 70 primary). Code-behind switches to MiniView
+      (38 / 54) when the Compact styled-property is True. The expensive styling polish
+      (skeu ControlTemplate, BoxShadow halo, hover glow, centred scale, transitions) all
+      lives in App.axaml on Button.ctrl / Button.primary — both views inherit it for free.
+
+      IMPORTANT — Stretch="None" on every Path, NOT Uniform:
+        Uniform normalises the geometry's bounding box to (0,0) before scaling. Our play
+        triangle "M 5,0 L 5,22 L 20,11 Z" has 5 px of empty space on the LEFT, INTENTIONALLY,
+        so the triangle's visual centroid (which is at 1/3 of width from base for any
+        right-pointing triangle, not at geometric centre) ends up at (10, 11) = exact
+        box centre. Uniform would strip that padding and shift the triangle 5 px left
+        of the button's centre, making the whole play-button look mis-aligned.
+      With Stretch="None" the geometry renders at its original coordinates inside the Path's
+      Width x Height layout box. To get a smaller icon in Mini mode we apply a centred
+      RenderTransform=ScaleTransform in the code-behind — that scales around the icon's
+      centre, so the centroid stays put.
+
+      Play vs Pause is now TWO inline Paths with IsVisible toggling (matching prev/next
+      style — no more dynamic geometry coming out of a converter).
+    -->
+    <StackPanel x:Name="ButtonStack" Orientation="Horizontal"
+                HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
+
+        <Button x:Name="PrevButton" Classes="ctrl" Command="{Binding PreviousCommand}"
+                ClipToBounds="False" RenderTransformOrigin="50%,50%">
+            <Path x:Name="PrevIcon" Width="18" Height="14" Stretch="None"
+                  RenderTransformOrigin="50%,50%"
+                  Fill="{Binding $parent[Button].Foreground}"
+                  Data="M 0,0 L 2,0 L 2,14 L 0,14 Z M 18,0 L 18,14 L 5,7 Z"/>
+        </Button>
+
+        <Button x:Name="PlayButton" Classes="primary" Command="{Binding TogglePlayPauseCommand}"
+                ClipToBounds="False" RenderTransformOrigin="50%,50%">
+            <!-- Both icons share the same Path bounding box (20x22) and same Stretch/Origin so
+                 the layout slot stays identical when toggling, and the scale-transform we apply
+                 for Compact mode hits both. The Panel just stacks them; IsVisible picks one. -->
+            <Panel>
+                <Path x:Name="PlayIcon" Width="20" Height="22" Stretch="None"
+                      RenderTransformOrigin="50%,50%"
+                      Fill="White"
+                      IsVisible="{Binding !IsPlaying}"
+                      Data="M 5,0 L 5,22 L 20,11 Z"/>
+                <Path x:Name="PauseIcon" Width="20" Height="22" Stretch="None"
+                      RenderTransformOrigin="50%,50%"
+                      Fill="White"
+                      IsVisible="{Binding IsPlaying}"
+                      Data="M 0,0 L 7,0 L 7,22 L 0,22 Z M 13,0 L 20,0 L 20,22 L 13,22 Z"/>
+            </Panel>
+        </Button>
+
+        <Button x:Name="NextButton" Classes="ctrl" Command="{Binding NextCommand}"
+                ClipToBounds="False" RenderTransformOrigin="50%,50%">
+            <Path x:Name="NextIcon" Width="18" Height="14" Stretch="None"
+                  RenderTransformOrigin="50%,50%"
+                  Fill="{Binding $parent[Button].Foreground}"
+                  Data="M 16,0 L 18,0 L 18,14 L 16,14 Z M 0,0 L 13,7 L 0,14 Z"/>
+        </Button>
+    </StackPanel>
+</UserControl>

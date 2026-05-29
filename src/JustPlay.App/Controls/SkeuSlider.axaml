@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:JustPlay.App.Controls"
+             x:Class="JustPlay.App.Controls.SkeuSlider"
+             x:DataType="controls:SkeuSlider"
+             Height="22" MinWidth="60"
+             Background="Transparent"
+             ClipToBounds="False">
+    <Grid Margin="9,0" ClipToBounds="False">
+
+        <!-- Inset rail -->
+        <Border Height="6" CornerRadius="3" VerticalAlignment="Center"
+                BoxShadow="inset 0 1 2 0 #B3000000, inset 0 -1 0 0 #14FFFFFF">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Offset="0" Color="#80000000"/>
+                    <GradientStop Offset="1" Color="#40000000"/>
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <!-- Filled portion (cyan → pink). Hidden by code-behind when Value=0. -->
+        <Border Name="Fill" Height="3" CornerRadius="1.5"
+                HorizontalAlignment="Left" VerticalAlignment="Center"
+                Width="0"
+                Background="{StaticResource AccentGradient}"
+                BoxShadow="inset 0 1 0 0 #66FFFFFF"/>
+
+        <!--
+          BOTH thumbs (progress + volume) now share the same skeu treatment as the play
+          button: cyan→pink linear gradient, inset bevel via multi-layer BoxShadow, top-left
+          glossy specular Ellipse, soft pink outer glow. Volume thumb is just a smaller
+          version of the progress thumb — same material, different size. No more grey chrome.
+        -->
+
+        <!-- Accent thumb (progress). Visibility toggled in code-behind. -->
+        <Border Name="AccentThumb" Width="18" Height="18" CornerRadius="9"
+                HorizontalAlignment="Left" VerticalAlignment="Center"
+                BorderThickness="0"
+                BoxShadow="inset 0 1 1 0 #B3FFFFFF, inset 0 -2 3 0 #66000000, 0 2 4 0 #99000000, 0 0 0 1 #59000000, 0 0 10 0 #80ff5fae">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0.37,0" EndPoint="0.63,1">
+                    <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
+                    <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <!-- Top-left glossy specular (radial white spot) — same trick as play button. -->
+            <Border CornerRadius="9" IsHitTestVisible="False">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.3,0.25" GradientOrigin="0.3,0.25" RadiusX="0.55" RadiusY="0.55">
+                        <GradientStop Offset="0" Color="#B3FFFFFF"/>
+                        <GradientStop Offset="1" Color="#00FFFFFF"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+        </Border>
+
+        <!-- Chrome thumb (volume). Same skeu treatment, just smaller (14 instead of 18). -->
+        <Border Name="ChromeThumb" Width="14" Height="14" CornerRadius="7"
+                HorizontalAlignment="Left" VerticalAlignment="Center"
+                BorderThickness="0"
+                BoxShadow="inset 0 1 1 0 #B3FFFFFF, inset 0 -2 2 0 #66000000, 0 2 3 0 #99000000, 0 0 0 1 #59000000, 0 0 8 0 #80ff5fae">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0.37,0" EndPoint="0.63,1">
+                    <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
+                    <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border CornerRadius="7" IsHitTestVisible="False">
+                <Border.Background>
+                    <RadialGradientBrush Center="0.3,0.25" GradientOrigin="0.3,0.25" RadiusX="0.55" RadiusY="0.55">
+                        <GradientStop Offset="0" Color="#B3FFFFFF"/>
+                        <GradientStop Offset="1" Color="#00FFFFFF"/>
+                    </RadialGradientBrush>
+                </Border.Background>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
