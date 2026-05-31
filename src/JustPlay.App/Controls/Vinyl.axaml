@@ -82,9 +82,9 @@
             <Ellipse Width="120" Height="120">
                 <Ellipse.Fill>
                     <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.55" RadiusY="0.55">
-                        <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
-                        <GradientStop Offset="0.45" Color="{StaticResource AccentC}"/>
-                        <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+                        <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
+                        <GradientStop Offset="0.45" Color="{DynamicResource AccentC}"/>
+                        <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
                     </RadialGradientBrush>
                 </Ellipse.Fill>
             </Ellipse>
@@ -122,7 +122,7 @@
         -->
         <Border Width="360" Height="360" HorizontalAlignment="Left"
                 CornerRadius="6" Background="Transparent"
-                BoxShadow="0 30 60 -8 #BF000000, 0 0 0 1 #1FFFFFFF, 0 0 50 -10 #408a5fff">
+                BoxShadow="{DynamicResource SleeveOuter}">
             <!--
               INNER Border — clips the cover image to the rounded corner, and carries
               ONLY the inset top-edge white highlight (port of the design's
@@ -154,9 +154,9 @@
                     <Border>
                         <Border.Background>
                             <LinearGradientBrush StartPoint="10%,0%" EndPoint="90%,100%">
-                                <GradientStop Offset="0" Color="{StaticResource AccentB}"/>
-                                <GradientStop Offset="0.55" Color="{StaticResource AccentC}"/>
-                                <GradientStop Offset="1" Color="{StaticResource AccentA}"/>
+                                <GradientStop Offset="0" Color="{DynamicResource AccentB}"/>
+                                <GradientStop Offset="0.55" Color="{DynamicResource AccentC}"/>
+                                <GradientStop Offset="1" Color="{DynamicResource AccentA}"/>
                             </LinearGradientBrush>
                         </Border.Background>
                     </Border>
@@ -213,11 +213,19 @@
                     <TextBlock Text="PLAY" FontSize="78" FontWeight="Black"
                                Foreground="#F7FFFFFF" LineHeight="74"
                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,156,0,0"/>
+                    <!--
+                      Divider Y = PLAY-Top (156) + FontSize (78) + 24-px breathing room = 258.
+                      LineHeight (74) < FontSize (78), so the glyph descenders reach ~y=234;
+                      using +82 instead of +102 collapsed the gap to 4 px and the divider
+                      crushed against the "Y" — same regression we already fixed once when the
+                      mockup was still "LOUD" / "RIHANNA". For any multi-line headline above
+                      this divider, always offset by FontSize, never by LineHeight.
+                    -->
                     <Border Width="72" Height="2" Background="#D9FFFFFF"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,238,0,0"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,258,0,0"/>
                     <TextBlock Text="DROP A TRACK" FontSize="11" FontWeight="SemiBold" LetterSpacing="4"
                                Foreground="#A6FFFFFF"
-                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,250,0,0"/>
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,270,0,0"/>
                 </Panel>
 
                 <!-- Soft right-edge shadow where the vinyl emerges -->

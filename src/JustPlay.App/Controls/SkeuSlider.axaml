@@ -23,7 +23,7 @@
         <Border Name="Fill" Height="3" CornerRadius="1.5"
                 HorizontalAlignment="Left" VerticalAlignment="Center"
                 Width="0"
-                Background="{StaticResource AccentGradient}"
+                Background="{DynamicResource AccentGradient}"
                 BoxShadow="inset 0 1 0 0 #66FFFFFF"/>
 
         <!--
@@ -33,15 +33,18 @@
           version of the progress thumb — same material, different size. No more grey chrome.
         -->
 
-        <!-- Accent thumb (progress). Visibility toggled in code-behind. -->
+        <!-- Accent thumb (progress). Visibility toggled in code-behind.
+             BoxShadow stack lives in AvaloniaThemeService (multi-layer with theme-
+             driven halo as the final entry). Hardcoded string would freeze the halo
+             colour to Aurora's pink across all four themes. -->
         <Border Name="AccentThumb" Width="18" Height="18" CornerRadius="9"
                 HorizontalAlignment="Left" VerticalAlignment="Center"
                 BorderThickness="0"
-                BoxShadow="inset 0 1 1 0 #B3FFFFFF, inset 0 -2 3 0 #66000000, 0 2 4 0 #99000000, 0 0 0 1 #59000000, 0 0 10 0 #80ff5fae">
+                BoxShadow="{DynamicResource SkeuSliderProgressThumbShadow}">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0.37,0" EndPoint="0.63,1">
-                    <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
-                    <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+                    <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
+                    <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
                 </LinearGradientBrush>
             </Border.Background>
             <!-- Top-left glossy specular (radial white spot) — same trick as play button. -->
@@ -55,15 +58,15 @@
             </Border>
         </Border>
 
-        <!-- Chrome thumb (volume). Same skeu treatment, just smaller (14 instead of 18). -->
+        <!-- Chrome thumb (volume). Same skeu treatment as the accent thumb, just smaller. -->
         <Border Name="ChromeThumb" Width="14" Height="14" CornerRadius="7"
                 HorizontalAlignment="Left" VerticalAlignment="Center"
                 BorderThickness="0"
-                BoxShadow="inset 0 1 1 0 #B3FFFFFF, inset 0 -2 2 0 #66000000, 0 2 3 0 #99000000, 0 0 0 1 #59000000, 0 0 8 0 #80ff5fae">
+                BoxShadow="{DynamicResource SkeuSliderChromeThumbShadow}">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0.37,0" EndPoint="0.63,1">
-                    <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
-                    <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
+                    <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
+                    <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
                 </LinearGradientBrush>
             </Border.Background>
             <Border CornerRadius="7" IsHitTestVisible="False">

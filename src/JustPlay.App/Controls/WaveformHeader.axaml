@@ -7,10 +7,12 @@
       Static for now — will dance to BPM/energy in a later turn (the design's
       beat-driven scaleY algorithm needs the audio-engine analysis loop wired up).
     -->
+    <!-- Strokes pulled from the live theme palette so Sunset/Midnight/Neon recolour
+         the waveform too. P0/P3 = warm AccentB, P1 = cool AccentA, P2 = AccentC. -->
     <Canvas x:Name="Canvas">
-        <Polyline x:Name="P0" Stroke="#FF5FAE" StrokeThickness="2.4" StrokeLineCap="Round" Opacity="0.85"/>
-        <Polyline x:Name="P1" Stroke="#6CE0FF" StrokeThickness="1.9" StrokeLineCap="Round" Opacity="0.75"/>
-        <Polyline x:Name="P2" Stroke="#8A5FFF" StrokeThickness="2.6" StrokeLineCap="Round" Opacity="0.6"/>
-        <Polyline x:Name="P3" Stroke="#FF5FAE" StrokeThickness="1.4" StrokeLineCap="Round" Opacity="0.5"/>
+        <Polyline x:Name="P0" Stroke="{DynamicResource AccentBBrush}" StrokeThickness="2.4" StrokeLineCap="Round" Opacity="0.85"/>
+        <Polyline x:Name="P1" Stroke="{DynamicResource AccentABrush}" StrokeThickness="1.9" StrokeLineCap="Round" Opacity="0.75"/>
+        <Polyline x:Name="P2" Stroke="{DynamicResource AccentCBrush}" StrokeThickness="2.6" StrokeLineCap="Round" Opacity="0.6"/>
+        <Polyline x:Name="P3" Stroke="{DynamicResource AccentBBrush}" StrokeThickness="1.4" StrokeLineCap="Round" Opacity="0.5"/>
     </Canvas>
 </UserControl>

@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
+using JustPlay.Core.Theming;
 
 namespace JustPlay.App.ViewModels;
 
@@ -23,17 +24,40 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly PlaybackController _controller;
     private readonly IMetadataReader _metadata;
     private readonly ITrackAnalysisService _analysis;
+    private readonly ISettingsService _settings;
+    private readonly IThemeService _themes;
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
+
+    // Suppress persistence while the constructor seeds [ObservableProperty]
+    // backing fields from the loaded settings. Without this guard, the very
+    // first assignment of each tweak property would trigger an On…Changed
+    // partial that writes the just-loaded value straight back to disk — an
+    // unnecessary save on every cold start.
+    private bool _settingsHydrated;
 
     public MainWindowViewModel(
         PlaybackController controller,
         IMetadataReader metadata,
-        ITrackAnalysisService analysis)
+        ITrackAnalysisService analysis,
+        ISettingsService settings,
+        IThemeService themes)
     {
         _controller = controller;
         _metadata = metadata;
         _analysis = analysis;
+        _settings = settings;
+        _themes = themes;
+
+        // Seed the tweak properties from persisted settings BEFORE wiring
+        // any change-listeners — so the seeding itself does not echo back to
+        // disk via On…Changed → Save.
+        var s = _settings.Current;
+        _currentTheme = s.Theme;
+        _vinylSpinEnabled = s.VinylSpinEnabled;
+        _waveformEnabled = s.WaveformEnabled;
+        _defaultTab = s.DefaultTab;
+        _settingsHydrated = true;
 
         _controller.StateChanged += OnEngineStateChanged;
         _controller.TrackEnded += OnTrackEnded;
@@ -65,6 +89,48 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool ShouldSpin => IsPlaying && VinylSpinEnabled;
 
     partial void OnIsPlayingChanged(bool value) => OnPropertyChanged(nameof(ShouldSpin));
+
+    // ── Tweaks persistence ───────────────────────────────────────────────
+    // Each tweak property's partial On…Changed updates the in-memory settings
+    // and writes them to disk. CurrentTheme additionally tells the theme
+    // service to apply the new palette so the change is visible immediately.
+    //
+    // Guarded by _settingsHydrated so the constructor-time seeding of the
+    // backing fields does not echo back into Save() — that would be both
+    // wasteful and risk a startup-time write to a not-yet-writable location.
+
+    partial void OnCurrentThemeChanged(string value)
+    {
+        if (!_settingsHydrated) return;
+        _themes.Apply(Themes.ByNameOrDefault(value));
+        PersistSettings();
+    }
+
+    partial void OnVinylSpinEnabledChanged(bool value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    partial void OnWaveformEnabledChanged(bool value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    partial void OnDefaultTabChanged(string value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    private void PersistSettings() => _settings.Save(new UserSettings
+    {
+        Theme            = CurrentTheme,
+        VinylSpinEnabled = VinylSpinEnabled,
+        WaveformEnabled  = WaveformEnabled,
+        DefaultTab       = DefaultTab,
+    });
 
     public string PositionText => Format(PositionSeconds);
     public string DurationText => Format(DurationSeconds);
@@ -126,7 +192,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void ToggleTweaks() => IsTweaksOpen = !IsTweaksOpen;
 
-    /// <summary>Set the active palette (Aurora / Sunset / Midnight / Neon). Visual only for now.</summary>
+    /// <summary>
+    /// Switch to one of the built-in palettes (Aurora / Sunset / Midnight / Neon).
+    /// The actual swap and persistence happen in <see cref="OnCurrentThemeChanged"/> —
+    /// this command exists so the Tweaks-panel swatch buttons can fire it via
+    /// <c>CommandParameter</c>; setting the property directly from a Binding would
+    /// also work but the swatch buttons are click-based.
+    /// </summary>
     [RelayCommand]
     private void SetTheme(string? name)
     {

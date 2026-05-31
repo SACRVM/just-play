@@ -17,12 +17,15 @@
           Row hover / selected backgrounds — 1:1 port of the design's QueueRow brush
           (.design/just-play-music-player/project/app.jsx, function QueueRow line ~154):
 
-              active : linear-gradient(90deg, accentC·0.133, accentB·0.063 @60%, transparent)
+              active : linear-gradient(90deg, ${accentC}22, ${accentB}10 @60%, transparent)
               hover  : rgba(255,255,255,.04)         // a FLAT colour, not a gradient
               base   : transparent
 
-          Aurora theme: accentC = #8a5fff (purple), accentB = #ff5fae (pink). Alpha
-          conversions for Avalonia's ARGB hex: 0.133 → 0x22, 0.063 → 0x10, 0.04 → 0x0A.
+          The design's gradient uses theme-driven accents, NOT hardcoded Aurora colours.
+          AccentCRow/AccentBRow are pre-alphaised colour keys that AvaloniaThemeService
+          recomputes per theme (CSS `${accent}22` semantics), so a switch to Sunset
+          recolours the active-row swipe to its warm orange tones instead of leaving
+          Aurora's purple-pink stuck on every theme.
 
           IMPORTANT — % suffix on the points is mandatory: Avalonia 12 parses bare "1,0"
           as ABSOLUTE PIXELS (RelativeUnit.Absolute), which collapses the gradient to a
@@ -30,31 +33,30 @@
           so the gradient actually spans the whole row width.
         -->
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <!-- Design hover: flat rgba(255,255,255,.04). NOT a gradient. -->
+            <!-- Design hover: flat rgba(255,255,255,.04). Not theme-derived. -->
             <Setter Property="Background" Value="#0AFFFFFF"/>
             <Setter Property="CornerRadius" Value="0"/>
         </Style>
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
-                    <GradientStop Offset="0"   Color="#228a5fff"/>  <!-- AccentC purple, α .133 -->
-                    <GradientStop Offset="0.6" Color="#10ff5fae"/>  <!-- AccentB pink,   α .063 -->
-                    <GradientStop Offset="1"   Color="#00000000"/>  <!-- transparent -->
+                    <GradientStop Offset="0"   Color="{DynamicResource AccentCRow}"/>
+                    <GradientStop Offset="0.6" Color="{DynamicResource AccentBRow}"/>
+                    <GradientStop Offset="1"   Color="#00000000"/>
                 </LinearGradientBrush>
             </Setter>
             <Setter Property="CornerRadius" Value="0"/>
         </Style>
         <!--
-          Hover OVER an already-selected row: keep the Aurora swipe but lift it slightly
-          so the user gets feedback they're pointing at the current track. Composed by
-          letting :selected win the brush (the gradient) and only tweaking opacity-ish
-          weight via a brighter purple stop — still well below the row text.
+          Hover OVER an already-selected row: same gradient, slightly stronger alphas
+          (AccentCRowHover/AccentBRowHover) so the user gets pointer feedback on the
+          active track. Same theme-tracking semantics as the base :selected stops.
         -->
         <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
-                    <GradientStop Offset="0"   Color="#338a5fff"/>  <!-- purple α .20 -->
-                    <GradientStop Offset="0.6" Color="#1Aff5fae"/>  <!-- pink   α .10 -->
+                    <GradientStop Offset="0"   Color="{DynamicResource AccentCRowHover}"/>
+                    <GradientStop Offset="0.6" Color="{DynamicResource AccentBRowHover}"/>
                     <GradientStop Offset="1"   Color="#00000000"/>
                 </LinearGradientBrush>
             </Setter>
@@ -136,7 +138,7 @@
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
         <Style Selector="Button.tab.active Border.tabline">
-            <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
         </Style>
 
         <!--
@@ -220,7 +222,7 @@
             <Setter Property="RadiusX" Value="1"/>
             <Setter Property="RadiusY" Value="1"/>
             <Setter Property="VerticalAlignment" Value="Bottom"/>
-            <Setter Property="Fill" Value="{StaticResource AccentABrush}"/>
+            <Setter Property="Fill" Value="{DynamicResource AccentABrush}"/>
         </Style>
         <Style Selector="Rectangle.pbar1">
             <Style.Animations>
@@ -287,7 +289,7 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
         <Style Selector="Button.tweak-radio.active">
-            <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
@@ -303,9 +305,10 @@
                     <!-- Brand -->
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="14,0,0,0">
                         <Border Width="20" Height="20" CornerRadius="5"
-                                Background="{StaticResource AccentGradient}">
+                                Background="{DynamicResource AccentGradient}">
                             <Border.Effect>
-                                <DropShadowEffect Color="#ff5fae" BlurRadius="8" OffsetX="0" OffsetY="0" Opacity="0.45"/>
+                                <!-- Halo colour tracks the live theme's warm accent. -->
+                                <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="8" OffsetX="0" OffsetY="0" Opacity="0.45"/>
                             </Border.Effect>
                             <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="8" Height="8"/>
                         </Border>
@@ -328,15 +331,10 @@
                                    FontSize="11" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- App icon buttons (square, same style as window controls — keeps the chrome consistent) -->
+                    <!-- App icon buttons (square, same style as window controls — keeps the chrome consistent).
+                         Search was removed 2026-05-31 — JustPlay queues are short-by-design (drop-and-play, no
+                         library), so scrolling beats searching. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-                        <!-- Search: magnifying glass, 14×14 hand-positioned for centering -->
-                        <Button Classes="cap" ToolTip.Tip="Search">
-                            <Path Stretch="None" Width="14" Height="14"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.4"
-                                  StrokeLineCap="Round" Fill="Transparent"
-                                  Data="M 5,5 m -4,0 a 4,4 0 1 0 8,0 a 4,4 0 1 0 -8,0 M 8,8 L 13,13"/>
-                        </Button>
                         <!-- Mini player: small rect inside rect, perfectly centered in 14×14 -->
                         <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player">
                             <Path Stretch="None" Width="14" Height="14"
@@ -485,7 +483,7 @@
                         </StackPanel>
                         <TextBlock Text="{Binding Current.Title, FallbackValue='Drop a track to begin'}"
                                    FontSize="30" FontWeight="Bold"
-                                   Foreground="{StaticResource TitleGradient}"
+                                   Foreground="{DynamicResource TitleGradient}"
                                    TextTrimming="CharacterEllipsis"/>
                         <!-- Just artist + album text under the title — no duplicate cover thumb;
                              the sleeve carries the real cover (or its themed fallback). -->
@@ -605,11 +603,11 @@
                                                     HorizontalAlignment="Left" Margin="-8,0,0,0"
                                                     Grid.ColumnSpan="7"
                                                     IsVisible="{Binding IsCurrent}"
-                                                    BoxShadow="0 0 6 0 #FFff5fae">
+                                                    BoxShadow="{DynamicResource ActiveRowEdgeHalo}">
                                                 <Border.Background>
                                                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                                        <GradientStop Offset="0" Color="{StaticResource AccentA}"/>  <!-- cyan top -->
-                                                        <GradientStop Offset="1" Color="{StaticResource AccentB}"/>  <!-- pink bottom -->
+                                                        <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>  <!-- cyan top -->
+                                                        <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>  <!-- pink bottom -->
                                                     </LinearGradientBrush>
                                                 </Border.Background>
                                             </Border>
@@ -717,7 +715,7 @@
         <Border IsVisible="{Binding IsTweaksOpen}"
                 Width="300" HorizontalAlignment="Right" VerticalAlignment="Stretch"
                 Background="#F01a1828"
-                CornerRadius="14,0,0,14"
+                CornerRadius="0,14,14,0"
                 BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
             <ScrollViewer Padding="22,18,22,18">
                 <StackPanel Spacing="14">

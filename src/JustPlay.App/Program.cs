@@ -1,6 +1,8 @@
 using System;
 using Avalonia;
 using JustPlay.Analysis;
+using JustPlay.App.Settings;
+using JustPlay.App.Theming;
 using JustPlay.App.ViewModels;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
@@ -36,6 +38,14 @@ sealed class Program
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
+
+        // Theming + user preferences. SettingsService reads settings.json
+        // from LocalAppData on construction; the ThemeService applies a
+        // palette by writing to Application.Current.Resources. Both are
+        // singletons so MainWindowViewModel and App.OnFrameworkInitialization
+        // can share the same instance.
+        services.AddSingleton<ISettingsService, JsonSettingsService>();
+        services.AddSingleton<IThemeService, AvaloniaThemeService>();
 
         // Core logic.
         services.AddSingleton<PlaybackController>();

@@ -31,14 +31,14 @@
             Margin="20,20,20,22"
             Background="#01000000"
             DragDrop.AllowDrop="True"
-            BoxShadow="0 10 22 -6 #80000000, 0 0 0 1 #14FFFFFF, 0 16 40 -18 #2A8a5fff">
+            BoxShadow="{DynamicResource WindowOuter}">
         <Panel DragDrop.AllowDrop="True">
             <!-- Background layers carry their OWN rounded corners (RadiusX/RadiusY=14)
                  so they don't visually square off the card's rounded edges when the
                  parent Border is ClipToBounds=False. -->
-            <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
-            <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-            <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
+            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
 
             <!-- View switch: Max vs Mini, same shared DataContext (the shell VM) -->
             <Panel>
