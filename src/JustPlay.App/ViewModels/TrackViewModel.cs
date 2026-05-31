@@ -37,15 +37,15 @@ public sealed partial class TrackViewModel : ObservableObject
             ? d.ToString(@"m\:ss")
             : "–:––";
 
+    /// <summary>
+    /// Numeric BPM — analysed value wins, falls back to the embedded tag.
+    /// Null when neither source has it (e.g. analysis still running on a
+    /// freshly-dropped file with no BPM tag).
+    /// </summary>
+    public double? Bpm => Model.Analysis?.Bpm ?? Model.Metadata?.TaggedBpm;
+
     /// <summary>Analysed BPM if we have it, else whatever the tags claimed.</summary>
-    public string BpmText
-    {
-        get
-        {
-            var bpm = Model.Analysis?.Bpm ?? Model.Metadata?.TaggedBpm;
-            return bpm is > 0 ? bpm.Value.ToString("0") : "";
-        }
-    }
+    public string BpmText => Bpm is > 0 ? Bpm.Value.ToString("0") : "";
 
     public string KeyText =>
         Model.Analysis?.Key?.Camelot ?? Model.Metadata?.TaggedKey ?? "";

@@ -14,34 +14,48 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <!--
-          Row hover / selected backgrounds: a LEFT→RIGHT linear-gradient brush. Solid-ish
-          at the left edge (where the accent bar sits), gracefully fading to transparent at
-          the right. Combined with the accent bar flush to the left edge, this gives the
-          row a directional "swipe" highlight rather than a flat panel.
+          Row hover / selected backgrounds — 1:1 port of the design's QueueRow brush
+          (.design/just-play-music-player/project/app.jsx, function QueueRow line ~154):
+
+              active : linear-gradient(90deg, accentC·0.133, accentB·0.063 @60%, transparent)
+              hover  : rgba(255,255,255,.04)         // a FLAT colour, not a gradient
+              base   : transparent
+
+          Aurora theme: accentC = #8a5fff (purple), accentB = #ff5fae (pink). Alpha
+          conversions for Avalonia's ARGB hex: 0.133 → 0x22, 0.063 → 0x10, 0.04 → 0x0A.
 
           IMPORTANT — % suffix on the points is mandatory: Avalonia 12 parses bare "1,0"
           as ABSOLUTE PIXELS (RelativeUnit.Absolute), which collapses the gradient to a
-          1-pixel-wide strip at the left edge of the row. Using "100%,50%" forces Relative
-          mode so the gradient actually spans the whole row width.
-          Alphas bumped from the original 0xA / 0x14 attempt so the swipe is clearly visible
-          but still soft enough not to fight the row text.
+          1-pixel-wide strip at the left edge of the row. "100%,50%" forces Relative mode
+          so the gradient actually spans the whole row width.
         -->
         <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background">
-                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
-                    <GradientStop Offset="0"    Color="#33FFFFFF"/>
-                    <GradientStop Offset="0.45" Color="#14FFFFFF"/>
-                    <GradientStop Offset="1"    Color="#00FFFFFF"/>
-                </LinearGradientBrush>
-            </Setter>
+            <!-- Design hover: flat rgba(255,255,255,.04). NOT a gradient. -->
+            <Setter Property="Background" Value="#0AFFFFFF"/>
             <Setter Property="CornerRadius" Value="0"/>
         </Style>
         <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
-                    <GradientStop Offset="0"    Color="#4DFFFFFF"/>
-                    <GradientStop Offset="0.45" Color="#1FFFFFFF"/>
-                    <GradientStop Offset="1"    Color="#00FFFFFF"/>
+                    <GradientStop Offset="0"   Color="#228a5fff"/>  <!-- AccentC purple, α .133 -->
+                    <GradientStop Offset="0.6" Color="#10ff5fae"/>  <!-- AccentB pink,   α .063 -->
+                    <GradientStop Offset="1"   Color="#00000000"/>  <!-- transparent -->
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <!--
+          Hover OVER an already-selected row: keep the Aurora swipe but lift it slightly
+          so the user gets feedback they're pointing at the current track. Composed by
+          letting :selected win the brush (the gradient) and only tweaking opacity-ish
+          weight via a brighter purple stop — still well below the row text.
+        -->
+        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"   Color="#338a5fff"/>  <!-- purple α .20 -->
+                    <GradientStop Offset="0.6" Color="#1Aff5fae"/>  <!-- pink   α .10 -->
+                    <GradientStop Offset="1"   Color="#00000000"/>
                 </LinearGradientBrush>
             </Setter>
             <Setter Property="CornerRadius" Value="0"/>
@@ -361,8 +375,13 @@
             </Border>
 
             <!-- ─── WAVEFORM HEADER ────────────────────────────────────────── -->
+            <!-- Playing drives the FFT-based scaleY; BpmHint/EnergyHint drive the
+                 beat-pulse opacity layer on top; IsVisible from the Tweaks toggle. -->
             <controls:WaveformHeader DockPanel.Dock="Top" Height="90" Margin="0,-4,0,-10"
                                      Opacity="0.9"
+                                     Playing="{Binding IsPlaying}"
+                                     BpmHint="{Binding Current.Bpm}"
+                                     EnergyHint="{Binding Current.Energy}"
                                      IsVisible="{Binding WaveformEnabled}"/>
 
             <!-- ─── TRANSPORT (bottom) ─────────────────────────────────────── -->
@@ -431,14 +450,14 @@
             </Border>
 
             <!-- ─── PROGRESS BAR ───────────────────────────────────────────── -->
-            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="44,8,44,4" VerticalAlignment="Center">
+            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="38,8,38,4" VerticalAlignment="Center">
                 <TextBlock Text="{Binding PositionText}" Foreground="#A6FFFFFF" FontSize="12"
                            VerticalAlignment="Center" MinWidth="42" TextAlignment="Right"/>
                 <controls:SkeuSlider Grid.Column="1" Margin="12,0" Minimum="0"
                                      Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
                                      VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="{Binding DurationText}" Foreground="#A6FFFFFF" FontSize="12"
-                           VerticalAlignment="Center" MinWidth="42"/>
+                           VerticalAlignment="Center" MinWidth="42" TextAlignment="Left" />
             </Grid>
 
             <!-- ─── MAIN CONTENT: 2-column ─────────────────────────────────── -->
@@ -561,15 +580,39 @@
                                              right-edges line up. -->
                                         <Grid ColumnDefinitions="28,*,100,44,52,44,52" Margin="6,0,16,0" MinHeight="44">
 
-                                            <!-- Cyan→pink accent edge on the left of the active row.
-                                                 Margin left = -8 → sits at ListBoxItem x=-2, i.e. 2 px
-                                                 OUTSIDE the highlight rect (the row Grid has Margin=6 left
-                                                 so -8 = -6 + -2). That's the "kante sitzt außen" look. -->
+                                            <!--
+                                              Cyan→pink accent edge on the left of the active row.
+
+                                              Margin left = -8 → sits at ListBoxItem x=-2 (the row Grid has
+                                              Margin=6 left so -8 = -6 + -2). That's the "kante sitzt außen" look.
+
+                                              Spans the FULL row height (Margin top/bottom = 0). The design's
+                                              4/4 inset was carried over from earlier iterations; it left the
+                                              bar visibly shorter than the row and read as a stub. Going edge-
+                                              to-edge gives the bar the proper "now-playing rail" presence.
+
+                                              Gradient is VERTICAL (cyan TOP → pink BOTTOM) — direct port of
+                                              the design's `linear-gradient(to bottom, accentA, accentB)`.
+                                              The shared AccentGradient resource is diagonal (0%,0% → 100%,100%)
+                                              which on a 3-px-wide rail just reads as muddy violet; the vertical
+                                              gradient actually shows the cyan→pink range.
+
+                                              Pink BoxShadow halo around the bar — port of the design's
+                                              `boxShadow: 0 0 6px ${accentB}` so the active row pulses with
+                                              accent light, not just colour.
+                                            -->
                                             <Border Width="3" CornerRadius="1.5"
-                                                    Background="{StaticResource AccentGradient}"
-                                                    HorizontalAlignment="Left" Margin="-8,4,0,4"
+                                                    HorizontalAlignment="Left" Margin="-8,0,0,0"
                                                     Grid.ColumnSpan="7"
-                                                    IsVisible="{Binding IsCurrent}"/>
+                                                    IsVisible="{Binding IsCurrent}"
+                                                    BoxShadow="0 0 6 0 #FFff5fae">
+                                                <Border.Background>
+                                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                                        <GradientStop Offset="0" Color="{StaticResource AccentA}"/>  <!-- cyan top -->
+                                                        <GradientStop Offset="1" Color="{StaticResource AccentB}"/>  <!-- pink bottom -->
+                                                    </LinearGradientBrush>
+                                                </Border.Background>
+                                            </Border>
 
                                             <!-- # / animated 3-bar indicator for the current track -->
                                             <Grid Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">

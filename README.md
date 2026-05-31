@@ -34,12 +34,12 @@ Think MIK's analysis baked into the player itself, without the library overhead.
 | Volume + position slider      | ✅ works                                          |
 | Track metadata reading        | ✅ TagLib# under the hood                         |
 | Mini / Max view layout        | ✅ shared transport cluster, polished skeu look   |
-| BPM detection                 | 🟡 backend ready, end-to-end wiring in progress   |
-| Camelot key detection         | 🟡 backend ready, end-to-end wiring in progress   |
-| Energy score                  | 🟡 backend ready, end-to-end wiring in progress   |
-| Waveform header               | 🟡 static, not driven by playback yet             |
+| BPM detection                 | ✅ BASS_FX BPMDecodeGet, async per track on add   |
+| Camelot key detection         | 🟡 interface defined, no DSP implementation yet   |
+| Energy score                  | 🟡 interface defined, no DSP implementation yet   |
+| Waveform header               | ✅ FFT-driven 4-band scaleY + beat-pulse opacity  |
 | Cover-art display             | 🟡 binding refactor in progress                   |
-| Vinyl spin animation          | 🟡 working when the pivot maths cooperates :)     |
+| Vinyl spin animation          | ✅ spins around its centre, ground+drop shadows   |
 | Theme switcher (4 palettes)   | ❌ UI present, no theme swap implementation yet   |
 | Lyrics tab                    | ❌ placeholder only                               |
 | macOS / Linux builds          | ❌ target, not validated yet                      |

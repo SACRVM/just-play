@@ -30,4 +30,18 @@ public interface IAudioEngine : IDisposable
     void Play();
     void Pause();
     void Stop();
+
+    /// <summary>
+    /// Sample the current FFT spectrum aggregated into four perceptual bands
+    /// (bass, low-mid, mid, treble), normalised to roughly 0..1 with smoothing
+    /// applied. Writes exactly 4 floats into <paramref name="destination"/>.
+    ///
+    /// Order: <c>[bass, lowMid, mid, treble]</c>. Returns zeros (and decays the
+    /// internal smoothing state) when nothing is playing.
+    ///
+    /// Cheap enough to call at 60 fps from the UI thread. Visualizers only —
+    /// not intended as an analysis source (use <see cref="IAudioDecoder"/> for
+    /// offline analysis).
+    /// </summary>
+    void GetFftBands(Span<float> destination);
 }

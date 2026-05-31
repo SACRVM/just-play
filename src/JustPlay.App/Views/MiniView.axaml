@@ -89,13 +89,17 @@
                 </Grid>
             </Border>
 
-            <!-- Waveform header (compact height) -->
+            <!-- Waveform header (compact height) — Playing drives the FFT-based scaleY,
+                 BpmHint/EnergyHint drive the beat-pulse opacity layer on top. -->
             <controls:WaveformHeader DockPanel.Dock="Top" Height="60" Margin="0,-2,0,-6"
                                      Opacity="0.85"
+                                     Playing="{Binding IsPlaying}"
+                                     BpmHint="{Binding Current.Bpm}"
+                                     EnergyHint="{Binding Current.Energy}"
                                      IsVisible="{Binding WaveformEnabled}"/>
 
             <!-- Transport bottom -->
-            <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="22,4,22,16">
+            <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="24,4,24,16">
                 <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                     <TextBlock Text="{Binding PositionText}" Foreground="#A6FFFFFF" FontSize="10"
                                MinWidth="32" TextAlignment="Right" VerticalAlignment="Center"/>
@@ -103,7 +107,7 @@
                                          Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
                                          VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="2" Text="{Binding DurationText}" Foreground="#A6FFFFFF"
-                               FontSize="10" MinWidth="32" VerticalAlignment="Center"/>
+                               FontSize="10" MinWidth="32" TextAlignment="Left" VerticalAlignment="Center"/>
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center" Margin="0,4,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
@@ -137,13 +141,23 @@
 
             <!-- Center: vinyl + title + meta -->
             <Grid RowDefinitions="*,Auto" Margin="0,4,0,4">
+                <!--
+                  ClipToBounds=False — Avalonia 12 overrides Viewbox's ClipToBounds default
+                  to TRUE (verified in Avalonia.Controls/Viewbox.cs:
+                  `ClipToBoundsProperty.OverrideDefaultValue<Viewbox>(true)`). Without this
+                  override the Vinyl control's ground shadow, vinyl drop-shadow, and sleeve
+                  drop-shadow — all of which extend past the 360-px control height — are
+                  clipped flush to the visible disc and the lift-off effect disappears.
+                  Unlike Grid/Panel/StackPanel which default to false, Viewbox really does
+                  swallow outside-bounds rendering by default.
+                -->
                 <Viewbox Grid.Row="0" Stretch="Uniform" StretchDirection="DownOnly"
-                         MaxHeight="300" Margin="20,0">
+                         MaxHeight="300" Margin="20,0" ClipToBounds="False">
                     <controls:Vinyl Cover="{Binding Current.Cover}"
                                     Spinning="{Binding ShouldSpin}"/>
                 </Viewbox>
 
-                <StackPanel Grid.Row="1" HorizontalAlignment="Center" Spacing="4" Margin="20,8,20,2">
+                <StackPanel Grid.Row="1" HorizontalAlignment="Center" Spacing="4" Margin="32,8,32,2">
                     <TextBlock Text="{Binding Current.Title, FallbackValue='Drop a track'}"
                                FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"
                                Foreground="{StaticResource TitleGradient}"

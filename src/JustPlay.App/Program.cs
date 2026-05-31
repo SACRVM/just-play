@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using JustPlay.Analysis;
 using JustPlay.App.ViewModels;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
@@ -29,6 +30,12 @@ sealed class Program
         services.AddSingleton<IAudioEngine, BassAudioEngine>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
+
+        // Analysis stack — BPM detector + the orchestrator that fans tracks
+        // out to all registered detectors. Singletons so the BASS_FX side has
+        // a single initialised instance for the process lifetime.
+        services.AddSingleton<IBpmDetector, BassBpmDetector>();
+        services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 
         // Core logic.
         services.AddSingleton<PlaybackController>();

@@ -3,14 +3,52 @@
              xmlns:controls="using:JustPlay.App.Controls"
              x:Class="JustPlay.App.Controls.Vinyl"
              x:DataType="controls:Vinyl"
-             Width="468" Height="360">
+             Width="468" Height="360"
+             ClipToBounds="False">
 
-    <Grid>
+    <!-- ClipToBounds=False so the new ground-shadow ellipse (Margin bottom=-14) and the
+         vinyl drop-shadow (BoxShadow Y=18, blur=30) can render past the 360-px height
+         without being clipped by the UserControl's own bounds. The host containers in
+         MiniView (Viewbox) and MaxView (Panel) likewise don't clip — they rely on
+         Avalonia's Panel default ClipToBounds=false. -->
+    <Grid ClipToBounds="False">
+        <!--
+          GROUND SHADOW — soft elliptical pool under the whole sleeve+vinyl, port of the
+          design's `radial-gradient(...,.55) ellipse` + blur(12). Lifts the disc off the
+          aurora background. Sits at the very back of the Grid so it renders first.
+          Margin pushes it 14 px below the 360-tall sleeve, matching the design's
+          `bottom: -14`. Width 320 = sleeve (360) minus the design's left/right 20 px inset.
+        -->
+        <Ellipse Width="320" Height="26"
+                 HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                 Margin="20,0,0,-14"
+                 IsHitTestVisible="False">
+            <Ellipse.Fill>
+                <RadialGradientBrush Center="0.5,0.5" GradientOrigin="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                    <GradientStop Offset="0" Color="#8C000000"/>
+                    <GradientStop Offset="0.7" Color="#00000000"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
+
+        <!--
+          VINYL DROP-SHADOW EMITTER — transparent circular Border whose BoxShadow renders
+          the design's `drop-shadow(0 18px 30px rgba(0,0,0,.5))`. Kept on a SEPARATE,
+          non-rotating element behind the spinning disc so the shadow doesn't sweep around
+          with the rotation (a DropShadowEffect on VinylGroup itself would offset relative
+          to the rotated frame — at 90° the "downward" shadow would point sideways).
+          BoxShadow respects the Border's CornerRadius, so CornerRadius=180 on a 360×360
+          Border gives a perfect circular shadow.
+        -->
+        <Border Width="360" Height="360" HorizontalAlignment="Right"
+                CornerRadius="180" Background="Transparent"
+                BoxShadow="0 18 30 0 #80000000"
+                IsHitTestVisible="False"/>
+
         <!-- VINYL — sits BEHIND the sleeve, pushed right so ~30% pokes out. Spins.
-             RenderTransformOrigin is INTENTIONALLY NOT set here — the rotation pivot lives
-             on the RotateTransform itself (CenterX/CenterY=180, set in code-behind). If we
-             set RenderTransformOrigin AS WELL, Avalonia stacks them and the disc rotates
-             around (360, 360) = bottom-right corner instead of the centre. -->
+             RenderTransformOrigin is left at Avalonia's default (RelativePoint.Center),
+             which makes the bare RotateTransform attached in code-behind rotate around
+             (180, 180) — the geometric centre of this 360×360 Grid — automatically. -->
         <Grid x:Name="VinylGroup" Width="360" Height="360" HorizontalAlignment="Right">
 
             <Ellipse Width="360" Height="360">
@@ -69,15 +107,31 @@
 
         <!--
           SLEEVE — square cardboard sleeve in FRONT of the vinyl.
-          Stronger BoxShadow stack so the sleeve clearly separates from the aurora background:
-            • Layer 1: a deep, slightly offset black drop (the cardboard's gravity).
-            • Layer 2: a 1-px white inner highlight (top edge of the sleeve catching light).
-            • Layer 3: a soft purple aura — picks up the BgGlow tint so the sleeve feels lit by
-              the room, not pasted on top.
+
+          TWO-LAYER PATTERN — required because Avalonia clips a Border's OWN BoxShadow
+          when that Border has ClipToBounds=True. The inner Border has to clip
+          (otherwise the cover Image with Stretch=UniformToFill bleeds past the rounded
+          corner), but a clipping Border drops its own outer drop-shadow on the floor.
+          Same fix as Button.primary's Halo + MainBorder pair in App.axaml.
+
+          OUTER Border — transparent, NOT clipped. Carries the outer BoxShadow stack:
+            • Layer 1: deep slightly-offset black drop (the cardboard's gravity).
+            • Layer 2: 1-px white outer ring (catches edge light).
+            • Layer 3: soft purple aura — Aurora-theme extension, not in the design,
+              picks up the BgGlow tint so the sleeve feels lit by the room.
         -->
-        <Border x:Name="Sleeve" Width="360" Height="360" HorizontalAlignment="Left"
-                CornerRadius="6" ClipToBounds="True"
+        <Border Width="360" Height="360" HorizontalAlignment="Left"
+                CornerRadius="6" Background="Transparent"
                 BoxShadow="0 30 60 -8 #BF000000, 0 0 0 1 #1FFFFFFF, 0 0 50 -10 #408a5fff">
+            <!--
+              INNER Border — clips the cover image to the rounded corner, and carries
+              ONLY the inset top-edge white highlight (port of the design's
+              `inset 0 1px 0 rgba(255,255,255,.18)`). Inset shadows paint on the INSIDE
+              of the rounded edge, so they belong with the clipped content, not with the
+              outer drop-shadow.
+            -->
+            <Border x:Name="Sleeve" CornerRadius="6" ClipToBounds="True"
+                    BoxShadow="inset 0 1 0 0 #2EFFFFFF">
             <Panel>
                 <!--
                   Source bound EXPLICITLY to the Vinyl ancestor's Cover styled-property via
@@ -145,24 +199,25 @@
                                  Stroke="#52FFFFFF" StrokeThickness="0.4"/>
                     </Canvas>
 
-                    <!-- LOUD title — more breathing room above the divider so it doesn't sit on the text. -->
-                    <TextBlock Text="LOUD" FontSize="78" FontWeight="Black"
+                    <!--
+                      Generic empty-state copy — JustPlay is a stateless drop-and-play
+                      player, so the placeholder mustn't masquerade as anyone's album.
+                      Earlier version had "LOUD / RIHANNA / SIDE A / 2010" carried 1:1
+                      from the design mockup (Claude's AlbumCover component in
+                      .design/.../app.jsx); that was design fixture content that
+                      should never have shipped as the runtime fallback.
+                    -->
+                    <TextBlock Text="JUST" FontSize="78" FontWeight="Black"
                                Foreground="#F7FFFFFF" LineHeight="74"
                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,82,0,0"/>
+                    <TextBlock Text="PLAY" FontSize="78" FontWeight="Black"
+                               Foreground="#F7FFFFFF" LineHeight="74"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,156,0,0"/>
                     <Border Width="72" Height="2" Background="#D9FFFFFF"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,184,0,0"/>
-                    <TextBlock Text="RIHANNA" FontSize="15" FontWeight="SemiBold" LetterSpacing="6"
-                               Foreground="#C7FFFFFF"
-                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,196,0,0"/>
-
-                    <!-- SIDE · A bottom-left -->
-                    <TextBlock Text="SIDE · A" FontSize="11" FontWeight="SemiBold" LetterSpacing="4"
-                               Foreground="#73FFFFFF"
-                               HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="32,0,0,24"/>
-                    <!-- Year bottom-right -->
-                    <TextBlock Text="2010" FontSize="12" FontWeight="Medium" LetterSpacing="3"
-                               Foreground="#8CFFFFFF"
-                               HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,32,22"/>
+                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,238,0,0"/>
+                    <TextBlock Text="DROP A TRACK" FontSize="11" FontWeight="SemiBold" LetterSpacing="4"
+                               Foreground="#A6FFFFFF"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="32,250,0,0"/>
                 </Panel>
 
                 <!-- Soft right-edge shadow where the vinyl emerges -->
@@ -175,6 +230,7 @@
                     </Border.Background>
                 </Border>
             </Panel>
+            </Border>
         </Border>
     </Grid>
 </UserControl>

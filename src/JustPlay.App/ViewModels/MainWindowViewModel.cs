@@ -22,13 +22,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private readonly PlaybackController _controller;
     private readonly IMetadataReader _metadata;
+    private readonly ITrackAnalysisService _analysis;
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
 
-    public MainWindowViewModel(PlaybackController controller, IMetadataReader metadata)
+    public MainWindowViewModel(
+        PlaybackController controller,
+        IMetadataReader metadata,
+        ITrackAnalysisService analysis)
     {
         _controller = controller;
         _metadata = metadata;
+        _analysis = analysis;
 
         _controller.StateChanged += OnEngineStateChanged;
         _controller.TrackEnded += OnTrackEnded;
@@ -184,8 +189,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (added.Count == 0) return;
         RaiseTrackListChanged();
 
-        // Read tags off the UI thread, then refresh each row.
-        await Task.Run(() =>
+        // Read tags off the UI thread, then refresh each row, then kick off
+        // BPM/key/energy analysis. Two passes per track:
+        //   pass 1 — metadata (fast, ~milliseconds): so titles/artists/duration
+        //            show up immediately and the queue feels responsive.
+        //   pass 2 — analysis (slow, ~seconds via BASS_FX): so the BPM cell
+        //            fills in as soon as each track is done, not at the end of
+        //            the whole batch.
+        // Pass 2 runs serially per track on purpose — BASS_FX BPMDecodeGet pegs
+        // a core for the duration of a track; parallelising would only swap
+        // serial slowness for thrash. Future: throughput batching if needed.
+        await Task.Run(async () =>
         {
             foreach (var tvm in added)
             {
@@ -194,9 +208,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 Dispatcher.UIThread.Post(() =>
                 {
                     tvm.Refresh();
-                    // Totals depend on metadata durations — refresh once that lands.
                     OnPropertyChanged(nameof(TotalDurationText));
                 });
+            }
+
+            foreach (var tvm in added)
+            {
+                tvm.Model.AnalysisStatus = Core.Models.AnalysisStatus.Running;
+                try
+                {
+                    var result = await _analysis.AnalyzeAsync(tvm.Model.FilePath);
+                    tvm.Model.Analysis = result;
+                    tvm.Model.AnalysisStatus = Core.Models.AnalysisStatus.Done;
+                }
+                catch (Exception ex)
+                {
+                    tvm.Model.AnalysisStatus = Core.Models.AnalysisStatus.Failed;
+                    Console.WriteLine($"[Analysis FAIL] {tvm.Model.FilePath}: {ex.Message}");
+                }
+
+                Dispatcher.UIThread.Post(() => tvm.Refresh());
             }
         });
     }

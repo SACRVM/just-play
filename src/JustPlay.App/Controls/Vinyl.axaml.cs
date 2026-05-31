@@ -22,16 +22,16 @@ public partial class Vinyl : UserControl
     // 12 seconds per revolution = 30°/s.
     private const double DegreesPerSecond = 30.0;
 
-    // Pivot mathematics baked into a TransformGroup sandwich:
-    //   visual = T(-180,-180) * R(angle) * T(+180,+180)
-    // This rotates around (180, 180) — the geometric centre of the 360×360 VinylGroup —
-    // regardless of what RenderTransformOrigin is doing. We tried RotateTransform.CenterX/Y
-    // alone first; that gives the right Matrix.Value in theory, but in Avalonia 12 there
-    // was a lifetime race where the centre wasn't applied at the first render. With the
-    // explicit Translate sandwich the pivot is encoded structurally — no single property
-    // setter can break it.
+    // Avalonia's Visual.RenderTransformOriginProperty defaults to RelativePoint.Center
+    // (verified against Avalonia 12.0.3 source: Visual.cs registers the property with
+    //  defaultValue: RelativePoint.Center). That means assigning a bare RotateTransform
+    // here already rotates around the VinylGroup's geometric centre — no Translate
+    // sandwich or RotateTransform.CenterX/Y needed.
+    //
+    // History: an earlier version stacked T(-180) * R * T(+180) on top of the implicit
+    // origin transform. Both sandwiches composed and the disc rotated around (360, 360)
+    // = bottom-right corner. The fix is to *not* fight the framework default.
     private readonly RotateTransform _rotation = new() { Angle = 0 };
-    private readonly TransformGroup _transform;
     private Grid? _vinylGroup;
     private DispatcherTimer? _timer;
     private DateTime _spinStartTime;
@@ -39,14 +39,6 @@ public partial class Vinyl : UserControl
 
     public Vinyl()
     {
-        // Build the pivot sandwich: Translate(-180,-180) → Rotate(angle) → Translate(+180,+180).
-        // TransformGroup composes its children left-to-right (row-vector convention),
-        // so this matrix product rotates around (180, 180) in the Grid's local coords.
-        _transform = new TransformGroup();
-        _transform.Children.Add(new TranslateTransform(-180, -180));
-        _transform.Children.Add(_rotation);
-        _transform.Children.Add(new TranslateTransform(180, 180));
-
         InitializeComponent();
 
         // NO DataContext = this anymore — the Image/placeholder bindings inside Vinyl.axaml
@@ -93,8 +85,10 @@ public partial class Vinyl : UserControl
         _vinylGroup = this.FindControl<Grid>("VinylGroup");
         if (_vinylGroup is not null)
         {
-            _vinylGroup.RenderTransform = _transform;
-            Console.WriteLine("[Vinyl] attached, TransformGroup wired (pivot 180,180)");
+            // Bare RotateTransform — Avalonia's default RenderTransformOrigin=Center
+            // gives us the (180, 180) pivot for free.
+            _vinylGroup.RenderTransform = _rotation;
+            Console.WriteLine("[Vinyl] attached, RotateTransform wired (pivot via default origin)");
         }
         else
         {
