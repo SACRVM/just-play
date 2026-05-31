@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustPlay.App.ViewModels"
+             x:Class="JustPlay.App.Controls.LikeButton"
+             x:DataType="vm:MainWindowViewModel">
+
+    <!--
+      Shared "like" heart button — used by both views (was duplicated). Currently
+      decorative (no Command wired yet); x:DataType is set so a future
+      LikeCommand / IsLiked binding drops straight in. Uses the shared
+      Button.iconbtn style from App.axaml.
+    -->
+    <Button Classes="iconbtn" ToolTip.Tip="Like">
+        <Path Width="16" Height="14" Stretch="None" Fill="Transparent"
+              Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.5"
+              StrokeJoin="Round"
+              Data="M 8,13 C 5,10 1,7 1,4 C 1,1 4,0 6,2 L 8,4 L 10,2 C 12,0 15,1 15,4 C 15,7 11,10 8,13 Z"/>
+    </Button>
+</UserControl>

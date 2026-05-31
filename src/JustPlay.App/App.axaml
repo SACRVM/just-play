@@ -453,5 +453,70 @@
         <Style Selector="Button.ctrl:pressed">
             <Setter Property="RenderTransform" Value="scale(0.95)"/>
         </Style>
+
+        <!--
+          White transport icons sit on bright/coloured buttons — especially the
+          cyan→pink play button, where plain white washes out against the light cyan
+          end. Give the icon Paths the same soft drop shadow the global TextBlock
+          style uses (Black, blur 2, 0/1, .45) so they read with contrast and match
+          the app's lifted feel. Scoped to Button.primary / Button.ctrl Paths only —
+          NOT the transparent iconbtn secondaries (no white-on-colour issue there).
+        -->
+        <Style Selector="Button.primary Path">
+            <Setter Property="Effect">
+                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+            </Setter>
+        </Style>
+        <Style Selector="Button.ctrl Path">
+            <Setter Property="Effect">
+                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+            </Setter>
+        </Style>
+
+        <!--
+          Square 32×32 icon button for transport secondaries (shuffle / repeat /
+          like). Shared by MaxView and MiniView (was duplicated in both, at 32 vs
+          30 px — unified here to 32). Consistent hit area; transparent until
+          hovered. .active recolours the glyph to the live accent — the icon Paths
+          bind their Stroke to the button Foreground, so this alone tints them.
+        -->
+        <Style Selector="Button.iconbtn">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#A6FFFFFF"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.iconbtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Button.iconbtn:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.iconbtn.active">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <Style Selector="Button.iconbtn.active:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+
+        <!-- Small ghost icon/text button (chrome + panel secondaries, e.g. the
+             Tweaks-panel close ✕). Shared by both views. -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Foreground" Value="#A6FFFFFF"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.ghost:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
     </Application.Styles>
 </Application>

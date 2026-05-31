@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+using JustPlay.App.Theming;
 using JustPlay.App.ViewModels;
 using JustPlay.App.Views;
 using JustPlay.Core.Abstractions;
@@ -25,10 +27,19 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            var window = new MainWindow
             {
                 DataContext = Program.Services.GetRequiredService<MainWindowViewModel>(),
             };
+
+            // Theme-tinted window icon (taskbar / Alt-Tab / title bar): render the
+            // brand mark for the active palette now, and re-render on every theme
+            // switch. Uses the IThemeService.ThemeChanged we already raise.
+            window.Icon = ThemedWindowIcon.Render(themeSvc.Current);
+            themeSvc.ThemeChanged += (_, theme) =>
+                Dispatcher.UIThread.Post(() => window.Icon = ThemedWindowIcon.Render(theme));
+
+            desktop.MainWindow = window;
         }
 
         base.OnFrameworkInitializationCompleted();

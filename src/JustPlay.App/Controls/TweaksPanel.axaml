@@ -1,0 +1,194 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustPlay.App.ViewModels"
+             x:Class="JustPlay.App.Controls.TweaksPanel"
+             x:DataType="vm:MainWindowViewModel">
+
+    <!--
+      Slide-in Tweaks panel — extracted from MaxView so it lives as one self-
+      contained control (its styles travel with it). Inherits the view's
+      MainWindowViewModel DataContext. Visibility / right-dock alignment are set
+      by the consumer (see MaxView: IsVisible={Binding IsTweaksOpen}). Mirrors the
+      design's tweaks-panel.jsx: Theme palette · Stage toggles · Right-panel default.
+    -->
+    <UserControl.Styles>
+        <!-- Section heading + row label -->
+        <Style Selector="TextBlock.tweak-section">
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="3"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+        <Style Selector="TextBlock.tweak-label">
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- Palette swatch (chip) — coloured ring + accent glow when active.
+             RenderTransform=none is the resting state so the hover lift can transition. -->
+        <Style Selector="Border.swatch">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransform" Value="none"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.swatch.active">
+            <Setter Property="BorderBrush" Value="White"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="White" BlurRadius="10" OffsetX="0" OffsetY="0" Opacity="0.6"/>
+            </Setter>
+        </Style>
+
+        <!--
+          Wrapper button for each swatch. The Fluent default Button template gives
+          its PART_ContentPresenter a CornerRadius-based clip region that crops the
+          active swatch's glow (the DropShadowEffect above) flush to the chip.
+          ClipToBounds=False on the templated ContentPresenter — plus on the button
+          and its ancestor StackPanels — lets the glow bleed out properly.
+          (Repo rule: glow needs ClipToBounds=False all the way up the chain,
+           and "up" includes the templated ContentPresenter, not just the Button.)
+        -->
+        <Style Selector="Button.swatchbtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="ClipToBounds" Value="False"/>
+        </Style>
+        <Style Selector="Button.swatchbtn /template/ ContentPresenter">
+            <Setter Property="ClipToBounds" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <!-- Belt-and-braces: keep the templated CP transparent in every state so the
+             Fluent hover/pressed greys never paint a box behind the chip. -->
+        <Style Selector="Button.swatchbtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.swatchbtn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <!-- Hover lifts the chip 1px + shows a faint ring (design twk-chip:hover,
+             tweaks-panel.jsx:147). Pressed settles it back down for a tactile click. -->
+        <Style Selector="Button.swatchbtn:pointerover Border.swatch">
+            <Setter Property="RenderTransform" Value="translateY(-1px)"/>
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+        <Style Selector="Button.swatchbtn:pressed Border.swatch">
+            <Setter Property="RenderTransform" Value="translateY(0px)"/>
+        </Style>
+
+        <Style Selector="Button.tweak-radio">
+            <Setter Property="Background" Value="#0FFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <!-- Soft elevation drop shadow so the buttons (esp. the active gradient one)
+                 lift off the panel like the rest of the app's controls. The faint inactive
+                 fill casts almost nothing; the opaque active pill reads clearly. -->
+            <Setter Property="Effect">
+                <DropShadowEffect Color="Black" BlurRadius="3" OffsetX="0" OffsetY="1" Opacity="0.35"/>
+            </Setter>
+        </Style>
+        <Style Selector="Button.tweak-radio.active">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+
+        <!-- White toggle knob on the accent track needs a shadow to read against the
+             colour (design knob: box-shadow 0 1px 2px rgba(0,0,0,.25), tweaks-panel.jsx:115).
+             Applied to the moving knob group (PART_MovingKnobs, verified against Avalonia
+             12.0.3 ToggleSwitch.xaml) so it travels with the thumb. -->
+        <Style Selector="ToggleSwitch /template/ Grid#PART_MovingKnobs">
+            <Setter Property="Effect">
+                <DropShadowEffect Color="Black" BlurRadius="3" OffsetX="0" OffsetY="1" Opacity="0.4"/>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Width="300"
+            Background="#F01a1828"
+            CornerRadius="0,14,14,0"
+            BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
+        <ScrollViewer Padding="22,18,22,18">
+            <StackPanel Spacing="14" ClipToBounds="False">
+
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
+                               Foreground="White" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="13"
+                            Command="{Binding ToggleTweaksCommand}"/>
+                </Grid>
+
+                <TextBlock Classes="tweak-section" Text="THEME"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
+                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
+                        <Border Classes="swatch" Background="{StaticResource SwatchAurora}"
+                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Aurora}"/>
+                    </Button>
+                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
+                        <Border Classes="swatch" Background="{StaticResource SwatchSunset}"
+                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Sunset}"/>
+                    </Button>
+                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
+                        <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
+                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Midnight}"/>
+                    </Button>
+                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
+                        <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
+                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Neon}"/>
+                    </Button>
+                </StackPanel>
+                <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
+                           Foreground="#73FFFFFF" LetterSpacing="2"/>
+
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
+
+                <TextBlock Classes="tweak-section" Text="STAGE"/>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="tweak-label" Text="Vinyl spin" VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding VinylSpinEnabled}"
+                                  OnContent="" OffContent=""/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="tweak-label" Text="Waveform" VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding WaveformEnabled}"
+                                  OnContent="" OffContent=""/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="tweak-label" Text="Compact layout" VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsMini}"
+                                  OnContent="" OffContent=""/>
+                </Grid>
+
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
+
+                <TextBlock Classes="tweak-section" Text="RIGHT PANEL"/>
+                <TextBlock Classes="tweak-label" Text="Default tab"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="tweak-radio" Content="Up Next"
+                            Classes.active="{Binding DefaultTab, Converter={StaticResource StringEquals}, ConverterParameter='Up Next'}"
+                            Command="{Binding SetDefaultTabCommand}" CommandParameter="Up Next"/>
+                    <Button Classes="tweak-radio" Content="Lyrics"
+                            Classes.active="{Binding DefaultTab, Converter={StaticResource StringEquals}, ConverterParameter=Lyrics}"
+                            Command="{Binding SetDefaultTabCommand}" CommandParameter="Lyrics"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</UserControl>

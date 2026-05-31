@@ -64,41 +64,8 @@
         </Style>
 
 
-        <!-- Button.primary + Button.ctrl now live in App.axaml (full skeu ControlTemplates) -->
-
-
-        <!-- Small ghost icon buttons (chrome + transport secondaries). -->
-        <Style Selector="Button.ghost">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="Foreground" Value="#A6FFFFFF"/>
-            <Setter Property="FontSize" Value="15"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.ghost:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-
-        <!-- Square 32x32 icon button for transport secondaries (shuffle/repeat/like/more). Consistent hit area. -->
-        <Style Selector="Button.iconbtn">
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#A6FFFFFF"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.iconbtn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-        </Style>
-        <Style Selector="Button.iconbtn:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
+        <!-- Button.primary / Button.ctrl / Button.iconbtn / Button.ghost now live in
+             App.axaml (shared by both views). -->
 
         <Style Selector="TextBlock.colhead">
             <Setter Property="Foreground" Value="#73FFFFFF"/>
@@ -113,7 +80,13 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="2,10,14,10"/>
+            <!-- Taller tab + no bottom padding so the underline (bottom-aligned in the
+                 Panel) lands on the strip's bottom hairline, not under the text.
+                 VerticalContentAlignment=Stretch lets the Panel fill the full height
+                 so its bottom-aligned child reaches the button's bottom edge. -->
+            <Setter Property="Padding" Value="2,8,14,0"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="Foreground" Value="#73FFFFFF"/>
         </Style>
         <Style Selector="Button.tab /template/ ContentPresenter">
@@ -131,14 +104,28 @@
         <Style Selector="Button.tab.active">
             <Setter Property="Foreground" Value="White"/>
         </Style>
+        <!-- Underline: bottom-aligned to the tab, nudged down 1px so it straddles the
+             strip's bottom hairline (design app.jsx:735 `bottom: -1`). Width = text
+             width (the Panel content area, inset by the button padding). -->
         <Style Selector="Border.tabline">
             <Setter Property="Height" Value="2"/>
-            <Setter Property="Margin" Value="0,4,0,0"/>
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,-1"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
+        <!-- Active: cyan→pink gradient + accent glow (design `boxShadow: 0 0 8px accentB`).
+             DropShadowEffect.Color takes a DynamicResource fine (cf. the brand halo),
+             so the glow tracks the live theme. -->
         <Style Selector="Button.tab.active Border.tabline">
             <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+            <Setter Property="Effect">
+                <!-- Design `boxShadow: 0 0 8px accentB` at full alpha — bumped blur +
+                     opacity so the underline reads as a clear glow (DropShadowEffect's
+                     gaussian blur is softer than CSS box-shadow at the same radius). -->
+                <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
+            </Setter>
         </Style>
 
         <!--
@@ -249,50 +236,8 @@
             </Style.Animations>
         </Style>
 
-        <!-- Tweaks-panel section heading -->
-        <Style Selector="TextBlock.tweak-section">
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="LetterSpacing" Value="3"/>
-            <Setter Property="Margin" Value="0,8,0,4"/>
-        </Style>
-        <Style Selector="TextBlock.tweak-label">
-            <Setter Property="Foreground" Value="#E6FFFFFF"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
-        <!-- Palette swatch (chip) — gets a coloured ring + accent glow when active. -->
-        <Style Selector="Border.swatch">
-            <Setter Property="Width" Value="46"/>
-            <Setter Property="Height" Value="46"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Border.swatch.active">
-            <Setter Property="BorderBrush" Value="White"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="White" BlurRadius="10" OffsetX="0" OffsetY="0" Opacity="0.6"/>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.tweak-radio">
-            <Setter Property="Background" Value="#0FFFFFFF"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,5"/>
-            <Setter Property="Foreground" Value="#B3FFFFFF"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-        <Style Selector="Button.tweak-radio.active">
-            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-        </Style>
+        <!-- Tweaks-panel styles (swatch / swatchbtn / tweak-*) now travel with the
+             Controls/TweaksPanel control. -->
     </UserControl.Styles>
 
     <Panel>
@@ -310,7 +255,13 @@
                                 <!-- Halo colour tracks the live theme's warm accent. -->
                                 <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="8" OffsetX="0" OffsetY="0" Opacity="0.45"/>
                             </Border.Effect>
-                            <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="8" Height="8"/>
+                            <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="8" Height="8">
+                                <!-- Contrast shadow: white ▶ on the bright accent chip, same soft
+                                     drop as the transport icons / global text. -->
+                                <Path.Effect>
+                                    <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                </Path.Effect>
+                            </Path>
                         </Border>
                         <TextBlock Text="JUST PLAY" FontSize="11" FontWeight="SemiBold"
                                    LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
@@ -351,24 +302,8 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- Windows window controls (square, Path icons, Close goes red on hover) -->
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-                        <Button Classes="cap" Click="OnMinimizeClick" ToolTip.Tip="Minimize">
-                            <Path Stretch="None" Width="10" Height="1"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
-                                  Data="M 0,0 L 10,0"/>
-                        </Button>
-                        <Button Classes="cap" Click="OnMaximizeClick" ToolTip.Tip="Maximize">
-                            <Path Stretch="None" Width="10" Height="10"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"
-                                  Data="M 0,0 L 10,0 L 10,10 L 0,10 Z"/>
-                        </Button>
-                        <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close">
-                            <Path Stretch="None" Width="10" Height="10"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
-                                  Data="M 0,0 L 10,10 M 10,0 L 0,10"/>
-                        </Button>
-                    </StackPanel>
+                    <!-- Windows window controls — shared control (Controls/WindowControls). -->
+                    <controls:WindowControls Grid.Column="3"/>
                 </Grid>
             </Border>
 
@@ -386,21 +321,8 @@
             <Border DockPanel.Dock="Bottom" Padding="32,8,32,16">
                 <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
 
-                    <!-- Left: shuffle + repeat — Path icons, 14×14, ghost-styled (consistent square hit area) -->
-                    <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                        <Button Classes="iconbtn" ToolTip.Tip="Shuffle">
-                            <Path Width="16" Height="14" Stretch="None" Fill="Transparent"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.5"
-                                  StrokeJoin="Round" StrokeLineCap="Round"
-                                  Data="M 11,2 L 14,2 L 14,5 M 14,2 L 9,7 M 1,2 L 4,2 L 9,7 L 14,12 M 14,12 L 11,12 M 14,12 L 14,9 M 1,12 L 4,12 L 6,10"/>
-                        </Button>
-                        <Button Classes="iconbtn" ToolTip.Tip="Repeat">
-                            <Path Width="16" Height="14" Stretch="None" Fill="Transparent"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.5"
-                                  StrokeJoin="Round" StrokeLineCap="Round"
-                                  Data="M 1,5 L 1,3.5 C 1,2.5 1.8,2 2.5,2 L 13,2 L 11,0 M 13,2 L 11,4 M 15,9 L 15,10.5 C 15,11.5 14.2,12 13.5,12 L 3,12 L 5,14 M 3,12 L 5,10"/>
-                        </Button>
-                    </StackPanel>
+                    <!-- Left: shuffle + repeat — shared control (Controls/ShuffleRepeatButtons). -->
+                    <controls:ShuffleRepeatButtons VerticalAlignment="Center"/>
 
                     <!--
                       Play has a separate Ellipse BEHIND it as its halo (BoxShadow was rendering
@@ -432,12 +354,7 @@
                                              IsChrome="True"
                                              VerticalAlignment="Center"/>
                         <Border Width="1" Height="18" Background="#1FFFFFFF"/>
-                        <Button Classes="iconbtn" ToolTip.Tip="Like">
-                            <Path Width="16" Height="14" Stretch="None" Fill="Transparent"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.5"
-                                  StrokeJoin="Round"
-                                  Data="M 8,13 C 5,10 1,7 1,4 C 1,1 4,0 6,2 L 8,4 L 10,2 C 12,0 15,1 15,4 C 15,7 11,10 8,13 Z"/>
-                        </Button>
+                        <controls:LikeButton/>
                         <Button Classes="iconbtn" ToolTip.Tip="More">
                             <Path Width="14" Height="4" Stretch="None"
                                   Fill="{Binding $parent[Button].Foreground}"
@@ -447,16 +364,8 @@
                 </Grid>
             </Border>
 
-            <!-- ─── PROGRESS BAR ───────────────────────────────────────────── -->
-            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="38,8,38,4" VerticalAlignment="Center">
-                <TextBlock Text="{Binding PositionText}" Foreground="#A6FFFFFF" FontSize="12"
-                           VerticalAlignment="Center" MinWidth="42" TextAlignment="Right"/>
-                <controls:SkeuSlider Grid.Column="1" Margin="12,0" Minimum="0"
-                                     Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
-                                     VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{Binding DurationText}" Foreground="#A6FFFFFF" FontSize="12"
-                           VerticalAlignment="Center" MinWidth="42" TextAlignment="Left" />
-            </Grid>
+            <!-- ─── PROGRESS BAR — shared control (Controls/TransportProgressBar) ─── -->
+            <controls:TransportProgressBar DockPanel.Dock="Bottom" Margin="38,8,38,4"/>
 
             <!-- ─── MAIN CONTENT: 2-column ─────────────────────────────────── -->
             <Grid ColumnDefinitions="*,1.05*" Margin="44,8,44,12">
@@ -496,22 +405,26 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Tab strip: UP NEXT / LYRICS — underline lives inside the Content StackPanel
-                         so its width = text width, not the whole button. -->
+                    <!-- Tab strip: UP NEXT / LYRICS — the active underline (Border.tabline) is
+                         bottom-aligned inside each tab's Panel so it sits on the strip's bottom
+                         hairline, mid-way between the tab text and the queue table below
+                         (design app.jsx:733). Underline width = text width (Panel content area). -->
                     <Border DockPanel.Dock="Top" Margin="0,18,0,8"
                             BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
                         <StackPanel Orientation="Horizontal" Spacing="0">
                             <Button Classes="tab active" Click="OnUpNextTabClick" Name="UpNextTab">
-                                <StackPanel>
-                                    <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" LetterSpacing="2"/>
+                                <Panel>
+                                    <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" LetterSpacing="2"
+                                               VerticalAlignment="Top"/>
                                     <Border Classes="tabline"/>
-                                </StackPanel>
+                                </Panel>
                             </Button>
                             <Button Classes="tab" Click="OnLyricsTabClick" Name="LyricsTab">
-                                <StackPanel>
-                                    <TextBlock Text="LYRICS" FontSize="12" FontWeight="Bold" LetterSpacing="2"/>
+                                <Panel>
+                                    <TextBlock Text="LYRICS" FontSize="12" FontWeight="Bold" LetterSpacing="2"
+                                               VerticalAlignment="Top"/>
                                     <Border Classes="tabline"/>
-                                </StackPanel>
+                                </Panel>
                             </Button>
                         </StackPanel>
                     </Border>
@@ -707,86 +620,9 @@
             </Grid>
         </DockPanel>
 
-        <!--
-          TWEAKS PANEL — slides in from the right when ToggleTweaksCommand is invoked.
-          Mirrors the design's tweaks-panel.jsx: Theme palette · Stage toggles · Right-panel default.
-          Backed by IsTweaksOpen / CurrentTheme / VinylSpinEnabled / WaveformEnabled / DefaultTab in the VM.
-        -->
-        <Border IsVisible="{Binding IsTweaksOpen}"
-                Width="300" HorizontalAlignment="Right" VerticalAlignment="Stretch"
-                Background="#F01a1828"
-                CornerRadius="0,14,14,0"
-                BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
-            <ScrollViewer Padding="22,18,22,18">
-                <StackPanel Spacing="14">
-
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
-                                   Foreground="White" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="13"
-                                Command="{Binding ToggleTweaksCommand}"/>
-                    </Grid>
-
-                    <TextBlock Classes="tweak-section" Text="THEME"/>
-                    <TextBlock Classes="tweak-label" Text="Palette"/>
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Background="Transparent" BorderThickness="0" Padding="0"
-                                Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
-                            <Border Classes="swatch" Background="{StaticResource SwatchAurora}"
-                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Aurora}"/>
-                        </Button>
-                        <Button Background="Transparent" BorderThickness="0" Padding="0"
-                                Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
-                            <Border Classes="swatch" Background="{StaticResource SwatchSunset}"
-                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Sunset}"/>
-                        </Button>
-                        <Button Background="Transparent" BorderThickness="0" Padding="0"
-                                Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
-                            <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
-                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Midnight}"/>
-                        </Button>
-                        <Button Background="Transparent" BorderThickness="0" Padding="0"
-                                Command="{Binding SetThemeCommand}" CommandParameter="Neon">
-                            <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
-                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Neon}"/>
-                        </Button>
-                    </StackPanel>
-                    <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
-                               Foreground="#73FFFFFF" LetterSpacing="2"/>
-
-                    <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
-
-                    <TextBlock Classes="tweak-section" Text="STAGE"/>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="tweak-label" Text="Vinyl spin" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding VinylSpinEnabled}"
-                                      OnContent="" OffContent=""/>
-                    </Grid>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="tweak-label" Text="Waveform" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding WaveformEnabled}"
-                                      OnContent="" OffContent=""/>
-                    </Grid>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Classes="tweak-label" Text="Compact layout" VerticalAlignment="Center"/>
-                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsMini}"
-                                      OnContent="" OffContent=""/>
-                    </Grid>
-
-                    <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
-
-                    <TextBlock Classes="tweak-section" Text="RIGHT PANEL"/>
-                    <TextBlock Classes="tweak-label" Text="Default tab"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Classes="tweak-radio" Content="Up Next"
-                                Classes.active="{Binding DefaultTab, Converter={StaticResource StringEquals}, ConverterParameter='Up Next'}"
-                                Command="{Binding SetDefaultTabCommand}" CommandParameter="Up Next"/>
-                        <Button Classes="tweak-radio" Content="Lyrics"
-                                Classes.active="{Binding DefaultTab, Converter={StaticResource StringEquals}, ConverterParameter=Lyrics}"
-                                Command="{Binding SetDefaultTabCommand}" CommandParameter="Lyrics"/>
-                    </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
+        <!-- TWEAKS PANEL — shared control (Controls/TweaksPanel); slides in from the
+             right when ToggleTweaksCommand toggles IsTweaksOpen. -->
+        <controls:TweaksPanel IsVisible="{Binding IsTweaksOpen}"
+                              HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
     </Panel>
 </UserControl>

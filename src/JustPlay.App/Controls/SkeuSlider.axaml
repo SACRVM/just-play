@@ -19,12 +19,17 @@
             </Border.Background>
         </Border>
 
-        <!-- Filled portion (cyan → pink). Hidden by code-behind when Value=0. -->
-        <Border Name="Fill" Height="3" CornerRadius="1.5"
+        <!-- Filled portion (cyan → pink). Hidden by code-behind when Value=0.
+             Height MUST stay even: the slider grid is 22 px tall, so an even-height
+             child centres on an integer pixel (y=11, same as the 6 px rail). An odd
+             height (was 3) lands the fill on a half-pixel → it renders ~1 px out of the
+             rail's centre — the offset Chloe spotted. 4 keeps it pixel-aligned. -->
+        <!-- BoxShadow (inset bevel + outer accent glow) is bound in code-behind to the
+             theme-driven SkeuSlider*FillGlow resource, picked by IsChrome. -->
+        <Border Name="Fill" Height="4" CornerRadius="2"
                 HorizontalAlignment="Left" VerticalAlignment="Center"
                 Width="0"
-                Background="{DynamicResource AccentGradient}"
-                BoxShadow="inset 0 1 0 0 #66FFFFFF"/>
+                Background="{DynamicResource AccentGradient}"/>
 
         <!--
           BOTH thumbs (progress + volume) now share the same skeu treatment as the play

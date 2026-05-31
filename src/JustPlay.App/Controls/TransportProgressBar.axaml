@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustPlay.App.ViewModels"
+             xmlns:controls="using:JustPlay.App.Controls"
+             x:Class="JustPlay.App.Controls.TransportProgressBar"
+             x:DataType="vm:MainWindowViewModel"
+             ClipToBounds="False">
+
+    <!--
+      Shared seek bar: position · slider · duration. Used by both views (was
+      duplicated). Defaults to MaxView sizing; Compact=True switches to MiniView's
+      smaller text / min-widths / slider inset (the code-behind applies it, mirroring
+      TransportButtons). The outer Dock/Margin stays on the consumer.
+
+      ClipToBounds=False on the root + Grid: the SkeuSlider thumb's drop-shadow/glow
+      extends below the 22 px slider; this wrapper must not crop it (repo rule — glow
+      needs ClipToBounds=False all the way up the chain).
+    -->
+    <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" ClipToBounds="False">
+        <TextBlock x:Name="PosText" Text="{Binding PositionText}" Foreground="#A6FFFFFF" FontSize="12"
+                   VerticalAlignment="Center" MinWidth="42" TextAlignment="Right"/>
+        <controls:SkeuSlider x:Name="Slider" Grid.Column="1" Margin="12,0" Minimum="0"
+                             Maximum="{Binding DurationSeconds}" Value="{Binding PositionSeconds}"
+                             VerticalAlignment="Center"/>
+        <TextBlock x:Name="DurText" Grid.Column="2" Text="{Binding DurationText}" Foreground="#A6FFFFFF" FontSize="12"
+                   VerticalAlignment="Center" MinWidth="42" TextAlignment="Left"/>
+    </Grid>
+</UserControl>

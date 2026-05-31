@@ -73,6 +73,7 @@ public sealed class AvaloniaThemeService : IThemeService
         // alpha byte. Avalonia's BoxShadow string and LinearGradientBrush stops
         // can't compose alpha onto a DynamicResource Color, so we publish each
         // alpha variant as its own key.
+        var accentA = Color.Parse(theme.AccentA);
         var accentB = Color.Parse(theme.AccentB);
         var accentC = Color.Parse(theme.AccentC);
 
@@ -92,7 +93,10 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["AccentCRowHover"]   = WithAlpha(accentC, 0x33);   // .20  — selected+hover purple stop
 
         // Extra glow alphas used by multi-layer BoxShadows further down.
-        var sliderGlow = WithAlpha(accentB, 0x80);   // SkeuSlider thumb halo
+        var sliderGlow = WithAlpha(accentB, 0x80);   // SkeuSlider thumb halo (legacy key)
+        var thumbGlow  = WithAlpha(accentB, 0xAA);   // SkeuSlider thumb halo — design `accentBaa`
+        var fillGlowB  = WithAlpha(accentB, 0x88);   // SkeuSlider fill glow — design `accentB88`
+        var fillGlowA  = WithAlpha(accentA, 0x55);   // SkeuSlider fill glow — design `accentA55`
         var sleeveAura = WithAlpha(accentC, 0x40);   // Vinyl sleeve outer aura
         var windowHaze = WithAlpha(accentC, 0x2A);   // Main window outer glow
         app.Resources["AccentBHalfGlow"]   = sliderGlow;
@@ -143,8 +147,8 @@ public sealed class AvaloniaThemeService : IThemeService
             });
 
         // SkeuSlider thumbs — same five-layer skeu (inset highlight, inset bottom shade,
-        // drop, hairline outline, accent halo). Progress (18-px) uses blur 3/4/10;
-        // chrome (14-px) uses blur 2/3/8. Only the accent layer tracks the theme.
+        // drop, hairline outline, accent halo). Halo now uses the design's stronger
+        // `accentBaa` and a wider blur (design progress thumb: 0 0 12px accentBaa).
         BoxShadows MakeSliderShadow(double insetBlur, double dropBlur, double haloBlur) =>
             new BoxShadows(
                 new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = 1,  Blur = 1,         Spread = 0, Color = White(0xB3) },
@@ -152,10 +156,27 @@ public sealed class AvaloniaThemeService : IThemeService
                     new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = -2, Blur = insetBlur, Spread = 0, Color = Black(0x66) },
                     new BoxShadow { OffsetX = 0, OffsetY = 2, Blur = dropBlur,                   Spread = 0, Color = Black(0x99) },
                     new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 0,                          Spread = 1, Color = Black(0x59) },
-                    new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = haloBlur,                   Spread = 0, Color = sliderGlow },
+                    new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = haloBlur,                   Spread = 0, Color = thumbGlow },
                 });
-        app.Resources["SkeuSliderProgressThumbShadow"] = MakeSliderShadow(3, 4, 10);
-        app.Resources["SkeuSliderChromeThumbShadow"]   = MakeSliderShadow(2, 3, 8);
+        app.Resources["SkeuSliderProgressThumbShadow"] = MakeSliderShadow(3, 4, 12);
+        app.Resources["SkeuSliderChromeThumbShadow"]   = MakeSliderShadow(2, 3, 10);
+
+        // SkeuSlider filled portion — inset bevel + OUTER accent glow so the coloured
+        // progress emits light (design progress fill, player.jsx:509: inset highlight/
+        // shade + 0 0 10 accentB88 + 0 0 16 accentA55; volume fill, :579: inset
+        // highlight + 0 0 6 accentB88). This was missing entirely before.
+        app.Resources["SkeuSliderProgressFillGlow"] = new BoxShadows(
+            new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = 1, Blur = 0, Spread = 0, Color = White(0x80) },
+            new BoxShadow[] {
+                new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = -1, Blur = 0,  Spread = 0, Color = Black(0x33) },
+                new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 10, Spread = 0, Color = fillGlowB },
+                new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 16, Spread = 0, Color = fillGlowA },
+            });
+        app.Resources["SkeuSliderChromeFillGlow"] = new BoxShadows(
+            new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = 1, Blur = 0, Spread = 0, Color = White(0x66) },
+            new BoxShadow[] {
+                new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 6, Spread = 0, Color = fillGlowB },
+            });
 
         // Only fire ThemeChanged and update _current on a REAL theme switch —
         // initial cold-start writes still call this method to publish the

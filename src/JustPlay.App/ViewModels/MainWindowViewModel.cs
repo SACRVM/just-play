@@ -29,6 +29,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
 
+    // ── Shuffle state ────────────────────────────────────────────────────
+    // A "bag shuffle" with history: every track plays once per cycle (no
+    // immediate repeats), and Previous walks back through the order we
+    // actually played. _shuffleHistory is the ordered list of tracks visited
+    // in the current cycle; _shufflePos points at the current one. Walking
+    // forward past the frontier (_shufflePos == last) generates a fresh pick
+    // from the not-yet-played pool. This is the platform-agnostic complement
+    // to the linear Step path below — both feed PlayInternal.
+    private readonly List<TrackViewModel> _shuffleHistory = [];
+    private int _shufflePos = -1;
+    private readonly Random _rng = new();
+
+    // Previous restarts the current track instead of stepping back when more
+    // than this far into it — direct port of the design (app.jsx:492,
+    // `if (progress > 3) setProgress(0)`).
+    private static readonly TimeSpan PreviousRestartThreshold = TimeSpan.FromSeconds(3);
+
     // Suppress persistence while the constructor seeds [ObservableProperty]
     // backing fields from the loaded settings. Without this guard, the very
     // first assignment of each tweak property would trigger an On…Changed
@@ -76,6 +93,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private double _durationSeconds;
 
     [ObservableProperty] private double _volume = 1.0;
+
+    // ── Transport mode (shuffle / repeat) ────────────────────────────────
+    // Not persisted — JustPlay is "no memory, just play". Each session starts
+    // shuffle-off, repeat-off (matches the design's useState defaults).
+    [ObservableProperty] private bool _shuffle;
+
+    [ObservableProperty] private RepeatMode _repeat;
+
+    /// <summary>Repeat is engaged (All or One) — drives the button's accent highlight.</summary>
+    public bool RepeatActive => Repeat != RepeatMode.Off;
+
+    /// <summary>Repeat-one specifically — drives the little "1" badge on the repeat button.</summary>
+    public bool RepeatOne => Repeat == RepeatMode.One;
+
+    partial void OnRepeatChanged(RepeatMode value)
+    {
+        OnPropertyChanged(nameof(RepeatActive));
+        OnPropertyChanged(nameof(RepeatOne));
+    }
+
+    partial void OnShuffleChanged(bool value)
+    {
+        // Toggling shuffle starts a fresh cycle anchored on whatever is playing
+        // (so we don't immediately replay the current track), or clears the
+        // history when switching back to linear.
+        if (value) ResetShuffleFrom(Current);
+        else { _shuffleHistory.Clear(); _shufflePos = -1; }
+    }
 
     // ── Tweaks-panel state (mirrors TWEAK_DEFAULTS in the design's app.jsx) ─
     [ObservableProperty] private bool _isTweaksOpen;
@@ -161,6 +206,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void PlayTrack(TrackViewModel? track)
     {
         if (track is null) return;
+        PlayInternal(track);
+        // Explicit user pick (double-click a row): restart the shuffle cycle
+        // anchored on this track so the next bag is drawn around it.
+        if (Shuffle) ResetShuffleFrom(track);
+    }
+
+    /// <summary>Load + play a track without disturbing shuffle bookkeeping — the shared
+    /// path for user picks and internal next/prev navigation alike.</summary>
+    private void PlayInternal(TrackViewModel track)
+    {
         SetCurrent(track);
         _controller.Play(track.Model);
         _controller.Volume = Volume;
@@ -181,10 +236,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void Stop() => _controller.Stop();
 
     [RelayCommand]
-    private void Next() => Step(+1);
+    private void Next() => Advance(forward: true, auto: false);
 
     [RelayCommand]
-    private void Previous() => Step(-1);
+    private void Previous()
+    {
+        // Design behaviour (app.jsx:492): if we're more than a few seconds into
+        // the current track, "previous" restarts it rather than stepping back.
+        if (_controller.CurrentTrack is not null && _controller.Position > PreviousRestartThreshold)
+        {
+            _controller.Position = TimeSpan.Zero;
+            return;
+        }
+        Advance(forward: false, auto: false);
+    }
+
+    [RelayCommand]
+    private void ToggleShuffle() => Shuffle = !Shuffle;
+
+    [RelayCommand]
+    private void CycleRepeat() => Repeat = Repeat switch
+    {
+        RepeatMode.Off => RepeatMode.All,
+        RepeatMode.All => RepeatMode.One,
+        _              => RepeatMode.Off,
+    };
 
     [RelayCommand]
     private void ToggleViewMode() => IsMini = !IsMini;
@@ -217,6 +293,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _controller.Stop();
         Tracks.Clear();
         SetCurrent(null);
+        _shuffleHistory.Clear();
+        _shufflePos = -1;
         RaiseTrackListChanged();
     }
 
@@ -308,12 +386,120 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ---- Internals ------------------------------------------------------
 
-    private void Step(int delta)
+    /// <summary>
+    /// The one navigation entry-point. <paramref name="auto"/> distinguishes a track
+    /// ending on its own (respects Repeat fully) from a user pressing next/prev
+    /// (always moves — Repeat-One never traps the user on one track).
+    /// </summary>
+    private void Advance(bool forward, bool auto)
     {
         if (Tracks.Count == 0) return;
+
+        // Repeat-One only fires on natural end: replay the current track.
+        if (auto && Repeat == RepeatMode.One && Current is not null)
+        {
+            PlayInternal(Current);
+            return;
+        }
+
+        if (Shuffle) { AdvanceShuffle(forward, auto); return; }
+
+        // ── Linear navigation ──
         var index = Current is null ? -1 : Tracks.IndexOf(Current);
-        var next = ((index + delta) % Tracks.Count + Tracks.Count) % Tracks.Count;
-        PlayTrack(Tracks[next]);
+        if (forward)
+        {
+            var next = index + 1;
+            if (next >= Tracks.Count)
+            {
+                // End of queue. Manual next wraps; auto-advance only wraps under
+                // Repeat-All, otherwise it stops at the end.
+                if (auto && Repeat != RepeatMode.All) { _controller.Stop(); return; }
+                next = 0;
+            }
+            PlayInternal(Tracks[next]);
+        }
+        else
+        {
+            var prev = index - 1;
+            if (prev < 0) prev = Tracks.Count - 1; // wrap to the end
+            PlayInternal(Tracks[prev]);
+        }
+    }
+
+    // ── Shuffle navigation ───────────────────────────────────────────────
+
+    private void AdvanceShuffle(bool forward, bool auto)
+    {
+        if (forward)
+        {
+            // Re-tread forward through history first (user went back, now going
+            // forward again) before generating a new pick at the frontier.
+            if (_shufflePos < _shuffleHistory.Count - 1)
+            {
+                _shufflePos++;
+                PlayInternal(_shuffleHistory[_shufflePos]);
+                return;
+            }
+
+            var pick = PickUnplayed();
+            if (pick is null)
+            {
+                // Cycle exhausted — every track has played once this cycle.
+                // Start a new cycle on Repeat-All, OR on a manual next (the user
+                // explicitly asked to move — always honour that, like the linear
+                // wrap). Auto-advance with Repeat-Off is the only case that stops.
+                if (Repeat == RepeatMode.All || !auto)
+                {
+                    // New cycle anchored on the current track so it isn't the
+                    // immediate next pick.
+                    ResetShuffleFrom(Current);
+                    pick = PickUnplayed();
+                    // Nothing else to pick (1-track queue): replay the current.
+                    if (pick is null) { if (Current is not null) PlayInternal(Current); return; }
+                }
+                else
+                {
+                    _controller.Stop();
+                    return;
+                }
+            }
+
+            _shuffleHistory.Add(pick);
+            _shufflePos = _shuffleHistory.Count - 1;
+            PlayInternal(pick);
+        }
+        else
+        {
+            // Step back through what we actually played; at the start, stay put
+            // (the >3s restart in Previous() already handled the common case).
+            if (_shufflePos > 0)
+            {
+                _shufflePos--;
+                PlayInternal(_shuffleHistory[_shufflePos]);
+            }
+        }
+    }
+
+    /// <summary>Pick a random track not yet played in the current shuffle cycle, or null
+    /// when the bag is empty.</summary>
+    private TrackViewModel? PickUnplayed()
+    {
+        var played = new HashSet<TrackViewModel>(_shuffleHistory);
+        var pool = Tracks.Where(t => !played.Contains(t)).ToList();
+        return pool.Count == 0 ? null : pool[_rng.Next(pool.Count)];
+    }
+
+    /// <summary>Begin a fresh shuffle cycle anchored on <paramref name="anchor"/> (the track
+    /// already playing), so it counts as "played" and won't be the next pick.</summary>
+    private void ResetShuffleFrom(TrackViewModel? anchor)
+    {
+        _shuffleHistory.Clear();
+        _shufflePos = -1;
+        if (anchor is not null)
+        {
+            _shuffleHistory.Add(anchor);
+            _shufflePos = 0;
+        }
     }
 
     private void SetCurrent(TrackViewModel? track)
@@ -337,7 +523,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         => Dispatcher.UIThread.Post(() => IsPlaying = state == PlaybackState.Playing);
 
     private void OnTrackEnded(object? sender, Track? ended)
-        => Dispatcher.UIThread.Post(() => Step(+1)); // auto-advance through the list
+        => Dispatcher.UIThread.Post(() => Advance(forward: true, auto: true)); // auto-advance (honours shuffle/repeat)
 
     partial void OnVolumeChanged(double value) => _controller.Volume = value;
 

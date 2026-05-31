@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
 
 namespace JustPlay.App.Controls;
 
@@ -33,6 +34,7 @@ public partial class SkeuSlider : UserControl
 
     private Border? _fill, _accentThumb, _chromeThumb;
     private bool _dragging;
+    private IDisposable? _fillGlowSub;
 
     public SkeuSlider()
     {
@@ -69,12 +71,23 @@ public partial class SkeuSlider : UserControl
     /// <summary>Distance the thumb's left edge travels along the inner Grid as Value goes 0→1.</summary>
     private double TrackRange => Math.Max(0, Bounds.Width - 2 * SidePad - ActiveThumbWidth);
 
-    /// <summary>Deterministically hide whichever thumb isn't in use right now.</summary>
+    /// <summary>Deterministically hide whichever thumb isn't in use right now, and
+    /// bind the fill's glow to the matching theme-driven resource.</summary>
     private void UpdateThumbVisibility()
     {
         var chrome = IsChrome;
         if (_accentThumb is not null) _accentThumb.IsVisible = !chrome;
         if (_chromeThumb is not null) _chromeThumb.IsVisible = chrome;
+
+        // Fill glow differs by mode (progress: cyan+pink bloom; volume: smaller pink).
+        // DynamicResource so it tracks live theme switches like the thumb halo does.
+        if (_fill is not null)
+        {
+            _fillGlowSub?.Dispose();
+            _fillGlowSub = _fill.Bind(
+                Border.BoxShadowProperty,
+                this.GetResourceObservable(chrome ? "SkeuSliderChromeFillGlow" : "SkeuSliderProgressFillGlow"));
+        }
     }
 
     private void Relayout()
