@@ -36,3 +36,8 @@ ehthumbs.db
 Desktop.ini
 .DS_Store
 $RECYCLE.BIN/
+
+# ── Session-local notes ─────────────────────────────────────────────────────
+# Dated session hand-off documents are deliberately not committed — they are
+# point-in-time aids, not project history.
+HANDOVER-*.md
