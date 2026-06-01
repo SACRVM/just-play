@@ -272,7 +272,24 @@ internal static class KeyReport
     /// Reports the MIREX weighted key score (correct 1.0 / fifth 0.5 / relative 0.3 /
     /// parallel 0.2) alongside the raw category breakdown.</para>
     /// </summary>
-    public static void RunGiantSteps(IServiceProvider services, string root)
+    public static void RunGiantSteps(IServiceProvider services, string root, int maxFiles = int.MaxValue)
+    {
+        var detector = services.GetRequiredService<IKeyDetector>();
+        RunGiantStepsCore(services, detector, AnalysisSampleRate, root, maxFiles, "shipped (braw+cosine @ 11 kHz)");
+    }
+
+    /// <summary>
+    /// Same ground-truth benchmark but with the experimental peak-picked
+    /// <see cref="HpcpKeyDetector"/> decoded at a HIGHER sample rate (so HPCP's harmonic
+    /// summation keeps the upper harmonics). A/B this against <see cref="RunGiantSteps"/>
+    /// before swapping any DI registration.
+    /// </summary>
+    public static void RunGiantStepsHpcp(IServiceProvider services, string root, int maxFiles = int.MaxValue)
+        => RunGiantStepsCore(services, new HpcpKeyDetector(), 44100, root, maxFiles, "HPCP (peak-picked @ 44.1 kHz)");
+
+    private static void RunGiantStepsCore(
+        IServiceProvider services, IKeyDetector detector, int sampleRate,
+        string root, int maxFiles, string label)
     {
         var audioDir = Path.Combine(root, "audio");
         var keyDir = Path.Combine(root, "annotations", "key");
@@ -283,7 +300,6 @@ internal static class KeyReport
         }
 
         var decoder = services.GetRequiredService<IAudioDecoder>();
-        var detector = services.GetRequiredService<IKeyDetector>();
 
         if (!ManagedBass.Bass.Init(0))
             Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
@@ -291,9 +307,10 @@ internal static class KeyReport
         var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
             .Where(f => new FileInfo(f).Length > 10000) // skip empty/failed downloads
             .OrderBy(f => f)
+            .Take(maxFiles)
             .ToList();
 
-        Console.WriteLine($"GiantSteps benchmark: {files.Count} audio file(s) with truth labels.\n");
+        Console.WriteLine($"GiantSteps benchmark [{label}, decode @ {sampleRate} Hz]: {files.Count} file(s).\n");
 
         int exact = 0, fifth = 0, relative = 0, parallel = 0, other = 0, undetected = 0, noRef = 0;
         double mirexSum = 0;
@@ -305,11 +322,11 @@ internal static class KeyReport
             {
                 var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
                 if (!File.Exists(keyFile)) { noRef++; continue; }
-                var label = File.ReadAllText(keyFile).Trim();
-                if (MusicalKey.TryParse(label) is not { } reference) { noRef++; continue; }
+                var keyLabel = File.ReadAllText(keyFile).Trim();
+                if (MusicalKey.TryParse(keyLabel) is not { } reference) { noRef++; continue; }
 
                 DecodedAudio? audio;
-                try { audio = decoder.DecodeMono(file, AnalysisSampleRate); }
+                try { audio = decoder.DecodeMono(file, sampleRate); }
                 catch (Exception ex) { Console.WriteLine($"  [decode FAIL] {Path.GetFileName(file)}: {ex.Message}"); continue; }
                 if (audio is not { } a || detector.Detect(a) is not { } d) { undetected++; continue; }
 

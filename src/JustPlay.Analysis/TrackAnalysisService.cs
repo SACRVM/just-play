@@ -15,10 +15,14 @@ namespace JustPlay.Analysis;
 /// </summary>
 public sealed class TrackAnalysisService : ITrackAnalysisService
 {
-    // Sample rate for the sample-based detectors. 11025 Hz is plenty for key
-    // (highest pitch class we care about is well under its Nyquist) and keeps the
-    // decode + FFT cheap.
-    private const int AnalysisSampleRate = 11025;
+    // Energy runs at 11025 Hz (cheap, and its calibration is fixed to this rate).
+    private const int EnergySampleRate = 11025;
+    // Key (HpcpKeyDetector) runs at 44100 Hz: its HPCP harmonic summation needs the upper
+    // harmonics that an 11 kHz Nyquist (~5.5 kHz) would cut off. Measured on the GiantSteps
+    // ground-truth set, the 44.1 kHz peak-picked HPCP scores MIREX 0.629 / 52% exact vs the
+    // old 11 kHz braw chromagram's 0.562 / 41%. The extra decode is worth it for background
+    // analysis. See the dj-audio-analysis skill.
+    private const int KeySampleRate = 44100;
 
     private readonly IBpmDetector _bpm;
     private readonly IAudioDecoder _decoder;
@@ -48,19 +52,19 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             var result = AnalysisResult.Empty with { Bpm = bpm };
             progress?.Report(result);
 
-            // Sample-based detectors share one mono decode.
+            // Key: decode at 44.1 kHz (HPCP needs the harmonic headroom).
             ct.ThrowIfCancellationRequested();
-            var audio = _decoder.DecodeMono(filePath, AnalysisSampleRate, ct);
-
-            if (_key.Detect(audio, ct) is { } k)
+            var keyAudio = _decoder.DecodeMono(filePath, KeySampleRate, ct);
+            if (_key.Detect(keyAudio, ct) is { } k)
             {
                 result = result with { Key = k.Key, KeyConfidence = k.Confidence };
                 progress?.Report(result);
             }
 
-            // Energy on the same decoded audio.
+            // Energy: separate decode at 11.025 kHz (its calibration is fixed to this rate).
             ct.ThrowIfCancellationRequested();
-            if (_energy.Detect(audio, ct) is { } e)
+            var energyAudio = _decoder.DecodeMono(filePath, EnergySampleRate, ct);
+            if (_energy.Detect(energyAudio, ct) is { } e)
             {
                 result = result with { Energy = e };
                 progress?.Report(result);

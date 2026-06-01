@@ -40,11 +40,20 @@ sealed class Program
             return;
         }
 
-        // Ground-truth benchmark: `--giantsteps <dataset-root>` scores key detection against
-        // the hand-verified GiantSteps Key labels (real accuracy, not agreement with a tool).
+        // Ground-truth benchmark: `--giantsteps <dataset-root> [maxFiles]` scores the shipped
+        // detector against the hand-verified GiantSteps Key labels (real accuracy).
         if (args is ["--giantsteps", var gsRoot, ..])
         {
-            KeyReport.RunGiantSteps(Services, gsRoot);
+            var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
+            KeyReport.RunGiantSteps(Services, gsRoot, max);
+            return;
+        }
+
+        // Same, but the experimental peak-picked HPCP detector @ 44.1 kHz (A/B experiment).
+        if (args is ["--giantsteps-hpcp", var hRoot, ..])
+        {
+            var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
+            KeyReport.RunGiantStepsHpcp(Services, hRoot, max);
             return;
         }
 
@@ -65,7 +74,11 @@ sealed class Program
         // out to all registered detectors. Singletons so the BASS_FX side has
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
-        services.AddSingleton<IKeyDetector, ChromagramKeyDetector>();
+        // HpcpKeyDetector (peak-picked HPCP @ 44.1 kHz) beat the old ChromagramKeyDetector on
+        // the GiantSteps ground-truth set: MIREX 0.629 / 52% exact vs 0.562 / 41%. The
+        // analysis service decodes at 44.1 kHz for it. ChromagramKeyDetector is kept in the
+        // codebase (and reachable via the --key-sweep harness) for A/B and history.
+        services.AddSingleton<IKeyDetector, HpcpKeyDetector>();
         services.AddSingleton<IEnergyDetector, SpectralEnergyDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 
