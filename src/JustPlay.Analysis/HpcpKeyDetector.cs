@@ -28,14 +28,18 @@ namespace JustPlay.Analysis;
 /// </summary>
 public sealed class HpcpKeyDetector : IKeyDetector
 {
-    private const int FrameSize = 4096;               // edmkey WINDOW_SIZE
-    private const int HopSize = 4096;                 // edmkey HOP_SIZE (no overlap)
+    // Finer than edmkey's 4096 (a deliberate improvement): at 44.1 kHz, 8192 = 5.4 Hz/bin
+    // vs edmkey's 10.8 — better bass-octave peak localisation (a semitone at 100 Hz is ~6 Hz,
+    // unresolvable at 4096). 50% overlap (hop = size/2) gives ~2× frames for a steadier sum.
+    private const int FrameSize = 8192;
+    private const int HopSize = 4096;
     private const double C0Hz = 16.3515978312874;
     private const double MinHz = 25.0;                // edmkey MIN_HZ
     private const double MaxHz = 3500.0;              // edmkey MAX_HZ
     private const double HighpassHz = 200.0;          // edmkey HIGHPASS_CUTOFF, applied ×3
     private const int MaxPeaks = 60;                  // edmkey SPECTRAL_PEAKS_MAX
     private const double PcpGate = 0.2;               // edmkey PCP_THRESHOLD
+    // (PeakThreshold removed — we now keep local maxima and take the strongest MaxPeaks.)
     private const int Harmonics = 4;                  // edmkey HPCP_HARMONICS
     private const double HarmonicDecay = 0.6;
     private const int BinsPerSemitone = 3;
@@ -118,17 +122,15 @@ public sealed class HpcpKeyDetector : IKeyDetector
         var re = new float[FrameSize];
         var im = new float[FrameSize];
         var mag = new double[halfBins];
-        var env = new double[halfBins];
 
         var fineChroma = new double[ChromaBins];   // SUM across frames (edmkey: no per-frame norm)
         var anyEnergy = false;
 
         var kMin = Math.Max(1, (int)(MinHz / binHz));
         var kMax = Math.Min(halfBins - 2, (int)(maxHz / binHz));
-        // Whitening envelope half-window in bins (~150 Hz each side).
-        var envHalf = Math.Max(4, (int)(150.0 / binHz));
 
-        var peaks = new List<(double Freq, double Mag)>(128);
+        var peaks = new List<(double Freq, double Mag)>(256);
+        var whitened = new double[MaxPeaks];
 
         for (var start = 0; start + FrameSize <= samples.Length; start += HopSize)
         {
@@ -144,34 +146,18 @@ public sealed class HpcpKeyDetector : IKeyDetector
             for (var k = 0; k < halfBins; k++)
                 mag[k] = Math.Sqrt((double)re[k] * re[k] + (double)im[k] * im[k]);
 
-            // Simplified spectral whitening: divide each bin by a smoothed local-magnitude
-            // envelope (moving average over ±envHalf bins), flattening timbre so loud
-            // broadband regions don't dominate. (Essentia uses a dB BPF envelope; this is a
-            // linear-domain approximation of the same idea.)
-            for (var k = 0; k < halfBins; k++)
-            {
-                var lo = Math.Max(0, k - envHalf);
-                var hi = Math.Min(halfBins - 1, k + envHalf);
-                var s = 0.0;
-                for (var j = lo; j <= hi; j++) s += mag[j];
-                env[k] = s / (hi - lo + 1);
-            }
-
-            // Peak-pick local maxima of the WHITENED spectrum in [25, 3500] Hz.
+            // Peak-pick local maxima of the RAW spectrum in [25, 3500] Hz, parabolic-
+            // interpolated to sub-bin frequency + magnitude (Essentia SpectralPeaks).
             peaks.Clear();
             for (var k = kMin; k <= kMax; k++)
             {
-                var w = mag[k] / (env[k] + 1e-12);
-                var wl = mag[k - 1] / (env[k - 1] + 1e-12);
-                var wr = mag[k + 1] / (env[k + 1] + 1e-12);
-                if (w <= wl || w <= wr) continue;
-
-                // Parabolic interpolation (whitened magnitude domain) for sub-bin frequency.
-                var denom = wl - 2 * w + wr;
-                var delta = denom != 0 ? 0.5 * (wl - wr) / denom : 0.0;
+                if (mag[k] <= mag[k - 1] || mag[k] <= mag[k + 1]) continue;
+                var denom = mag[k - 1] - 2 * mag[k] + mag[k + 1];
+                var delta = denom != 0 ? 0.5 * (mag[k - 1] - mag[k + 1]) / denom : 0.0;
                 var freq = (k + delta) * binHz;
                 if (freq < MinHz || freq > maxHz) continue;
-                peaks.Add((freq, w));
+                var pmag = mag[k] - 0.25 * (mag[k - 1] - mag[k + 1]) * delta;
+                peaks.Add((freq, pmag));
             }
             if (peaks.Count == 0)
                 continue;
@@ -180,6 +166,10 @@ public sealed class HpcpKeyDetector : IKeyDetector
             if (peaks.Count > MaxPeaks)
                 peaks.Sort((p, q) => q.Mag.CompareTo(p.Mag));
             var take = Math.Min(MaxPeaks, peaks.Count);
+
+            // Faithful Essentia SpectralWhitening of the kept peaks (dB BPF envelope).
+            WhitenPeaks(mag, halfBins, sampleRate, peaks, take, whitened);
+
             for (var i = 0; i < take; i++)
             {
                 // Harmonic contribution: the peak may be the n-th harmonic of a fundamental
@@ -189,7 +179,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
                 {
                     var fund = peaks[i].Freq / n;
                     if (fund < MinHz) break;
-                    AddToChroma(fineChroma, fund, peaks[i].Mag * hw);
+                    AddToChroma(fineChroma, fund, whitened[i] * hw);
                 }
             }
 
@@ -201,6 +191,98 @@ public sealed class HpcpKeyDetector : IKeyDetector
         var total = 0.0;
         for (var b = 0; b < ChromaBins; b++) total += fineChroma[b];
         return total <= SilenceFloor ? null : fineChroma;
+    }
+
+    /// <summary>
+    /// Faithful port of Essentia <c>SpectralWhitening</c> (`spectralwhitening.cpp`): builds a
+    /// dB noise envelope ("true-envelope"-style BPF, 100 Hz steps, energy-weighted triangular
+    /// windows) from the full magnitude spectrum, then expresses each peak relative to it —
+    /// peaks at/above the envelope → 0 dB, peaks below → attenuated, far below → killed, plus
+    /// a high-frequency de-emphasis tilt. Flattens timbre so harmony peaks contribute
+    /// comparably regardless of instrument. Writes linear whitened magnitudes to
+    /// <paramref name="outWhite"/>[0..count).
+    /// </summary>
+    private static void WhitenPeaks(double[] mag, int halfBins, int sampleRate,
+        List<(double Freq, double Mag)> peaks, int count, double[] outWhite)
+    {
+        var spectralRange = sampleRate / 2.0;
+        var maxFreqW = MaxHz * 1.2;          // Essentia: maxFrequency * 1.2
+        const double incr = 100.0;           // bpfResolution
+
+        // Build the BPF envelope points (freq, power), then convert to amplitude dB.
+        var bpfF = new List<double>(64);
+        var bpfDb = new List<double>(64);
+        for (var freq = 0.0; freq <= maxFreqW && freq <= spectralRange; freq += incr)
+        {
+            var bf = freq - Math.Max(50.0, freq * 0.34);
+            var ef = freq + Math.Max(50.0, freq * 0.58);
+            var b = (int)(bf / spectralRange * (halfBins - 1) + 0.5);
+            var e = (int)(ef / spectralRange * (halfBins - 1) + 0.5);
+            b = Math.Clamp(b, 0, halfBins - 1);
+            e = Math.Max(e, b + 1);
+            e = Math.Min(halfBins, e);
+            var c = (b + e) / 2.0;
+            var hw = e - c;
+            var n = 0.0;
+            var wavg = 0.0;
+            for (var i = b; i < e; i++)
+            {
+                var w = 1.0 - Math.Abs(i - c) / hw;
+                w *= w; w *= w;              // triangular window ^4
+                var eng = mag[i] * mag[i];
+                w *= eng;
+                wavg += eng * w;
+                n += w;
+            }
+            if (n != 0.0) wavg /= n;
+            bpfF.Add(freq);
+            bpfDb.Add(wavg);                 // power for now
+        }
+        if (bpfF.Count == 0)
+        {
+            for (var i = 0; i < count; i++) outWhite[i] = peaks[i].Mag;
+            return;
+        }
+        bpfDb[^1] = bpfDb.Count >= 2 ? bpfDb[^2] : bpfDb[^1];
+        for (var i = 0; i < bpfDb.Count; i++)
+            bpfDb[i] = 20.0 * Math.Log10(Math.Sqrt(bpfDb[i]) + 1e-30);
+
+        for (var idx = 0; idx < count; idx++)
+        {
+            var freq = peaks[idx].Freq;
+            var ampDb = 20.0 * Math.Log10(peaks[idx].Mag + 1e-30);
+            double whiteDb;
+            if (freq > maxFreqW - incr)
+            {
+                whiteDb = ampDb;
+            }
+            else
+            {
+                var envDb = InterpBpf(bpfF, bpfDb, freq);
+                if (ampDb > envDb) whiteDb = 0.0;
+                else if (ampDb > envDb - 30.0) whiteDb = ampDb - envDb;
+                else whiteDb = -200.0;
+                whiteDb -= 20.0 * freq / 4000.0;   // high-frequency de-emphasis tilt
+            }
+            outWhite[idx] = Math.Pow(10.0, whiteDb / 20.0);
+        }
+    }
+
+    /// <summary>Piecewise-linear interpolation of the BPF envelope (clamped at the ends).</summary>
+    private static double InterpBpf(List<double> xs, List<double> ys, double x)
+    {
+        if (x <= xs[0]) return ys[0];
+        if (x >= xs[^1]) return ys[^1];
+        // points are evenly spaced by `incr`, but binary-search to stay correct if not.
+        var lo = 0;
+        var hi = xs.Count - 1;
+        while (hi - lo > 1)
+        {
+            var mid = (lo + hi) / 2;
+            if (xs[mid] <= x) lo = mid; else hi = mid;
+        }
+        var t = (x - xs[lo]) / (xs[hi] - xs[lo]);
+        return ys[lo] + t * (ys[hi] - ys[lo]);
     }
 
     /// <summary>Cosine-windowed contribution of a frequency to the 36-bin fine chroma
