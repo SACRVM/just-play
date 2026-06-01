@@ -40,6 +40,14 @@ sealed class Program
             return;
         }
 
+        // Ground-truth benchmark: `--giantsteps <dataset-root>` scores key detection against
+        // the hand-verified GiantSteps Key labels (real accuracy, not agreement with a tool).
+        if (args is ["--giantsteps", var gsRoot, ..])
+        {
+            KeyReport.RunGiantSteps(Services, gsRoot);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

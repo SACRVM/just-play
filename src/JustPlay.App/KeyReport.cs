@@ -259,6 +259,119 @@ internal static class KeyReport
         }
     }
 
+    /// <summary>
+    /// Benchmarks against the GiantSteps Key dataset (Knees/Faraldo et al., ISMIR 2015):
+    /// 604 two-minute Beatport previews with HAND-VERIFIED key ground truth, the set the
+    /// braw/edma profiles were themselves derived on. Unlike <see cref="Run"/> (which scores
+    /// agreement with whatever a *tool* like Mixed In Key wrote), this scores against true
+    /// labels — so the number is real accuracy, comparable to published tool benchmarks.
+    ///
+    /// <para>Layout (cloned from github.com/GiantSteps/giantsteps-key-dataset): audio at
+    /// <c>&lt;root&gt;/audio/&lt;id&gt;.LOFI.mp3</c>, truth at
+    /// <c>&lt;root&gt;/annotations/key/&lt;id&gt;.LOFI.key</c> containing e.g. "C minor".
+    /// Reports the MIREX weighted key score (correct 1.0 / fifth 0.5 / relative 0.3 /
+    /// parallel 0.2) alongside the raw category breakdown.</para>
+    /// </summary>
+    public static void RunGiantSteps(IServiceProvider services, string root)
+    {
+        var audioDir = Path.Combine(root, "audio");
+        var keyDir = Path.Combine(root, "annotations", "key");
+        if (!Directory.Exists(audioDir) || !Directory.Exists(keyDir))
+        {
+            Console.WriteLine($"Expected {audioDir} and {keyDir} to exist (clone giantsteps-key-dataset).");
+            return;
+        }
+
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        var detector = services.GetRequiredService<IKeyDetector>();
+
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+
+        var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
+            .Where(f => new FileInfo(f).Length > 10000) // skip empty/failed downloads
+            .OrderBy(f => f)
+            .ToList();
+
+        Console.WriteLine($"GiantSteps benchmark: {files.Count} audio file(s) with truth labels.\n");
+
+        int exact = 0, fifth = 0, relative = 0, parallel = 0, other = 0, undetected = 0, noRef = 0;
+        double mirexSum = 0;
+        var n = 0;
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
+                if (!File.Exists(keyFile)) { noRef++; continue; }
+                var label = File.ReadAllText(keyFile).Trim();
+                if (MusicalKey.TryParse(label) is not { } reference) { noRef++; continue; }
+
+                DecodedAudio? audio;
+                try { audio = decoder.DecodeMono(file, AnalysisSampleRate); }
+                catch (Exception ex) { Console.WriteLine($"  [decode FAIL] {Path.GetFileName(file)}: {ex.Message}"); continue; }
+                if (audio is not { } a || detector.Detect(a) is not { } d) { undetected++; continue; }
+
+                n++;
+                var (score, cat) = MirexScore(d.Key, reference);
+                mirexSum += score;
+                switch (cat)
+                {
+                    case "exact": exact++; break;
+                    case "fifth": fifth++; break;
+                    case "relative": relative++; break;
+                    case "parallel": parallel++; break;
+                    default: other++; break;
+                }
+            }
+        }
+        finally
+        {
+            ManagedBass.Bass.Free();
+        }
+
+        Console.WriteLine($"=== GiantSteps key accuracy vs TRUE labels ({n} scored) ===");
+        if (n > 0)
+        {
+            Console.WriteLine($"  exact (correct):  {Pct(exact, n)}  ({exact})");
+            Console.WriteLine($"  fifth neighbour:  {Pct(fifth, n)}  ({fifth})   [±1 Camelot]");
+            Console.WriteLine($"  relative maj/min: {Pct(relative, n)}  ({relative})");
+            Console.WriteLine($"  parallel maj/min: {Pct(parallel, n)}  ({parallel})");
+            Console.WriteLine($"  other (wrong):    {Pct(other, n)}  ({other})");
+            Console.WriteLine($"  harmonically ok:  {Pct(exact + fifth + relative, n)}  (exact+fifth+relative)");
+            Console.WriteLine($"  MIREX weighted:   {mirexSum / n:0.000}  (1.0/0.5/0.3/0.2 — compare to published tools)");
+        }
+        Console.WriteLine($"  (undetected by us: {undetected};  no/unparsable label: {noRef})");
+    }
+
+    /// <summary>
+    /// MIREX Audio Key Detection score for one estimate vs ground truth, with the matching
+    /// category: correct=1.0, perfect-fifth (same mode)=0.5, relative maj/min=0.3,
+    /// parallel maj/min=0.2, else 0. Computed from pitch classes (12-TET).
+    /// </summary>
+    private static (double Score, string Category) MirexScore(MusicalKey ours, MusicalKey reference)
+    {
+        if (ours == reference) return (1.0, "exact");
+
+        var diff = ((ours.PitchClass - reference.PitchClass) % 12 + 12) % 12;
+        var sameMode = ours.Mode == reference.Mode;
+
+        // Perfect fifth above or below, same mode (7 or 5 semitones).
+        if (sameMode && (diff == 7 || diff == 5)) return (0.5, "fifth");
+
+        if (!sameMode)
+        {
+            // Relative: major key whose tonic is 3 semitones above the minor's (A minor↔C major).
+            if (ours.Mode == KeyMode.Major && reference.Mode == KeyMode.Minor && diff == 3) return (0.3, "relative");
+            if (ours.Mode == KeyMode.Minor && reference.Mode == KeyMode.Major && diff == 9) return (0.3, "relative");
+            // Parallel: same tonic, opposite mode (C major↔C minor).
+            if (diff == 0) return (0.2, "parallel");
+        }
+
+        return (0.0, "other");
+    }
+
     /// <summary>Mixed In Key writes "Energy N" (often "8A - Energy 7") into the comment.</summary>
     private static int? MikEnergy(TrackMetadata md)
     {
