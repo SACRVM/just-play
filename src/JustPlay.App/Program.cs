@@ -57,6 +57,14 @@ sealed class Program
             return;
         }
 
+        // HPCP matching sweep: build chroma once, A/B profile × (cosine|pearson).
+        if (args is ["--giantsteps-hpcp-sweep", var sRoot, ..])
+        {
+            var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
+            KeyReport.RunGiantStepsHpcpSweep(Services, sRoot, max);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

@@ -363,6 +363,115 @@ internal static class KeyReport
     }
 
     /// <summary>
+    /// HPCP matching sweep: decode + build each track's 12-bin HPCP chroma ONCE, then
+    /// re-score it under every (profile × metric) combo — efficiently A/B's edmkey's
+    /// Pearson+bgate against our cosine+braw without re-decoding @ 44.1 kHz.
+    /// </summary>
+    public static void RunGiantStepsHpcpSweep(IServiceProvider services, string root, int maxFiles = int.MaxValue)
+    {
+        var audioDir = Path.Combine(root, "audio");
+        var keyDir = Path.Combine(root, "annotations", "key");
+        if (!Directory.Exists(audioDir) || !Directory.Exists(keyDir))
+        {
+            Console.WriteLine($"Expected {audioDir} and {keyDir} to exist."); return;
+        }
+
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        var hpcp = new HpcpKeyDetector();
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError})");
+
+        var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
+            .Where(f => new FileInfo(f).Length > 10000).OrderBy(f => f).Take(maxFiles).ToList();
+
+        Console.WriteLine($"HPCP matching sweep: building {files.Count} chroma(s) @ 44.1 kHz once...\n");
+        var cases = new List<(double[] Chroma, MusicalKey Ref)>();
+        try
+        {
+            foreach (var file in files)
+            {
+                var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
+                if (!File.Exists(keyFile)) continue;
+                if (MusicalKey.TryParse(File.ReadAllText(keyFile).Trim()) is not { } reference) continue;
+                DecodedAudio? audio;
+                try { audio = decoder.DecodeMono(file, 44100); } catch { continue; }
+                if (audio is { } a && hpcp.BuildChroma12(a) is { } c) cases.Add((c, reference));
+            }
+        }
+        finally { ManagedBass.Bass.Free(); }
+
+        (string Name, double[] Maj, double[] Min)[] profiles =
+        [
+            ("braw", [1.0000, 0.1573, 0.4200, 0.1570, 0.5296, 0.3669, 0.1632, 0.7711, 0.1676, 0.3827, 0.2113, 0.2965],
+                     [1.0000, 0.2330, 0.3615, 0.3905, 0.2925, 0.3777, 0.1961, 0.7425, 0.2701, 0.2161, 0.4228, 0.2272]),
+            ("bgate", [1.00, 0.00, 0.42, 0.00, 0.53, 0.37, 0.00, 0.77, 0.00, 0.38, 0.21, 0.30],
+                      [1.00, 0.00, 0.36, 0.39, 0.00, 0.38, 0.00, 0.74, 0.27, 0.00, 0.42, 0.23]),
+            ("edma", [1.00, 0.29, 0.50, 0.40, 0.60, 0.56, 0.32, 0.80, 0.31, 0.45, 0.42, 0.39],
+                     [1.00, 0.31, 0.44, 0.58, 0.33, 0.49, 0.29, 0.78, 0.43, 0.29, 0.53, 0.32]),
+        ];
+
+        Console.WriteLine($"Re-scoring {cases.Count} chroma(s):\n  profile  metric    exact   MIREX");
+        foreach (var (pname, maj, min) in profiles)
+            foreach (var useCosine in new[] { true, false })
+            {
+                int exact = 0; double mirex = 0; var n = 0;
+                foreach (var (chroma, reference) in cases)
+                {
+                    var ours = ScoreKey(chroma, maj, min, useCosine);
+                    n++;
+                    var (score, cat) = MirexScore(ours, reference);
+                    mirex += score;
+                    if (cat == "exact") exact++;
+                }
+                Console.WriteLine($"  {pname,-7}  {(useCosine ? "cosine " : "pearson")}   {Pct(exact, n)}   {mirex / n:0.000}");
+            }
+    }
+
+    /// <summary>Best of the 24 rotated major/minor profiles for a 12-bin chroma, by cosine
+    /// similarity or Pearson correlation (the two matching metrics edmkey vs JustPlay use).</summary>
+    private static MusicalKey ScoreKey(double[] chroma, double[] maj, double[] min, bool useCosine)
+    {
+        var best = double.NegativeInfinity;
+        var bestPc = 0; var bestMode = KeyMode.Major;
+        for (var tonic = 0; tonic < 12; tonic++)
+        {
+            var sMaj = useCosine ? Cosine(chroma, maj, tonic) : Pearson(chroma, maj, tonic);
+            if (sMaj > best) { best = sMaj; bestPc = tonic; bestMode = KeyMode.Major; }
+            var sMin = useCosine ? Cosine(chroma, min, tonic) : Pearson(chroma, min, tonic);
+            if (sMin > best) { best = sMin; bestPc = tonic; bestMode = KeyMode.Minor; }
+        }
+        return new MusicalKey(bestPc, bestMode);
+    }
+
+    private static double Cosine(double[] c, double[] p, int tonic)
+    {
+        double dot = 0, nc = 0, np = 0;
+        for (var i = 0; i < 12; i++)
+        {
+            var pv = p[((i - tonic) % 12 + 12) % 12];
+            dot += c[i] * pv; nc += c[i] * c[i]; np += pv * pv;
+        }
+        var d = Math.Sqrt(nc * np);
+        return d <= 0 ? 0 : dot / d;
+    }
+
+    private static double Pearson(double[] c, double[] p, int tonic)
+    {
+        double mc = 0, mp = 0;
+        for (var i = 0; i < 12; i++) { mc += c[i]; mp += p[i]; }
+        mc /= 12; mp /= 12;
+        double cov = 0, vc = 0, vp = 0;
+        for (var i = 0; i < 12; i++)
+        {
+            var pv = p[((i - tonic) % 12 + 12) % 12] - mp;
+            var cv = c[i] - mc;
+            cov += cv * pv; vc += cv * cv; vp += pv * pv;
+        }
+        var d = Math.Sqrt(vc * vp);
+        return d <= 0 ? 0 : cov / d;
+    }
+
+    /// <summary>
     /// MIREX Audio Key Detection score for one estimate vs ground truth, with the matching
     /// category: correct=1.0, perfect-fifth (same mode)=0.5, relative maj/min=0.3,
     /// parallel maj/min=0.2, else 0. Computed from pitch classes (12-TET).

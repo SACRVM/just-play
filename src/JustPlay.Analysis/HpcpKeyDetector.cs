@@ -44,6 +44,17 @@ public sealed class HpcpKeyDetector : IKeyDetector
 
     public (MusicalKey Key, double Confidence)? Detect(DecodedAudio audio, CancellationToken ct = default)
     {
+        var chroma = BuildChroma12(audio, ct);
+        return chroma is null ? null : ChromagramKeyDetector.Classify(chroma, 0.0);
+    }
+
+    /// <summary>
+    /// Builds the final, gated, normalised 12-bin chroma (the expensive 44.1 kHz + FFT
+    /// stage, through edmkey's peak-normalise + 0.2 gate). Exposed so a tuning harness can
+    /// decode + build ONCE and then re-score under different profiles/metrics cheaply.
+    /// </summary>
+    public double[]? BuildChroma12(DecodedAudio audio, CancellationToken ct = default)
+    {
         var samples = audio.Samples;
         var sampleRate = audio.SampleRate;
         if (samples is null || samples.Length < FrameSize || sampleRate <= 0)
@@ -69,8 +80,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
         }
         if (sum <= SilenceFloor) return null;
         for (var i = 0; i < 12; i++) chroma[i] /= sum;
-
-        return ChromagramKeyDetector.Classify(chroma, 0.0);
+        return chroma;
     }
 
     /// <summary>First-order high-pass applied three times (cascaded), matching edmkey's
