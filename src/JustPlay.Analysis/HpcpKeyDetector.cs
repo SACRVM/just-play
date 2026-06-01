@@ -64,7 +64,12 @@ public sealed class HpcpKeyDetector : IKeyDetector
     /// stage, through edmkey's peak-normalise + 0.2 gate). Exposed so a tuning harness can
     /// decode + build ONCE and then re-score under different profiles/metrics cheaply.
     /// </summary>
-    public double[]? BuildChroma12(DecodedAudio audio, CancellationToken ct = default)
+    /// <summary>
+    /// The combined, L1-normalised 36-bin (3 bins/semitone) multi-resolution HPCP — the rich
+    /// pre-fold feature. Exposed for ML feature export (the static-chroma input a learned
+    /// classifier would train on, vs the hand-set template).
+    /// </summary>
+    public double[]? BuildFine36(DecodedAudio audio, CancellationToken ct = default)
     {
         var samples = audio.Samples;
         var sampleRate = audio.SampleRate;
@@ -85,6 +90,19 @@ public sealed class HpcpKeyDetector : IKeyDetector
         var fine = new double[ChromaBins];
         AccumulateNormalized(fine, fineA);
         AccumulateNormalized(fine, fineB);
+
+        var total = 0.0;
+        for (var i = 0; i < ChromaBins; i++) total += fine[i];
+        if (total <= SilenceFloor) return null;
+        for (var i = 0; i < ChromaBins; i++) fine[i] /= total;
+        return fine;
+    }
+
+    public double[]? BuildChroma12(DecodedAudio audio, CancellationToken ct = default)
+    {
+        var fine = BuildFine36(audio, ct);
+        if (fine is null)
+            return null;
 
         var chroma = FoldToTwelve(fine);
 

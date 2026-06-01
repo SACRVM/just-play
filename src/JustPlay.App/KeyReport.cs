@@ -386,6 +386,44 @@ internal static class KeyReport
     }
 
     /// <summary>
+    /// Exports each GiantSteps track's 36-bin fine HPCP chroma + true label to a CSV
+    /// (one row: pitchClass,mode,then 36 floats), for offline ML training in Python.
+    /// Decodes @ 44.1 kHz (the HpcpKeyDetector feature). One-time; then Python iterates fast.
+    /// </summary>
+    public static void RunDumpChroma(IServiceProvider services, string root, string outPath)
+    {
+        var audioDir = Path.Combine(root, "audio");
+        var keyDir = Path.Combine(root, "annotations", "key");
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        var hpcp = new HpcpKeyDetector();
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError})");
+
+        var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
+            .Where(f => new FileInfo(f).Length > 10000).OrderBy(f => f).ToList();
+
+        var rows = new List<string>(files.Count);
+        try
+        {
+            foreach (var file in files)
+            {
+                var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
+                if (!File.Exists(keyFile)) continue;
+                if (MusicalKey.TryParse(File.ReadAllText(keyFile).Trim()) is not { } reference) continue;
+                DecodedAudio? audio;
+                try { audio = decoder.DecodeMono(file, 44100); } catch { continue; }
+                if (audio is not { } a || hpcp.BuildFine36(a) is not { } fine) continue;
+                var mode = reference.Mode == KeyMode.Major ? 0 : 1;
+                rows.Add($"{reference.PitchClass},{mode}," + string.Join(",", fine.Select(v => v.ToString("0.000000", System.Globalization.CultureInfo.InvariantCulture))));
+            }
+        }
+        finally { ManagedBass.Bass.Free(); }
+
+        File.WriteAllLines(outPath, rows);
+        Console.WriteLine($"Wrote {rows.Count} rows to {outPath}");
+    }
+
+    /// <summary>
     /// HPCP matching sweep: decode + build each track's 12-bin HPCP chroma ONCE, then
     /// re-score it under every (profile × metric) combo — efficiently A/B's edmkey's
     /// Pearson+bgate against our cosine+braw without re-decoding @ 44.1 kHz.

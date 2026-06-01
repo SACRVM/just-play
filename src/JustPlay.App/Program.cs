@@ -65,6 +65,13 @@ sealed class Program
             return;
         }
 
+        // Export 36-bin chroma + labels to CSV for offline ML training.
+        if (args is ["--dump-chroma", var dRoot, var dOut, ..])
+        {
+            KeyReport.RunDumpChroma(Services, dRoot, dOut);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
