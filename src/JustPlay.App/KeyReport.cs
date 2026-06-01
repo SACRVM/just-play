@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -150,6 +151,111 @@ internal static class KeyReport
         else
         {
             Console.WriteLine("  (no reference energy found in comments)");
+        }
+    }
+
+    /// <summary>
+    /// Tuning sweep: decode + build each track's chroma ONCE, then re-score it under a range
+    /// of <c>MinorBias</c> values (the cheap, FFT-free <see cref="ChromagramKeyDetector.Classify"/>
+    /// half), printing exact / harmonically-ok per bias. Lets the relative-tie bias be tuned
+    /// for the cosine classifier in a single pass over the (networked) library.
+    /// </summary>
+    public static void RunBiasSweep(IServiceProvider services, string folder)
+    {
+        if (!Directory.Exists(folder))
+        {
+            Console.WriteLine($"Folder not found: {folder}");
+            return;
+        }
+
+        var reader = services.GetRequiredService<IMetadataReader>();
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        if (services.GetRequiredService<IKeyDetector>() is not ChromagramKeyDetector detector)
+        {
+            Console.WriteLine("Bias sweep needs the ChromagramKeyDetector implementation.");
+            return;
+        }
+
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+
+        var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+            .Where(f => AudioExtensions.Contains(Path.GetExtension(f)))
+            .OrderBy(f => f)
+            .ToList();
+
+        Console.WriteLine($"Bias sweep over {files.Count} file(s) under {folder}");
+
+        // Decode + build chroma once per file; keep the chroma alongside its reference key.
+        var cases = new List<(double[] Chroma, MusicalKey Ref)>();
+        try
+        {
+            foreach (var file in files)
+            {
+                var md = reader.Read(file);
+                if (MikKey(md) is not { } reference) continue;
+                DecodedAudio? audio;
+                try { audio = decoder.DecodeMono(file, AnalysisSampleRate); }
+                catch (Exception ex) { Console.WriteLine($"  [decode FAIL] {Path.GetFileName(file)}: {ex.Message}"); continue; }
+                if (audio is { } a && detector.BuildChroma(a) is { } chroma)
+                    cases.Add((chroma, reference));
+            }
+        }
+        finally
+        {
+            ManagedBass.Bass.Free();
+        }
+
+        Console.WriteLine($"Built {cases.Count} chroma(s). Re-scoring across profiles × bias values:\n");
+
+        // Profile vectors verified verbatim against MTG/essentia src/algorithms/tonal/key.cpp.
+        (string Name, double[] Maj, double[] Min)[] profiles =
+        [
+            ("edma (shipped)",
+                [1.00, 0.29, 0.50, 0.40, 0.60, 0.56, 0.32, 0.80, 0.31, 0.45, 0.42, 0.39],
+                [1.00, 0.31, 0.44, 0.58, 0.33, 0.49, 0.29, 0.78, 0.43, 0.29, 0.53, 0.32]),
+            ("bgate (Essentia default)",
+                [1.00, 0.00, 0.42, 0.00, 0.53, 0.37, 0.00, 0.77, 0.00, 0.38, 0.21, 0.30],
+                [1.00, 0.00, 0.36, 0.39, 0.00, 0.38, 0.00, 0.74, 0.27, 0.00, 0.42, 0.23]),
+            ("braw",
+                [1.0000, 0.1573, 0.4200, 0.1570, 0.5296, 0.3669, 0.1632, 0.7711, 0.1676, 0.3827, 0.2113, 0.2965],
+                [1.0000, 0.2330, 0.3615, 0.3905, 0.2925, 0.3777, 0.1961, 0.7425, 0.2701, 0.2161, 0.4228, 0.2272]),
+            ("shaath",
+                [6.6, 2.0, 3.5, 2.3, 4.6, 4.0, 2.5, 5.2, 2.4, 3.7, 2.3, 3.4],
+                [6.5, 2.7, 3.5, 5.4, 2.6, 3.5, 2.5, 5.2, 4.0, 2.7, 4.3, 3.2]),
+            ("edmm",
+                [0.083, 0.083, 0.083, 0.083, 0.083, 0.083, 0.083, 0.083, 0.083, 0.083, 0.083, 0.083],
+                [0.17235348, 0.04, 0.0761009, 0.12, 0.05621498, 0.08527853, 0.0497915, 0.13451001, 0.07458916, 0.05003023, 0.09187879, 0.05545106]),
+        ];
+
+        double[] biases = [0.00, 0.01, 0.02, 0.03, 0.04, 0.06];
+
+        foreach (var (pname, maj, min) in profiles)
+        {
+            Console.WriteLine($"--- {pname} ---");
+            Console.WriteLine("  bias    exact   relative  fifth   off    harmonically-ok");
+            var bestOk = -1; double bestBias = 0;
+            foreach (var bias in biases)
+            {
+                int exact = 0, relative = 0, fifth = 0, off = 0;
+                foreach (var (chroma, reference) in cases)
+                {
+                    if (ChromagramKeyDetector.Classify(chroma, bias, maj, min) is not { } d) continue;
+                    switch (Categorize(d.Key, reference))
+                    {
+                        case "exact": exact++; break;
+                        case "relative": relative++; break;
+                        case "fifth": fifth++; break;
+                        default: off++; break;
+                    }
+                }
+                var n = exact + relative + fifth + off;
+                var ok = exact + relative + fifth;
+                var okPct = n == 0 ? 0 : 100.0 * ok / n;
+                if (ok > bestOk) { bestOk = ok; bestBias = bias; }
+                Console.WriteLine($"  {bias:0.000}   {Pct(exact, n)}    {Pct(relative, n)}     {Pct(fifth, n)}    {Pct(off, n)}    {okPct,3:0}%  ({ok}/{n})");
+            }
+            Console.WriteLine($"  => best harmonically-ok {bestOk}/{cases.Count} at bias {bestBias:0.000}\n");
         }
     }
 

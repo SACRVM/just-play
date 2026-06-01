@@ -71,26 +71,48 @@ public sealed class ChromagramKeyDetector : IKeyDetector
     private const int BinsPerSemitone = 3;           // sub-semitone resolution for tuning
     private const int ChromaBins = 12 * BinsPerSemitone; // 36-bin fine chroma
 
-    // Additive nudge applied to every minor-key correlation to break relative major/minor
-    // ties in favour of minor (see the correlation loop). Tuned on the EDM benchmark: large
-    // enough to recover misfiled relative-major calls, small enough not to overturn a track
-    // that is decisively major.
-    private const double MinorBias = 0.06;
+    // Additive nudge applied to every minor-key similarity to break relative major/minor
+    // ties in favour of minor (see the Classify loop). With the EDMA profiles + Pearson this
+    // needed ~0.06; with the EDMA profiles + cosine it saturated at ~0.02. With the current
+    // braw profiles + cosine a profile×bias sweep (see KeyReport.RunBiasSweep) found bias 0.0
+    // is *best* (30/39 harmonically ok, 44% exact) and any positive bias is slightly worse —
+    // braw is the un-gated BeatPort median, less peaked than bgate/edma, so cosine balances
+    // major/minor on its own without a thumb on the scale. Kept as a tunable (=0) rather than
+    // ripped out, so the lever is one constant away if a larger benchmark says otherwise.
+    private const double MinorBias = 0.0;
 
-    // Key profiles, tonic = pitch class 0. These are the EDMA profiles of Faraldo et al.
-    // (2016, "Key Estimation in Electronic Dance Music") — derived empirically from a
-    // *dance-music* corpus, exactly our genre. Earlier versions used Krumhansl–Schmuckler
-    // (classical probe-tone) and then Albrecht &amp; Shanahan (general large-corpus); both
-    // are fitted to non-EDM material and mis-handled mode/tonic on dense club mixes. The
-    // EDMA profiles target this material directly. Verified verbatim against the Essentia
-    // source (MTG/essentia, src/algorithms/tonal/key.cpp, profileTypesWithOther "edma").
+    // Key profiles, tonic = pitch class 0. These are the **braw** profiles of Faraldo et al.
+    // (2017) — the median pitch-profile of a BeatPort EDM subset. Chosen by a profile×bias
+    // sweep over the EDM benchmark: braw beat the previously-shipped EDMA on *exact* accuracy
+    // (44% vs 38%) at equal harmonically-ok (77% vs 74%, a one-track edge), and topped exact
+    // across all five Essentia EDM/dance profiles tried (edma/bgate/braw/shaath/edmm).
+    // Verified verbatim against the Essentia source (MTG/essentia,
+    // src/algorithms/tonal/key.cpp, profileTypes "braw").
+    //
+    // Prior shipped EDMA (kept for the record): derived by *automatic* corpus extraction,
+    //   Major: 1.00, 0.29, 0.50, 0.40, 0.60, 0.56, 0.32, 0.80, 0.31, 0.45, 0.42, 0.39
+    //   Minor: 1.00, 0.31, 0.44, 0.58, 0.33, 0.49, 0.29, 0.78, 0.43, 0.29, 0.53, 0.32
     private static readonly double[] MajorProfile =
-        [1.00, 0.29, 0.50, 0.40, 0.60, 0.56, 0.32, 0.80, 0.31, 0.45, 0.42, 0.39];
+        [1.0000, 0.1573, 0.4200, 0.1570, 0.5296, 0.3669, 0.1632, 0.7711, 0.1676, 0.3827, 0.2113, 0.2965];
 
     private static readonly double[] MinorProfile =
-        [1.00, 0.31, 0.44, 0.58, 0.33, 0.49, 0.29, 0.78, 0.43, 0.29, 0.53, 0.32];
+        [1.0000, 0.2330, 0.3615, 0.3905, 0.2925, 0.3777, 0.1961, 0.7425, 0.2701, 0.2161, 0.4228, 0.2272];
 
     public (MusicalKey Key, double Confidence)? Detect(DecodedAudio audio, CancellationToken ct = default)
+    {
+        var chroma = BuildChroma(audio, ct);
+        return chroma is null ? null : Classify(chroma, MinorBias);
+    }
+
+    /// <summary>
+    /// Builds the final normalised 12-bin chroma vector for a track (the expensive,
+    /// FFT-heavy stage) — fine chromagram → tuning-corrected fold to 12 → unit-sum
+    /// normalise. Returns null for silence / no tonal content. Exposed (with
+    /// <see cref="Classify"/>) so tuning harnesses can decode + build the chroma ONCE and
+    /// then cheaply re-score it under different classifier parameters, instead of paying
+    /// the decode + FFT cost per parameter value.
+    /// </summary>
+    public double[]? BuildChroma(DecodedAudio audio, CancellationToken ct = default)
     {
         var samples = audio.Samples;
         var sampleRate = audio.SampleRate;
@@ -105,7 +127,26 @@ public sealed class ChromagramKeyDetector : IKeyDetector
 
         var chroma = FoldToTwelve(fine);
         Normalize(chroma);
+        return chroma;
+    }
 
+    /// <summary>
+    /// Classifies a normalised 12-bin chroma into a key + confidence: cosine similarity
+    /// against the 24 rotated EDMA profiles, with an additive <paramref name="minorBias"/>
+    /// breaking relative major/minor ties toward minor. Cheap (no FFT) — the per-parameter
+    /// half of <see cref="Detect"/>, split out so a sweep can re-score one chroma many times.
+    /// </summary>
+    public static (MusicalKey Key, double Confidence)? Classify(double[] chroma, double minorBias)
+        => Classify(chroma, minorBias, MajorProfile, MinorProfile);
+
+    /// <summary>
+    /// As <see cref="Classify(double[], double)"/> but with caller-supplied major/minor
+    /// profile vectors — used by the profile-sweep harness to A/B alternative profiles
+    /// (bgate/braw/edmm/shaath) against the shipped EDMA without rebuilding the chroma.
+    /// </summary>
+    public static (MusicalKey Key, double Confidence)? Classify(
+        double[] chroma, double minorBias, double[] majorProfile, double[] minorProfile)
+    {
         // Correlate against all 24 rotated profiles; track the best two.
         var best = double.NegativeInfinity;
         var second = double.NegativeInfinity;
@@ -114,17 +155,18 @@ public sealed class ChromagramKeyDetector : IKeyDetector
 
         for (var tonic = 0; tonic < 12; tonic++)
         {
-            var corrMajor = CosineSimilarityRotated(chroma, MajorProfile, tonic);
+            var corrMajor = CosineSimilarityRotated(chroma, majorProfile, tonic);
             Consider(corrMajor, tonic, KeyMode.Major, ref best, ref second, ref bestPitch, ref bestMode);
 
             // Small additive minor-mode bias. A major key and its relative minor (e.g. C
-            // major / A minor) share all seven notes, so their chroma correlations come out
+            // major / A minor) share all seven notes, so their chroma similarities come out
             // within a hair of each other and the call flips on noise — empirically (see the
             // EDM benchmark) the flip landed on the *major* far too often, since real EDM is
-            // overwhelmingly minor. Nudging the minor score by a fixed amount on the
-            // Pearson-correlation scale (~[-1,1]) tips genuine near-ties toward minor while
-            // leaving clearly-major tracks (margin well above the bias) untouched.
-            var corrMinor = CosineSimilarityRotated(chroma, MinorProfile, tonic) + MinorBias;
+            // overwhelmingly minor. Nudging the minor score by a fixed amount tips genuine
+            // near-ties toward minor while leaving clearly-major tracks (margin well above
+            // the bias) untouched. NB: this is on the cosine ~[0,1] scale — smaller than the
+            // value that suited the old Pearson [-1,1] classifier.
+            var corrMinor = CosineSimilarityRotated(chroma, minorProfile, tonic) + minorBias;
             Consider(corrMinor, tonic, KeyMode.Minor, ref best, ref second, ref bestPitch, ref bestMode);
         }
 

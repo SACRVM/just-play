@@ -31,6 +31,15 @@ sealed class Program
             return;
         }
 
+        // Tuning harness: `--key-sweep <folder>` decodes + builds each chroma ONCE and
+        // re-scores it under a range of MinorBias values, so the relative-tie bias can be
+        // tuned for the cosine classifier in a single pass over the (networked) library.
+        if (args is ["--key-sweep", var sweepFolder, ..])
+        {
+            KeyReport.RunBiasSweep(Services, sweepFolder);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
