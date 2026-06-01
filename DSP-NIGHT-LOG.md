@@ -54,7 +54,32 @@ Realistic ceiling ~68–72% (HPCP). Acquire theory first, then implement — use
         higher resolution or an ML model (ONNX) — neither appropriate to add overnight
         (perf/dep/AOT). **Holding EDMA 62% as the shipped key detector** (detectionVersion
         already = 2; assistive + confidence-gated in the UI is the right product framing).
-- [next] Pivot to higher-value, achievable overnight wins:
-        1. Energy detector (IEnergyDetector): RMS + spectral-flux/centroid → 1..10, wire
-           into TrackAnalysisService (shares the existing mono decode) + DI + tests.
-        2. dj-music-knowledge skill (durable theory: key/BPM/energy, EDMA/HPCP, repo stack).
+- [done] **Energy detector** (SpectralEnergyDetector): RMS loudness + spectral flux
+        (onset density) + spectral centroid (brightness) → 1..10. Wired into
+        TrackAnalysisService (shares the mono decode) + DI. 4 unit tests. Extended
+        --key-report to score energy vs MIK comment value.
+        RESULT vs MIK: **MAE 1.10, 68% within ±1, 95% within ±2, bias +0.2** (n=40).
+        CAVEAT: the reference crate rated almost everything 6–7 (mean 7.0, ~no variance),
+        so this validates CENTRING, not spread/discrimination. Needs an energy-varied
+        reference set (ambient→peak) to tune properly. Two mis-calibrations en route
+        (MAE 1.93 then 3.03) before landing at 1.10 — logged not to repeat.
+        COMMITTED + PUSHED ("Add spectral energy detector").
+- [decision] The DJ trinity now all produce values: BPM (BASS_FX, solid), Key (EDMA
+        ~62% ok, assistive), Energy (centred, assistive). Good overnight stopping point
+        on DSP — diminishing returns without ML/varied data.
+- [next for morning] Tagging UI (tasks #10/#11): the user-visible payoff. Intake
+        trust-or-analyze + per-field bold + cell context menu (Write meta tags etc.).
+        Optionally the dj-music-knowledge skill. Did NOT start these — they're big and
+        UI-heavy; better reviewed with the user awake than built blind overnight.
+
+## MORNING SUMMARY (read me first)
+Two commits landed + pushed to main overnight, all tests green (30 core + 11 analysis):
+1. Key detection + full tag-persistence infra (EDMA chromagram ~62% harmonically-ok).
+2. Spectral energy detector (MAE 1.10 vs MIK, well-centred).
+Net: **all three of BPM / Key / Energy now detect and show up in the queue.**
+Honest status: Key is assistive-grade (~62%, not MIK's >90% — that needs ML/ONNX, a
+deliberate dependency decision for you, not an overnight call). HPCP was tried and
+reverted (regressed at our 11kHz/4096 resolution — see log). Energy centring is good
+but unproven on spread (reference crate had no energy variance).
+Stopped before the Tagging UI (tasks #10/#11) on purpose — big user-facing surface,
+better built with you awake. That's the natural next step.
