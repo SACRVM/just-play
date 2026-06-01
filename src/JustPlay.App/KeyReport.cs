@@ -410,26 +410,32 @@ internal static class KeyReport
                      [1.00, 0.31, 0.44, 0.58, 0.33, 0.49, 0.29, 0.78, 0.43, 0.29, 0.53, 0.32]),
         ];
 
-        Console.WriteLine($"Re-scoring {cases.Count} chroma(s):\n  profile  metric    exact   MIREX");
+        double[] biases = [0.00, 0.02, 0.05, 0.10, 0.15];
+        Console.WriteLine($"Re-scoring {cases.Count} chroma(s):\n  profile  metric   bias    exact   MIREX");
+        var bestMirex = -1.0; var bestDesc = "";
         foreach (var (pname, maj, min) in profiles)
             foreach (var useCosine in new[] { true, false })
-            {
-                int exact = 0; double mirex = 0; var n = 0;
-                foreach (var (chroma, reference) in cases)
+                foreach (var bias in biases)
                 {
-                    var ours = ScoreKey(chroma, maj, min, useCosine);
-                    n++;
-                    var (score, cat) = MirexScore(ours, reference);
-                    mirex += score;
-                    if (cat == "exact") exact++;
+                    int exact = 0; double mirex = 0; var n = 0;
+                    foreach (var (chroma, reference) in cases)
+                    {
+                        var ours = ScoreKey(chroma, maj, min, useCosine, bias);
+                        n++;
+                        var (score, cat) = MirexScore(ours, reference);
+                        mirex += score;
+                        if (cat == "exact") exact++;
+                    }
+                    var m = mirex / n;
+                    if (m > bestMirex) { bestMirex = m; bestDesc = $"{pname} {(useCosine ? "cosine" : "pearson")} bias {bias:0.00}"; }
+                    Console.WriteLine($"  {pname,-7}  {(useCosine ? "cosine " : "pearson")}  {bias:0.00}   {Pct(exact, n)}   {m:0.000}");
                 }
-                Console.WriteLine($"  {pname,-7}  {(useCosine ? "cosine " : "pearson")}   {Pct(exact, n)}   {mirex / n:0.000}");
-            }
+        Console.WriteLine($"\n  => BEST: {bestDesc} → MIREX {bestMirex:0.000}");
     }
 
     /// <summary>Best of the 24 rotated major/minor profiles for a 12-bin chroma, by cosine
     /// similarity or Pearson correlation (the two matching metrics edmkey vs JustPlay use).</summary>
-    private static MusicalKey ScoreKey(double[] chroma, double[] maj, double[] min, bool useCosine)
+    private static MusicalKey ScoreKey(double[] chroma, double[] maj, double[] min, bool useCosine, double minorBias = 0.0)
     {
         var best = double.NegativeInfinity;
         var bestPc = 0; var bestMode = KeyMode.Major;
@@ -437,7 +443,7 @@ internal static class KeyReport
         {
             var sMaj = useCosine ? Cosine(chroma, maj, tonic) : Pearson(chroma, maj, tonic);
             if (sMaj > best) { best = sMaj; bestPc = tonic; bestMode = KeyMode.Major; }
-            var sMin = useCosine ? Cosine(chroma, min, tonic) : Pearson(chroma, min, tonic);
+            var sMin = (useCosine ? Cosine(chroma, min, tonic) : Pearson(chroma, min, tonic)) + minorBias;
             if (sMin > best) { best = sMin; bestPc = tonic; bestMode = KeyMode.Minor; }
         }
         return new MusicalKey(bestPc, bestMode);

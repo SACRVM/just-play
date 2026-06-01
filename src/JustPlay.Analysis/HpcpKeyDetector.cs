@@ -31,6 +31,8 @@ public sealed class HpcpKeyDetector : IKeyDetector
     // Finer than edmkey's 4096 (a deliberate improvement): at 44.1 kHz, 8192 = 5.4 Hz/bin
     // vs edmkey's 10.8 — better bass-octave peak localisation (a semitone at 100 Hz is ~6 Hz,
     // unresolvable at 4096). 50% overlap (hop = size/2) gives ~2× frames for a steadier sum.
+    // Measured sweet spot: 8192 → MIREX 0.686; 16384 over-smooths across chord changes
+    // (0.37 s window) and regressed to 0.667; 4096 was 0.629.
     private const int FrameSize = 8192;
     private const int HopSize = 4096;
     private const double C0Hz = 16.3515978312874;
@@ -46,10 +48,21 @@ public sealed class HpcpKeyDetector : IKeyDetector
     private const int ChromaBins = 12 * BinsPerSemitone; // 36 (fine, for tuning)
     private const double SilenceFloor = 1e-9;
 
+    // bgate profiles (Faraldo — braw with the 4 least-relevant elements zeroed; Essentia
+    // default). A full profile×metric×bias sweep over the 8192/whitened chroma found
+    // bgate + cosine + minor-bias 0.05 best (MIREX 0.695 vs braw+cosine+0's 0.686). The
+    // small minor bias breaks relative ties toward minor (EDM is overwhelmingly minor) and
+    // now helps because the sharper whitened chroma separates the modes more cleanly.
+    private static readonly double[] BgateMajor =
+        [1.00, 0.00, 0.42, 0.00, 0.53, 0.37, 0.00, 0.77, 0.00, 0.38, 0.21, 0.30];
+    private static readonly double[] BgateMinor =
+        [1.00, 0.00, 0.36, 0.39, 0.00, 0.38, 0.00, 0.74, 0.27, 0.00, 0.42, 0.23];
+    private const double MinorBias = 0.05;
+
     public (MusicalKey Key, double Confidence)? Detect(DecodedAudio audio, CancellationToken ct = default)
     {
         var chroma = BuildChroma12(audio, ct);
-        return chroma is null ? null : ChromagramKeyDetector.Classify(chroma, 0.0);
+        return chroma is null ? null : ChromagramKeyDetector.Classify(chroma, MinorBias, BgateMajor, BgateMinor);
     }
 
     /// <summary>
