@@ -42,27 +42,18 @@ public sealed class HpcpKeyDetector : IKeyDetector
     private const int MaxPeaks = 60;                  // edmkey SPECTRAL_PEAKS_MAX
     private const double PcpGate = 0.2;               // edmkey PCP_THRESHOLD
     // (PeakThreshold removed — we now keep local maxima and take the strongest MaxPeaks.)
-    private const int Harmonics = 4;                  // edmkey HPCP_HARMONICS
-    private const double HarmonicDecay = 0.6;
+    // (Harmonic contribution now uses Essentia's faithful HarmonicTable, nHarmonics=4.)
     private const int BinsPerSemitone = 3;
     private const int ChromaBins = 12 * BinsPerSemitone; // 36 (fine, for tuning)
     private const double SilenceFloor = 1e-9;
 
-    // bgate profiles (Faraldo — braw with the 4 least-relevant elements zeroed; Essentia
-    // default). A full profile×metric×bias sweep over the 8192/whitened chroma found
-    // bgate + cosine + minor-bias 0.05 best (MIREX 0.695 vs braw+cosine+0's 0.686). The
-    // small minor bias breaks relative ties toward minor (EDM is overwhelmingly minor) and
-    // now helps because the sharper whitened chroma separates the modes more cleanly.
-    private static readonly double[] BgateMajor =
-        [1.00, 0.00, 0.42, 0.00, 0.53, 0.37, 0.00, 0.77, 0.00, 0.38, 0.21, 0.30];
-    private static readonly double[] BgateMinor =
-        [1.00, 0.00, 0.36, 0.39, 0.00, 0.38, 0.00, 0.74, 0.27, 0.00, 0.42, 0.23];
-    private const double MinorBias = 0.05;
-
     public (MusicalKey Key, double Confidence)? Detect(DecodedAudio audio, CancellationToken ct = default)
     {
+        // braw + cosine + no bias. A profile×metric×bias sweep over this (8192 / faithful-
+        // whitening / faithful-HPCP-harmonics) chroma puts braw+cosine+0 and bgate+cosine+0.05
+        // tied at MIREX 0.698; braw+0 is simpler and marginally higher on exact (63% vs 62%).
         var chroma = BuildChroma12(audio, ct);
-        return chroma is null ? null : ChromagramKeyDetector.Classify(chroma, MinorBias, BgateMajor, BgateMinor);
+        return chroma is null ? null : ChromagramKeyDetector.Classify(chroma, 0.0);
     }
 
     /// <summary>
@@ -184,17 +175,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
             WhitenPeaks(mag, halfBins, sampleRate, peaks, take, whitened);
 
             for (var i = 0; i < take; i++)
-            {
-                // Harmonic contribution: the peak may be the n-th harmonic of a fundamental
-                // at freq/n; credit each candidate with decaying weight (edmkey harmonics=4).
-                var hw = 1.0;
-                for (var n = 1; n <= Harmonics; n++, hw *= HarmonicDecay)
-                {
-                    var fund = peaks[i].Freq / n;
-                    if (fund < MinHz) break;
-                    AddToChroma(fineChroma, fund, whitened[i] * hw);
-                }
-            }
+                AddContribution(fineChroma, peaks[i].Freq, whitened[i]);
 
             anyEnergy = true;
         }
@@ -298,18 +279,64 @@ public sealed class HpcpKeyDetector : IKeyDetector
         return ys[lo] + t * (ys[hi] - ys[lo]);
     }
 
-    /// <summary>Cosine-windowed contribution of a frequency to the 36-bin fine chroma
-    /// (±2 fine bins ≈ Gómez 4/3-semitone window).</summary>
-    private static void AddToChroma(double[] fine, double freq, double weight)
+    // Faithful port of Essentia HPCP's harmonic-contribution table
+    // (`hpcp.cpp::initHarmonicContributionTable`, nHarmonics=4): for each harmonic i, the
+    // semitone offset 12·log2(i+1) is reduced mod 12 and given strength 1/max(1,(sem/12)·0.5),
+    // accumulating across harmonics that share a semitone class. Result (nHarm=4):
+    //   semitone 0     → strength 3.000  (fundamental + octaves 2 & 4 reinforce)
+    //   semitone 7.02  → strength 1.000  (perfect fifth, from the 3rd harmonic)
+    //   semitone 3.86  → strength 0.861  (major third, from the 5th harmonic)
+    // A peak is then treated as each of these harmonics of a lower fundamental.
+    private static readonly (double Semitone, double Strength)[] HarmonicTable = BuildHarmonicTable(4);
+
+    private static (double, double)[] BuildHarmonicTable(int nHarmonics)
     {
-        var pos = ChromaBins * Math.Log2(freq / C0Hz);
-        var center = (int)Math.Round(pos);
-        for (var d = -2; d <= 2; d++)
+        const double precision = 1e-4;
+        var peaks = new List<(double Sem, double Str)>();
+        for (var i = 0; i <= nHarmonics; i++)
         {
-            var dist = Math.Abs(pos - (center + d));
-            if (dist > 2.0) continue;
-            var wnd = 0.5 * (1.0 + Math.Cos(Math.PI * dist / 2.0));
-            fine[Mod(center + d, ChromaBins)] += weight * wnd;
+            var sem = 12.0 * Math.Log2(i + 1.0);
+            var octWeight = Math.Max(1.0, sem / 12.0 * 0.5);
+            while (sem >= 12.0 - precision) sem -= 12.0;
+            var hit = peaks.FindIndex(p => p.Sem > sem - precision && p.Sem < sem + precision);
+            if (hit < 0) peaks.Add((sem, 1.0 / octWeight));
+            else peaks[hit] = (peaks[hit].Sem, peaks[hit].Str + 1.0 / octWeight);
+        }
+        return peaks.ToArray();
+    }
+
+    /// <summary>
+    /// Essentia HPCP <c>addContribution</c>: a peak at <paramref name="freq"/> is hypothesised
+    /// as each harmonic in <see cref="HarmonicTable"/> of a lower fundamental, each placed into
+    /// the fine chroma with a cosine window (1-semitone wide), value = window · mag² · strength²
+    /// (both magnitude and harmonic strength squared, per `hpcp.cpp::addContributionWithWeight`).
+    /// </summary>
+    private static void AddContribution(double[] fine, double freq, double mag)
+    {
+        var magSq = mag * mag;
+        foreach (var (sem, str) in HarmonicTable)
+        {
+            var f = freq * Math.Pow(2.0, -sem / 12.0);
+            if (f <= 0) continue;
+            AddWindowed(fine, f, magSq * str * str);
+        }
+    }
+
+    /// <summary>Cosine-windowed placement into the 36-bin fine chroma, windowSize = 1 semitone
+    /// (Essentia HPCP weightType=cosine): bins within ±1.5 fine bins get cos(π·dist/semitone).</summary>
+    private static void AddWindowed(double[] fine, double freq, double value)
+    {
+        const double resolution = ChromaBins / 12.0;   // fine bins per semitone (= 3)
+        const double windowSemitones = 1.0;
+        var pcpBinF = Math.Log2(freq / C0Hz) * ChromaBins;
+        var leftBin = (int)Math.Ceiling(pcpBinF - resolution * windowSemitones / 2.0);
+        var rightBin = (int)Math.Floor(pcpBinF + resolution * windowSemitones / 2.0);
+        for (var i = leftBin; i <= rightBin; i++)
+        {
+            var distSemitones = Math.Abs(pcpBinF - i) / resolution;
+            var weight = Math.Cos(Math.PI * distSemitones / windowSemitones);
+            if (weight <= 0) continue;
+            fine[Mod(i, ChromaBins)] += weight * value;
         }
     }
 
