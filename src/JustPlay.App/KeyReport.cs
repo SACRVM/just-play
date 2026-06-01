@@ -315,6 +315,8 @@ internal static class KeyReport
         int exact = 0, fifth = 0, relative = 0, parallel = 0, other = 0, undetected = 0, noRef = 0;
         double mirexSum = 0;
         var n = 0;
+        var errInterval = new int[12];     // semitone interval (ours - ref) for every non-exact call
+        var otherExamples = new List<string>();
 
         try
         {
@@ -341,6 +343,13 @@ internal static class KeyReport
                     case "parallel": parallel++; break;
                     default: other++; break;
                 }
+                if (cat != "exact")
+                {
+                    var iv = ((d.Key.PitchClass - reference.PitchClass) % 12 + 12) % 12;
+                    errInterval[iv]++;
+                    if (cat == "other" && otherExamples.Count < 20)
+                        otherExamples.Add($"    ref {reference.Camelot,-3} ours {d.Key.Camelot,-3}  Δ{iv,2} st{(d.Key.Mode != reference.Mode ? " +mode" : "")}");
+                }
             }
         }
         finally
@@ -360,6 +369,20 @@ internal static class KeyReport
             Console.WriteLine($"  MIREX weighted:   {mirexSum / n:0.000}  (1.0/0.5/0.3/0.2 — compare to published tools)");
         }
         Console.WriteLine($"  (undetected by us: {undetected};  no/unparsable label: {noRef})");
+
+        // Error-interval histogram: where do WRONG calls land relative to the true key?
+        // 0=mode-only, 7/5=fifth, 2/10=whole-tone, 6=tritone, 1/11=semitone. A spike reveals
+        // a systematic failure (tuning/octave/harmonic); a flat spread = genuinely hard tracks.
+        Console.WriteLine("\nError intervals (ours - ref, semitones; all non-exact calls):");
+        string[] names = ["0(mode)", "1", "2(tone)", "3(rel)", "4", "5(4th)", "6(trit)", "7(5th)", "8", "9(rel)", "10(tone)", "11"];
+        for (var i = 0; i < 12; i++)
+            if (errInterval[i] > 0)
+                Console.WriteLine($"  {names[i],-9} {errInterval[i],3}  {new string('#', Math.Min(errInterval[i], 60))}");
+        if (otherExamples.Count > 0)
+        {
+            Console.WriteLine("\nSample 'other' (clear-miss) cases:");
+            foreach (var e in otherExamples) Console.WriteLine(e);
+        }
     }
 
     /// <summary>
