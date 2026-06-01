@@ -34,10 +34,10 @@ namespace JustPlay.Analysis;
 ///   <item>Aggregate the per-frame 36-bin chroma with a <b>per-bin median</b> across frames
 ///         (robust to transient breakdowns / drops), estimate the tuning offset from the
 ///         sub-semitone energy distribution, fold to 12 pitch classes, and normalise.</item>
-///   <item>Pearson-correlate against the 24 <b>Albrecht &amp; Shanahan</b> key profiles
-///         (major + minor, each rotated to all 12 tonics), with a small additive minor-mode
-///         bias to break relative-key ties toward minor (real EDM is overwhelmingly minor).
-///         Highest wins.</item>
+///   <item>Match (cosine similarity, see <see cref="CosineSimilarityRotated"/>) against the
+///         24 <b>EDMA</b> key profiles (major + minor, each rotated to all 12 tonics), with a
+///         small additive minor-mode bias to break relative-key ties toward minor (real EDM is
+///         overwhelmingly minor). Highest wins.</item>
 /// </list>
 ///
 /// <para><b>What moved the needle</b> on the real-EDM benchmark (≈40 MIK-tagged tracks,
@@ -114,7 +114,7 @@ public sealed class ChromagramKeyDetector : IKeyDetector
 
         for (var tonic = 0; tonic < 12; tonic++)
         {
-            var corrMajor = CorrelateRotated(chroma, MajorProfile, tonic);
+            var corrMajor = CosineSimilarityRotated(chroma, MajorProfile, tonic);
             Consider(corrMajor, tonic, KeyMode.Major, ref best, ref second, ref bestPitch, ref bestMode);
 
             // Small additive minor-mode bias. A major key and its relative minor (e.g. C
@@ -124,7 +124,7 @@ public sealed class ChromagramKeyDetector : IKeyDetector
             // overwhelmingly minor. Nudging the minor score by a fixed amount on the
             // Pearson-correlation scale (~[-1,1]) tips genuine near-ties toward minor while
             // leaving clearly-major tracks (margin well above the bias) untouched.
-            var corrMinor = CorrelateRotated(chroma, MinorProfile, tonic) + MinorBias;
+            var corrMinor = CosineSimilarityRotated(chroma, MinorProfile, tonic) + MinorBias;
             Consider(corrMinor, tonic, KeyMode.Minor, ref best, ref second, ref bestPitch, ref bestMode);
         }
 
@@ -357,36 +357,45 @@ public sealed class ChromagramKeyDetector : IKeyDetector
     }
 
     /// <summary>
-    /// Pearson correlation between the observed chroma and a key profile rotated so
-    /// its tonic sits at pitch class <paramref name="tonic"/>.
+    /// Cosine similarity between the observed chroma and a key profile rotated so its
+    /// tonic sits at pitch class <paramref name="tonic"/>.
+    ///
+    /// <para><b>Why cosine, not Pearson (experiment, deep-research 2026-06-01).</b> Sha'ath's
+    /// libKeyFinder thesis (§4.3) found the classification metric mattered more than any
+    /// other parameter and that cosine similarity was "consistently more effective than
+    /// correlation" on dance material. Pearson mean-centres both vectors before the dot
+    /// product; cosine does not. For non-negative chroma/profile vectors that centring can
+    /// flip the sign of a slot and reward a profile for matching the *absence* of energy as
+    /// much as its presence. Cosine compares pure direction, which better reflects "the
+    /// profile this chroma points most like". Range is ~[0,1] here (both operands
+    /// non-negative), so the additive <see cref="MinorBias"/> nudge still applies on a
+    /// comparable scale. Single-lever A/B against the prior Pearson detector (which scored
+    /// 64% "harmonically ok" on the EDM benchmark) — Pearson is preserved in git history.</para>
+    ///
+    /// <para><b>Measured result (n=39 EDM benchmark): 64% → 74% "harmonically ok"</b> — a
+    /// clear win on the DJ-relevant (mixable) metric. Nuance: exact dipped (~44% → 38%) and
+    /// relative-pair calls dropped to 0%, with fifth-neighbour calls rising to 36%. The
+    /// <see cref="MinorBias"/> was tuned on the Pearson [-1,1] scale; on the cosine ~[0,1]
+    /// scale it over-nudges, pushing former relative-pair calls onto a fifth neighbour (still
+    /// mixable). Re-tuning <see cref="MinorBias"/> for the cosine scale is the next one-lever
+    /// experiment — likely recovers exact/relative without losing the harmonic-ok gain.</para>
     /// </summary>
-    private static double CorrelateRotated(double[] chroma, double[] profile, int tonic)
+    private static double CosineSimilarityRotated(double[] chroma, double[] profile, int tonic)
     {
-        // Means.
-        var meanChroma = 0.0;
-        var meanProfile = 0.0;
-        for (var i = 0; i < 12; i++)
-        {
-            meanChroma += chroma[i];
-            meanProfile += profile[i];
-        }
-        meanChroma /= 12.0;
-        meanProfile /= 12.0;
-
-        var cov = 0.0;
-        var varChroma = 0.0;
-        var varProfile = 0.0;
+        var dot = 0.0;
+        var normChroma = 0.0;
+        var normProfile = 0.0;
         for (var i = 0; i < 12; i++)
         {
             // Rotate the profile: profile index that lands on chroma slot i.
-            var p = profile[((i - tonic) % 12 + 12) % 12] - meanProfile;
-            var c = chroma[i] - meanChroma;
-            cov += c * p;
-            varChroma += c * c;
-            varProfile += p * p;
+            var p = profile[((i - tonic) % 12 + 12) % 12];
+            var c = chroma[i];
+            dot += c * p;
+            normChroma += c * c;
+            normProfile += p * p;
         }
 
-        var denom = Math.Sqrt(varChroma * varProfile);
-        return denom <= 0 ? 0.0 : cov / denom;
+        var denom = Math.Sqrt(normChroma * normProfile);
+        return denom <= 0 ? 0.0 : dot / denom;
     }
 }
