@@ -16,7 +16,9 @@ namespace JustPlay.Analysis;
 ///
 /// Pipeline (all platform-agnostic managed DSP, no NuGet, no reflection):
 /// <list type="number">
-///   <item>Frame the mono signal (4096-sample frames, 50% hop), Hann-windowed.</item>
+///   <item>Frame the mono signal (8192-sample frames, 50% hop), Hann-windowed. 8192 was
+///         measured as the resolution sweet spot (4096→62%, 8192→64%, 16384→59% on the
+///         EDM benchmark): finer low-octave bins than 4096 without 16384's over-smoothing.</item>
 ///   <item>Forward FFT each frame (<see cref="Fft"/>, our own radix-2 implementation).</item>
 ///   <item>Take <b>linear magnitude</b> (<c>|X|</c>), <b>not</b> power (<c>|X|²</c>). Power
 ///         over-weights the kick/bass fundamentals and biases the tonic; magnitude keeps
@@ -55,7 +57,11 @@ namespace JustPlay.Analysis;
 /// </summary>
 public sealed class ChromagramKeyDetector : IKeyDetector
 {
-    private const int FrameSize = 4096;
+    // 8192 (~743 ms @ 11025 Hz, 1.35 Hz/bin) is the measured sweet spot on the EDM
+    // benchmark: 4096 → 62%, 8192 → 64% (and fewest clear "off" calls), 16384 → 59%
+    // (its ~1.5 s window over-smooths across chord changes and leaves too few frames
+    // for the per-bin median). Finer low-octave resolution than 4096 without blurring.
+    private const int FrameSize = 8192;
     private const int HopSize = FrameSize / 2;       // 50% overlap
     private const double C0Hz = 16.3515978312874;    // C0 reference frequency
     private const double MinFreqHz = 100.0;          // skip sub-bass / tuned-kick region (lowering to ~65 Hz let the kick back in and regressed the benchmark)
