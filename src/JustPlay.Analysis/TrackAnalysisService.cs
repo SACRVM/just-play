@@ -23,12 +23,14 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
     private readonly IBpmDetector _bpm;
     private readonly IAudioDecoder _decoder;
     private readonly IKeyDetector _key;
+    private readonly IEnergyDetector _energy;
 
-    public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key)
+    public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key, IEnergyDetector energy)
     {
         _bpm = bpm;
         _decoder = decoder;
         _key = key;
+        _energy = energy;
     }
 
     public Task<AnalysisResult> AnalyzeAsync(
@@ -56,7 +58,14 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
                 progress?.Report(result);
             }
 
-            // Future: energy detector runs here on the same decoded audio.
+            // Energy on the same decoded audio.
+            ct.ThrowIfCancellationRequested();
+            if (_energy.Detect(audio, ct) is { } e)
+            {
+                result = result with { Energy = e };
+                progress?.Report(result);
+            }
+
             return result;
         }, ct);
     }

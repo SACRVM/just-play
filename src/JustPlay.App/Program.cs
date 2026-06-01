@@ -49,6 +49,7 @@ sealed class Program
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
         services.AddSingleton<IKeyDetector, ChromagramKeyDetector>();
+        services.AddSingleton<IEnergyDetector, SpectralEnergyDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 
         // Theming + user preferences. SettingsService reads settings.json

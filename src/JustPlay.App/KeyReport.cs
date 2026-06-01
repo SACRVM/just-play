@@ -36,6 +36,7 @@ internal static class KeyReport
         var reader = services.GetRequiredService<IMetadataReader>();
         var decoder = services.GetRequiredService<IAudioDecoder>();
         var detector = services.GetRequiredService<IKeyDetector>();
+        var energyDetector = services.GetRequiredService<IEnergyDetector>();
 
         // No-sound BASS init is enough for decode-only streams.
         if (!ManagedBass.Bass.Init(0))
@@ -52,6 +53,10 @@ internal static class KeyReport
         int exact = 0, relative = 0, fifth = 0, off = 0, undetected = 0, noRef = 0;
         var mismatches = new List<string>();
 
+        // Energy calibration: collect (reference MIK energy, our energy) pairs.
+        var energyPairs = new List<(int Ref, int Ours)>();
+        var energyLines = new List<string>();
+
         try
         {
             foreach (var file in files)
@@ -60,32 +65,30 @@ internal static class KeyReport
                 var md = reader.Read(file);
                 var reference = MikKey(md);
 
-                if (reference is null)
+                // Decode once, reuse for key + energy.
+                DecodedAudio? audio = null;
+                try { audio = decoder.DecodeMono(file, AnalysisSampleRate); }
+                catch (Exception ex) { Console.WriteLine($"  [decode FAIL] {name}: {ex.Message}"); }
+
+                // ---- Energy comparison (independent of key reference) ----
+                var refEnergy = MikEnergy(md);
+                if (audio is { } a1 && refEnergy is { } re && energyDetector.Detect(a1) is { } oe)
                 {
-                    noRef++;
-                    continue;
+                    energyPairs.Add((re, oe));
+                    if (Math.Abs(re - oe) >= 3)
+                        energyLines.Add($"  E ref {re,2} ours {oe,2}  (Δ{oe - re,+2})  {name}");
                 }
+
+                // ---- Key comparison ----
+                if (reference is null) { noRef++; continue; }
 
                 MusicalKey? ours = null;
                 double conf = 0;
-                try
-                {
-                    var audio = decoder.DecodeMono(file, AnalysisSampleRate);
-                    if (detector.Detect(audio) is { } d) { ours = d.Key; conf = d.Confidence; }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"  [decode FAIL] {name}: {ex.Message}");
-                }
+                if (audio is { } a2 && detector.Detect(a2) is { } d) { ours = d.Key; conf = d.Confidence; }
 
-                if (ours is null)
-                {
-                    undetected++;
-                    continue;
-                }
+                if (ours is null) { undetected++; continue; }
 
-                var category = Categorize(ours.Value, reference.Value);
-                switch (category)
+                switch (Categorize(ours.Value, reference.Value))
                 {
                     case "exact": exact++; break;
                     case "relative": relative++; break;
@@ -121,6 +124,48 @@ internal static class KeyReport
             Console.WriteLine($"  harmonically ok:  {Pct(exact + relative + fifth, compared)}  (exact+relative+fifth)");
         }
         Console.WriteLine($"  (undetected by us: {undetected};  no reference key in file: {noRef})");
+
+        // ---- Energy accuracy summary ----
+        Console.WriteLine();
+        if (energyLines.Count > 0)
+        {
+            Console.WriteLine("Energy off by ≥3:");
+            foreach (var l in energyLines) Console.WriteLine(l);
+            Console.WriteLine();
+        }
+        Console.WriteLine($"=== Energy accuracy vs reference ({energyPairs.Count} compared) ===");
+        if (energyPairs.Count > 0)
+        {
+            var mae = energyPairs.Average(p => Math.Abs(p.Ref - p.Ours));
+            var within1 = energyPairs.Count(p => Math.Abs(p.Ref - p.Ours) <= 1);
+            var within2 = energyPairs.Count(p => Math.Abs(p.Ref - p.Ours) <= 2);
+            var meanRef = energyPairs.Average(p => p.Ref);
+            var meanOurs = energyPairs.Average(p => p.Ours);
+            var bias = meanOurs - meanRef;
+            Console.WriteLine($"  mean abs error:   {mae:0.00}  (lower = better)");
+            Console.WriteLine($"  within ±1:        {Pct(within1, energyPairs.Count)}  ({within1})");
+            Console.WriteLine($"  within ±2:        {Pct(within2, energyPairs.Count)}  ({within2})");
+            Console.WriteLine($"  mean ref {meanRef:0.0} vs ours {meanOurs:0.0}  (bias {bias:+0.0;-0.0})");
+        }
+        else
+        {
+            Console.WriteLine("  (no reference energy found in comments)");
+        }
+    }
+
+    /// <summary>Mixed In Key writes "Energy N" (often "8A - Energy 7") into the comment.</summary>
+    private static int? MikEnergy(TrackMetadata md)
+    {
+        var c = md.Comment;
+        if (string.IsNullOrWhiteSpace(c)) return null;
+        var idx = c.IndexOf("energy", StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return null;
+        // First integer after the word "Energy".
+        var i = idx + "energy".Length;
+        while (i < c.Length && !char.IsDigit(c[i])) i++;
+        var start = i;
+        while (i < c.Length && char.IsDigit(c[i])) i++;
+        return i > start && int.TryParse(c[start..i], out var e) && e is >= 1 and <= 10 ? e : null;
     }
 
     /// <summary>The key another tool already wrote — key tag first, then a Camelot/musical token in the comment.</summary>
