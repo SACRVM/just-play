@@ -38,7 +38,10 @@ public sealed class HpcpKeyDetector : IKeyDetector
     private const double C0Hz = 16.3515978312874;
     private const double MinHz = 25.0;                // edmkey MIN_HZ
     private const double MaxHz = 3500.0;              // edmkey MAX_HZ
-    private const double HighpassHz = 200.0;          // edmkey HIGHPASS_CUTOFF, applied ×3
+    // edmkey uses 200 Hz (kills kick AND bassline). We use 100: with our finer 8192 FFT the
+    // bass octave is now resolved, so keeping the tonic-defining bassline root (~80-200 Hz)
+    // is a tonic cue edmkey throws away. Still applied ×3 to kill the sub-bass / tuned kick.
+    private const double HighpassHz = 100.0;
     private const int MaxPeaks = 60;                  // edmkey SPECTRAL_PEAKS_MAX
     private const double PcpGate = 0.2;               // edmkey PCP_THRESHOLD
     // (PeakThreshold removed — we now keep local maxima and take the strongest MaxPeaks.)
@@ -69,9 +72,19 @@ public sealed class HpcpKeyDetector : IKeyDetector
             return null;
 
         var filtered = HighPassCubed(samples, sampleRate, HighpassHz);
-        var fine = BuildHpcp(filtered, sampleRate, ct);
-        if (fine is null)
+
+        // Multi-resolution (a creative gain edmkey lacks): combine an 8192-pt chroma (fine
+        // bass-octave frequency resolution) with a 4096-pt chroma (finer time resolution for
+        // fast chord changes). Each is L1-normalised so neither octave-energy scale dominates,
+        // then summed — richer harmonic evidence for the classifier.
+        var fineA = BuildHpcp(filtered, sampleRate, FrameSize, HopSize, ct);
+        var fineB = BuildHpcp(filtered, sampleRate, 4096, 2048, ct);
+        if (fineA is null && fineB is null)
             return null;
+
+        var fine = new double[ChromaBins];
+        AccumulateNormalized(fine, fineA);
+        AccumulateNormalized(fine, fineB);
 
         var chroma = FoldToTwelve(fine);
 
@@ -115,16 +128,17 @@ public sealed class HpcpKeyDetector : IKeyDetector
         return y;
     }
 
-    private static double[]? BuildHpcp(float[] samples, int sampleRate, CancellationToken ct)
+    private static double[]? BuildHpcp(float[] samples, int sampleRate, int frameSize, int hopSize, CancellationToken ct)
     {
+        if (samples.Length < frameSize) return null;
         var nyquist = sampleRate / 2.0;
         var maxHz = Math.Min(MaxHz, nyquist);
-        var hann = BuildHannWindow(FrameSize);
-        var halfBins = FrameSize / 2;
-        var binHz = (double)sampleRate / FrameSize;
+        var hann = BuildHannWindow(frameSize);
+        var halfBins = frameSize / 2;
+        var binHz = (double)sampleRate / frameSize;
 
-        var re = new float[FrameSize];
-        var im = new float[FrameSize];
+        var re = new float[frameSize];
+        var im = new float[frameSize];
         var mag = new double[halfBins];
 
         var fineChroma = new double[ChromaBins];   // SUM across frames (edmkey: no per-frame norm)
@@ -136,11 +150,11 @@ public sealed class HpcpKeyDetector : IKeyDetector
         var peaks = new List<(double Freq, double Mag)>(256);
         var whitened = new double[MaxPeaks];
 
-        for (var start = 0; start + FrameSize <= samples.Length; start += HopSize)
+        for (var start = 0; start + frameSize <= samples.Length; start += hopSize)
         {
             ct.ThrowIfCancellationRequested();
 
-            for (var n = 0; n < FrameSize; n++)
+            for (var n = 0; n < frameSize; n++)
             {
                 re[n] = samples[start + n] * hann[n];
                 im[n] = 0f;
@@ -358,6 +372,17 @@ public sealed class HpcpKeyDetector : IKeyDetector
             chroma[pc] += 0.5 * fine[Mod(c + 1, ChromaBins)];
         }
         return chroma;
+    }
+
+    /// <summary>L1-normalises <paramref name="src"/> (so each resolution contributes equally
+    /// regardless of its per-frame energy scale) and adds it into <paramref name="dest"/>.</summary>
+    private static void AccumulateNormalized(double[] dest, double[]? src)
+    {
+        if (src is null) return;
+        var sum = 0.0;
+        for (var i = 0; i < src.Length; i++) sum += src[i];
+        if (sum <= SilenceFloor) return;
+        for (var i = 0; i < src.Length; i++) dest[i] += src[i] / sum;
     }
 
     private static int Mod(int x, int m) => ((x % m) + m) % m;
