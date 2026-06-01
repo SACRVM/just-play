@@ -72,6 +72,20 @@ Realistic ceiling ~68–72% (HPCP). Acquire theory first, then implement — use
         Optionally the dj-music-knowledge skill. Did NOT start these — they're big and
         UI-heavy; better reviewed with the user awake than built blind overnight.
 
+## FINAL NIGHT STATE (corrections to above)
+- Energy final calibration is BETTER than the commit message says: floor 2.5 / span 5.0
+  → **MAE 0.48, 98% within ±1, 100% within ±2, bias 0.0** (n=40). Committed code = this
+  version (message conservatively said 1.10; not amended). Still: reference crate has
+  ~no energy variance, so this proves centring, not spread.
+- App startup smoke-tested AFTER adding IEnergyDetector to DI — resolves + launches fine
+  (unit tests don't cover full DI graph resolution; this does).
+- Created a local skill `.claude/skills/dj-audio-analysis/` (SKILL.md + 3 references on
+  key/energy/bpm). NOTE: `.claude/` is gitignored, so the skill is LOCAL ONLY (not pushed).
+  It still works for future sessions on this machine. If you want it in the repo, we'd
+  need to un-ignore that path or move it.
+- Did NOT build the Tagging UI (tasks #10/#11). Deliberate: high rework risk, needs your
+  eye. Loop wound down here rather than churn on UI blind. Resume from #10 in the morning.
+
 ## MORNING SUMMARY (read me first)
 Two commits landed + pushed to main overnight, all tests green (30 core + 11 analysis):
 1. Key detection + full tag-persistence infra (EDMA chromagram ~62% harmonically-ok).
