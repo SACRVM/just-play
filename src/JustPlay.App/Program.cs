@@ -21,6 +21,16 @@ sealed class Program
     public static void Main(string[] args)
     {
         Services = ConfigureServices();
+
+        // Headless validation tool: `--key-report <folder>` compares our key
+        // detection against the key already tagged in each file (e.g. Mixed In Key)
+        // and prints an accuracy summary, then exits without opening the UI.
+        if (args is ["--key-report", var folder, ..])
+        {
+            KeyReport.Run(Services, folder);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
@@ -32,11 +42,13 @@ sealed class Program
         services.AddSingleton<IAudioEngine, BassAudioEngine>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
+        services.AddSingleton<IMetadataWriter, TagLibMetadataWriter>();
 
         // Analysis stack — BPM detector + the orchestrator that fans tracks
         // out to all registered detectors. Singletons so the BASS_FX side has
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
+        services.AddSingleton<IKeyDetector, ChromagramKeyDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 
         // Theming + user preferences. SettingsService reads settings.json

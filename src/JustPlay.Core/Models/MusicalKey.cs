@@ -37,4 +37,50 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
     }
 
     public override string ToString() => $"{Name} ({Camelot})";
+
+    /// <summary>
+    /// Parse a key string written by another tool — Camelot ("8A", "12B") or musical
+    /// ("Am", "F#m", "Bbm", "C", "A minor", "Abmaj") — into a <see cref="MusicalKey"/>,
+    /// or null if it can't be understood. Used to interpret the "claimed" key in a
+    /// file's tags (e.g. what Mixed In Key / Rekordbox wrote).
+    /// </summary>
+    public static MusicalKey? TryParse(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var s = text.Trim();
+        return TryParseCamelot(s) ?? TryParseMusical(s);
+    }
+
+    private static MusicalKey? TryParseCamelot(string s)
+    {
+        if (s.Length is < 2 or > 3) return null;
+        var letter = char.ToUpperInvariant(s[^1]);
+        if (letter is not ('A' or 'B')) return null;
+        if (!int.TryParse(s[..^1], out var num) || num is < 1 or > 12) return null;
+
+        var (table, mode) = letter == 'B' ? (CamelotMajor, KeyMode.Major) : (CamelotMinor, KeyMode.Minor);
+        for (var pc = 0; pc < 12; pc++)
+            if (table[pc] == num) return new MusicalKey(pc, mode);
+        return null;
+    }
+
+    private static MusicalKey? TryParseMusical(string s)
+    {
+        var pc = char.ToUpperInvariant(s[0]) switch
+        {
+            'C' => 0, 'D' => 2, 'E' => 4, 'F' => 5, 'G' => 7, 'A' => 9, 'B' => 11,
+            _ => -1,
+        };
+        if (pc < 0) return null;
+
+        var i = 1;
+        if (i < s.Length && s[i] is '#' or '♯') { pc = (pc + 1) % 12; i++; }
+        else if (i < s.Length && s[i] is 'b' or '♭') { pc = (pc + 11) % 12; i++; }
+
+        var rest = s[i..].Trim().ToLowerInvariant();
+        var mode = rest.Length == 0 || rest.StartsWith("maj") ? KeyMode.Major
+                 : rest.StartsWith('m') ? KeyMode.Minor
+                 : (KeyMode?)null;
+        return mode is { } m ? new MusicalKey(pc, m) : null;
+    }
 }

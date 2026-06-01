@@ -1,3 +1,4 @@
+using System.Globalization;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 
@@ -20,6 +21,10 @@ public sealed class TagLibMetadataReader : IMetadataReader
             var tag = file.Tag;
             var props = file.Properties;
 
+            var energyStr = TagCustomFields.Get(file, "ENERGY");
+            int? taggedEnergy = int.TryParse(energyStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var en)
+                ? en : null;
+
             return new TrackMetadata
             {
                 FallbackName = fallback,
@@ -28,12 +33,15 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 Album = Clean(tag.Album),
                 Genre = Clean(tag.FirstGenre),
                 Year = tag.Year == 0 ? null : tag.Year,
+                Comment = Clean(tag.Comment),
                 Duration = props?.Duration ?? TimeSpan.Zero,
                 Bitrate = props?.AudioBitrate is > 0 and var br ? br : null,
                 SampleRate = props?.AudioSampleRate is > 0 and var sr ? sr : null,
                 Channels = props?.AudioChannels is > 0 and var ch ? ch : null,
                 TaggedBpm = tag.BeatsPerMinute == 0 ? null : tag.BeatsPerMinute,
                 TaggedKey = Clean(tag.InitialKey),
+                TaggedEnergy = taggedEnergy,
+                StoredAnalysis = AnalysisStateCodec.TryParse(TagCustomFields.Get(file, "JUSTPLAY")),
                 CoverArt = FirstPicture(tag),
             };
         }

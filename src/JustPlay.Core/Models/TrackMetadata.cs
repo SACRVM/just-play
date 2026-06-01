@@ -11,6 +11,9 @@ public sealed record TrackMetadata
     public string? Genre { get; init; }
     public uint? Year { get; init; }
 
+    /// <summary>Free-text comment tag (where some tools, e.g. Mixed In Key, stash the key/energy).</summary>
+    public string? Comment { get; init; }
+
     /// <summary>Total track length.</summary>
     public TimeSpan Duration { get; init; }
 
@@ -33,6 +36,16 @@ public sealed record TrackMetadata
 
     /// <summary>Key stored in the file's tags, if present (raw string).</summary>
     public string? TaggedKey { get; init; }
+
+    /// <summary>Energy stored in the file's tags (TXXX:ENERGY), if present. 1..10.</summary>
+    public int? TaggedEnergy { get; init; }
+
+    /// <summary>
+    /// JustPlay's own analysis record parsed from the JUSTPLAY tag, if this file was
+    /// analysed by us before. Lets the app reproduce the queue picture without
+    /// re-analysing. Null when the file carries no (valid) JustPlay blob.
+    /// </summary>
+    public TrackAnalysisState? StoredAnalysis { get; init; }
 
     /// <summary>Fallback display name when no title tag exists (the file name).</summary>
     public required string FallbackName { get; init; }

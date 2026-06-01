@@ -25,4 +25,34 @@ public class MusicalKeyTests
     {
         Assert.Equal("C major", new MusicalKey(12, KeyMode.Major).Name);
     }
+
+    [Theory]
+    // Camelot
+    [InlineData("8A", 9, KeyMode.Minor)]   // A minor
+    [InlineData("8B", 0, KeyMode.Major)]   // C major
+    [InlineData("12B", 4, KeyMode.Major)]  // E major (two-digit Camelot)
+    [InlineData("1a", 8, KeyMode.Minor)]   // G# minor (lowercase)
+    // Musical
+    [InlineData("Am", 9, KeyMode.Minor)]
+    [InlineData("A minor", 9, KeyMode.Minor)]
+    [InlineData("C", 0, KeyMode.Major)]
+    [InlineData("F#m", 6, KeyMode.Minor)]
+    [InlineData("Bbm", 10, KeyMode.Minor)] // A#/Bb minor
+    [InlineData("Abmaj", 8, KeyMode.Major)]// G#/Ab major
+    public void TryParse_UnderstandsCamelotAndMusical(string text, int pitchClass, KeyMode mode)
+    {
+        var key = MusicalKey.TryParse(text);
+        Assert.Equal(new MusicalKey(pitchClass, mode), key);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("13A")]   // out of range
+    [InlineData("8C")]    // bad letter
+    [InlineData("xyz")]
+    public void TryParse_ReturnsNull_ForJunk(string? text)
+    {
+        Assert.Null(MusicalKey.TryParse(text));
+    }
 }

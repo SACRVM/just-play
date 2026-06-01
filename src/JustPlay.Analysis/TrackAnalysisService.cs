@@ -15,11 +15,20 @@ namespace JustPlay.Analysis;
 /// </summary>
 public sealed class TrackAnalysisService : ITrackAnalysisService
 {
-    private readonly IBpmDetector _bpm;
+    // Sample rate for the sample-based detectors. 11025 Hz is plenty for key
+    // (highest pitch class we care about is well under its Nyquist) and keeps the
+    // decode + FFT cheap.
+    private const int AnalysisSampleRate = 11025;
 
-    public TrackAnalysisService(IBpmDetector bpm)
+    private readonly IBpmDetector _bpm;
+    private readonly IAudioDecoder _decoder;
+    private readonly IKeyDetector _key;
+
+    public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key)
     {
         _bpm = bpm;
+        _decoder = decoder;
+        _key = key;
     }
 
     public Task<AnalysisResult> AnalyzeAsync(
@@ -31,14 +40,24 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
         {
             ct.ThrowIfCancellationRequested();
 
+            // BPM first (decodes internally via BASS_FX) and report it immediately
+            // so the BPM cell fills while the key analysis runs.
             var bpm = _bpm.Detect(filePath, ct);
-            var partial = AnalysisResult.Empty with { Bpm = bpm };
-            progress?.Report(partial);
+            var result = AnalysisResult.Empty with { Bpm = bpm };
+            progress?.Report(result);
 
-            // Future: key + energy detectors run here, each progress-reporting
-            // their increment so the queue cells update one by one. The final
-            // returned result is the union of all detector outputs.
-            return partial;
+            // Sample-based detectors share one mono decode.
+            ct.ThrowIfCancellationRequested();
+            var audio = _decoder.DecodeMono(filePath, AnalysisSampleRate, ct);
+
+            if (_key.Detect(audio, ct) is { } k)
+            {
+                result = result with { Key = k.Key, KeyConfidence = k.Confidence };
+                progress?.Report(result);
+            }
+
+            // Future: energy detector runs here on the same decoded audio.
+            return result;
         }, ct);
     }
 }
