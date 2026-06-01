@@ -86,6 +86,19 @@ Realistic ceiling ~68–72% (HPCP). Acquire theory first, then implement — use
 - Did NOT build the Tagging UI (tasks #10/#11). Deliberate: high rework risk, needs your
   eye. Loop wound down here rather than churn on UI blind. Resume from #10 in the morning.
 
+## WAKEUP 2 (later same night) — FFT resolution sweep
+Followed my own logged next-step (HPCP failed at coarse resolution → "needs bigger FFT").
+Tested FrameSize as a single lever, synthetic tests green each time, benchmarked each once:
+- 4096 (baseline) = 62% ok / 36% exact
+- **8192 = 64% ok / 33% exact — KEPT** (fewest clear "off": 36%, best yet). 1.35 Hz/bin.
+- 16384 = 59% ok — over-smooths (1.5s window blurs chord changes, too few frames for median).
+Clear single-peak trend → 8192 is the resolution sweet spot. Committed + pushed
+("Key detection: 8192-sample frames"). +2pts is within noise at n=39 but "off" genuinely
+dropped and it's a real optimum, not a fluke. Key now **64% harmonically ok**.
+Remaining headroom needs ML/ONNX (dependency decision for the user) — DSP plateau confirmed
+from two angles now (profiles AND resolution). Genuinely done with overnight key DSP.
+Next is still the Tagging UI (#10/#11) — holding for the user. Winding the loop down.
+
 ## MORNING SUMMARY (read me first)
 Two commits landed + pushed to main overnight, all tests green (30 core + 11 analysis):
 1. Key detection + full tag-persistence infra (EDMA chromagram ~62% harmonically-ok).
