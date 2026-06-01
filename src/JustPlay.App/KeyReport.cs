@@ -274,8 +274,13 @@ internal static class KeyReport
     /// </summary>
     public static void RunGiantSteps(IServiceProvider services, string root, int maxFiles = int.MaxValue)
     {
+        // The shipped IKeyDetector is HpcpKeyDetector, which requires 44.1 kHz (HPCP needs the
+        // harmonic headroom). Decode at the rate the shipped detector actually uses, NOT the
+        // legacy 11 kHz AnalysisSampleRate — otherwise this scores the detector at the wrong
+        // rate (0.692 instead of 0.712). Mirrors TrackAnalysisService.KeySampleRate.
         var detector = services.GetRequiredService<IKeyDetector>();
-        RunGiantStepsCore(services, detector, AnalysisSampleRate, root, maxFiles, "shipped (braw+cosine @ 11 kHz)");
+        var rate = detector is HpcpKeyDetector ? 44100 : AnalysisSampleRate;
+        RunGiantStepsCore(services, detector, rate, root, maxFiles, $"shipped {detector.GetType().Name} @ {rate} Hz");
     }
 
     /// <summary>
