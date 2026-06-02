@@ -25,5 +25,12 @@ public sealed record UserSettings
     /// <summary>Which queue tab opens on launch ("Up Next" / "Lyrics" / ...).</summary>
     public string DefaultTab { get; init; } = "Up Next";
 
+    /// <summary>
+    /// Use the trained "AI key" model (ONNX, MIREX ~0.75) when it's available, instead of the
+    /// DSP template detector (~0.71). Falls back to DSP automatically if the model/runtime
+    /// aren't present, so turning this off just forces the lightweight path.
+    /// </summary>
+    public bool UseAiKeyDetection { get; init; } = true;
+
     public static readonly UserSettings Defaults = new();
 }

@@ -274,14 +274,16 @@ internal static class KeyReport
     /// </summary>
     public static void RunGiantSteps(IServiceProvider services, string root, int maxFiles = int.MaxValue)
     {
-        // The shipped IKeyDetector is HpcpKeyDetector, which requires 44.1 kHz (HPCP needs the
-        // harmonic headroom). Decode at the rate the shipped detector actually uses, NOT the
-        // legacy 11 kHz AnalysisSampleRate — otherwise this scores the detector at the wrong
-        // rate (0.692 instead of 0.712). Mirrors TrackAnalysisService.KeySampleRate.
+        // The shipped IKeyDetector (the routing detector → ML or HPCP) analyses at 44.1 kHz
+        // (TrackAnalysisService.KeySampleRate); decode at that rate, not the legacy 11 kHz.
         var detector = services.GetRequiredService<IKeyDetector>();
-        var rate = detector is HpcpKeyDetector ? 44100 : AnalysisSampleRate;
-        RunGiantStepsCore(services, detector, rate, root, maxFiles, $"shipped {detector.GetType().Name} @ {rate} Hz");
+        RunGiantStepsCore(services, detector, 44100, root, maxFiles, $"shipped {detector.GetType().Name} @ 44100 Hz");
     }
+
+    /// <summary>Validates the trained ONNX model end-to-end in C# (should reach ~0.75 — the
+    /// same number the Python CV showed), confirming the export + inference path is correct.</summary>
+    public static void RunGiantStepsMl(IServiceProvider services, string root, int maxFiles = int.MaxValue)
+        => RunGiantStepsCore(services, new JustPlay.ML.MlKeyDetector(), 44100, root, maxFiles, "MlKeyDetector (ONNX) @ 44100 Hz");
 
     /// <summary>
     /// Same ground-truth benchmark but with the experimental peak-picked

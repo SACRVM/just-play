@@ -1,6 +1,7 @@
 using System;
 using Avalonia;
 using JustPlay.Analysis;
+using JustPlay.App.KeyDetection;
 using JustPlay.App.Settings;
 using JustPlay.App.Theming;
 using JustPlay.App.ViewModels;
@@ -8,6 +9,7 @@ using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Playback;
 using JustPlay.Metadata;
+using JustPlay.ML;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace JustPlay.App;
@@ -72,6 +74,14 @@ sealed class Program
             return;
         }
 
+        // Validate the trained ONNX model end-to-end in C# (expect ~0.75).
+        if (args is ["--giantsteps-ml", var mlRoot, ..])
+        {
+            var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
+            KeyReport.RunGiantStepsMl(Services, mlRoot, max);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
@@ -89,11 +99,16 @@ sealed class Program
         // out to all registered detectors. Singletons so the BASS_FX side has
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
-        // HpcpKeyDetector (peak-picked HPCP @ 44.1 kHz) beat the old ChromagramKeyDetector on
-        // the GiantSteps ground-truth set: MIREX 0.629 / 52% exact vs 0.562 / 41%. The
-        // analysis service decodes at 44.1 kHz for it. ChromagramKeyDetector is kept in the
-        // codebase (and reachable via the --key-sweep harness) for A/B and history.
-        services.AddSingleton<IKeyDetector, HpcpKeyDetector>();
+        // Key detection: the shipped IKeyDetector is a router that prefers the trained "AI key"
+        // model (MlKeyDetector, ONNX, MIREX ~0.75) when the user enables it AND the model+runtime
+        // loaded, otherwise the always-available DSP template (HpcpKeyDetector, ~0.71). Both
+        // analyse at 44.1 kHz (TrackAnalysisService.KeySampleRate). See RoutingKeyDetector.
+        services.AddSingleton<HpcpKeyDetector>();
+        services.AddSingleton<MlKeyDetector>();
+        services.AddSingleton<IKeyDetector>(sp => new RoutingKeyDetector(
+            sp.GetRequiredService<MlKeyDetector>(),
+            sp.GetRequiredService<HpcpKeyDetector>(),
+            sp.GetRequiredService<ISettingsService>()));
         services.AddSingleton<IEnergyDetector, SpectralEnergyDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 

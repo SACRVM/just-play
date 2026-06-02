@@ -5,6 +5,7 @@
     <Project Path="src/JustPlay.Audio.Bass/JustPlay.Audio.Bass.csproj" />
     <Project Path="src/JustPlay.Core/JustPlay.Core.csproj" />
     <Project Path="src/JustPlay.Metadata/JustPlay.Metadata.csproj" />
+    <Project Path="src/JustPlay.ML/JustPlay.ML.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JustPlay.Analysis.Tests/JustPlay.Analysis.Tests.csproj" />

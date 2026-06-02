@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    ONNX-based "AI key" detector. This is an ADAPTER project (like JustPlay.Audio.Bass):
+    it owns the native Microsoft.ML.OnnxRuntime dependency so that JustPlay.Core and
+    JustPlay.Analysis stay platform-agnostic / native-dep-free. The feature it feeds the
+    model (the 36-bin HPCP chroma) is still produced by the platform-agnostic
+    HpcpKeyDetector.BuildFine36 in JustPlay.Analysis.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+    <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+  </ItemGroup>
+
+  <!-- The trained model (~58 KB) ships next to the assembly and is loaded at runtime. -->
+  <ItemGroup>
+    <None Include="keymodel.onnx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
