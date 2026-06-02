@@ -416,7 +416,13 @@ internal static class KeyReport
             {
                 var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
                 if (!File.Exists(keyFile)) continue;
-                if (MusicalKey.TryParse(File.ReadAllText(keyFile).Trim()) is not { } reference) continue;
+                // Handles both formats: GiantSteps-Key ("C minor") and MTG-Key ("d minor\t2\t"
+                // = key TAB confidence[0-2]). Take the first tab field as the key; for MTG,
+                // drop confidence-0 (uncertain) labels to keep the training set clean.
+                var raw = File.ReadAllText(keyFile).Trim();
+                var parts = raw.Split('\t');
+                if (parts.Length > 1 && int.TryParse(parts[1].Trim(), out var conf) && conf < 1) continue;
+                if (MusicalKey.TryParse(parts[0].Trim()) is not { } reference) continue;
                 DecodedAudio? audio;
                 try { audio = decoder.DecodeMono(file, 44100); } catch { continue; }
                 if (audio is not { } a || hpcp.BuildFine36(a) is not { } fine) continue;
