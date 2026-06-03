@@ -80,6 +80,10 @@
             <Setter Property="LetterSpacing" Value="0"/>
             <Setter Property="Margin" Value="1,0,0,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <!-- Collapse the arrow when this column isn't the active sort (glyph = "") so the empty
+                 slot + its StackPanel spacing don't leave a gap (e.g. before the "·" track count). -->
+            <Setter Property="IsVisible"
+                    Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
         </Style>
 
         <!-- Tabs: NO frame, NO hover background, underline as a Border INSIDE the Content so it

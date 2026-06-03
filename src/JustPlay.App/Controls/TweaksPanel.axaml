@@ -120,12 +120,12 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Width="300"
+    <Border Width="320"
             Background="#F01a1828"
             CornerRadius="0,14,14,0"
             BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
         <ScrollViewer Padding="22,18,22,18">
-            <StackPanel Spacing="14" ClipToBounds="False">
+            <StackPanel Spacing="14" ClipToBounds="False" Width="276">
 
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
@@ -187,6 +187,18 @@
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Classes="tweak-label" Text="Auto-write tags on analyze" VerticalAlignment="Center"/>
                     <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoWriteOnAnalyze}"
+                                  OnContent="" OffContent=""/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Classes="tweak-label" TextWrapping="Wrap"
+                                   Text="DJ Software compatible comment"/>
+                        <TextBlock Foreground="#73FFFFFF" FontSize="10"
+                                   TextWrapping="Wrap"
+                                   Text="Camelot + Energy in the comment (e.g. 8A - Energy 7). Existing text kept."/>
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
+                                  IsChecked="{Binding WriteDjComment}"
                                   OnContent="" OffContent=""/>
                 </Grid>
                 <TextBlock Classes="tweak-label" Text="Threads"/>

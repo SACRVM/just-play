@@ -50,5 +50,13 @@ public sealed record UserSettings
     /// </summary>
     public bool AutoWriteOnAnalyze { get; init; } = false;
 
+    /// <summary>
+    /// When writing tags, also prepend a "DJ Software compatible" segment to the file's comment
+    /// field in the format understood by Serato, rekordbox, Traktor, and VirtualDJ —
+    /// e.g. <c>8A - Energy 7</c>. The user's existing comment text is preserved after a
+    /// <c>" | "</c> separator. Off by default (opt-in, non-destructive).
+    /// </summary>
+    public bool WriteDjComment { get; init; } = false;
+
     public static readonly UserSettings Defaults = new();
 }

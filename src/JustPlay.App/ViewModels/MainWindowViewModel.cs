@@ -11,6 +11,7 @@ using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
 using JustPlay.Core.Theming;
+using JustPlay.Metadata;
 
 namespace JustPlay.App.ViewModels;
 
@@ -89,6 +90,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _defaultTab = s.DefaultTab;
         _autoAnalyze = s.AutoAnalyze;
         _autoWriteOnAnalyze = s.AutoWriteOnAnalyze;
+        _writeDjComment = s.WriteDjComment;
         _analysisThreads = s.AnalysisThreads;
         _settingsHydrated = true;
 
@@ -320,6 +322,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // triggers it via right-click → Analyze. AnalysisThreads bounds how many run at once.
     [ObservableProperty] private bool _autoAnalyze;
     [ObservableProperty] private bool _autoWriteOnAnalyze;
+    [ObservableProperty] private bool _writeDjComment;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AnalysisThreadsText))]
     private int _analysisThreads = 4;
@@ -379,6 +382,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PersistSettings();
     }
 
+    partial void OnWriteDjCommentChanged(bool value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
     partial void OnAnalysisThreadsChanged(int value)
     {
         if (!_settingsHydrated) return;
@@ -393,6 +402,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         DefaultTab        = DefaultTab,
         AutoAnalyze        = AutoAnalyze,
         AutoWriteOnAnalyze = AutoWriteOnAnalyze,
+        WriteDjComment     = WriteDjComment,
         AnalysisThreads    = AnalysisThreads,
         UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
     });
@@ -552,9 +562,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Write detected values for every selected track. <paramref name="fillMissingOnly"/>
     /// only touches fields the file doesn't already have (non-destructive); otherwise it overwrites.</summary>
-    public void WriteSelectedTags(bool fillMissingOnly) => WithUndoCapture(() =>
+    public void WriteSelectedTags(IReadOnlyList<TrackViewModel> sel, bool fillMissingOnly) => WithUndoCapture(() =>
     {
-        foreach (var tvm in SelectedTracks.ToList())
+        foreach (var tvm in sel)
         {
             var a = tvm.Model.Analysis;
             var md = tvm.Model.Metadata;
@@ -571,7 +581,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     a.Key is not null ? FieldAction.Write : FieldAction.None,
                     a.Energy is not null ? FieldAction.Write : FieldAction.None);
         }
-        RaiseTrackListChanged();
+        Dispatcher.UIThread.Post(RaiseTrackListChanged);
     });
 
     /// <summary>Write just one field of one track (per-cell action).</summary>
@@ -615,7 +625,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             },
         };
         WithUndoCapture(() => DoWrite(tvm, write));
-        RaiseTrackListChanged();
+        Dispatcher.UIThread.Post(RaiseTrackListChanged);
     }
 
     /// <summary>Build the state + tag write for a track and persist it. Captures (and preserves)
@@ -656,12 +666,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             EnergyDecision = Dec(energy, prev?.EnergyDecision),
         };
 
+        // When "DJ Software compatible" comment is enabled, build the new comment value from the
+        // key/energy values as they will be in the tag after this write:
+        //   Write  → the detected value from analysis
+        //   Keep   → the existing tagged value (user confirmed it is correct)
+        //   None   → the existing tagged value (field not touched by this write)
+        string? newComment = null;
+        if (WriteDjComment)
+        {
+            var effectiveKey = key == FieldAction.Write ? a.Key : MusicalKey.TryParse(md?.TaggedKey);
+            var effectiveEnergy = energy == FieldAction.Write ? a.Energy : md?.TaggedEnergy;
+            newComment = DjCommentBuilder.Build(effectiveKey, effectiveEnergy, md?.Comment);
+        }
+
         var write = new TagWrite
         {
             Bpm = bpm == FieldAction.Write ? a.Bpm : null,
             Key = key == FieldAction.Write ? a.Key : null,
             Energy = energy == FieldAction.Write ? a.Energy : null,
             State = state,
+            Comment = newComment,
         };
         DoWrite(tvm, write);
     }
@@ -684,7 +708,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 _writer.Write(tvm.Model.FilePath, write);
                 tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
-                tvm.Refresh();
+                Dispatcher.UIThread.Post(tvm.Refresh);
                 ok = true;
             }
             catch (Exception ex)
@@ -693,7 +717,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         });
 
-        if (ok && snapshot is not null) _undoBatch.Add((tvm, snapshot));
+        if (ok && snapshot is not null)
+            lock (_undoBatch) _undoBatch.Add((tvm, snapshot));
         return ok;
     }
 
@@ -701,20 +726,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// nested DoWrite calls record their pre-state, then publishes the new undo availability.</summary>
     private void WithUndoCapture(Action write)
     {
-        _undoBatch.Clear();
+        lock (_undoBatch) _undoBatch.Clear();
         _capturingUndo = true;
         try { write(); }
         finally
         {
             _capturingUndo = false;
-            OnPropertyChanged(nameof(CanUndo));
-            OnPropertyChanged(nameof(UndoHeader));
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnPropertyChanged(nameof(CanUndo));
+                OnPropertyChanged(nameof(UndoHeader));
+            });
         }
     }
 
     /// <summary>Capture the tag fields JustPlay may overwrite, so the write can be reverted exactly
-    /// (null field = was empty → Undo clears it).</summary>
-    private static TagRestore SnapshotOf(TrackViewModel tvm)
+    /// (null field = was empty → Undo clears it). The comment is only captured when the
+    /// "DJ Software compatible" comment feature is on — otherwise Restore leaves it untouched.</summary>
+    private TagRestore SnapshotOf(TrackViewModel tvm)
     {
         var md = tvm.Model.Metadata;
         return new TagRestore
@@ -723,6 +752,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Key = MusicalKey.TryParse(md?.TaggedKey),
             Energy = md?.TaggedEnergy,
             State = md?.StoredAnalysis,
+            // Capture the raw comment (before any DJ prefix is prepended) so Undo can restore it
+            // verbatim. When the feature is off, CommentCaptured stays false → Restore skips it.
+            Comment = WriteDjComment ? md?.Comment : null,
+            CommentCaptured = WriteDjComment,
         };
     }
 
@@ -730,8 +763,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// touched file to its captured pre-write state, releasing the playing file's handle as needed.</summary>
     public void UndoLastWrite()
     {
-        if (_undoBatch.Count == 0) return;
-        foreach (var (tvm, prev) in Enumerable.Reverse(_undoBatch))
+        (TrackViewModel tvm, TagRestore prev)[] batch;
+        lock (_undoBatch)
+        {
+            if (_undoBatch.Count == 0) return;
+            batch = _undoBatch.ToArray();
+            _undoBatch.Clear();
+        }
+        foreach (var (tvm, prev) in Enumerable.Reverse(batch))
         {
             _controller.WithFileReleased(tvm.Model, () =>
             {
@@ -739,7 +778,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 {
                     _writer.Restore(tvm.Model.FilePath, prev);
                     tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
-                    tvm.Refresh();
+                    Dispatcher.UIThread.Post(tvm.Refresh);
                 }
                 catch (Exception ex)
                 {
@@ -747,10 +786,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
             });
         }
-        _undoBatch.Clear();
-        OnPropertyChanged(nameof(CanUndo));
-        OnPropertyChanged(nameof(UndoHeader));
-        RaiseTrackListChanged();
+        Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(CanUndo));
+            OnPropertyChanged(nameof(UndoHeader));
+            RaiseTrackListChanged();
+        });
     }
 
     private static AnalysisResult? ClearOriginal(AnalysisResult orig, AnalysisField f)
@@ -798,10 +839,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() => tvm.Refresh());
 
             // "New truth on analyse": optionally stamp our detected values into the file's tags
-            // right away (consent given once, in settings). Marshalled to the UI thread because the
-            // write may pause/reload the playing track via the engine.
+            // right away (consent given once, in settings). Runs HERE on the background analysis
+            // thread (NOT marshalled to the UI thread) so slow file I/O — e.g. a network drive —
+            // never blocks the UI; DoWrite marshals its own VM updates back via Dispatcher.Post.
             if (AutoWriteOnAnalyze && tvm.Model.AnalysisStatus == AnalysisStatus.Done)
-                await Dispatcher.UIThread.InvokeAsync(() => WriteDetected(tvm));
+                WriteDetected(tvm);
         });
     }
 
@@ -838,29 +880,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // Bulk actions operate on the multi-selection; the per-field ones target ContextTarget
     // (the single right-clicked row). Field is passed as a "Bpm"/"Key"/"Energy" CommandParameter.
 
-    [RelayCommand] private void WriteTags() => WriteSelectedTags(fillMissingOnly: false);
-    [RelayCommand] private void FillMissing() => WriteSelectedTags(fillMissingOnly: true);
+    // File-touching commands run their I/O on a background thread (Task.Run) so slow writes —
+    // e.g. on a network drive — never freeze the UI. The selection is snapshotted on the UI
+    // thread first; the inner methods marshal their VM updates back via Dispatcher.Post.
+    [RelayCommand] private Task WriteTags() => RunWriteAsync(fillMissingOnly: false);
+    [RelayCommand] private Task FillMissing() => RunWriteAsync(fillMissingOnly: true);
     [RelayCommand] private void Reanalyze() => ReanalyzeSelected();
     [RelayCommand] private void RemoveRows() => RemoveSelected();
-    [RelayCommand] private void UndoWrite() => UndoLastWrite();
+    [RelayCommand] private Task UndoWrite() => Task.Run(UndoLastWrite);
 
-    [RelayCommand]
-    private void WriteOneField(string? field)
+    private Task RunWriteAsync(bool fillMissingOnly)
     {
-        if (ContextTarget is { } t && TryField(field, out var f)) WriteField(t, f);
+        var sel = SelectedTracks.ToList();           // snapshot selection on the UI thread
+        return Task.Run(() => WriteSelectedTags(sel, fillMissingOnly));
     }
 
     [RelayCommand]
-    private void KeepOneField(string? field)
-    {
-        if (ContextTarget is { } t && TryField(field, out var f)) KeepField(t, f);
-    }
+    private Task WriteOneField(string? field)
+        => ContextTarget is { } t && TryField(field, out var f) ? Task.Run(() => WriteField(t, f)) : Task.CompletedTask;
 
     [RelayCommand]
-    private void RestoreOneField(string? field)
-    {
-        if (ContextTarget is { } t && TryField(field, out var f)) RestoreField(t, f);
-    }
+    private Task KeepOneField(string? field)
+        => ContextTarget is { } t && TryField(field, out var f) ? Task.Run(() => KeepField(t, f)) : Task.CompletedTask;
+
+    [RelayCommand]
+    private Task RestoreOneField(string? field)
+        => ContextTarget is { } t && TryField(field, out var f) ? Task.Run(() => RestoreField(t, f)) : Task.CompletedTask;
 
     private static bool TryField(string? s, out AnalysisField f)
     {

@@ -35,6 +35,9 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         if (write.State is { } state)
             TagCustomFields.Set(file, "JUSTPLAY", AnalysisStateCodec.Serialize(state));
 
+        if (write.Comment is { } comment)
+            tag.Comment = comment.Length == 0 ? null : comment;
+
         file.Save();
     }
 
@@ -59,6 +62,11 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             TagCustomFields.Set(file, "JUSTPLAY", AnalysisStateCodec.Serialize(state));
         else
             TagCustomFields.Remove(file, "JUSTPLAY");
+
+        // Only touch the comment if it was explicitly captured before the write; null CommentCaptured
+        // means the DJ comment feature was off — leave the user's comment alone.
+        if (restore.CommentCaptured)
+            tag.Comment = string.IsNullOrEmpty(restore.Comment) ? null : restore.Comment;
 
         file.Save();
     }

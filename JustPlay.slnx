@@ -10,5 +10,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/JustPlay.Analysis.Tests/JustPlay.Analysis.Tests.csproj" />
     <Project Path="tests/JustPlay.Core.Tests/JustPlay.Core.Tests.csproj" />
+    <Project Path="tests/JustPlay.Metadata.Tests/JustPlay.Metadata.Tests.csproj" />
   </Folder>
 </Solution>

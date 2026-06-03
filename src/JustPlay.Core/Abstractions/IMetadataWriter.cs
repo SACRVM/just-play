@@ -29,7 +29,8 @@ public interface IMetadataWriter
 /// <summary>
 /// Describes a single write: which standard fields to set (null = leave as-is) and
 /// the full <see cref="TrackAnalysisState"/> blob to stamp. Camelot is NOT written —
-/// it is derived from the musical key on read, so the comment stays the user's.
+/// it is derived from the musical key on read, so the comment stays the user's
+/// unless <see cref="Comment"/> is explicitly set (opt-in DJ Software compatible mode).
 /// </summary>
 public sealed record TagWrite
 {
@@ -44,6 +45,13 @@ public sealed record TagWrite
 
     /// <summary>Stamp the JustPlay analysis record (detected values + version + per-field decisions).</summary>
     public TrackAnalysisState? State { get; init; }
+
+    /// <summary>
+    /// When non-null, write this exact string as the file's comment tag. Used by the
+    /// "DJ Software compatible" comment feature: the caller builds the comment (Camelot +
+    /// energy prefix + preserved user text) and passes it here. Null = leave comment untouched.
+    /// </summary>
+    public string? Comment { get; init; }
 }
 
 /// <summary>
@@ -64,4 +72,20 @@ public sealed record TagRestore
 
     /// <summary>Previous JUSTPLAY blob (parsed); null → remove the field.</summary>
     public TrackAnalysisState? State { get; init; }
+
+    /// <summary>
+    /// Previous comment field value, captured only when the "DJ Software compatible" comment
+    /// feature was active at write time. Null = the feature was off, or the comment was not
+    /// captured — <see cref="IMetadataWriter.Restore"/> leaves the comment untouched in that case.
+    /// A non-null value (including empty string) is written back verbatim so even a previously-
+    /// empty comment is correctly restored.
+    /// </summary>
+    public string? Comment { get; init; }
+
+    /// <summary>
+    /// True when the comment was explicitly captured before the write (distinguishes "feature off,
+    /// nothing captured" from "feature was on, existing comment was empty/null"). Only when this
+    /// is true will <see cref="IMetadataWriter.Restore"/> touch the comment field.
+    /// </summary>
+    public bool CommentCaptured { get; init; }
 }
