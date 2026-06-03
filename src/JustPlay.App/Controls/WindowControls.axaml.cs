@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using JustPlay.App.Views;
 
 namespace JustPlay.App.Controls;
 
@@ -23,7 +24,11 @@ public partial class WindowControls : UserControl
 
     private void OnMaximizeClick(object? sender, RoutedEventArgs e)
     {
-        if (Window is { } w)
+        // The shell window does a custom maximize (work-area fill) because it's a borderless
+        // transparent window with no OS maximize; fall back to WindowState elsewhere.
+        if (Window is MainWindow mw)
+            mw.ToggleMaximize();
+        else if (Window is { } w)
             w.WindowState = w.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 }

@@ -15,6 +15,8 @@ public static class AnalysisStateCodec
     public static string Serialize(TrackAnalysisState state)
     {
         var k = state.Detected.Key;
+        var o = state.Original;
+        var ok = o?.Key;
         var dto = new AnalysisStateDto
         {
             V = state.Version,
@@ -26,6 +28,11 @@ public static class AnalysisStateCodec
             ActBpm = Code(state.BpmDecision),
             ActKey = Code(state.KeyDecision),
             ActEnergy = Code(state.EnergyDecision),
+            // Original (pre-overwrite foreign values) — only emitted when present.
+            OrigBpm = o?.Bpm,
+            OrigKeyPc = ok?.PitchClass,
+            OrigKeyMode = ok is { } okey ? (okey.Mode == KeyMode.Major ? "maj" : "min") : null,
+            OrigEnergy = o?.Energy,
         };
         return JsonSerializer.Serialize(dto, AnalysisStateJsonContext.Default.AnalysisStateDto);
     }
@@ -43,6 +50,16 @@ public static class AnalysisStateCodec
                 ? new MusicalKey(pc, dto.KeyMode == "maj" ? KeyMode.Major : KeyMode.Minor)
                 : null;
 
+            MusicalKey? origKey = dto.OrigKeyPc is int opc
+                ? new MusicalKey(opc, dto.OrigKeyMode == "maj" ? KeyMode.Major : KeyMode.Minor)
+                : null;
+
+            // Original is present only if at least one foreign field was stashed.
+            AnalysisResult? original =
+                dto.OrigBpm is null && origKey is null && dto.OrigEnergy is null
+                    ? null
+                    : new AnalysisResult { Bpm = dto.OrigBpm, Key = origKey, Energy = dto.OrigEnergy };
+
             return new TrackAnalysisState
             {
                 Version = dto.V,
@@ -53,6 +70,7 @@ public static class AnalysisStateCodec
                     KeyConfidence = dto.KeyConf,
                     Energy = dto.Energy,
                 },
+                Original = original,
                 BpmDecision = Decode(dto.ActBpm),
                 KeyDecision = Decode(dto.ActKey),
                 EnergyDecision = Decode(dto.ActEnergy),
@@ -91,6 +109,11 @@ internal sealed class AnalysisStateDto
     [JsonPropertyName("abpm")] public string? ActBpm { get; set; }
     [JsonPropertyName("akey")] public string? ActKey { get; set; }
     [JsonPropertyName("anrg")] public string? ActEnergy { get; set; }
+    // Original (pre-overwrite foreign) values, for reversibility. Omitted when null.
+    [JsonPropertyName("obpm")] public double? OrigBpm { get; set; }
+    [JsonPropertyName("okpc")] public int? OrigKeyPc { get; set; }
+    [JsonPropertyName("okmd")] public string? OrigKeyMode { get; set; }
+    [JsonPropertyName("onrg")] public int? OrigEnergy { get; set; }
 }
 
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

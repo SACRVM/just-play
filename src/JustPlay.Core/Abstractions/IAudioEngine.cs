@@ -32,6 +32,14 @@ public interface IAudioEngine : IDisposable
     void Stop();
 
     /// <summary>
+    /// Fully release the loaded stream and its underlying file handle (unlike
+    /// <see cref="Stop"/>, which keeps the file open). Needed before another
+    /// process — e.g. the tag writer — can open the file for writing. After this
+    /// the engine has nothing loaded; call <see cref="Load"/> again to resume.
+    /// </summary>
+    void Unload();
+
+    /// <summary>
     /// Sample the current FFT spectrum aggregated into four perceptual bands
     /// (bass, low-mid, mid, treble), normalised to roughly 0..1 with smoothing
     /// applied. Writes exactly 4 floats into <paramref name="destination"/>.

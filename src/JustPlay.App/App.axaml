@@ -108,6 +108,8 @@
         <conv:PlayPausePathConverter x:Key="PlayPausePath"/>
         <conv:EnergyBarColorConverter x:Key="EnergyBarColor"/>
         <conv:StringEqualsConverter x:Key="StringEquals"/>
+        <conv:ConflictWeightConverter x:Key="ConflictWeight"/>
+        <conv:ConflictForegroundConverter x:Key="ConflictForeground"/>
 
         <!--
           ToggleSwitch overrides — FluentTheme's defaults bind ToggleSwitchFillOn et al.

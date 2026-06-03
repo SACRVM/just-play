@@ -21,6 +21,14 @@ public sealed record TrackAnalysisState
     /// <summary>What our DSP detected (the values, regardless of what's in the standard tags).</summary>
     public AnalysisResult Detected { get; init; } = AnalysisResult.Empty;
 
+    /// <summary>
+    /// The foreign tag value(s) that were present BEFORE we overwrote a standard tag with our
+    /// own — captured per field on the first <see cref="FieldDecision.Applied"/> write so the
+    /// action is reversible ("restore original") and a consciously kept-divergent field can be
+    /// told apart from a plain match. Null / per-field-null when nothing was overwritten.
+    /// </summary>
+    public AnalysisResult? Original { get; init; }
+
     public FieldDecision BpmDecision { get; init; }
     public FieldDecision KeyDecision { get; init; }
     public FieldDecision EnergyDecision { get; init; }

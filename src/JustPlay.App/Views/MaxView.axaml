@@ -73,6 +73,14 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="LetterSpacing" Value="2"/>
         </Style>
+        <!-- Active-sort arrow: smaller than the header label and snug against it. Defined after
+             .colhead so its FontSize/Margin win on elements carrying both classes. -->
+        <Style Selector="TextBlock.sortarrow">
+            <Setter Property="FontSize" Value="7"/>
+            <Setter Property="LetterSpacing" Value="0"/>
+            <Setter Property="Margin" Value="1,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
 
         <!-- Tabs: NO frame, NO hover background, underline as a Border INSIDE the Content so it
              only spans the text width (not the full button width incl. padding). -->
@@ -236,6 +244,26 @@
             </Style.Animations>
         </Style>
 
+        <!-- Context-menu separators span the full menu width (the default theme insets them). -->
+        <Style Selector="ContextMenu Separator">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+
+        <!-- Analysing spinner: a 3/4 arc rotating continuously, shown in the index column
+             while a row's BPM/key/energy analysis is in flight. Angle 0→360 via RotateTransform;
+             RenderTransformOrigin defaults to Center so it pivots on the arc's centre. -->
+        <Style Selector="Path.spinner">
+            <Style.Animations>
+                <Animation Duration="0:0:0.85" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0"/></KeyFrame>
+                    <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360"/></KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
         <!-- Tweaks-panel styles (swatch / swatchbtn / tweak-*) now travel with the
              Controls/TweaksPanel control. -->
     </UserControl.Styles>
@@ -368,9 +396,12 @@
             <controls:TransportProgressBar DockPanel.Dock="Bottom" Margin="38,8,38,4"/>
 
             <!-- ─── MAIN CONTENT: 2-column ─────────────────────────────────── -->
-            <Grid ColumnDefinitions="*,1.05*" Margin="44,8,44,12">
+            <!-- Left column is a FIXED 508 px (the vinyl is 468 px wide → ~20 px breathing room each
+                 side), so the cover stage never grows on resize; the queue table (right, *) absorbs
+                 all the extra width. -->
+            <Grid ColumnDefinitions="508,*" Margin="44,8,44,12">
 
-                <!-- LEFT: vinyl stage -->
+                <!-- LEFT: vinyl stage (fixed size — does not grow with the window) -->
                 <Panel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <controls:Vinyl Cover="{Binding Current.Cover}"
                                     Spinning="{Binding ShouldSpin}"/>
@@ -448,23 +479,44 @@
                           "#" centred (matches row index); "UP NEXT" gets 4-px left margin so it
                           sits flush above the Title text (row StackPanel also has Margin="4,0,…").
                         -->
-                        <Grid ColumnDefinitions="28,*,100,44,52,44,52" Margin="6,0,16,0">
+                        <Grid ColumnDefinitions="28,3*,1.3*,44,52,44,52" Margin="6,0,16,0">
                             <TextBlock Classes="colhead" Text="#"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                         VerticalAlignment="Center" Margin="4,0,0,0">
-                                <TextBlock Classes="colhead" Text="UP NEXT"/>
+                                <TextBlock Classes="colhead" Text="UP NEXT" Tag="Title"
+                                           Tapped="OnHeaderTapped" Cursor="Hand"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding TitleSortGlyph}"/>
                                 <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" VerticalAlignment="Center"/>
                                 <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
                                            Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
                                            VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Grid.Column="2" Classes="colhead" Text="GENRE" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="3" Classes="colhead" Text="BPM" TextAlignment="Right" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="4" Classes="colhead" Text="KEY" TextAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="5" Classes="colhead" Text="NRG" TextAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="6" Classes="colhead" Text="{Binding TotalDurationText}"
-                                       TextAlignment="Right" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" Background="Transparent"
+                                        VerticalAlignment="Center" Tag="Genre" Tapped="OnHeaderTapped" Cursor="Hand">
+                                <TextBlock Classes="colhead" Text="GENRE"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding GenreSortGlyph}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0" Background="Transparent"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Tag="Bpm" Tapped="OnHeaderTapped" Cursor="Hand">
+                                <TextBlock Classes="colhead" Text="BPM"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding BpmSortGlyph}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="0" Background="Transparent"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Key" Tapped="OnHeaderTapped" Cursor="Hand">
+                                <TextBlock Classes="colhead" Text="KEY"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding KeySortGlyph}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="0" Background="Transparent"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Nrg" Tapped="OnHeaderTapped" Cursor="Hand">
+                                <TextBlock Classes="colhead" Text="NRG"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding NrgSortGlyph}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="0" Background="Transparent"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Tag="Duration" Tapped="OnHeaderTapped" Cursor="Hand">
+                                <TextBlock Classes="colhead" Text="{Binding TotalDurationText}"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding DurationSortGlyph}"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
 
@@ -472,24 +524,85 @@
                     <Panel Name="RightPanelHost">
                         <Panel Name="QueuePanel">
                             <!--
-                              NOTE: previously had a <ListBox.OpacityMask> here for the soft bottom
-                              fade into the transport area. In Avalonia 12.0.3 that interacts badly
-                              with the virtualising panel: items get added to ItemsSource but the mask
-                              composites the whole list to transparent. The fade will be re-added later
-                              as a separate Rectangle overlay below the list — for now: no mask, list
-                              renders normally.
+                              Soft edge fade: the list content fades to transparent over a few px at
+                              the TOP and BOTTOM (revealing the Aurora background) instead of a hard
+                              cut. The OpacityMask lives on this WRAPPER Border, NOT on the ListBox —
+                              masking the virtualising ListBox directly composites the whole list to
+                              transparent in Avalonia 12.0.3; masking the wrapper's rendered output
+                              sidesteps that. Offsets are relative, so the fade is ~a few px tall.
                             -->
-                            <ListBox Name="TrackList" ItemsSource="{Binding Tracks}" SelectionMode="Single"
+                            <Border>
+                                <Border.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Offset="0.0"   Color="Transparent"/>
+                                        <GradientStop Offset="0.012" Color="White"/>
+                                        <GradientStop Offset="0.984" Color="White"/>
+                                        <GradientStop Offset="0.996" Color="Transparent"/>
+                                    </LinearGradientBrush>
+                                </Border.OpacityMask>
+                            <ListBox Name="TrackList" ItemsSource="{Binding Tracks}" SelectionMode="Multiple"
                                      Background="Transparent" BorderThickness="0" Padding="0"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     DoubleTapped="OnTrackDoubleTapped">
+                                     DoubleTapped="OnTrackDoubleTapped"
+                                     SelectionChanged="OnSelectionChanged"
+                                     KeyDown="OnTrackListKeyDown"
+                                     ContextRequested="OnListContextRequested">
+                                <!--
+                                  One shared context menu (DataContext = MainWindowViewModel via the
+                                  ListBox). Per-field entries bind to ContextTarget (the single right-
+                                  clicked row, null under multi-select → they vanish); bulk entries act
+                                  on the whole selection and carry the "(N)" count. Selection is fixed up
+                                  in OnListContextRequested before the menu opens. See the tag-persistence
+                                  design in memory.
+                                -->
+                                <ListBox.ContextMenu>
+                                    <ContextMenu x:DataType="vm:MainWindowViewModel">
+                                        <!-- Analyze first: the primary action — produces the values everything
+                                             else writes. "Analyze" until done, then "Re-analyze". -->
+                                        <MenuItem Header="{Binding ReanalyzeHeader}" Command="{Binding ReanalyzeCommand}"
+                                                  IsVisible="{Binding HasSelection}"/>
+                                        <Separator IsVisible="{Binding HasSelection}"/>
+                                        <MenuItem Header="{Binding ContextTarget.WriteBpmMenu}" CommandParameter="Bpm"
+                                                  Command="{Binding WriteOneFieldCommand}" IsVisible="{Binding ShowBpmField}"/>
+                                        <MenuItem Header="{Binding ContextTarget.KeepBpmMenu}" CommandParameter="Bpm"
+                                                  Command="{Binding KeepOneFieldCommand}" IsVisible="{Binding ShowBpmField}"/>
+                                        <MenuItem Header="{Binding ContextTarget.WriteKeyMenu}" CommandParameter="Key"
+                                                  Command="{Binding WriteOneFieldCommand}" IsVisible="{Binding ShowKeyField}"/>
+                                        <MenuItem Header="{Binding ContextTarget.KeepKeyMenu}" CommandParameter="Key"
+                                                  Command="{Binding KeepOneFieldCommand}" IsVisible="{Binding ShowKeyField}"/>
+                                        <MenuItem Header="{Binding ContextTarget.WriteEnergyMenu}" CommandParameter="Energy"
+                                                  Command="{Binding WriteOneFieldCommand}" IsVisible="{Binding ShowEnergyField}"/>
+                                        <MenuItem Header="{Binding ContextTarget.KeepEnergyMenu}" CommandParameter="Energy"
+                                                  Command="{Binding KeepOneFieldCommand}" IsVisible="{Binding ShowEnergyField}"/>
+                                        <MenuItem Header="{Binding ContextTarget.RestoreBpmLabel}" CommandParameter="Bpm"
+                                                  Command="{Binding RestoreOneFieldCommand}" IsVisible="{Binding ShowRestoreBpm}"/>
+                                        <MenuItem Header="{Binding ContextTarget.RestoreKeyLabel}" CommandParameter="Key"
+                                                  Command="{Binding RestoreOneFieldCommand}" IsVisible="{Binding ShowRestoreKey}"/>
+                                        <MenuItem Header="{Binding ContextTarget.RestoreEnergyLabel}" CommandParameter="Energy"
+                                                  Command="{Binding RestoreOneFieldCommand}" IsVisible="{Binding ShowRestoreEnergy}"/>
+                                        <Separator IsVisible="{Binding ShowFieldSeparator}"/>
+                                        <!-- Write / Fill greyed out when there's nothing to write (analyse first). -->
+                                        <MenuItem Header="{Binding WriteTagsHeader}" Command="{Binding WriteTagsCommand}"
+                                                  IsVisible="{Binding HasSelection}" IsEnabled="{Binding CanWriteTags}"/>
+                                        <MenuItem Header="{Binding FillMissingHeader}" Command="{Binding FillMissingCommand}"
+                                                  IsVisible="{Binding HasSelection}" IsEnabled="{Binding CanFillMissing}"/>
+                                        <!-- Undo the most recent tag write (single, per-field, or bulk). Shown
+                                             whenever something is undoable, independent of the current selection. -->
+                                        <Separator IsVisible="{Binding CanUndo}"/>
+                                        <MenuItem Header="{Binding UndoHeader}" Command="{Binding UndoWriteCommand}"
+                                                  IsVisible="{Binding CanUndo}"/>
+                                        <Separator IsVisible="{Binding HasSelection}"/>
+                                        <MenuItem Header="{Binding RemoveHeader}" Command="{Binding RemoveRowsCommand}"
+                                                  IsVisible="{Binding HasSelection}"/>
+                                    </ContextMenu>
+                                </ListBox.ContextMenu>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:TrackViewModel">
                                         <!-- Row margin right = 16 → that's the visible gap between the
                                              last column (Duration) and the scrollbar at the right edge.
                                              Header has matching margin (+6 for scrollbar width) so column
                                              right-edges line up. -->
-                                        <Grid ColumnDefinitions="28,*,100,44,52,44,52" Margin="6,0,16,0" MinHeight="44">
+                                        <Grid ColumnDefinitions="28,3*,1.3*,44,52,44,52" Margin="6,0,16,0" MinHeight="44">
 
                                             <!--
                                               Cyan→pink accent edge on the left of the active row.
@@ -525,19 +638,26 @@
                                                 </Border.Background>
                                             </Border>
 
-                                            <!-- # / animated 3-bar indicator for the current track -->
+                                            <!-- Index column, mutually exclusive content:
+                                                 spinner while analysing → play-bars on the current
+                                                 track → plain position number otherwise. -->
                                             <Grid Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
                                                 <TextBlock Text="{Binding Index}" FontSize="11" FontWeight="SemiBold"
                                                            Foreground="#73FFFFFF"
                                                            VerticalAlignment="Center"
-                                                           IsVisible="{Binding !IsCurrent}"/>
+                                                           IsVisible="{Binding ShowIndexNumber}"/>
                                                 <StackPanel Orientation="Horizontal" Spacing="2"
                                                             VerticalAlignment="Bottom" Height="14"
-                                                            IsVisible="{Binding IsCurrent}">
+                                                            IsVisible="{Binding ShowPlayBars}">
                                                     <Rectangle Classes="pbar pbar1"/>
                                                     <Rectangle Classes="pbar pbar2"/>
                                                     <Rectangle Classes="pbar pbar3"/>
                                                 </StackPanel>
+                                                <Path Classes="spinner" Width="14" Height="14"
+                                                      Stroke="{DynamicResource AccentABrush}" StrokeThickness="2"
+                                                      Data="M 7,1 A 6,6 0 1 1 1,7"
+                                                      VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                      IsVisible="{Binding IsAnalyzing}"/>
                                             </Grid>
 
                                             <!-- Title + artist -->
@@ -553,23 +673,30 @@
                                                        FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
 
-                                            <!-- BPM -->
-                                            <TextBlock Grid.Column="3" Text="{Binding BpmText}"
-                                                       FontSize="12" Foreground="#B3FFFFFF"
+                                            <!-- BPM (bold when our detected value diverges from the file's claimed BPM).
+                                                 Tag drives cell-targeted right-click (see OnListContextRequested). -->
+                                            <TextBlock Grid.Column="3" Text="{Binding BpmText}" Tag="Bpm"
+                                                       FontSize="12"
+                                                       Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
+                                                       FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
                                                        TextAlignment="Right" VerticalAlignment="Center"/>
 
-                                            <!-- KEY pill -->
-                                            <Border Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                    CornerRadius="10" Padding="7,3" BorderThickness="1"
-                                                    Background="{Binding KeyText, Converter={StaticResource CamelotToBrush}}"
-                                                    BorderBrush="{Binding KeyText, Converter={StaticResource CamelotBorder}}"
-                                                    IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
-                                                           LetterSpacing="0.5" Foreground="White"/>
-                                            </Border>
+                                            <!-- KEY pill (+ accent dot when our key conflicts with the claimed key) -->
+                                            <Panel Grid.Column="4" Tag="Key" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border CornerRadius="10" Padding="7,3" BorderThickness="1"
+                                                        Background="{Binding KeyText, Converter={StaticResource CamelotToBrush}}"
+                                                        BorderBrush="{Binding KeyText, Converter={StaticResource CamelotBorder}}"
+                                                        IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                    <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
+                                                               LetterSpacing="0.5" Foreground="White"/>
+                                                </Border>
+                                                <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                         Margin="0,-2,-2,0" Fill="{DynamicResource AccentB}"
+                                                         IsVisible="{Binding KeyConflict}"/>
+                                            </Panel>
 
                                             <!-- ENERGY bars -->
-                                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2"
+                                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" Tag="Energy"
                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
                                                         IsVisible="{Binding Energy, Converter={x:Static ObjectConverters.IsNotNull}}">
                                                 <Rectangle Width="2.5" Height="4" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom"
@@ -584,6 +711,9 @@
                                                            Fill="{Binding Energy, Converter={StaticResource EnergyBarColor}, ConverterParameter=4}"/>
                                                 <TextBlock Text="{Binding EnergyText}" FontSize="10" FontWeight="SemiBold"
                                                            Foreground="#A6FFFFFF" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                                <!-- Accent dot: our energy diverges from the file's claimed ENERGY tag (rare). -->
+                                                <Ellipse Width="6" Height="6" Margin="3,0,0,0" VerticalAlignment="Center"
+                                                         Fill="{DynamicResource AccentB}" IsVisible="{Binding EnergyConflict}"/>
                                             </StackPanel>
 
                                             <!-- DURATION -->
@@ -594,6 +724,7 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+                            </Border>
 
                             <!-- Empty drop hint -->
                             <StackPanel IsVisible="{Binding !HasTracks}" HorizontalAlignment="Center"

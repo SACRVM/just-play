@@ -16,6 +16,14 @@ public interface IMetadataWriter
     /// left untouched.
     /// </summary>
     void Write(string filePath, TagWrite write);
+
+    /// <summary>
+    /// Restore a file to a previously-captured tag state — the inverse of <see cref="Write"/>,
+    /// used by "Undo last write". Unlike <see cref="Write"/>, a null field here means CLEAR (the
+    /// field had no value before the undone write): BPM → 0, key → blank, and the ENERGY /
+    /// JUSTPLAY custom fields are removed. Non-null fields are written back verbatim.
+    /// </summary>
+    void Restore(string filePath, TagRestore restore);
 }
 
 /// <summary>
@@ -35,5 +43,25 @@ public sealed record TagWrite
     public int? Energy { get; init; }
 
     /// <summary>Stamp the JustPlay analysis record (detected values + version + per-field decisions).</summary>
+    public TrackAnalysisState? State { get; init; }
+}
+
+/// <summary>
+/// A snapshot of the tag fields JustPlay touches, captured before a write so the write can be
+/// undone. Null means the field was empty before — <see cref="IMetadataWriter.Restore"/> clears
+/// it rather than leaving it (the key difference from <see cref="TagWrite"/>).
+/// </summary>
+public sealed record TagRestore
+{
+    /// <summary>Previous standard tempo tag; null → clear (BPM 0).</summary>
+    public double? Bpm { get; init; }
+
+    /// <summary>Previous standard key tag; null → clear.</summary>
+    public MusicalKey? Key { get; init; }
+
+    /// <summary>Previous ENERGY custom field; null → remove the field.</summary>
+    public int? Energy { get; init; }
+
+    /// <summary>Previous JUSTPLAY blob (parsed); null → remove the field.</summary>
     public TrackAnalysisState? State { get; init; }
 }

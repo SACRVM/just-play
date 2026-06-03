@@ -38,6 +38,44 @@ public class AnalysisStateCodecTests
     }
 
     [Fact]
+    public void RoundTrips_Original_ForReversibleWrites()
+    {
+        // We overwrote a foreign BPM (128) and key (9A) with our detected values; the originals
+        // are stashed so the write can be undone. Energy was never overwritten → no original.
+        var state = new TrackAnalysisState
+        {
+            Detected = new AnalysisResult { Bpm = 127.98, Key = new MusicalKey(9, KeyMode.Minor), Energy = 7 }, // 8A
+            Original = new AnalysisResult { Bpm = 128, Key = new MusicalKey(11, KeyMode.Minor) },            // 10A
+            BpmDecision = FieldDecision.Applied,
+            KeyDecision = FieldDecision.Applied,
+            EnergyDecision = FieldDecision.Pending,
+        };
+
+        var restored = AnalysisStateCodec.TryParse(AnalysisStateCodec.Serialize(state));
+
+        Assert.NotNull(restored);
+        Assert.NotNull(restored!.Original);
+        Assert.Equal(128, restored.Original!.Bpm);
+        Assert.Equal("10A", restored.Original.Key!.Value.Camelot);
+        Assert.Null(restored.Original.Energy);
+    }
+
+    [Fact]
+    public void Original_IsNull_WhenNothingOverwritten()
+    {
+        var state = new TrackAnalysisState
+        {
+            Detected = new AnalysisResult { Bpm = 120, Energy = 5 },
+            BpmDecision = FieldDecision.Pending,
+        };
+
+        var restored = AnalysisStateCodec.TryParse(AnalysisStateCodec.Serialize(state));
+
+        Assert.NotNull(restored);
+        Assert.Null(restored!.Original);
+    }
+
+    [Fact]
     public void RoundTrips_PartialResult()
     {
         // BPM only — key/energy not yet detected; nulls must survive.

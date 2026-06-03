@@ -14,6 +14,9 @@ using JustPlay.Core.Theming;
 
 namespace JustPlay.App.ViewModels;
 
+/// <summary>One of the three analysis fields a per-cell action targets.</summary>
+public enum AnalysisField { Bpm, Key, Energy }
+
 public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -23,6 +26,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private readonly PlaybackController _controller;
     private readonly IMetadataReader _metadata;
+    private readonly IMetadataWriter _writer;
     private readonly ITrackAnalysisService _analysis;
     private readonly ISettingsService _settings;
     private readonly IThemeService _themes;
@@ -41,6 +45,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private int _shufflePos = -1;
     private readonly Random _rng = new();
 
+    // Monotonic insertion sequence stamped on each added track, so "unsort" (third header click)
+    // can restore the original natural/Explorer drop order.
+    private int _addSeq;
+
     // Previous restarts the current track instead of stepping back when more
     // than this far into it — direct port of the design (app.jsx:492,
     // `if (progress > 3) setProgress(0)`).
@@ -56,15 +64,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public MainWindowViewModel(
         PlaybackController controller,
         IMetadataReader metadata,
+        IMetadataWriter writer,
         ITrackAnalysisService analysis,
         ISettingsService settings,
         IThemeService themes)
     {
         _controller = controller;
         _metadata = metadata;
+        _writer = writer;
         _analysis = analysis;
         _settings = settings;
         _themes = themes;
+
+        // Bulk-action menu headers carry the selection count, e.g. "Write meta tags (12)".
+        SelectedTracks.CollectionChanged += (_, _) => RaiseSelectionHeaders();
 
         // Seed the tweak properties from persisted settings BEFORE wiring
         // any change-listeners — so the seeding itself does not echo back to
@@ -74,6 +87,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _vinylSpinEnabled = s.VinylSpinEnabled;
         _waveformEnabled = s.WaveformEnabled;
         _defaultTab = s.DefaultTab;
+        _autoAnalyze = s.AutoAnalyze;
+        _autoWriteOnAnalyze = s.AutoWriteOnAnalyze;
+        _analysisThreads = s.AnalysisThreads;
         _settingsHydrated = true;
 
         _controller.StateChanged += OnEngineStateChanged;
@@ -85,6 +101,175 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public ObservableCollection<TrackViewModel> Tracks { get; } = [];
+
+    /// <summary>The rows currently selected in the queue (multi-select). Kept in sync from the
+    /// view's ListBox SelectionChanged; the tag-write / re-analyze / remove actions operate on it.</summary>
+    public ObservableCollection<TrackViewModel> SelectedTracks { get; } = [];
+
+    // Bulk context-menu headers — show "(N)" when more than one row is selected.
+    public string WriteTagsHeader => WithCount("Write meta tags");
+    public string FillMissingHeader => WithCount("Fill missing tags");
+    // "Analyze" until the selection has been analysed at least once, then "Re-analyze".
+    public string ReanalyzeHeader =>
+        WithCount(SelectedTracks.Count > 0 && SelectedTracks.All(t => t.HasAnalysis) ? "Re-analyze" : "Analyze");
+    public string RemoveHeader => WithCount("Remove from list");
+    public bool HasSelection => SelectedTracks.Count > 0;
+
+    /// <summary>"Write meta tags" has an effect only if some selected track has a detected value to
+    /// write — otherwise the item is greyed out (analyse first).</summary>
+    public bool CanWriteTags => SelectedTracks.Any(t => t.HasWritableAnalysis);
+
+    /// <summary>"Fill missing tags" has an effect only if some selected track has a detected value for
+    /// a tag it is currently missing.</summary>
+    public bool CanFillMissing => SelectedTracks.Any(t => t.HasMissingTagToFill);
+
+    /// <summary>Re-evaluate the bulk-menu enable/header state — called as the context menu opens so the
+    /// flags reflect analysis that finished after the selection was made.</summary>
+    public void RefreshMenuState()
+    {
+        OnPropertyChanged(nameof(CanWriteTags));
+        OnPropertyChanged(nameof(CanFillMissing));
+        OnPropertyChanged(nameof(ReanalyzeHeader));
+    }
+
+    // ── Undo (last tag write) ─────────────────────────────────────────────
+    // Snapshot of every touched file's pre-write tag state, captured per user write action so
+    // the whole batch — including a bulk "Write meta tags" — reverts in one go. Replaced on each
+    // new write, cleared after an undo. See WithUndoCapture / UndoLastWrite.
+    private readonly List<(TrackViewModel tvm, TagRestore prev)> _undoBatch = [];
+    private bool _capturingUndo;
+
+    public bool CanUndo => _undoBatch.Count > 0;
+    public string UndoHeader => _undoBatch.Count > 1 ? $"Undo last write ({_undoBatch.Count})" : "Undo last write";
+
+    /// <summary>The row a context menu is currently anchored on, but ONLY when exactly one row is
+    /// selected — null under multi-selection. Per-field (single-cell) menu entries bind to it, so
+    /// they vanish for multi-select where a single-field write would be ambiguous.</summary>
+    [ObservableProperty] private TrackViewModel? _contextTarget;
+
+    /// <summary>Which cell the right-click landed on ("Bpm"/"Key"/"Energy"), or null when the click
+    /// was elsewhere in the row. Set from the clicked cell's Tag — this is what makes the field
+    /// entries truly cell-targeted: only the right-clicked field's actions show.</summary>
+    [ObservableProperty] private string? _contextField;
+
+    // Per-field menu-item visibility = right cell was clicked AND that field is divergent (or has a
+    // stashed original to restore). Recomputed whenever the target row or clicked cell changes.
+    public bool ShowBpmField => ContextField == "Bpm" && (ContextTarget?.BpmConflict ?? false);
+    public bool ShowKeyField => ContextField == "Key" && (ContextTarget?.KeyConflict ?? false);
+    public bool ShowEnergyField => ContextField == "Energy" && (ContextTarget?.EnergyConflict ?? false);
+    public bool ShowRestoreBpm => ContextField == "Bpm" && (ContextTarget?.CanRestoreBpm ?? false);
+    public bool ShowRestoreKey => ContextField == "Key" && (ContextTarget?.CanRestoreKey ?? false);
+    public bool ShowRestoreEnergy => ContextField == "Energy" && (ContextTarget?.CanRestoreEnergy ?? false);
+    public bool ShowFieldSeparator =>
+        ShowBpmField || ShowKeyField || ShowEnergyField || ShowRestoreBpm || ShowRestoreKey || ShowRestoreEnergy;
+
+    partial void OnContextTargetChanged(TrackViewModel? value) => RaiseFieldVisibility();
+    partial void OnContextFieldChanged(string? value) => RaiseFieldVisibility();
+
+    private void RaiseFieldVisibility()
+    {
+        OnPropertyChanged(nameof(ShowBpmField));
+        OnPropertyChanged(nameof(ShowKeyField));
+        OnPropertyChanged(nameof(ShowEnergyField));
+        OnPropertyChanged(nameof(ShowRestoreBpm));
+        OnPropertyChanged(nameof(ShowRestoreKey));
+        OnPropertyChanged(nameof(ShowRestoreEnergy));
+        OnPropertyChanged(nameof(ShowFieldSeparator));
+    }
+
+    private string WithCount(string verb) =>
+        SelectedTracks.Count > 1 ? $"{verb} ({SelectedTracks.Count})" : verb;
+
+    // ── Column sorting (click a header to sort; click again to flip direction) ──
+    [ObservableProperty] private string? _sortColumn;
+    [ObservableProperty] private bool _sortDescending;
+
+    // Per-column sort arrow (its own small TextBlock in the header, so it can be sized/spaced
+    // independently of the label). Empty unless that column is the active sort.
+    private string Glyph(string col) => SortColumn == col ? (SortDescending ? "▼" : "▲") : "";
+    public string TitleSortGlyph => Glyph("Title");
+    public string GenreSortGlyph => Glyph("Genre");
+    public string BpmSortGlyph => Glyph("Bpm");
+    public string KeySortGlyph => Glyph("Key");
+    public string NrgSortGlyph => Glyph("Nrg");
+    public string DurationSortGlyph => Glyph("Duration");
+
+    partial void OnSortColumnChanged(string? value) => RaiseSortHeaders();
+    partial void OnSortDescendingChanged(bool value) => RaiseSortHeaders();
+
+    private void RaiseSortHeaders()
+    {
+        OnPropertyChanged(nameof(TitleSortGlyph));
+        OnPropertyChanged(nameof(GenreSortGlyph));
+        OnPropertyChanged(nameof(BpmSortGlyph));
+        OnPropertyChanged(nameof(KeySortGlyph));
+        OnPropertyChanged(nameof(NrgSortGlyph));
+        OnPropertyChanged(nameof(DurationSortGlyph));
+    }
+
+    /// <summary>Sort the queue by a column (toggles asc/desc when the same column is clicked again).
+    /// Invoked from the clickable table headers.</summary>
+    public void SortByColumn(string? column)
+    {
+        if (string.IsNullOrEmpty(column)) return;
+        if (SortColumn == column)
+        {
+            // Same column: ascending → descending → off (back to the drop order).
+            if (!SortDescending) SortDescending = true;
+            else { SortColumn = null; SortDescending = false; }
+        }
+        else
+        {
+            SortColumn = column;
+            SortDescending = false;
+        }
+        ApplySort();
+    }
+
+    private void ApplySort()
+    {
+        if (Tracks.Count < 2) return;
+        var d = SortDescending;
+        var snap = Tracks.ToList();
+
+        if (SortColumn is null)
+        {
+            // Unsorted: restore the original natural/Explorer drop order.
+            snap.Sort((a, b) => a.AddOrder.CompareTo(b.AddOrder));
+        }
+        else
+        {
+            snap.Sort((a, b) =>
+            {
+                var c = SortColumn switch
+                {
+                    "Title"    => NaturalComparer.Instance.Compare(a.Title, b.Title),
+                    "Genre"    => NaturalComparer.Instance.Compare(a.Model.Metadata?.Genre ?? "", b.Model.Metadata?.Genre ?? ""),
+                    "Key"      => NaturalComparer.Instance.Compare(a.KeyText, b.KeyText),
+                    "Bpm"      => Nullable.Compare(a.Bpm, b.Bpm),
+                    "Nrg"      => Nullable.Compare(a.Energy, b.Energy),
+                    "Duration" => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
+                    _          => 0,
+                };
+                return d ? -c : c;
+            });
+        }
+
+        Tracks.Clear();
+        foreach (var t in snap) Tracks.Add(t);
+        RecalcIndexes();
+    }
+
+    private void RaiseSelectionHeaders()
+    {
+        OnPropertyChanged(nameof(WriteTagsHeader));
+        OnPropertyChanged(nameof(FillMissingHeader));
+        OnPropertyChanged(nameof(ReanalyzeHeader));
+        OnPropertyChanged(nameof(RemoveHeader));
+        OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(CanWriteTags));
+        OnPropertyChanged(nameof(CanFillMissing));
+    }
 
     [ObservableProperty] private TrackViewModel? _current;
     [ObservableProperty] private bool _isMini;
@@ -130,6 +315,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool _waveformEnabled = true;
     [ObservableProperty] private string _defaultTab = "Up Next";
 
+    // ── Analysis preferences (Tweaks) ─────────────────────────────────────
+    // AutoAnalyze off by default: adding tracks never auto-runs the CPU-heavy DSP — the user
+    // triggers it via right-click → Analyze. AnalysisThreads bounds how many run at once.
+    [ObservableProperty] private bool _autoAnalyze;
+    [ObservableProperty] private bool _autoWriteOnAnalyze;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AnalysisThreadsText))]
+    private int _analysisThreads = 4;
+
+    /// <summary>String form of the thread count, so the Tweaks radio buttons can drive their
+    /// active state via the existing StringEquals converter.</summary>
+    public string AnalysisThreadsText => AnalysisThreads.ToString();
+
     /// <summary>Vinyl rotates only when actually playing AND spin is enabled in tweaks.</summary>
     public bool ShouldSpin => IsPlaying && VinylSpinEnabled;
 
@@ -169,12 +367,34 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PersistSettings();
     }
 
+    partial void OnAutoAnalyzeChanged(bool value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    partial void OnAutoWriteOnAnalyzeChanged(bool value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    partial void OnAnalysisThreadsChanged(int value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
     private void PersistSettings() => _settings.Save(new UserSettings
     {
-        Theme            = CurrentTheme,
-        VinylSpinEnabled = VinylSpinEnabled,
-        WaveformEnabled  = WaveformEnabled,
-        DefaultTab       = DefaultTab,
+        Theme             = CurrentTheme,
+        VinylSpinEnabled  = VinylSpinEnabled,
+        WaveformEnabled   = WaveformEnabled,
+        DefaultTab        = DefaultTab,
+        AutoAnalyze        = AutoAnalyze,
+        AutoWriteOnAnalyze = AutoWriteOnAnalyze,
+        AnalysisThreads    = AnalysisThreads,
+        UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
     });
 
     public string PositionText => Format(PositionSeconds);
@@ -288,6 +508,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
+    private void SetAnalysisThreads(string? n)
+    {
+        if (int.TryParse(n, out var t)) AnalysisThreads = Math.Clamp(t, 1, 16);
+    }
+
+    [RelayCommand]
     private void ClearTracks()
     {
         _controller.Stop();
@@ -314,6 +540,339 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Tracks[i].Index = i + 1;
     }
 
+    // ---- Tag persistence actions (consent-gated; invoked from the queue context menus) ----
+    //
+    // Nothing is ever written until the user picks one of these. "Write" overwrites the
+    // standard tag with our detected value (Applied); "Keep" records that the user reviewed
+    // and kept the claimed value (Kept) — both stamp the JUSTPLAY blob so the picture survives
+    // a restart and the field stops flagging. The pre-overwrite foreign value is stashed in
+    // the blob's Original so a write is reversible. See memory analysis-tag-persistence-design.
+
+    private enum FieldAction { None, Write, Keep }
+
+    /// <summary>Write detected values for every selected track. <paramref name="fillMissingOnly"/>
+    /// only touches fields the file doesn't already have (non-destructive); otherwise it overwrites.</summary>
+    public void WriteSelectedTags(bool fillMissingOnly) => WithUndoCapture(() =>
+    {
+        foreach (var tvm in SelectedTracks.ToList())
+        {
+            var a = tvm.Model.Analysis;
+            var md = tvm.Model.Metadata;
+            if (a is null) continue;
+
+            if (fillMissingOnly)
+                Persist(tvm,
+                    a.Bpm is > 0 && md?.TaggedBpm is not > 0 ? FieldAction.Write : FieldAction.None,
+                    a.Key is not null && string.IsNullOrWhiteSpace(md?.TaggedKey) ? FieldAction.Write : FieldAction.None,
+                    a.Energy is not null && md?.TaggedEnergy is null ? FieldAction.Write : FieldAction.None);
+            else
+                Persist(tvm,
+                    a.Bpm is > 0 ? FieldAction.Write : FieldAction.None,
+                    a.Key is not null ? FieldAction.Write : FieldAction.None,
+                    a.Energy is not null ? FieldAction.Write : FieldAction.None);
+        }
+        RaiseTrackListChanged();
+    });
+
+    /// <summary>Write just one field of one track (per-cell action).</summary>
+    public void WriteField(TrackViewModel tvm, AnalysisField f) => WithUndoCapture(() => Persist(tvm,
+        f == AnalysisField.Bpm ? FieldAction.Write : FieldAction.None,
+        f == AnalysisField.Key ? FieldAction.Write : FieldAction.None,
+        f == AnalysisField.Energy ? FieldAction.Write : FieldAction.None));
+
+    /// <summary>Record that the user reviewed one field and kept the claimed value (stops flagging).</summary>
+    public void KeepField(TrackViewModel tvm, AnalysisField f) => WithUndoCapture(() => Persist(tvm,
+        f == AnalysisField.Bpm ? FieldAction.Keep : FieldAction.None,
+        f == AnalysisField.Key ? FieldAction.Keep : FieldAction.None,
+        f == AnalysisField.Energy ? FieldAction.Keep : FieldAction.None));
+
+    /// <summary>Undo a prior write: put the stashed original foreign value back into the
+    /// standard tag and mark the field Kept. No-op if no original was stored for that field.</summary>
+    public void RestoreField(TrackViewModel tvm, AnalysisField f)
+    {
+        var st = tvm.Model.Metadata?.StoredAnalysis;
+        var orig = st?.Original;
+        var hasOrig = f switch
+        {
+            AnalysisField.Bpm => orig?.Bpm is > 0,
+            AnalysisField.Key => orig?.Key is not null,
+            AnalysisField.Energy => orig?.Energy is not null,
+            _ => false,
+        };
+        if (st is null || orig is null || !hasOrig) return;
+
+        var write = new TagWrite
+        {
+            Bpm = f == AnalysisField.Bpm ? orig.Bpm : null,
+            Key = f == AnalysisField.Key ? orig.Key : null,
+            Energy = f == AnalysisField.Energy ? orig.Energy : null,
+            State = st with
+            {
+                BpmDecision = f == AnalysisField.Bpm ? FieldDecision.Kept : st.BpmDecision,
+                KeyDecision = f == AnalysisField.Key ? FieldDecision.Kept : st.KeyDecision,
+                EnergyDecision = f == AnalysisField.Energy ? FieldDecision.Kept : st.EnergyDecision,
+                Original = ClearOriginal(orig, f),
+            },
+        };
+        WithUndoCapture(() => DoWrite(tvm, write));
+        RaiseTrackListChanged();
+    }
+
+    /// <summary>Build the state + tag write for a track and persist it. Captures (and preserves)
+    /// the original foreign value for any field being overwritten so the write is reversible.</summary>
+    private void Persist(TrackViewModel tvm, FieldAction bpm, FieldAction key, FieldAction energy)
+    {
+        if (bpm == FieldAction.None && key == FieldAction.None && energy == FieldAction.None)
+            return; // nothing to do (e.g. fill-missing on a fully-tagged track)
+
+        var a = tvm.Model.Analysis;
+        if (a is null) return;
+        var md = tvm.Model.Metadata;
+        var prev = md?.StoredAnalysis;
+
+        FieldDecision Dec(FieldAction act, FieldDecision? prior) => act switch
+        {
+            FieldAction.Write => FieldDecision.Applied,
+            FieldAction.Keep => FieldDecision.Kept,
+            _ => prior ?? FieldDecision.Pending,
+        };
+
+        // Stash the pre-overwrite foreign value the first time we overwrite a field; keep any
+        // already-stored original so a second write never loses the true origin.
+        double? origBpm = prev?.Original?.Bpm ?? (bpm == FieldAction.Write ? md?.TaggedBpm : null);
+        MusicalKey? origKey = prev?.Original?.Key ?? (key == FieldAction.Write ? MusicalKey.TryParse(md?.TaggedKey) : null);
+        int? origEnergy = prev?.Original?.Energy ?? (energy == FieldAction.Write ? md?.TaggedEnergy : null);
+        AnalysisResult? original = origBpm is null && origKey is null && origEnergy is null
+            ? null
+            : new AnalysisResult { Bpm = origBpm, Key = origKey, Energy = origEnergy };
+
+        var state = new TrackAnalysisState
+        {
+            Version = TrackAnalysisState.CurrentVersion,
+            Detected = a,
+            Original = original,
+            BpmDecision = Dec(bpm, prev?.BpmDecision),
+            KeyDecision = Dec(key, prev?.KeyDecision),
+            EnergyDecision = Dec(energy, prev?.EnergyDecision),
+        };
+
+        var write = new TagWrite
+        {
+            Bpm = bpm == FieldAction.Write ? a.Bpm : null,
+            Key = key == FieldAction.Write ? a.Key : null,
+            Energy = energy == FieldAction.Write ? a.Energy : null,
+            State = state,
+        };
+        DoWrite(tvm, write);
+    }
+
+    /// <summary>The single point that touches the file. If the track is currently playing, BASS
+    /// holds its file open, so we pause (release the handle) → write → resume at the same spot.
+    /// Writes, then re-reads the tags so the row reflects the new values + decisions (the bold/dot
+    /// conflict clears). Robust: a write failure logs and leaves the row untouched (the flag stays,
+    /// honestly signalling nothing was written), never crashes the app. Returns whether it stuck.</summary>
+    private bool DoWrite(TrackViewModel tvm, TagWrite write)
+    {
+        // Snapshot the pre-write tag state for Undo BEFORE touching the file; only committed below
+        // if the write actually succeeds.
+        var snapshot = _capturingUndo ? SnapshotOf(tvm) : null;
+        var ok = false;
+
+        _controller.WithFileReleased(tvm.Model, () =>
+        {
+            try
+            {
+                _writer.Write(tvm.Model.FilePath, write);
+                tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+                tvm.Refresh();
+                ok = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Tag write FAIL] {tvm.Model.FilePath}: {ex.GetType().Name}: {ex.Message}");
+            }
+        });
+
+        if (ok && snapshot is not null) _undoBatch.Add((tvm, snapshot));
+        return ok;
+    }
+
+    /// <summary>Run a user write action as one undoable batch: clears the prior undo set, lets the
+    /// nested DoWrite calls record their pre-state, then publishes the new undo availability.</summary>
+    private void WithUndoCapture(Action write)
+    {
+        _undoBatch.Clear();
+        _capturingUndo = true;
+        try { write(); }
+        finally
+        {
+            _capturingUndo = false;
+            OnPropertyChanged(nameof(CanUndo));
+            OnPropertyChanged(nameof(UndoHeader));
+        }
+    }
+
+    /// <summary>Capture the tag fields JustPlay may overwrite, so the write can be reverted exactly
+    /// (null field = was empty → Undo clears it).</summary>
+    private static TagRestore SnapshotOf(TrackViewModel tvm)
+    {
+        var md = tvm.Model.Metadata;
+        return new TagRestore
+        {
+            Bpm = md?.TaggedBpm,
+            Key = MusicalKey.TryParse(md?.TaggedKey),
+            Energy = md?.TaggedEnergy,
+            State = md?.StoredAnalysis,
+        };
+    }
+
+    /// <summary>Revert the most recent tag write (single-field, per-cell, or bulk) — restores every
+    /// touched file to its captured pre-write state, releasing the playing file's handle as needed.</summary>
+    public void UndoLastWrite()
+    {
+        if (_undoBatch.Count == 0) return;
+        foreach (var (tvm, prev) in Enumerable.Reverse(_undoBatch))
+        {
+            _controller.WithFileReleased(tvm.Model, () =>
+            {
+                try
+                {
+                    _writer.Restore(tvm.Model.FilePath, prev);
+                    tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+                    tvm.Refresh();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Undo FAIL] {tvm.Model.FilePath}: {ex.Message}");
+                }
+            });
+        }
+        _undoBatch.Clear();
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(UndoHeader));
+        RaiseTrackListChanged();
+    }
+
+    private static AnalysisResult? ClearOriginal(AnalysisResult orig, AnalysisField f)
+    {
+        var next = orig with
+        {
+            Bpm = f == AnalysisField.Bpm ? null : orig.Bpm,
+            Key = f == AnalysisField.Key ? null : orig.Key,
+            Energy = f == AnalysisField.Energy ? null : orig.Energy,
+        };
+        return next.Bpm is null && next.Key is null && next.Energy is null ? null : next;
+    }
+
+    /// <summary>Re-run BPM/key/energy analysis for the selected tracks (explicit user action, so it
+    /// always re-runs even if a stored blob exists). Bounded by the AnalysisThreads preference.</summary>
+    public void ReanalyzeSelected()
+    {
+        var targets = SelectedTracks.ToList();
+        if (targets.Count == 0) return;
+        _ = AnalyzeTracksAsync(targets);
+    }
+
+    /// <summary>Analyse a set of tracks with bounded concurrency (the AnalysisThreads preference, default
+    /// 4). Each row flips to Running (spinner) → Done/Failed and refreshes as it goes. Runs off the UI
+    /// thread; <see cref="ITrackAnalysisService.AnalyzeAsync"/> already offloads to the pool, so this
+    /// just caps how many run at once.</summary>
+    private async Task AnalyzeTracksAsync(IReadOnlyList<TrackViewModel> targets)
+    {
+        var opts = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, AnalysisThreads) };
+        await Parallel.ForEachAsync(targets, opts, async (tvm, ct) =>
+        {
+            tvm.Model.AnalysisStatus = AnalysisStatus.Running;
+            Dispatcher.UIThread.Post(() => tvm.Refresh()); // show the spinner immediately
+            try
+            {
+                var result = await _analysis.AnalyzeAsync(tvm.Model.FilePath, null, ct);
+                tvm.Model.Analysis = result;
+                tvm.Model.AnalysisStatus = AnalysisStatus.Done;
+            }
+            catch (Exception ex)
+            {
+                tvm.Model.AnalysisStatus = AnalysisStatus.Failed;
+                Console.WriteLine($"[Analyze FAIL] {tvm.Model.FilePath}: {ex.Message}");
+            }
+            Dispatcher.UIThread.Post(() => tvm.Refresh());
+
+            // "New truth on analyse": optionally stamp our detected values into the file's tags
+            // right away (consent given once, in settings). Marshalled to the UI thread because the
+            // write may pause/reload the playing track via the engine.
+            if (AutoWriteOnAnalyze && tvm.Model.AnalysisStatus == AnalysisStatus.Done)
+                await Dispatcher.UIThread.InvokeAsync(() => WriteDetected(tvm));
+        });
+    }
+
+    /// <summary>Write all of a track's detected values into its tags (used by auto-write-on-analyse).
+    /// Goes through the same Persist path, so decisions are stamped Applied and the conflict flags
+    /// clear. Not wrapped in undo capture — auto-writes aren't a discrete user action.</summary>
+    private void WriteDetected(TrackViewModel tvm)
+    {
+        var a = tvm.Model.Analysis;
+        if (a is null) return;
+        Persist(tvm,
+            a.Bpm is > 0 ? FieldAction.Write : FieldAction.None,
+            a.Key is not null ? FieldAction.Write : FieldAction.None,
+            a.Energy is not null ? FieldAction.Write : FieldAction.None);
+    }
+
+    /// <summary>Remove the selected rows from the session queue. Does NOT delete files from disk,
+    /// and does not stop playback of a removed current track (the engine holds its own reference).</summary>
+    public void RemoveSelected()
+    {
+        var targets = SelectedTracks.ToList();
+        if (targets.Count == 0) return;
+        foreach (var tvm in targets)
+        {
+            Tracks.Remove(tvm);
+            _shuffleHistory.Remove(tvm);
+        }
+        if (_shufflePos >= _shuffleHistory.Count) _shufflePos = _shuffleHistory.Count - 1;
+        SelectedTracks.Clear();
+        RaiseTrackListChanged();
+    }
+
+    // ── Context-menu commands (bound from the queue's ListBox.ContextMenu) ────
+    // Bulk actions operate on the multi-selection; the per-field ones target ContextTarget
+    // (the single right-clicked row). Field is passed as a "Bpm"/"Key"/"Energy" CommandParameter.
+
+    [RelayCommand] private void WriteTags() => WriteSelectedTags(fillMissingOnly: false);
+    [RelayCommand] private void FillMissing() => WriteSelectedTags(fillMissingOnly: true);
+    [RelayCommand] private void Reanalyze() => ReanalyzeSelected();
+    [RelayCommand] private void RemoveRows() => RemoveSelected();
+    [RelayCommand] private void UndoWrite() => UndoLastWrite();
+
+    [RelayCommand]
+    private void WriteOneField(string? field)
+    {
+        if (ContextTarget is { } t && TryField(field, out var f)) WriteField(t, f);
+    }
+
+    [RelayCommand]
+    private void KeepOneField(string? field)
+    {
+        if (ContextTarget is { } t && TryField(field, out var f)) KeepField(t, f);
+    }
+
+    [RelayCommand]
+    private void RestoreOneField(string? field)
+    {
+        if (ContextTarget is { } t && TryField(field, out var f)) RestoreField(t, f);
+    }
+
+    private static bool TryField(string? s, out AnalysisField f)
+    {
+        switch (s)
+        {
+            case "Bpm": f = AnalysisField.Bpm; return true;
+            case "Key": f = AnalysisField.Key; return true;
+            case "Energy": f = AnalysisField.Energy; return true;
+            default: f = default; return false;
+        }
+    }
+
     // ---- File intake ----------------------------------------------------
 
     /// <summary>Add dropped files/folders. Tracks appear instantly; tags load in the background.</summary>
@@ -328,10 +887,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 files.Add(p);
         }
 
+        // Sort like Explorer (natural/logical order: "track2" before "track10"), so a dropped
+        // folder lands in a sensible, predictable order instead of the OS's raw enumeration order.
         var added = new List<TrackViewModel>();
-        foreach (var f in files.Where(IsAudio))
+        foreach (var f in files.Where(IsAudio).OrderBy(f => f, NaturalComparer.Instance))
         {
-            var tvm = new TrackViewModel(new Track(f));
+            var tvm = new TrackViewModel(new Track(f)) { AddOrder = _addSeq++ };
             Tracks.Add(tvm);
             added.Add(tvm);
         }
@@ -339,16 +900,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (added.Count == 0) return;
         RaiseTrackListChanged();
 
-        // Read tags off the UI thread, then refresh each row, then kick off
-        // BPM/key/energy analysis. Two passes per track:
-        //   pass 1 — metadata (fast, ~milliseconds): so titles/artists/duration
-        //            show up immediately and the queue feels responsive.
-        //   pass 2 — analysis (slow, ~seconds via BASS_FX): so the BPM cell
-        //            fills in as soon as each track is done, not at the end of
-        //            the whole batch.
-        // Pass 2 runs serially per track on purpose — BASS_FX BPMDecodeGet pegs
-        // a core for the duration of a track; parallelising would only swap
-        // serial slowness for thrash. Future: throughput batching if needed.
+        // Read tags off the UI thread, then refresh each row. Two passes:
+        //   pass 1 — metadata (fast, ~ms): titles/artists/duration show immediately.
+        //   pass 2 — apply any stored analysis blob (free), then run the DSP for the rest —
+        //            but ONLY when auto-analyze is on. Otherwise the user triggers analysis
+        //            explicitly (right-click → Analyze). Concurrency = AnalysisThreads.
         await Task.Run(async () =>
         {
             foreach (var tvm in added)
@@ -362,27 +918,68 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 });
             }
 
+            // Reproduce-the-picture: if a file already carries OUR analysis blob at the current
+            // engine version, trust it and apply it for free — the file is the memory, the DSP is
+            // deterministic. Collect the rest for (optional) DSP analysis.
+            var needAnalysis = new List<TrackViewModel>();
             foreach (var tvm in added)
             {
-                tvm.Model.AnalysisStatus = Core.Models.AnalysisStatus.Running;
-                try
+                if (tvm.Model.Metadata?.StoredAnalysis is { Version: TrackAnalysisState.CurrentVersion } stored)
                 {
-                    var result = await _analysis.AnalyzeAsync(tvm.Model.FilePath);
-                    tvm.Model.Analysis = result;
-                    tvm.Model.AnalysisStatus = Core.Models.AnalysisStatus.Done;
+                    tvm.Model.Analysis = stored.Detected;
+                    tvm.Model.AnalysisStatus = AnalysisStatus.Done;
+                    Dispatcher.UIThread.Post(() => tvm.Refresh());
                 }
-                catch (Exception ex)
+                else
                 {
-                    tvm.Model.AnalysisStatus = Core.Models.AnalysisStatus.Failed;
-                    Console.WriteLine($"[Analysis FAIL] {tvm.Model.FilePath}: {ex.Message}");
+                    needAnalysis.Add(tvm);
                 }
-
-                Dispatcher.UIThread.Post(() => tvm.Refresh());
             }
+
+            if (AutoAnalyze && needAnalysis.Count > 0)
+                await AnalyzeTracksAsync(needAnalysis);
         });
     }
 
     private static bool IsAudio(string path) => AudioExtensions.Contains(Path.GetExtension(path));
+
+    /// <summary>Explorer-style natural/logical string ordering: compares digit runs by numeric value
+    /// ("track2" &lt; "track10") and the rest case-insensitively. Managed (no P/Invoke) so it stays
+    /// portable and trim/AOT-safe.</summary>
+    private sealed class NaturalComparer : IComparer<string>
+    {
+        public static readonly NaturalComparer Instance = new();
+
+        public int Compare(string? a, string? b)
+        {
+            if (ReferenceEquals(a, b)) return 0;
+            if (a is null) return -1;
+            if (b is null) return 1;
+
+            int i = 0, j = 0;
+            while (i < a.Length && j < b.Length)
+            {
+                if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
+                {
+                    int si = i, sj = j;
+                    while (i < a.Length && char.IsDigit(a[i])) i++;
+                    while (j < b.Length && char.IsDigit(b[j])) j++;
+                    var na = a.AsSpan(si, i - si).TrimStart('0');
+                    var nb = b.AsSpan(sj, j - sj).TrimStart('0');
+                    if (na.Length != nb.Length) return na.Length - nb.Length;   // longer number = larger
+                    var cmp = na.CompareTo(nb, StringComparison.Ordinal);
+                    if (cmp != 0) return cmp;
+                }
+                else
+                {
+                    var cmp = char.ToUpperInvariant(a[i]).CompareTo(char.ToUpperInvariant(b[j]));
+                    if (cmp != 0) return cmp;
+                    i++; j++;
+                }
+            }
+            return (a.Length - i) - (b.Length - j);
+        }
+    }
 
     // ---- Internals ------------------------------------------------------
 

@@ -118,6 +118,31 @@ public sealed class PlayPausePathConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>True → Bold, false → the row's normal weight. Drives the "detected ≠ claimed tag"
+/// conflict highlight on the BPM/Key/Energy cells — the bold value IS the affordance (no icon).</summary>
+public sealed class ConflictWeightConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is true ? FontWeight.Bold : FontWeight.Normal;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>Conflict → bright white text, otherwise the muted column colour (#B3FFFFFF). Pairs with
+/// <see cref="ConflictWeightConverter"/> so a divergent BPM reads as bold + bright.</summary>
+public sealed class ConflictForegroundConverter : IValueConverter
+{
+    private static readonly SolidColorBrush Bright = new(Colors.White);
+    private static readonly SolidColorBrush Muted = new(Color.Parse("#B3FFFFFF"));
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is true ? Bright : Muted;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 /// <summary>True iff the bound string equals ConverterParameter (case-insensitive). Used to drive active-class.</summary>
 public sealed class StringEqualsConverter : IValueConverter
 {

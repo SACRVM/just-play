@@ -125,6 +125,12 @@ public sealed class BassAudioEngine : IAudioEngine
         SetState(CorePlaybackState.Stopped);
     }
 
+    public void Unload()
+    {
+        FreeStream();                       // releases the OS file handle
+        SetState(CorePlaybackState.Stopped);
+    }
+
     private void SetState(CorePlaybackState state)
     {
         if (_state == state) return;

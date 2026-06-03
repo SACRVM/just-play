@@ -178,6 +178,35 @@
 
                 <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
 
+                <TextBlock Classes="tweak-section" Text="ANALYSIS"/>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="tweak-label" Text="Auto-analyze on add" VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoAnalyze}"
+                                  OnContent="" OffContent=""/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="tweak-label" Text="Auto-write tags on analyze" VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoWriteOnAnalyze}"
+                                  OnContent="" OffContent=""/>
+                </Grid>
+                <TextBlock Classes="tweak-label" Text="Threads"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="tweak-radio" Content="1"
+                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=1}"
+                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="1"/>
+                    <Button Classes="tweak-radio" Content="2"
+                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
+                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="2"/>
+                    <Button Classes="tweak-radio" Content="4"
+                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=4}"
+                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="4"/>
+                    <Button Classes="tweak-radio" Content="8"
+                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=8}"
+                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="8"/>
+                </StackPanel>
+
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
+
                 <TextBlock Classes="tweak-section" Text="RIGHT PANEL"/>
                 <TextBlock Classes="tweak-label" Text="Default tab"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">

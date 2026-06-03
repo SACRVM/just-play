@@ -38,6 +38,31 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         file.Save();
     }
 
+    public void Restore(string filePath, TagRestore restore)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        using var file = TagLib.File.Create(filePath);
+        var tag = file.Tag;
+
+        // null = the field was empty before the undone write → clear it (the inverse of Write,
+        // which leaves null fields untouched).
+        tag.BeatsPerMinute = restore.Bpm is { } bpm ? (uint)Math.Clamp(Math.Round(bpm), 0, 999) : 0;
+        tag.InitialKey = restore.Key is { } key ? ToId3Key(key) : null;
+
+        if (restore.Energy is { } energy)
+            TagCustomFields.Set(file, "ENERGY", energy.ToString(CultureInfo.InvariantCulture));
+        else
+            TagCustomFields.Remove(file, "ENERGY");
+
+        if (restore.State is { } state)
+            TagCustomFields.Set(file, "JUSTPLAY", AnalysisStateCodec.Serialize(state));
+        else
+            TagCustomFields.Remove(file, "JUSTPLAY");
+
+        file.Save();
+    }
+
     /// <summary>MusicalKey → ID3v2 TKEY string ("A","C#","Am","F#m", …).</summary>
     private static string ToId3Key(MusicalKey key)
         => PitchNames[((key.PitchClass % 12) + 12) % 12] + (key.Mode == KeyMode.Minor ? "m" : "");

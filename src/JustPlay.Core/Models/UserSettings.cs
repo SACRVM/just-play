@@ -32,5 +32,23 @@ public sealed record UserSettings
     /// </summary>
     public bool UseAiKeyDetection { get; init; } = true;
 
+    /// <summary>
+    /// Run BPM/key/energy analysis automatically when tracks are added. Off by default — JustPlay
+    /// is "just play": dropping a track plays it instantly; analysis is an explicit choice (right-
+    /// click → Analyze) so adding a big folder never pegs the CPU unasked.
+    /// </summary>
+    public bool AutoAnalyze { get; init; } = false;
+
+    /// <summary>How many tracks to analyse at once (bounded concurrency). Default 4. Each worker
+    /// pegs a core for the duration of a track's decode + DSP, so this trades CPU for throughput.</summary>
+    public int AnalysisThreads { get; init; } = 4;
+
+    /// <summary>
+    /// After analysing a track, immediately write the detected BPM/key/energy into its tags — our
+    /// values become the file's truth, so no "differs from the tag" flags ever appear. Off by
+    /// default: writing files is otherwise always an explicit, consent-gated action.
+    /// </summary>
+    public bool AutoWriteOnAnalyze { get; init; } = false;
+
     public static readonly UserSettings Defaults = new();
 }

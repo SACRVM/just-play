@@ -58,24 +58,32 @@ public sealed class BassBpmDetector : IBpmDetector
             return null;
         }
 
-        ct.ThrowIfCancellationRequested();
+        // Always free the decode channel ourselves in a finally — do NOT rely on
+        // BassFlags.FxFreeSource. If that flag fails to release the source (observed:
+        // the file stayed locked after analysis, so a later "Write meta tags" hit a
+        // sharing violation), the OS handle leaks and the file can never be tagged.
+        // Explicit StreamFree is deterministic and the file is unlocked the moment
+        // detection returns.
+        try
+        {
+            ct.ThrowIfCancellationRequested();
 
-        // 0 for MinMaxBPM → BASS_FX defaults (45..230 BPM), which is correct for
-        // typical western music. FxFreeSource frees the decode channel for us
-        // once analysis completes, so no explicit StreamFree call is needed on
-        // the success path.
-        //
-        // Procedure=null because we don't need progress reporting from this
-        // synchronous call — it returns when the whole range is processed.
-        var bpm = BassFx.BPMDecodeGet(
-            channel,
-            StartSec: 0,
-            EndSec: endSec,
-            MinMaxBPM: 0,
-            Flags: BassFlags.FxFreeSource,
-            Procedure: null!,
-            User: IntPtr.Zero);
+            // 0 for MinMaxBPM → BASS_FX defaults (45..230 BPM), correct for typical
+            // western music. Procedure=null: synchronous call, no progress needed.
+            var bpm = BassFx.BPMDecodeGet(
+                channel,
+                StartSec: 0,
+                EndSec: endSec,
+                MinMaxBPM: 0,
+                Flags: BassFlags.Default,
+                Procedure: null!,
+                User: IntPtr.Zero);
 
-        return bpm > 0 ? bpm : null;
+            return bpm > 0 ? bpm : null;
+        }
+        finally
+        {
+            ManagedBass.Bass.StreamFree(channel);
+        }
     }
 }

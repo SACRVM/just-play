@@ -38,5 +38,21 @@ internal static class TagCustomFields
         }
     }
 
+    /// <summary>Remove a custom field entirely (used by Undo to restore a file that had none).</summary>
+    public static void Remove(TagLib.File file, string key)
+    {
+        if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment xiph)
+        {
+            xiph.RemoveField(key);
+            return;
+        }
+
+        if (file.GetTag(TagLib.TagTypes.Id3v2, false) is TagLib.Id3v2.Tag id3)
+        {
+            var frame = TagLib.Id3v2.UserTextInformationFrame.Get(id3, key, false);
+            if (frame is not null) id3.RemoveFrame(frame);
+        }
+    }
+
     private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
 }
