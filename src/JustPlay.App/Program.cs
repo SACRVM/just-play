@@ -74,6 +74,16 @@ sealed class Program
             return;
         }
 
+        // Energy calibration: dump per-file raw+normalised features to CSV.
+        // Used to calibrate normalisation ranges and blend weights against the DEAM arousal dataset.
+        // Usage: --dump-energy-features <audioFolder> <out.csv>
+        // [energy-detection.md §Grounding the 1–10 scale, ml/calibrate_energy.py]
+        if (args is ["--dump-energy-features", var efFolder, var efOut, ..])
+        {
+            KeyReport.RunDumpEnergyFeatures(Services, efFolder, efOut);
+            return;
+        }
+
         // Validate the trained ONNX model end-to-end in C# (expect ~0.75).
         if (args is ["--giantsteps-ml", var mlRoot, ..])
         {

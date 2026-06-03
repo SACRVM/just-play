@@ -14,7 +14,9 @@ public sealed record TrackAnalysisState
     /// state with <c>Version &lt; CurrentVersion</c> triggers a re-analysis while a
     /// cosmetic app release does not.
     /// </summary>
-    public const int CurrentVersion = 2;
+    // v3 (2026-06-03): BPM tempo-octave correction + DEAM-calibrated energy scale —
+    // both change detector output, so previously-stamped tracks re-analyse on next drop.
+    public const int CurrentVersion = 3;
 
     public int Version { get; init; } = CurrentVersion;
 

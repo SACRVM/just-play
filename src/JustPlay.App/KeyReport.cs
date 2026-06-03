@@ -606,6 +606,104 @@ internal static class KeyReport
         return null;
     }
 
+    /// <summary>
+    /// Dumps per-file energy features to a CSV for offline calibration against an
+    /// arousal-labelled dataset (e.g. DEAM). For each audio file found under
+    /// <paramref name="audioFolder"/>, runs the real <see cref="SpectralEnergyDetector"/>
+    /// feature extraction (using the shipped K-weighting + spectral pipeline at 11 025 Hz)
+    /// and writes one CSV row containing the raw + normalised features plus the current
+    /// 1–10 integer score.
+    ///
+    /// <para>CSV columns: <c>filename, rawLufs, rawFlux, rawCentroid, rawRmsSd,
+    /// nLoud, nFlux, nBright, nRmsSd, energyScore</c>.</para>
+    ///
+    /// <para>Usage: <c>--dump-energy-features &lt;audioFolder&gt; &lt;out.csv&gt;</c></para>
+    /// [energy-detection.md §Grounding the 1–10 scale, ml/calibrate_energy.py]
+    /// </summary>
+    public static void RunDumpEnergyFeatures(IServiceProvider services, string audioFolder, string outCsv)
+    {
+        if (!Directory.Exists(audioFolder))
+        {
+            Console.WriteLine($"Folder not found: {audioFolder}");
+            return;
+        }
+
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        var detector = new SpectralEnergyDetector();   // direct instance — reuses shipped feature computation
+
+        // Energy analysis runs at 11 025 Hz (same rate as TrackAnalysisService.EnergySampleRate).
+        const int SampleRate = 11025;
+
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+
+        var files = Directory.EnumerateFiles(audioFolder, "*", SearchOption.AllDirectories)
+            .Where(f => AudioExtensions.Contains(Path.GetExtension(f)))
+            .OrderBy(f => f)
+            .ToList();
+
+        Console.WriteLine($"Dumping energy features for {files.Count} file(s) under {audioFolder}");
+        Console.WriteLine($"Output: {outCsv}\n");
+
+        var rows = new List<string>(files.Count + 1)
+        {
+            "filename,rawLufs,rawFlux,rawCentroid,rawRmsSd,nLoud,nFlux,nBright,nRmsSd,energyScore"
+        };
+        var done = 0;
+        var skipped = 0;
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var name = Path.GetFileName(file);
+                DecodedAudio? audio = null;
+                try { audio = decoder.DecodeMono(file, SampleRate); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"  [decode FAIL] {name}: {ex.Message}");
+                    skipped++;
+                    continue;
+                }
+
+                if (audio is not { } a)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var features = detector.ExtractFeatures(a);
+                if (features is null)
+                {
+                    Console.WriteLine($"  [silent/short] {name}");
+                    skipped++;
+                    continue;
+                }
+
+                var f = features.Value;
+                var score = SpectralEnergyDetector.ScoreFeatures(f);
+
+                // Escape filename for CSV (replace any commas or quotes).
+                var safeName = name.Replace("\"", "'").Replace(",", ";");
+                rows.Add(string.Create(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    $"\"{safeName}\",{f.RawLufs:F4},{f.RawFlux:F6},{f.RawCentroid:F2},{f.RawRmsSd:F6}," +
+                    $"{f.NLoud:F4},{f.NFlux:F4},{f.NBright:F4},{f.NRmsSd:F4},{score}"));
+                done++;
+
+                if (done % 50 == 0)
+                    Console.WriteLine($"  {done}/{files.Count} processed...");
+            }
+        }
+        finally
+        {
+            ManagedBass.Bass.Free();
+        }
+
+        File.WriteAllLines(outCsv, rows, System.Text.Encoding.UTF8);
+        Console.WriteLine($"\nDone. {done} rows written to {outCsv}  ({skipped} skipped).");
+    }
+
     private static string Categorize(MusicalKey ours, MusicalKey reference)
     {
         if (ours == reference) return "exact";

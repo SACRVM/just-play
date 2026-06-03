@@ -41,3 +41,7 @@ $RECYCLE.BIN/
 # Dated session hand-off documents are deliberately not committed — they are
 # point-in-time aids, not project history.
 HANDOVER-*.md
+
+# ── ML calibration data (DEAM: CC BY-NC, research-only, never ship) ─────────
+# Audio excerpts downloaded for energy-scale calibration — must stay local.
+ml/_deam/
