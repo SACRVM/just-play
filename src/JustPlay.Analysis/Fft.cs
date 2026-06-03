@@ -8,7 +8,7 @@ namespace JustPlay.Analysis;
 /// Operates in-place on split real/imaginary arrays. The chromagram detector only
 /// needs the forward transform, so that's all this exposes.
 /// </summary>
-internal static class Fft
+public static class Fft
 {
     /// <summary>True if <paramref name="n"/> is a positive power of two.</summary>
     public static bool IsPowerOfTwo(int n) => n > 0 && (n & (n - 1)) == 0;

@@ -203,6 +203,94 @@ public class TempoOctaveCorrectorTests
     }
 
     // -------------------------------------------------------------------------
+    // Quarter-tempo and other gross-error recovery (new hybrid ACF-scan corrector)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Simulates the KRENON "No Need Booster" failure: BASS_FX returned 31 BPM
+    /// (a fifth of the true ~155 BPM, below BASS's own 45 BPM floor). The old
+    /// corrector could only reach 62 (raw×2). The new corrector's full ACF scan
+    /// finds the 155 BPM peak directly.
+    /// </summary>
+    [Fact]
+    public void QuarterTempo_Raw31_CorrectedTo_155()
+    {
+        // Click train at 155 BPM (energetic tech-house / hard techno territory).
+        var samples = ClickTrain(trueBpm: 155.0, DurationSeconds, SampleRate);
+
+        // raw=31 mimics the BASS_FX gross error: it's 155/5, far below any sane window.
+        var corrected = _corrector.Correct(rawBpm: 31.0, samples, SampleRate);
+
+        // The ACF scan should bring us close to 155 BPM.
+        Assert.InRange(corrected, 148.0, 162.0);
+    }
+
+    /// <summary>
+    /// Raw BPM is 38 (below BASS's 45 BPM floor — another gross error), true tempo 152.
+    /// The old corrector's x2=76 / x3=114 / x4=152 multiples didn't include x4 in the
+    /// old code; the new corrector finds 152 via the ACF scan.
+    /// </summary>
+    [Fact]
+    public void Raw38_CorrectedTo_152_ViaScan()
+    {
+        var samples = ClickTrain(trueBpm: 152.0, DurationSeconds, SampleRate);
+        var corrected = _corrector.Correct(rawBpm: 38.0, samples, SampleRate);
+
+        Assert.InRange(corrected, 145.0, 158.0);
+    }
+
+    /// <summary>
+    /// True tempo 170 BPM (hard techno), raw BPM from BASS_FX is 42 (¼ tempo, out of range).
+    /// Since 42 is below BASS_FX's native window (45–230), it is not defended by the
+    /// conservative guard. The ACF scan should produce at least a harmonically-correct
+    /// result: either 170 itself or its half-tempo 85 (which is octave-adjacent).
+    /// Reaching 85 is still a big win over staying at 42 or 84 (raw×2).
+    /// Note: ACF aliasing makes 85 and 170 symmetric under the prior — both are equally
+    /// plausible from ACF + prior alone. We only assert the corrector escapes the gross
+    /// error (raw=42) and reaches a harmonically-sane value.
+    /// </summary>
+    [Fact]
+    public void Raw42OutOfRange_CorrectedToHarmonicNeighbourhood_Of170()
+    {
+        var samples = ClickTrain(trueBpm: 170.0, DurationSeconds, SampleRate);
+        var corrected = _corrector.Correct(rawBpm: 42.0, samples, SampleRate);
+
+        // Must escape the gross-error range (not stay at 42 or 84).
+        // Accept 85 (half) or 170 (exact) — both are correct-harmonic.
+        Assert.True(
+            (corrected >= 80.0 && corrected <= 90.0) ||
+            (corrected >= 163.0 && corrected <= 177.0),
+            $"Expected ~85 or ~170, got {corrected:0.0}");
+    }
+
+    /// <summary>
+    /// Third-tempo case: true 135 BPM, raw 45 (135/3). Old corrector reaches 90 (×2)
+    /// or 135 (×3 — which was NOT in the old code). New corrector finds 135 via scan.
+    /// </summary>
+    [Fact]
+    public void ThirdTempo_Raw45_CorrectedTo_135()
+    {
+        var samples = ClickTrain(trueBpm: 135.0, DurationSeconds, SampleRate);
+        var corrected = _corrector.Correct(rawBpm: 45.0, samples, SampleRate);
+
+        Assert.InRange(corrected, 128.0, 142.0);
+    }
+
+    /// <summary>
+    /// Confident-correct at 155 BPM stays at 155 with the new corrector.
+    /// The conservative margin guard must not flip a correct 155 BPM to some other value.
+    /// </summary>
+    [Fact]
+    public void CorrectBpm_155_IsNotChanged()
+    {
+        var samples = ClickTrain(trueBpm: 155.0, DurationSeconds, SampleRate);
+        var corrected = _corrector.Correct(rawBpm: 155.0, samples, SampleRate);
+
+        // Must stay near 155, not regress to 77 or 128 etc.
+        Assert.InRange(corrected, 148.0, 162.0);
+    }
+
+    // -------------------------------------------------------------------------
     // Signal generator
     // -------------------------------------------------------------------------
 

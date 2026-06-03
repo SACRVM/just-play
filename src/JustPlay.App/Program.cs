@@ -92,6 +92,22 @@ sealed class Program
             return;
         }
 
+        // BPM diagnostic: raw BASS_FX BPM + corrector internals + ACF peak table.
+        // Usage: --bpm-debug "<file path>"
+        if (args is ["--bpm-debug", var bpmFile, ..])
+        {
+            BpmDebug.Run(Services, bpmFile);
+            return;
+        }
+
+        // BPM batch validation: compare old vs new corrector against tagged BPM ground truth.
+        // Usage: --bpm-validate "<folder>"   (READ-ONLY — never writes to the folder)
+        if (args is ["--bpm-validate", var bpmFolder, ..])
+        {
+            BpmDebug.RunValidate(Services, bpmFolder);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
