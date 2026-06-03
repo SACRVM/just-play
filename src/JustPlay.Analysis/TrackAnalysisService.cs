@@ -16,6 +16,7 @@ namespace JustPlay.Analysis;
 public sealed class TrackAnalysisService : ITrackAnalysisService
 {
     // Energy runs at 11025 Hz (cheap, and its calibration is fixed to this rate).
+    // The octave corrector reuses this same decode — no extra I/O required.
     private const int EnergySampleRate = 11025;
     // Key (HpcpKeyDetector) runs at 44100 Hz: its HPCP harmonic summation needs the upper
     // harmonics that an 11 kHz Nyquist (~5.5 kHz) would cut off. Measured on the GiantSteps
@@ -28,6 +29,8 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
     private readonly IAudioDecoder _decoder;
     private readonly IKeyDetector _key;
     private readonly IEnergyDetector _energy;
+    // Stateless — one instance is fine for the process lifetime.
+    private readonly TempoOctaveCorrector _octaveCorrector = new();
 
     public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key, IEnergyDetector energy)
     {
@@ -62,11 +65,33 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             }
 
             // Energy: separate decode at 11.025 kHz (its calibration is fixed to this rate).
+            // The same 11 kHz buffer is also used for BPM octave correction — no extra I/O.
             ct.ThrowIfCancellationRequested();
             var energyAudio = _decoder.DecodeMono(filePath, EnergySampleRate, ct);
+
+            // BPM octave correction (half/double-tempo fix via onset autocorrelation +
+            // log-Gaussian prior). Runs on the 11 kHz decode — cheap, no extra I/O.
+            // Reports a corrected BPM back to the progress even if energy detection fails,
+            // so the UI always shows the best available BPM before analysis completes.
+            if (bpm is { } rawBpm && energyAudio.Samples?.Length > 0)
+            {
+                var correctedBpm = _octaveCorrector.Correct(
+                    rawBpm, energyAudio.Samples, energyAudio.SampleRate, ct);
+                if (Math.Abs(correctedBpm - rawBpm) > 0.01)
+                {
+                    // Correction was applied — update result so the final stored value is corrected.
+                    result = result with { Bpm = correctedBpm };
+                }
+            }
+
             if (_energy.Detect(energyAudio, ct) is { } e)
             {
                 result = result with { Energy = e };
+                progress?.Report(result);
+            }
+            else if (result.Bpm != bpm)
+            {
+                // Energy failed but BPM was corrected — report the updated BPM.
                 progress?.Report(result);
             }
 
