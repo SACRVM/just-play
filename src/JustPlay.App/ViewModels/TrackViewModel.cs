@@ -78,8 +78,12 @@ public sealed partial class TrackViewModel : ObservableObject
     /// <summary>Analysed BPM if we have it, else whatever the tags claimed.</summary>
     public string BpmText => Bpm is > 0 ? Bpm.Value.ToString("0") : "";
 
+    // Detected wins; a foreign tag is shown as Camelot too (parse "Am" -> "8A") so the displayed
+    // notation never flips when our analysis lands, falling back to the raw tag if unparseable.
     public string KeyText =>
-        Model.Analysis?.Key?.Camelot ?? Model.Metadata?.TaggedKey ?? "";
+        Model.Analysis?.Key?.Camelot
+        ?? MusicalKey.TryParse(Model.Metadata?.TaggedKey)?.Camelot
+        ?? Model.Metadata?.TaggedKey ?? "";
 
     public string EnergyText =>
         Model.Analysis?.Energy is int e ? e.ToString() : "";

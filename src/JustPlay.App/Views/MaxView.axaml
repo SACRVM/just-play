@@ -430,10 +430,13 @@
                                    Foreground="{DynamicResource TitleGradient}"
                                    TextTrimming="CharacterEllipsis"/>
                         <!-- Just artist + album text under the title — no duplicate cover thumb;
-                             the sleeve carries the real cover (or its themed fallback). -->
-                        <StackPanel Spacing="2"
-                                    IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}">
-                            <TextBlock Text="{Binding Current.Artist}" FontWeight="SemiBold"
+                             the sleeve carries the real cover (or its themed fallback).
+                             ALWAYS laid out (no IsVisible collapse): the empty TextBlocks still
+                             reserve their line height, so the header keeps its "playing" height
+                             from the start and never grows / jumps the table when a track loads
+                             or when the album is missing. -->
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Current.Artist, FallbackValue=''}" FontWeight="SemiBold"
                                        FontSize="14" Foreground="White"/>
                             <TextBlock Text="{Binding Current.Model.Metadata.Album, FallbackValue=''}"
                                        FontSize="11" Foreground="#80FFFFFF" TextTrimming="CharacterEllipsis"/>

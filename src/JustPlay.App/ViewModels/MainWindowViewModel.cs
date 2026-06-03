@@ -969,11 +969,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             var needAnalysis = new List<TrackViewModel>();
             foreach (var tvm in added)
             {
-                if (tvm.Model.Metadata?.StoredAnalysis is { Version: TrackAnalysisState.CurrentVersion } stored)
+                var stored = tvm.Model.Metadata?.StoredAnalysis;
+                if (stored is not null)
                 {
+                    // Show OUR last-known detection IMMEDIATELY (Camelot key, our BPM/energy) instead of
+                    // flashing the foreign tag value. Current-version blobs are trusted outright; a stale
+                    // blob (e.g. after a detection-version bump) is still displayed now and quietly refined
+                    // by re-analysis below — so the row never first shows the old/foreign key.
                     tvm.Model.Analysis = stored.Detected;
                     tvm.Model.AnalysisStatus = AnalysisStatus.Done;
                     Dispatcher.UIThread.Post(() => tvm.Refresh());
+                    if (stored.Version != TrackAnalysisState.CurrentVersion)
+                        needAnalysis.Add(tvm);
                 }
                 else
                 {
