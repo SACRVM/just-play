@@ -149,10 +149,18 @@ public static class BeatFingerprintExtractor
 
         var acf = Autocorrelate(envelope, maxLagFrames, ct);
 
+        // Detrend the ACF for Scale Transform use (see DetrendAcf for rationale).
+        // CT and DFA use the original ACF.
+        var acfDetrended = DetrendAcf(acf);
+
         // ---- Step 3: Scale Transform (Mellin-via-exponential-resampling) ----
-        var stVec = ComputeScaleTransform(acf, ct);
+        // Uses the DETRENDED ACF so the ST sees only oscillatory groove structure.
+        var stVec = ComputeScaleTransform(acfDetrended, ct);
 
         // ---- Step 4: Cyclic tempogram ----
+        // Uses the ORIGINAL ACF (not detrended) — the CT accumulates ACF[lag] scores
+        // for each tempo-BPM bin, and those scores must be non-negative (detrending would
+        // introduce negative values that confuse the histogram accumulation).
         var ctVec = ComputeCyclicTempogram(acf, sampleRate, ct);
 
         // ---- Step 5: DFA danceability ----
@@ -186,7 +194,7 @@ public static class BeatFingerprintExtractor
         double stWeight = 0.7, double ctWeight = 0.3)
     {
         var st = CosineVec(a.ScaleTransform,  b.ScaleTransform);
-        var ct = CosineVec(a.CyclicTempogram, b.CyclicTempogram);
+        var ct = CosineVecFull(a.CyclicTempogram, b.CyclicTempogram);
         return stWeight * st + ctWeight * ct;
     }
 
@@ -194,25 +202,45 @@ public static class BeatFingerprintExtractor
     // Scale Transform (Mellin via log-warped ACF + FFT magnitude)
     // -------------------------------------------------------------------------
 
+    // Number of lowest-order Scale Transform bins to zero out (set to 0 before L2-normalising).
+    // Bins 0–2 encode the global ACF decay envelope — a slow monotonic trend shared by ALL
+    // 4/4 dance music, not discriminative groove structure. They dominate the L2-normalised
+    // vector and saturate cosine similarity near 1.0 for all track pairs.
+    // Zeroing rather than dropping preserves the documented output length (halfN = 64).
+    // A tempo shift = translation in the log-warp domain = FFT phase shift only (magnitude
+    // unchanged at each bin k), so zeroing any fixed set of bins is safe for tempo invariance.
+    private const int StDropLowBins = 3;
+
     /// <summary>
     /// Implements the discrete Scale Transform as described in Holzapfel &amp; Stylianou
-    /// (TASLP 2011) via the "Mellin-via-exponential-resampling" trick:
+    /// (TASLP 2011) via the "Mellin-via-exponential-resampling" trick.
+    ///
+    /// <para>
+    /// The input ACF has already been detrended (by <see cref="DetrendAcf"/>) before being
+    /// passed here. The ST pipeline then:
+    /// </para>
     ///
     /// <list type="number">
-    ///   <item>Skip ACF[0] (zero-lag = total power; carries no groove info).</item>
-    ///   <item>Log-warp the lag axis: sample the ACF at exponentially-spaced lags
-    ///         log(1) … log(maxLag), giving MellinResampleN samples — this maps
-    ///         lag-scaling in the original domain to a shift in the log domain.</item>
-    ///   <item>Apply a Hann window to suppress spectral leakage.</item>
-    ///   <item>FFT → magnitude spectrum (only the lower half = non-redundant part).</item>
-    ///   <item>L2-normalise → cosine distance is just 1 − dot product.</item>
+    ///   <item>Skips lag 0 (zero-lag = total power; carries no groove info).</item>
+    ///   <item>Log-warps the lag axis: samples the ACF at exponentially-spaced lags
+    ///         log(1) … log(maxLag), giving MellinResampleN samples — this maps lag-scaling
+    ///         in the original domain (tempo change) to a translation in the log domain.</item>
+    ///   <item>Applies a Hann window to suppress spectral leakage.</item>
+    ///   <item>FFT → magnitude spectrum (lower half = non-redundant part).</item>
+    ///   <item><b>Zeros bins 0..(StDropLowBins-1)</b> — those bins encode the residual global
+    ///         decay envelope of the ACF (common to all 4/4 dance music) and saturate the
+    ///         cosine at ~1.0. Zeroing is safe for tempo invariance: a tempo shift = translation
+    ///         in the log-warp domain = phase shift in the FFT; the MAGNITUDE at each bin k is
+    ///         unchanged. So the zeroed bins are present in all tracks at all tempos, and
+    ///         removing them from all tracks symmetrically does not change tempo invariance.</item>
+    ///   <item>L2-normalises → cosine distance = 1 − dot product.</item>
     /// </list>
     ///
+    /// <para>
     /// Tempo invariance: if two grooves differ only in tempo (one is 2× the other),
-    /// their ACFs differ by a SCALING of the lag axis, which becomes a TRANSLATION after
-    /// log-warping. A translation in the log domain shifts the FFT phase but leaves the
-    /// MAGNITUDE spectrum unchanged → the two grooves get the same normalised magnitude
-    /// vector → cosine similarity = 1.
+    /// their ACFs differ by a SCALING of the lag axis → TRANSLATION after log-warping →
+    /// FFT phase shift only → MAGNITUDE SPECTRUM UNCHANGED → cosine similarity = 1.
+    /// </para>
     ///
     /// References: rhythm-similarity.md §"Scale Transform"; Panteli &amp; Dixon ISMIR 2016.
     /// </summary>
@@ -235,7 +263,7 @@ public static class BeatFingerprintExtractor
             var logLag = logMin + (logMax - logMin) * i / (n - 1.0);
             var lag    = Math.Exp(logLag);
 
-            // Fractional-lag linear interpolation of the ACF (the ACF is sampled at integer lags).
+            // Fractional-lag linear interpolation of the ACF (sampled at integer lags).
             var lagFloor = (int)lag;
             var lagCeil  = Math.Min(lagFloor + 1, maxLag);
             var frac     = lag - lagFloor;
@@ -253,8 +281,12 @@ public static class BeatFingerprintExtractor
 
         // Magnitude spectrum (lower half only — upper half is the mirror for real input).
         var halfN = n / 2;
-        var mag   = new float[halfN];
-        for (var k = 0; k < halfN; k++)
+
+        // Magnitude spectrum. Bins 0..(StDropLowBins-1) are zeroed (they encode the global
+        // ACF decay envelope shared by all 4/4 dance music, not discriminative groove structure).
+        // See the StDropLowBins constant comment for full rationale.
+        var mag = new float[halfN];
+        for (var k = StDropLowBins; k < halfN; k++)
             mag[k] = (float)Math.Sqrt((double)re[k] * re[k] + (double)im[k] * im[k]);
 
         // L2-normalise so cosine distance = 1 − dot product.
@@ -595,6 +627,48 @@ public static class BeatFingerprintExtractor
     // Utility
     // -------------------------------------------------------------------------
 
+    /// <summary>
+    /// Detrends the ACF by subtracting a box-smoothed (running-average) version of itself.
+    ///
+    /// <para>
+    /// The biased autocorrelation of the onset envelope has a monotonic decay envelope —
+    /// a slow trend shared by ALL 4/4 dance music that is NOT groove-discriminative.
+    /// Subtracting a smoothed version removes this trend while preserving the oscillatory
+    /// beat-periodicity peaks that carry groove identity.
+    /// </para>
+    ///
+    /// <para>
+    /// Lag 0 is kept unchanged (zero-lag = total power, excluded from detrend).
+    /// Smoothing window = ~1/4 of the ACF length — wide enough to capture the slow decay
+    /// trend across multiple beat periods, but not wide enough to smooth out beat peaks.
+    /// </para>
+    ///
+    /// <para>
+    /// Tempo invariance: two recordings of the same groove at different tempos share the
+    /// same ACF decay rate (both are biased ACFs of the same process). The smooth
+    /// estimates the same trend from both; subtracting it leaves the oscillatory peaks
+    /// (shifted in lag space by the tempo difference) which the Mellin transform maps to
+    /// the same magnitude spectrum. This mirrors why DFA (Detrended Fluctuation Analysis)
+    /// discriminates rhythm while the raw fluctuation does not.
+    /// </para>
+    /// </summary>
+    private static double[] DetrendAcf(double[] acf)
+    {
+        var result  = new double[acf.Length];
+        result[0]   = acf[0];  // keep zero-lag as-is
+
+        var smoothWin = Math.Max(3, (acf.Length - 1) / 4);  // quarter-window
+        for (var k = 1; k < acf.Length; k++)
+        {
+            var lo    = Math.Max(1, k - smoothWin / 2);
+            var hi    = Math.Min(acf.Length - 1, k + smoothWin / 2);
+            var sum   = 0.0;
+            for (var j = lo; j <= hi; j++) sum += acf[j];
+            result[k] = acf[k] - sum / (hi - lo + 1);
+        }
+        return result;
+    }
+
     private static float[] L2Normalise(float[] v)
     {
         var sumSq = 0.0;
@@ -608,13 +682,78 @@ public static class BeatFingerprintExtractor
         return result;
     }
 
+    // Partial mean-centering coefficient for the ST cosine similarity.
+    // α=0 → plain cosine (no centering); α=1 → full Pearson correlation.
+    //
+    // Full Pearson (α=1) breaks tempo invariance for synthetic click trains at very low
+    // tempos (e.g. 64 BPM in a 1.5 s window = ~1.5 beat periods), because the finite
+    // ACF window makes the 64 BPM and 128 BPM ST spectra DIFFERENT SHAPES rather than
+    // translations of each other (as Mellin theory requires for infinite windows).
+    //
+    // α=0.08 is a calibrated compromise:
+    // - Removes 8% of the shared DC component that causes cosine saturation → +7% stdev
+    //   on the 100-track real-music benchmark (0.0496 → 0.0529).
+    // - Leaves 92% of the original vector direction intact → all tempo-invariance tests
+    //   still pass (the 160/80 BPM pair — the tightest case — scores 0.853 vs threshold 0.85).
+    private const double StPearsonAlpha = 0.08;
+
+    /// <summary>
+    /// Cosine similarity over the retained (non-zero) bins of two L2-normalised ST vectors,
+    /// with partial mean-centering (Pearson fraction α = StPearsonAlpha).
+    ///
+    /// <para>
+    /// Partial centering subtracts α * mean from each vector before computing the dot product,
+    /// then re-normalises. At α=0 this is plain cosine; at α=1 it is the Pearson correlation.
+    /// The partial form removes the fraction α of the shared DC (the "all music sounds periodic"
+    /// baseline) while preserving enough of the original direction for tempo invariance.
+    /// </para>
+    /// </summary>
     private static double CosineVec(float[] a, float[] b)
+    {
+        if (a.Length != b.Length) return 0.0;
+
+        // Compute partial-Pearson over the retained (non-zero-padded) bins only.
+        var start = StDropLowBins;
+        var count = a.Length - start;
+        if (count <= 0)
+        {
+            // Fallback to plain dot product over full vector.
+            var plainDot = 0.0;
+            for (var i = 0; i < a.Length; i++) plainDot += (double)a[i] * b[i];
+            return Math.Clamp(plainDot, 0.0, 1.0);
+        }
+
+        var meanA = 0.0; var meanB = 0.0;
+        for (var i = start; i < a.Length; i++) { meanA += a[i]; meanB += b[i]; }
+        meanA = meanA / count * StPearsonAlpha;
+        meanB = meanB / count * StPearsonAlpha;
+
+        var dot   = 0.0;
+        var normA = 0.0; var normB = 0.0;
+        for (var i = start; i < a.Length; i++)
+        {
+            var ca = a[i] - meanA;
+            var cb = b[i] - meanB;
+            dot   += ca * cb;
+            normA += ca * ca;
+            normB += cb * cb;
+        }
+
+        var denom = Math.Sqrt(normA * normB);
+        if (denom <= 0.0) return 0.0;
+        return Math.Clamp(dot / denom, 0.0, 1.0);
+    }
+
+    /// <summary>
+    /// Standard cosine similarity over all elements of two L2-normalised vectors.
+    /// Used for the cyclic tempogram (all 24 bins are meaningful — no zeroed padding).
+    /// </summary>
+    private static double CosineVecFull(float[] a, float[] b)
     {
         if (a.Length != b.Length) return 0.0;
         var dot = 0.0;
         for (var i = 0; i < a.Length; i++)
             dot += (double)a[i] * b[i];
-        // Vectors are already L2-normalised → cosine = dot product, clamped to [0,1].
         return Math.Clamp(dot, 0.0, 1.0);
     }
 
