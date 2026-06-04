@@ -108,6 +108,18 @@ sealed class Program
             return;
         }
 
+        // Beat / groove fingerprint similarity matrix (N8 — beat axis of the compat score).
+        // Usage: --beat-sim "<folder>"  (READ-ONLY — decode + analyse only, no writes)
+        // Builds a BeatFingerprint (Scale Transform + Cyclic Tempogram + DFA danceability)
+        // for each audio file, then prints the N×N cosine similarity matrix, per-track
+        // nearest neighbours, and highest/lowest similar pairs.
+        // Reference: rhythm-similarity.md §"Concrete recommendation".
+        if (args is ["--beat-sim", var beatSimFolder, ..])
+        {
+            BeatSimReport.Run(Services, beatSimFolder);
+            return;
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
