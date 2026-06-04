@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace JustPlay.Core.Models;
 
 /// <summary>
@@ -57,6 +59,25 @@ public sealed record UserSettings
     /// <c>" | "</c> separator. Off by default (opt-in, non-destructive).
     /// </summary>
     public bool WriteDjComment { get; init; } = false;
+
+    // ── JUST STREAM — Icecast broadcast profiles (S1 config foundation) ──────────────
+    // These fields are populated by the future JUST STREAM streaming UI (S2+).
+    // Loading an old settings.json that lacks these fields is safe — the JSON deserializer
+    // leaves them at their default values (empty list / null). No migration is needed.
+
+    /// <summary>
+    /// Named Icecast server profiles. Each profile holds the host, port, mount, credentials,
+    /// codec, and bitrate for one broadcast destination. Empty by default. The JUST STREAM
+    /// UI (S2+) will provide add/edit/remove. Multiple profiles support e.g. a test server
+    /// and a live club server as separate one-click options.
+    /// </summary>
+    public List<StreamServerProfile> StreamServers { get; init; } = [];
+
+    /// <summary>
+    /// The <see cref="StreamServerProfile.Id"/> of the profile that is currently selected
+    /// in the streaming panel. Null when no profile is selected or the profile list is empty.
+    /// </summary>
+    public string? SelectedStreamServerId { get; init; } = null;
 
     public static readonly UserSettings Defaults = new();
 }
