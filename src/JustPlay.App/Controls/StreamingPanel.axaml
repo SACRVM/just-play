@@ -1,0 +1,386 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustPlay.App.ViewModels"
+             xmlns:models="using:JustPlay.Core.Models"
+             x:Class="JustPlay.App.Controls.StreamingPanel"
+             x:DataType="vm:MainWindowViewModel">
+
+    <!--
+      Slide-in Streaming panel — Icecast server profile manager (S1 UI).
+      Inherits the view's MainWindowViewModel DataContext. Visibility / right-dock
+      alignment are set by the consumer (see MaxView: IsVisible={Binding IsStreamingOpen}).
+
+      S1 scope: add / edit / delete / select server profiles, persisted.
+      The "Connect" button is a clearly-labelled stub — real networking is S2.
+
+      LAYOUT: a DockPanel pins the header (top) and the BROADCAST/Connect block
+      (bottom) so they are ALWAYS visible; only the middle (SERVERS list + editor)
+      scrolls. This is what stops the bottom from being clipped when the editor is
+      tall — a single ScrollViewer over everything pushed Connect off-screen.
+    -->
+    <UserControl.Styles>
+        <!-- Section heading — mirrors TweaksPanel's tweak-section style -->
+        <Style Selector="TextBlock.stream-section">
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="3"/>
+            <Setter Property="Margin" Value="0,2,0,3"/>
+        </Style>
+        <!-- Row label — mirrors TweaksPanel's tweak-label style -->
+        <Style Selector="TextBlock.stream-label">
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- Field label (caption above each input) -->
+        <Style Selector="TextBlock.field-cap">
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="Margin" Value="0,5,0,2"/>
+        </Style>
+
+        <!-- Text input fields: frosted glass look matching the app's edit fields -->
+        <Style Selector="TextBox.stream-field">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="SelectionBrush" Value="#448a5fff"/>
+        </Style>
+        <Style Selector="TextBox.stream-field:focus">
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+        <!-- Belt-and-braces: prevent Fluent from painting its own background -->
+        <Style Selector="TextBox.stream-field /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="TextBox.stream-field:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+        <Style Selector="TextBox.stream-field:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        </Style>
+
+        <!-- Server list item: each row in the profile list -->
+        <Style Selector="Border.server-row">
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Background" Value="#0DFFFFFF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Border.server-row.selected">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- Format/bitrate badge pill -->
+        <Style Selector="Border.badge">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+
+        <!-- Format toggle buttons (MP3 / Opus) — same as tweak-radio in TweaksPanel -->
+        <Style Selector="Button.fmt-radio">
+            <Setter Property="Background" Value="#0FFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.fmt-radio.active">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+
+        <!-- Bitrate toggle buttons -->
+        <Style Selector="Button.bps-radio">
+            <Setter Property="Background" Value="#0FFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.bps-radio.active">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+
+        <!-- Add server + connect buttons -->
+        <Style Selector="Button.add-server">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.add-server:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.add-server:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.add-server:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+        </Style>
+
+        <!-- Connect button — stub, disabled visually -->
+        <Style Selector="Button.connect-stub">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="0,10"/>
+            <Setter Property="Foreground" Value="#66FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="IsEnabled" Value="False"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Width="340"
+            Background="#F01a1828"
+            CornerRadius="0,14,14,0"
+            BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
+
+        <!-- DockPanel: header pinned top, BROADCAST pinned bottom, middle scrolls. -->
+        <DockPanel LastChildFill="True">
+
+            <!-- ── Header (fixed, always visible) ──────────────────────────── -->
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="22,18,22,8">
+                <TextBlock Text="STREAMING" FontSize="12" FontWeight="Bold" LetterSpacing="3"
+                           Foreground="White" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="13"
+                        Command="{Binding ToggleStreamingCommand}"/>
+            </Grid>
+
+            <!-- ── Connect / status (fixed bottom, always visible — S2 stub) ── -->
+            <StackPanel DockPanel.Dock="Bottom" Margin="22,8,22,18" Spacing="8">
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2,0,4"/>
+                <TextBlock Classes="stream-section" Text="BROADCAST" Margin="0,0,0,2"/>
+                <!--
+                  STUB: Connect button wired to a no-op command. The real Icecast
+                  source-client encoder arrives in S2 (JustPlay.Streaming). This button
+                  is the persistent UI target so the layout is final — S2 just swaps the
+                  stub command for a real one and updates the status line.
+                -->
+                <Button Classes="connect-stub"
+                        Content="Connect  (coming in S2)"
+                        Command="{Binding ConnectStreamStubCommand}"
+                        ToolTip.Tip="Streaming engine arrives in S2 — this is a UI placeholder only."/>
+                <Grid ColumnDefinitions="Auto,*">
+                    <Ellipse Grid.Column="0" Width="7" Height="7"
+                             Fill="#4DFFFFFF" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Disconnected — engine not yet implemented (S2)"
+                               FontSize="10" Foreground="#4DFFFFFF"
+                               TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- ── Middle: SERVERS list + selected-profile editor (scrolls) ── -->
+            <ScrollViewer Padding="22,0,22,4" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="9" ClipToBounds="False">
+
+                    <!-- Server profile list -->
+                    <TextBlock Classes="stream-section" Text="SERVERS"/>
+
+                    <!-- Empty-state hint — shown when the collection is empty. -->
+                    <TextBlock Text="No servers yet. Add one below."
+                               FontSize="11" Foreground="#4DFFFFFF"
+                               IsVisible="{Binding HasNoStreamServers}"/>
+
+                    <!--
+                      Server list. Each row is a Button so the whole row is clickable
+                      (SelectStreamServer); the delete ✕ has its own command. The template
+                      uses x:CompileBindings="False" so the row-level commands can bind back
+                      to the parent MainWindowViewModel via $parent[UserControl]; display
+                      fields are plain properties on StreamServerProfile.
+                    -->
+                    <ItemsControl ItemsSource="{Binding StreamServers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:CompileBindings="False">
+                                <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                        Command="{Binding DataContext.SelectStreamServerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Border Classes="server-row" ToolTip.Tip="{Binding Host}">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                                            <!-- Name -->
+                                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                                       Text="{Binding Name}"
+                                                       FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="#E6FFFFFF"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <!-- Format/bitrate badge -->
+                                            <Border Grid.Row="0" Grid.Column="1"
+                                                    Classes="badge" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock FontSize="9" FontWeight="Bold"
+                                                           Foreground="#B3FFFFFF" LetterSpacing="1">
+                                                    <Run Text="{Binding Format}"/>
+                                                    <Run Text=" "/>
+                                                    <Run Text="{Binding BitrateKbps}"/>
+                                                </TextBlock>
+                                            </Border>
+                                            <!-- Delete -->
+                                            <Button Grid.Row="0" Grid.Column="2"
+                                                    Classes="ghost" Content="✕" FontSize="11"
+                                                    Padding="6" Margin="2,0,0,0"
+                                                    Command="{Binding DataContext.RemoveStreamServerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <!-- Host:Port Mount -->
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                                                       FontSize="10" Foreground="#66FFFFFF"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="0,2,0,0">
+                                                <Run Text="{Binding Host}"/>
+                                                <Run Text=":"/>
+                                                <Run Text="{Binding Port}"/>
+                                                <Run Text=" "/>
+                                                <Run Text="{Binding Mount}"/>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Border>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Add server -->
+                    <Button Classes="add-server" Content="+ Add server"
+                            Command="{Binding AddStreamServerCommand}"/>
+
+                    <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
+
+                    <!-- Editor for selected profile -->
+                    <TextBlock Classes="stream-section" Text="EDIT SELECTED"/>
+
+                    <!-- No-selection placeholder -->
+                    <TextBlock Text="Select a server above to edit its settings."
+                               FontSize="11" Foreground="#4DFFFFFF" TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedStreamServer, Converter={x:Static ObjectConverters.IsNull}}"/>
+
+                    <!-- Editor — only visible when a profile is selected -->
+                    <StackPanel Spacing="2"
+                                IsVisible="{Binding SelectedStreamServer, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+                        <!-- Name -->
+                        <TextBlock Classes="field-cap" Text="NAME"/>
+                        <TextBox Classes="stream-field"
+                                 Text="{Binding SelectedServerName}"
+                                 PlaceholderText="My Stream"/>
+
+                        <!-- Host -->
+                        <TextBlock Classes="field-cap" Text="HOST"/>
+                        <TextBox Classes="stream-field"
+                                 Text="{Binding SelectedServerHost}"
+                                 PlaceholderText="stream.example.com"/>
+
+                        <!-- Port + Mount on one row -->
+                        <Grid ColumnDefinitions="Auto,12,*">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Classes="field-cap" Text="PORT"/>
+                                <TextBox Classes="stream-field" Width="70"
+                                         Text="{Binding SelectedServerPort}"
+                                         PlaceholderText="8000"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Classes="field-cap" Text="MOUNT"/>
+                                <TextBox Classes="stream-field"
+                                         Text="{Binding SelectedServerMount}"
+                                         PlaceholderText="/live.mp3"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Username -->
+                        <TextBlock Classes="field-cap" Text="USERNAME"/>
+                        <TextBox Classes="stream-field"
+                                 Text="{Binding SelectedServerUsername}"
+                                 PlaceholderText="source"/>
+
+                        <!-- Password (masked) -->
+                        <TextBlock Classes="field-cap" Text="PASSWORD"/>
+                        <TextBox Classes="stream-field"
+                                 Text="{Binding SelectedServerPassword}"
+                                 PasswordChar="●"
+                                 PlaceholderText="••••••••"/>
+
+                        <!-- Format toggle -->
+                        <TextBlock Classes="field-cap" Text="FORMAT"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="fmt-radio" Content="MP3"
+                                    Classes.active="{Binding IsSelectedServerMp3}"
+                                    Command="{Binding SetSelectedServerFormatCommand}"
+                                    CommandParameter="Mp3"/>
+                            <Button Classes="fmt-radio" Content="Opus"
+                                    Classes.active="{Binding IsSelectedServerOpus}"
+                                    Command="{Binding SetSelectedServerFormatCommand}"
+                                    CommandParameter="Opus"/>
+                        </StackPanel>
+
+                        <!-- Bitrate -->
+                        <TextBlock Classes="field-cap" Text="BITRATE (KBPS)"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="bps-radio" Content="128"
+                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=128}"
+                                    Command="{Binding SetSelectedServerBitrateCommand}"
+                                    CommandParameter="128"/>
+                            <Button Classes="bps-radio" Content="192"
+                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=192}"
+                                    Command="{Binding SetSelectedServerBitrateCommand}"
+                                    CommandParameter="192"/>
+                            <Button Classes="bps-radio" Content="256"
+                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=256}"
+                                    Command="{Binding SetSelectedServerBitrateCommand}"
+                                    CommandParameter="256"/>
+                            <Button Classes="bps-radio" Content="320"
+                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=320}"
+                                    Command="{Binding SetSelectedServerBitrateCommand}"
+                                    CommandParameter="320"/>
+                        </StackPanel>
+
+                        <!-- TLS toggle -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Classes="stream-label" Text="TLS / HTTPS"/>
+                                <TextBlock Foreground="#73FFFFFF" FontSize="10"
+                                           Text="Requires a valid server certificate."/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                          IsChecked="{Binding SelectedServerUseTls}"
+                                          OnContent="" OffContent=""/>
+                        </Grid>
+
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+
+        </DockPanel>
+    </Border>
+</UserControl>

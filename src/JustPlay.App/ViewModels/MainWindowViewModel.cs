@@ -80,6 +80,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Bulk-action menu headers carry the selection count, e.g. "Write meta tags (12)".
         SelectedTracks.CollectionChanged += (_, _) => RaiseSelectionHeaders();
 
+        // Keep HasNoStreamServers in sync with the collection.
+        StreamServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoStreamServers));
+
         // Seed the tweak properties from persisted settings BEFORE wiring
         // any change-listeners — so the seeding itself does not echo back to
         // disk via On…Changed → Save.
@@ -92,6 +95,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _autoWriteOnAnalyze = s.AutoWriteOnAnalyze;
         _writeDjComment = s.WriteDjComment;
         _analysisThreads = s.AnalysisThreads;
+
+        // Seed streaming profiles from persisted settings.
+        foreach (var p in s.StreamServers)
+            StreamServers.Add(p);
+        if (s.SelectedStreamServerId is { } selectedId)
+            _selectedStreamServer = StreamServers.FirstOrDefault(p => p.Id == selectedId);
+
         _settingsHydrated = true;
 
         _controller.StateChanged += OnEngineStateChanged;
@@ -309,6 +319,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         else { _shuffleHistory.Clear(); _shufflePos = -1; }
     }
 
+    // ── Streaming-panel state (S1: profile management UI) ────────────────
+    [ObservableProperty] private bool _isStreamingOpen;
+
     // ── Tweaks-panel state (mirrors TWEAK_DEFAULTS in the design's app.jsx) ─
     [ObservableProperty] private bool _isTweaksOpen;
     [ObservableProperty] private string _currentTheme = "Aurora";
@@ -405,6 +418,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         WriteDjComment     = WriteDjComment,
         AnalysisThreads    = AnalysisThreads,
         UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
+        // Streaming profiles — persist the full list and selected profile id.
+        StreamServers          = [.. StreamServers],
+        SelectedStreamServerId = SelectedStreamServer?.Id,
     });
 
     public string PositionText => Format(PositionSeconds);
@@ -498,6 +514,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void ToggleTweaks() => IsTweaksOpen = !IsTweaksOpen;
 
+    [RelayCommand]
+    private void ToggleStreaming() => IsStreamingOpen = !IsStreamingOpen;
+
     /// <summary>
     /// Switch to one of the built-in palettes (Aurora / Sunset / Midnight / Neon).
     /// The actual swap and persistence happen in <see cref="OnCurrentThemeChanged"/> —
@@ -521,6 +540,174 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void SetAnalysisThreads(string? n)
     {
         if (int.TryParse(n, out var t)) AnalysisThreads = Math.Clamp(t, 1, 16);
+    }
+
+    // ── Streaming: server profile management (S1) ────────────────────────
+    //
+    // StreamServers is the live ObservableCollection; SelectedStreamServer tracks
+    // which profile is being edited. Editing a field replaces the record in-place
+    // (records are immutable) and immediately persists. This is the same stateless
+    // immutable-record-in-settings pattern the analysis preferences use.
+    //
+    // The "Connect" command is a stub; the real Icecast source-client (JustPlay.Streaming)
+    // arrives in S2 and replaces it without touching the profile-management code here.
+
+    /// <summary>All configured Icecast server profiles. Bound to the StreamingPanel list.</summary>
+    public ObservableCollection<StreamServerProfile> StreamServers { get; } = [];
+
+    /// <summary>True when the profile list is empty — drives the "No servers yet" hint in the panel.</summary>
+    public bool HasNoStreamServers => StreamServers.Count == 0;
+
+    /// <summary>The profile currently open in the editor, or null when none is selected.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSelectedServerMp3))]
+    [NotifyPropertyChangedFor(nameof(IsSelectedServerOpus))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerBitrateText))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerName))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerHost))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerPort))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerMount))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerUsername))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerPassword))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerUseTls))]
+    private StreamServerProfile? _selectedStreamServer;
+
+    // ── Editor pass-through properties ───────────────────────────────────
+    // Each property reads from / writes to the selected profile. Writing replaces the
+    // record in the collection and persists. Null-safe: returns empty/defaults when
+    // no profile is selected so the UI fields remain harmlessly blank.
+
+    public string SelectedServerName
+    {
+        get => SelectedStreamServer?.Name ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Name = value }); }
+    }
+
+    public string SelectedServerHost
+    {
+        get => SelectedStreamServer?.Host ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Host = value }); }
+    }
+
+    public string SelectedServerPort
+    {
+        get => SelectedStreamServer?.Port.ToString() ?? string.Empty;
+        set
+        {
+            if (SelectedStreamServer is { } p && int.TryParse(value, out var port))
+                ReplaceSelected(p with { Port = port });
+        }
+    }
+
+    public string SelectedServerMount
+    {
+        get => SelectedStreamServer?.Mount ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Mount = value }); }
+    }
+
+    public string SelectedServerUsername
+    {
+        get => SelectedStreamServer?.Username ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Username = value }); }
+    }
+
+    public string SelectedServerPassword
+    {
+        get => SelectedStreamServer?.Password ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Password = value }); }
+    }
+
+    public bool SelectedServerUseTls
+    {
+        get => SelectedStreamServer?.UseTls ?? false;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { UseTls = value }); }
+    }
+
+    /// <summary>String bitrate for the active-state binding in the bitrate radio buttons.</summary>
+    public string SelectedServerBitrateText => SelectedStreamServer?.BitrateKbps.ToString() ?? string.Empty;
+
+    public bool IsSelectedServerMp3 => SelectedStreamServer?.Format == StreamFormat.Mp3;
+    public bool IsSelectedServerOpus => SelectedStreamServer?.Format == StreamFormat.Opus;
+
+    /// <summary>
+    /// Replace the currently selected profile (immutable record swap) in the collection,
+    /// update the selection pointer, and persist.
+    /// </summary>
+    private void ReplaceSelected(StreamServerProfile updated)
+    {
+        if (!_settingsHydrated) return;
+        var idx = StreamServers.IndexOf(SelectedStreamServer!);
+        if (idx < 0) return;
+        StreamServers[idx] = updated;
+        // Setting the generated property raises the [NotifyPropertyChangedFor] attributes
+        // declared on _selectedStreamServer (Format, Bitrate, Name, etc.) so no manual
+        // OnPropertyChanged calls are needed here. Also raises the computed editor props below.
+        SelectedStreamServer = updated;
+        // Raise the editor pass-through properties (they read directly from SelectedStreamServer).
+        OnPropertyChanged(nameof(SelectedServerName));
+        OnPropertyChanged(nameof(SelectedServerHost));
+        OnPropertyChanged(nameof(SelectedServerPort));
+        OnPropertyChanged(nameof(SelectedServerMount));
+        OnPropertyChanged(nameof(SelectedServerUsername));
+        OnPropertyChanged(nameof(SelectedServerPassword));
+        OnPropertyChanged(nameof(SelectedServerUseTls));
+        PersistSettings();
+    }
+
+    [RelayCommand]
+    private void AddStreamServer()
+    {
+        var profile = new StreamServerProfile { Name = "New Server" };
+        StreamServers.Add(profile);
+        SelectedStreamServer = profile;
+        PersistSettings();
+    }
+
+    [RelayCommand]
+    private void RemoveStreamServer(StreamServerProfile? profile)
+    {
+        if (profile is null) return;
+        StreamServers.Remove(profile);
+        if (SelectedStreamServer == profile)
+            SelectedStreamServer = StreamServers.Count > 0 ? StreamServers[^1] : null;
+        PersistSettings();
+    }
+
+    [RelayCommand]
+    private void SelectStreamServer(StreamServerProfile? profile)
+    {
+        SelectedStreamServer = profile;
+        PersistSettings();
+    }
+
+    [RelayCommand]
+    private void SetSelectedServerFormat(string? formatName)
+    {
+        if (SelectedStreamServer is not { } p) return;
+        if (Enum.TryParse<StreamFormat>(formatName, out var fmt))
+            ReplaceSelected(p with { Format = fmt });
+    }
+
+    [RelayCommand]
+    private void SetSelectedServerBitrate(string? kbps)
+    {
+        if (SelectedStreamServer is not { } p) return;
+        if (int.TryParse(kbps, out var b))
+            ReplaceSelected(p with { BitrateKbps = b });
+    }
+
+    /// <summary>
+    /// STUB: Connect to Icecast. This command does nothing — it is a UI placeholder.
+    /// The real Icecast source-client encoder (JustPlay.Streaming) arrives in S2.
+    /// S2 replaces this stub command with a real connection command without changing any
+    /// of the profile-management code above.
+    /// </summary>
+    [RelayCommand]
+    private void ConnectStreamStub()
+    {
+        // S2 TODO: replace this stub with a real IStreamingEngine.ConnectAsync(SelectedStreamServer)
+        // call. The adapter lives in JustPlay.Streaming (not yet implemented).
+        Console.WriteLine("[Streaming] Connect stub — engine not yet implemented (S2).");
     }
 
     [RelayCommand]

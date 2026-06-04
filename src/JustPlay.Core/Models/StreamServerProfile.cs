@@ -96,11 +96,11 @@ public sealed record StreamServerProfile
     public StreamFormat Format { get; init; } = StreamFormat.Mp3;
 
     /// <summary>
-    /// Encoder bitrate in kbps. For MP3 CBR: 128 / 192 / 256 / 320. Default 256 kbps
-    /// (Chloe's "loud and clean, sound-first" principle; bandwidth is cheap for a club stream).
-    /// See streaming-broadcast.md §2.2.
+    /// Encoder bitrate in kbps. For MP3 CBR: 128 / 192 / 256 / 320. Default 320 kbps
+    /// (Chloe's call, 2026-06-04 — "loud and clean, sound-first"; bandwidth is cheap for
+    /// a club stream, so max out quality). See streaming-broadcast.md §2.2.
     /// </summary>
-    public int BitrateKbps { get; init; } = 256;
+    public int BitrateKbps { get; init; } = 320;
 
     /// <summary>Wrap the TCP connection in TLS (<c>SslStream</c>). Requires the server to have a valid certificate.</summary>
     public bool UseTls { get; init; } = false;

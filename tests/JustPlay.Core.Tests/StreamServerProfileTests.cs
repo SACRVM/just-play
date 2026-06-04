@@ -29,7 +29,7 @@ public class StreamServerProfileTests
         var profile = new StreamServerProfile();
 
         Assert.Equal(StreamFormat.Mp3, profile.Format);
-        Assert.Equal(256, profile.BitrateKbps);
+        Assert.Equal(320, profile.BitrateKbps);
         Assert.Equal("source", profile.Username);
         Assert.Equal(IcecastProtocol.Put, profile.Protocol);
         Assert.Equal(8000, profile.Port);

@@ -318,16 +318,34 @@
                          Search was removed 2026-05-31 — JustPlay queues are short-by-design (drop-and-play, no
                          library), so scrolling beats searching. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-                        <!-- Mini player: small rect inside rect, perfectly centered in 14×14 -->
+                        <!-- Mini player: small rect inside rect. Geometry is symmetric (x 1..13, y 4..10),
+                             Uniform-scaled to a 17×17 box and explicitly centered so the short 2:1 glyph
+                             sits dead-centre in the 36×36 button like the gear/radio. -->
                         <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player">
-                            <Path Stretch="None" Width="14" Height="14"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.4"
+                            <Path Stretch="Uniform" Width="17" Height="17"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="0.9"
                                   StrokeJoin="Round" Fill="Transparent"
                                   Data="M 1,4 L 13,4 L 13,10 L 1,10 Z M 5,6 L 9,6 L 9,8 L 5,8 Z"/>
                         </Button>
+                        <!-- Streaming / broadcast — opens the Icecast streaming section. -->
+                        <Button Classes="cap" Command="{Binding ToggleStreamingCommand}" ToolTip.Tip="Streaming">
+                            <!-- Lucide "radio-tower" (ISC) — real icon data, verbatim path values
+                                 (only separators normalised). https://lucide.dev/icons/radio-tower -->
+                            <Path Stretch="Uniform" Width="17" Height="17"
+                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
+                                  StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                  Data="M4.9 16.1 C1 12.2 1 5.8 4.9 1.9
+                                        M7.8 4.7 a6.14 6.14 0 0 0 -.8 7.5
+                                        M10 9 A2 2 0 1 0 14 9 A2 2 0 1 0 10 9
+                                        M16.2 4.8 c2 2 2.26 5.11 .8 7.47
+                                        M19.1 1.9 a9.96 9.96 0 0 1 0 14.1
+                                        M9.5 18 h5
+                                        M8 22 l4 -11 l4 11"/>
+                        </Button>
                         <!-- Settings: gear (same path firepit-ai uses) -->
                         <Button Classes="cap" Command="{Binding ToggleTweaksCommand}" ToolTip.Tip="Tweaks">
-                            <Path Stretch="Uniform" Width="14" Height="14"
+                            <Path Stretch="Uniform" Width="17" Height="17"
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2"
                                   StrokeJoin="Round" Fill="Transparent"
                                   Data="M 7,0 L 9,0 L 9.5,2 L 11.5,2.5 L 13,1.3 L 14.7,3 L 13.5,4.5 L 14,6.5 L 16,7 L 16,9 L 14,9.5 L 13.5,11.5 L 14.7,13 L 13,14.7 L 11.5,13.5 L 9.5,14 L 9,16 L 7,16 L 6.5,14 L 4.5,13.5 L 3,14.7 L 1.3,13 L 2.5,11.5 L 2,9.5 L 0,9 L 0,7 L 2,6.5 L 2.5,4.5 L 1.3,3 L 3,1.3 L 4.5,2.5 L 6.5,2 Z M 8,5.5 A 2.5,2.5 0 1 0 8,10.5 A 2.5,2.5 0 1 0 8,5.5 Z"/>
@@ -762,5 +780,11 @@
              right when ToggleTweaksCommand toggles IsTweaksOpen. -->
         <controls:TweaksPanel IsVisible="{Binding IsTweaksOpen}"
                               HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
+
+        <!-- STREAMING PANEL — shared control (Controls/StreamingPanel); slides in from the
+             right when ToggleStreamingCommand toggles IsStreamingOpen.
+             S1 scope: Icecast server profile manager. Real encoder wiring is S2. -->
+        <controls:StreamingPanel IsVisible="{Binding IsStreamingOpen}"
+                                 HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
     </Panel>
 </UserControl>
