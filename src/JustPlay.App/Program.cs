@@ -128,7 +128,12 @@ sealed class Program
         var services = new ServiceCollection();
 
         // Backends — swapped here (and only here) when going cross-platform.
-        services.AddSingleton<IAudioEngine, BassAudioEngine>();
+        // S2: BassAudioEngine is registered as BOTH IAudioEngine and the concrete type
+        // so that BassBroadcastService can inject it directly (to read OutputChannel).
+        // The same singleton instance backs both registrations.
+        services.AddSingleton<BassAudioEngine>();
+        services.AddSingleton<IAudioEngine>(sp => sp.GetRequiredService<BassAudioEngine>());
+        services.AddSingleton<IBroadcastService, BassBroadcastService>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
         services.AddSingleton<IMetadataWriter, TagLibMetadataWriter>();

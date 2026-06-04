@@ -7,6 +7,9 @@
   <ItemGroup>
     <PackageReference Include="ManagedBass" Version="4.0.2" />
     <PackageReference Include="ManagedBass.Fx" Version="4.0.2" />
+    <!-- S2: mixer (persistent encoder sink) + encoder + Icecast cast. All versioned together. -->
+    <PackageReference Include="ManagedBass.Mix" Version="4.0.2" />
+    <PackageReference Include="ManagedBass.Enc" Version="4.0.2" />
   </ItemGroup>
 
   <!--
@@ -20,6 +23,17 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <!--
+    Native un4seen add-on DLLs for streaming (x64, in native/win-x64, copied by the wildcard
+    above). Committed to the repo alongside bass.dll / bass_fx.dll so a fresh clone runs
+    (un4seen libs are free for non-commercial use; a BASS licence is required for commercial
+    distribution — track that for JUST STREAM). Real file names:
+      bassmix.dll      — BASS_Mixer: persistent output mixer that keeps the encoder attached
+                         across track changes so the Icecast stream never drops. PLAYBACK-CRITICAL.
+      bassenc.dll      — BASSenc: Icecast source-client casting via BASS_Encode_CastInit.
+      bassenc_mp3.dll  — BASSenc_MP3: in-process LAME MP3 encoder (BASS_Encode_MP3_Start).
+    No external lame.exe is needed — MP3 is encoded in-process via bassenc_mp3.dll.
+  -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>

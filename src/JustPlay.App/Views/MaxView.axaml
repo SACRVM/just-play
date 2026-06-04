@@ -318,15 +318,16 @@
                          Search was removed 2026-05-31 — JustPlay queues are short-by-design (drop-and-play, no
                          library), so scrolling beats searching. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-                        <!-- Mini player: small rect inside rect. Geometry is symmetric (x 1..13, y 4..10),
-                             Uniform-scaled to a 17×17 box and explicitly centered so the short 2:1 glyph
-                             sits dead-centre in the 36×36 button like the gear/radio. -->
+                        <!-- Mini player: Lucide "picture-in-picture-2" (ISC) — the standard mini-player
+                             glyph (screen + small screen in the corner). Verbatim path values, separators
+                             normalised. 24×24 viewBox, Uniform-scaled to match the radio/gear at 17. -->
                         <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player">
                             <Path Stretch="Uniform" Width="17" Height="17"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="0.9"
-                                  StrokeJoin="Round" Fill="Transparent"
-                                  Data="M 1,4 L 13,4 L 13,10 L 1,10 Z M 5,6 L 9,6 L 9,8 L 5,8 Z"/>
+                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
+                                  StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                  Data="M21 9 V6 a2 2 0 0 0 -2 -2 H4 a2 2 0 0 0 -2 2 v10 c0 1.1 .9 2 2 2 h4
+                                        M14 13 h6 a2 2 0 0 1 2 2 v3 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-3 a2 2 0 0 1 2 -2 Z"/>
                         </Button>
                         <!-- Streaming / broadcast — opens the Icecast streaming section. -->
                         <Button Classes="cap" Command="{Binding ToggleStreamingCommand}" ToolTip.Tip="Streaming">

@@ -147,19 +147,33 @@
             <Setter Property="Background" Value="#2AFFFFFF"/>
         </Style>
 
-        <!-- Connect button — stub, disabled visually -->
-        <Style Selector="Button.connect-stub">
+        <!-- Connect/Disconnect toggle button -->
+        <Style Selector="Button.connect-btn">
             <Setter Property="Background" Value="#14FFFFFF"/>
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="0,10"/>
-            <Setter Property="Foreground" Value="#66FFFFFF"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="IsEnabled" Value="False"/>
+        </Style>
+        <Style Selector="Button.connect-btn:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.connect-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.connect-btn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+        </Style>
+        <!-- Connected state: accent gradient, always clearly "live" -->
+        <Style Selector="Button.connect-btn.connected">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
     </UserControl.Styles>
 
@@ -179,26 +193,37 @@
                         Command="{Binding ToggleStreamingCommand}"/>
             </Grid>
 
-            <!-- ── Connect / status (fixed bottom, always visible — S2 stub) ── -->
+            <!-- ── Connect / status (fixed bottom, always visible — S2 live) ── -->
             <StackPanel DockPanel.Dock="Bottom" Margin="22,8,22,18" Spacing="8">
                 <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2,0,4"/>
                 <TextBlock Classes="stream-section" Text="BROADCAST" Margin="0,0,0,2"/>
                 <!--
-                  STUB: Connect button wired to a no-op command. The real Icecast
-                  source-client encoder arrives in S2 (JustPlay.Streaming). This button
-                  is the persistent UI target so the layout is final — S2 just swaps the
-                  stub command for a real one and updates the status line.
+                  Connect / Disconnect toggle. Command bound to ToggleConnectCommand; the
+                  label switches via ConnectButtonLabel (computed from BroadcastState on the VM).
+                  The "connected" CSS class drives the accent-gradient "live" look.
+                  CanExecute requires a selected profile with a non-empty host and disables
+                  the button while mid-connect (Connecting/Reconnecting) to prevent double-clicks.
                 -->
-                <Button Classes="connect-stub"
-                        Content="Connect  (coming in S2)"
-                        Command="{Binding ConnectStreamStubCommand}"
-                        ToolTip.Tip="Streaming engine arrives in S2 — this is a UI placeholder only."/>
-                <Grid ColumnDefinitions="Auto,*">
+                <Button Classes="connect-btn"
+                        Classes.connected="{Binding IsConnectedOrConnecting}"
+                        Content="{Binding ConnectButtonLabel}"
+                        Command="{Binding ToggleConnectCommand}"/>
+                <!--
+                  Status row: coloured dot + status text.
+                  BroadcastDotColor is a hex string property on the VM (green/amber/red/grey).
+                  Compiled bindings need a string→IBrush conversion — use a simple
+                  SolidColorBrush with a x:Static colour. Because compiled bindings don't
+                  support Binding to Fill with a string directly, we fall back to
+                  x:CompileBindings="False" just for this small grid so the dot Fill can
+                  use a dynamic string colour without a converter.
+                -->
+                <Grid ColumnDefinitions="Auto,*" x:CompileBindings="False">
                     <Ellipse Grid.Column="0" Width="7" Height="7"
-                             Fill="#4DFFFFFF" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                             Fill="{Binding BroadcastDotColor}"
+                             VerticalAlignment="Center" Margin="0,0,7,0"/>
                     <TextBlock Grid.Column="1"
-                               Text="Disconnected — engine not yet implemented (S2)"
-                               FontSize="10" Foreground="#4DFFFFFF"
+                               Text="{Binding BroadcastStatusText}"
+                               FontSize="10" Foreground="#B3FFFFFF"
                                TextWrapping="Wrap" VerticalAlignment="Center"/>
                 </Grid>
             </StackPanel>

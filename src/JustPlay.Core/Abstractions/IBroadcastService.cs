@@ -49,6 +49,13 @@ public interface IBroadcastService
     BroadcastState State { get; }
 
     /// <summary>
+    /// Human-readable detail of the most recent failure (the underlying BASS error + which
+    /// step failed), or null when there is no error. Surfaced in the UI for diagnostics so a
+    /// failed connect shows the real reason instead of a generic message.
+    /// </summary>
+    string? LastError { get; }
+
+    /// <summary>
     /// Fires whenever <see cref="State"/> changes. Raised on the service's own thread —
     /// UI subscribers must marshal to the UI thread (e.g. <c>Dispatcher.UIThread.Post</c>).
     /// </summary>

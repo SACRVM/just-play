@@ -12,6 +12,7 @@ using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
 using JustPlay.Core.Theming;
 using JustPlay.Metadata;
+using BroadcastState = JustPlay.Core.Abstractions.BroadcastState;
 
 namespace JustPlay.App.ViewModels;
 
@@ -31,6 +32,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly ITrackAnalysisService _analysis;
     private readonly ISettingsService _settings;
     private readonly IThemeService _themes;
+    private readonly IBroadcastService _broadcast;
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
 
@@ -68,7 +70,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         IMetadataWriter writer,
         ITrackAnalysisService analysis,
         ISettingsService settings,
-        IThemeService themes)
+        IThemeService themes,
+        IBroadcastService broadcast)
     {
         _controller = controller;
         _metadata = metadata;
@@ -76,6 +79,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _analysis = analysis;
         _settings = settings;
         _themes = themes;
+        _broadcast = broadcast;
+
+        // Subscribe to broadcast state changes; marshal to UI thread.
+        _broadcast.StateChanged += OnBroadcastServiceStateChanged;
 
         // Bulk-action menu headers carry the selection count, e.g. "Write meta tags (12)".
         SelectedTracks.CollectionChanged += (_, _) => RaiseSelectionHeaders();
@@ -319,8 +326,66 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         else { _shuffleHistory.Clear(); _shufflePos = -1; }
     }
 
-    // ── Streaming-panel state (S1: profile management UI) ────────────────
+    // ── Streaming-panel state (S2: live BroadcastState + toggle command) ─
     [ObservableProperty] private bool _isStreamingOpen;
+
+    /// <summary>
+    /// Current broadcast lifecycle state — subscribed from IBroadcastService.StateChanged
+    /// and always updated on the UI thread. Bindings in StreamingPanel drive the dot colour
+    /// and connect-button label via the computed helper properties below.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnectButtonLabel))]
+    [NotifyPropertyChangedFor(nameof(BroadcastStatusText))]
+    [NotifyPropertyChangedFor(nameof(BroadcastDotColor))]
+    [NotifyPropertyChangedFor(nameof(IsConnectedOrConnecting))]
+    private BroadcastState _broadcastState = BroadcastState.Disconnected;
+
+    /// <summary>Label for the connect/disconnect toggle button — reflects the current state.</summary>
+    public string ConnectButtonLabel => BroadcastState switch
+    {
+        BroadcastState.Connected    => "Disconnect",
+        BroadcastState.Connecting   => "Connecting…",
+        BroadcastState.Reconnecting => "Reconnecting…",
+        BroadcastState.Error        => "Retry",
+        _                           => "Connect",
+    };
+
+    /// <summary>Human-readable one-line status string shown below the button.</summary>
+    public string BroadcastStatusText => BroadcastState switch
+    {
+        BroadcastState.Connected    => $"Streaming to {SelectedStreamServer?.Host ?? "server"}",
+        BroadcastState.Connecting   => "Connecting…",
+        BroadcastState.Reconnecting => "Reconnecting…",
+        // Surface the real BASS reason (host/cred/mount/encoder) instead of a generic message.
+        BroadcastState.Error        => string.IsNullOrEmpty(_broadcast.LastError)
+                                           ? "Error — check host/credentials"
+                                           : $"Error — {_broadcast.LastError}",
+        _                           => "Disconnected",
+    };
+
+    /// <summary>
+    /// Status dot fill colour as a hex string — green/amber/red/grey.
+    /// Used in StreamingPanel's Ellipse Fill binding with a no-op string converter.
+    /// Kept as a plain string to stay compiled-binding-safe without a custom converter.
+    /// </summary>
+    public string BroadcastDotColor => BroadcastState switch
+    {
+        BroadcastState.Connected    => "#FF4ADE80",  // green
+        BroadcastState.Connecting   => "#FFFBBF24",  // amber
+        BroadcastState.Reconnecting => "#FFFBBF24",  // amber
+        BroadcastState.Error        => "#FFF87171",  // red
+        _                           => "#4DFFFFFF",  // grey (disconnected)
+    };
+
+    /// <summary>True while connected or connecting — disables the button mid-connect to avoid double-clicks.</summary>
+    public bool IsConnectedOrConnecting =>
+        BroadcastState == BroadcastState.Connected ||
+        BroadcastState == BroadcastState.Connecting ||
+        BroadcastState == BroadcastState.Reconnecting;
+
+    private void OnBroadcastServiceStateChanged(object? sender, BroadcastState state)
+        => Dispatcher.UIThread.Post(() => BroadcastState = state);
 
     // ── Tweaks-panel state (mirrors TWEAK_DEFAULTS in the design's app.jsx) ─
     [ObservableProperty] private bool _isTweaksOpen;
@@ -697,18 +762,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// STUB: Connect to Icecast. This command does nothing — it is a UI placeholder.
-    /// The real Icecast source-client encoder (JustPlay.Streaming) arrives in S2.
-    /// S2 replaces this stub command with a real connection command without changing any
-    /// of the profile-management code above.
+    /// Toggle the Icecast broadcast connection. If disconnected (or in Error state), starts
+    /// streaming to <see cref="SelectedStreamServer"/>. If connected, disconnects cleanly.
+    ///
+    /// CanExecute: a profile must be selected with a non-empty Host, AND we must not be
+    /// mid-connect (Connecting/Reconnecting — let the current attempt finish).
     /// </summary>
-    [RelayCommand]
-    private void ConnectStreamStub()
+    [RelayCommand(CanExecute = nameof(CanToggleConnect))]
+    private async Task ToggleConnect()
     {
-        // S2 TODO: replace this stub with a real IStreamingEngine.ConnectAsync(SelectedStreamServer)
-        // call. The adapter lives in JustPlay.Streaming (not yet implemented).
-        Console.WriteLine("[Streaming] Connect stub — engine not yet implemented (S2).");
+        if (SelectedStreamServer is not { } profile) return;
+
+        if (BroadcastState == BroadcastState.Connected)
+        {
+            await _broadcast.DisconnectAsync();
+        }
+        else
+        {
+            await _broadcast.ConnectAsync(profile);
+        }
     }
+
+    private bool CanToggleConnect()
+        => SelectedStreamServer is { Host.Length: > 0 }
+           && BroadcastState != BroadcastState.Connecting
+           && BroadcastState != BroadcastState.Reconnecting;
+
+    // Re-evaluate CanExecute when state or selection changes.
+    partial void OnBroadcastStateChanged(BroadcastState value)
+        => ToggleConnectCommand.NotifyCanExecuteChanged();
+
+    partial void OnSelectedStreamServerChanged(StreamServerProfile? value)
+        => ToggleConnectCommand.NotifyCanExecuteChanged();
 
     [RelayCommand]
     private void ClearTracks()
@@ -1342,7 +1427,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (Current is not null) Current.IsCurrent = false;
         Current = track;
-        if (track is not null) track.IsCurrent = true;
+        if (track is not null)
+        {
+            track.IsCurrent = true;
+
+            // Push now-playing metadata to the Icecast cast (no-op when not connected).
+            if (_broadcast.State == BroadcastState.Connected)
+            {
+                var md = track.Model.Metadata;
+                var artist = md?.Artist ?? string.Empty;
+                var title  = md?.Title  ?? track.Title;
+                var nowPlaying = string.IsNullOrWhiteSpace(artist)
+                    ? title
+                    : $"{artist} - {title}";
+                _ = _broadcast.UpdateNowPlayingAsync(nowPlaying);
+            }
+        }
     }
 
     private void Tick()
@@ -1381,6 +1481,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _timer.Stop();
         _controller.StateChanged -= OnEngineStateChanged;
         _controller.TrackEnded -= OnTrackEnded;
+        _broadcast.StateChanged -= OnBroadcastServiceStateChanged;
         _controller.Dispose();
     }
 }
