@@ -101,15 +101,23 @@ public sealed class BassAudioEngine : IAudioEngine
     ///   DeviceInfo.IsDefault: this is the system default output.
     ///   DeviceInfo.Name: human-readable name string.
     /// </summary>
+    /// <summary>Friendly name for BASS device 0 ("No sound") — streaming-only, bypasses the OS audio stack.</summary>
+    internal const string NoOutputDeviceName = "No output (stream only)";
+
     public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
     {
         var result = new List<AudioOutputDevice>();
-        // Start at 1; index 0 is BASS's "No sound" virtual device.
+        // Real playback devices start at index 1 (index 0 is BASS's "No sound" device).
         for (var i = 1; ManagedBass.Bass.GetDeviceInfo(i, out var info); i++)
         {
             if (!info.IsEnabled) continue;
             result.Add(new AudioOutputDevice(i, info.Name, info.IsDefault));
         }
+        // Append device 0 = BASS "No sound" as an explicit STREAMING-ONLY option: the mixer runs
+        // on BASS's own clock and the encoder still captures the pristine 44.1k signal, while NOTHING
+        // touches the OS audio stack (no Windows resampling / APO effects). Pick it when you don't
+        // monitor locally (you'll hear the stream itself). Switching to it works live like any device.
+        result.Add(new AudioOutputDevice(0, NoOutputDeviceName, false));
         return result;
     }
 
