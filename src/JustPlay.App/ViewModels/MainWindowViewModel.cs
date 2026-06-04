@@ -27,6 +27,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     };
 
     private readonly PlaybackController _controller;
+    private readonly IAudioEngine _engine;
     private readonly IMetadataReader _metadata;
     private readonly IMetadataWriter _writer;
     private readonly ITrackAnalysisService _analysis;
@@ -66,6 +67,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel(
         PlaybackController controller,
+        IAudioEngine engine,
         IMetadataReader metadata,
         IMetadataWriter writer,
         ITrackAnalysisService analysis,
@@ -74,6 +76,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         IBroadcastService broadcast)
     {
         _controller = controller;
+        _engine = engine;
         _metadata = metadata;
         _writer = writer;
         _analysis = analysis;
@@ -108,6 +111,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             StreamServers.Add(p);
         if (s.SelectedStreamServerId is { } selectedId)
             _selectedStreamServer = StreamServers.FirstOrDefault(p => p.Id == selectedId);
+
+        // ── Output device: populate list, select saved device (or default) ────
+        // Enumerate devices BEFORE setting _settingsHydrated so the initial
+        // SelectedOutputDevice assignment doesn't trigger a premature PersistSettings.
+        PopulateOutputDevices(s.OutputDeviceName);
 
         _settingsHydrated = true;
 
@@ -483,6 +491,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         WriteDjComment     = WriteDjComment,
         AnalysisThreads    = AnalysisThreads,
         UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
+        // Output device — persist by name so it survives a reboot (index can change).
+        OutputDeviceName = SelectedOutputDevice?.Name,
         // Streaming profiles — persist the full list and selected profile id.
         StreamServers          = [.. StreamServers],
         SelectedStreamServerId = SelectedStreamServer?.Id,
@@ -622,6 +632,65 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>True when the profile list is empty — drives the "No servers yet" hint in the panel.</summary>
     public bool HasNoStreamServers => StreamServers.Count == 0;
+
+    // ── Output device selection ───────────────────────────────────────────
+    // Populated once at startup (PopulateOutputDevices) from IAudioEngine.GetOutputDevices().
+    // Users change the selection via a ComboBox in the Tweaks panel; the On…Changed
+    // partial calls SetOutputDevice on the engine and persists the name.
+    //
+    // We use ObservableCollection<AudioOutputDevice> so the ComboBox's ItemsSource
+    // reflects the list without needing a converter. The list is NOT refreshed live
+    // (devices can appear/disappear), but the UI is only shown in the Tweaks panel which
+    // is opened manually — a session restart picks up new/removed devices automatically.
+
+    /// <summary>The available audio output devices, populated at startup.</summary>
+    public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = [];
+
+    /// <summary>True when no output devices were found (BASS not yet initialised, running headless).
+    /// Drives the "No output devices found" hint in the Tweaks panel.</summary>
+    public bool HasNoOutputDevices => OutputDevices.Count == 0;
+
+    /// <summary>The currently selected output device, or null if none is selected / list is empty.</summary>
+    [ObservableProperty]
+    private AudioOutputDevice? _selectedOutputDevice;
+
+    partial void OnSelectedOutputDeviceChanged(AudioOutputDevice? value)
+    {
+        if (!_settingsHydrated || value is null) return;
+        _engine.SetOutputDevice(value.Index);
+        PersistSettings();
+    }
+
+    /// <summary>
+    /// Populate <see cref="OutputDevices"/> from the engine and set the initial selection.
+    /// Called once from the constructor (before _settingsHydrated = true) so no premature
+    /// PersistSettings is triggered.
+    /// <paramref name="savedName"/> is the device name from settings (null = use default).
+    /// </summary>
+    private void PopulateOutputDevices(string? savedName)
+    {
+        var devices = _engine.GetOutputDevices();
+        foreach (var d in devices)
+            OutputDevices.Add(d);
+
+        if (OutputDevices.Count == 0) return;
+
+        // Match by name first (stable across reboots), fall back to the default device,
+        // then the first device in the list if no default is flagged.
+        AudioOutputDevice? match = null;
+        if (savedName is not null)
+            match = OutputDevices.FirstOrDefault(d => d.Name == savedName);
+        match ??= OutputDevices.FirstOrDefault(d => d.IsDefault);
+        match ??= OutputDevices[0];
+
+        // Use the generated property so the toolkit doesn't warn about direct field access.
+        // OnSelectedOutputDeviceChanged is guarded by _settingsHydrated (still false here),
+        // so this assignment is silent — no PersistSettings call is triggered.
+        SelectedOutputDevice = match;
+
+        // Apply the resolved device to the engine at startup (explicit, not via the On…Changed).
+        _engine.SetOutputDevice(match.Index);
+    }
 
     /// <summary>The profile currently open in the editor, or null when none is selected.</summary>
     [ObservableProperty]

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
+             xmlns:models="using:JustPlay.Core.Models"
              x:Class="JustPlay.App.Controls.TweaksPanel"
              x:DataType="vm:MainWindowViewModel">
 
@@ -12,6 +13,54 @@
       design's tweaks-panel.jsx: Theme palette · Stage toggles · Right-panel default.
     -->
     <UserControl.Styles>
+        <!--
+          ComboBox for output-device selection — dark frosted look matching the panel.
+          We override the key template parts so the default Fluent light popup doesn't bleed through.
+
+          Strategy: style the outer ComboBox control + the popup's presenter and items so
+          everything is dark. Belt-and-braces overrides keep Fluent from painting light boxes.
+        -->
+        <Style Selector="ComboBox.device-picker">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="PlaceholderForeground" Value="#73FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker:pointerover /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+        <!-- Popup background: dark frosted, matching the panel itself -->
+        <Style Selector="ComboBox.device-picker /template/ Popup Border">
+            <Setter Property="Background" Value="#F01a1828"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <!-- Each item in the dropdown -->
+        <Style Selector="ComboBox.device-picker ComboBoxItem">
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker ComboBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker ComboBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker ComboBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF"/>
+        </Style>
+
         <!-- Section heading + row label -->
         <Style Selector="TextBlock.tweak-section">
             <Setter Property="Foreground" Value="#73FFFFFF"/>
@@ -124,8 +173,8 @@
             Background="#F01a1828"
             CornerRadius="0,14,14,0"
             BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
-        <ScrollViewer Padding="22,18,22,18">
-            <StackPanel Spacing="14" ClipToBounds="False" Width="276">
+        <ScrollViewer Padding="22,16,22,16">
+            <StackPanel Spacing="9" ClipToBounds="False" Width="276">
 
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
@@ -157,7 +206,7 @@
                 <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
                            Foreground="#73FFFFFF" LetterSpacing="2"/>
 
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
 
                 <TextBlock Classes="tweak-section" Text="STAGE"/>
                 <Grid ColumnDefinitions="*,Auto">
@@ -176,7 +225,7 @@
                                   OnContent="" OffContent=""/>
                 </Grid>
 
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
 
                 <TextBlock Classes="tweak-section" Text="ANALYSIS"/>
                 <Grid ColumnDefinitions="*,Auto">
@@ -217,7 +266,39 @@
                             Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="8"/>
                 </StackPanel>
 
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,6"/>
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
+
+                <!-- ── AUDIO: output device selection ─────────────────── -->
+                <TextBlock Classes="tweak-section" Text="AUDIO"/>
+                <TextBlock Classes="tweak-label" Text="Output device"/>
+                <!--
+                  ComboBox is bound to OutputDevices (ObservableCollection<AudioOutputDevice>).
+                  SelectedItem two-way binds to SelectedOutputDevice on the VM.
+                  The DataTemplate uses x:DataType="models:AudioOutputDevice" for compiled bindings.
+                  The "No devices" placeholder is shown when the list is empty (no BASS init yet
+                  or running headless — very unlikely in normal use).
+                -->
+                <ComboBox Classes="device-picker"
+                          ItemsSource="{Binding OutputDevices}"
+                          SelectedItem="{Binding SelectedOutputDevice}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:AudioOutputDevice">
+                            <TextBlock Text="{Binding Name}"
+                                       Foreground="#E6FFFFFF"
+                                       FontSize="12"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <!-- Hint shown when the list is empty (edge case — BASS not yet initialised).
+                     In normal use there is always at least one device; this label is a
+                     safety net. HasNoOutputDevices is a plain bool property on the VM. -->
+                <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                           Text="No output devices found."
+                           IsVisible="{Binding HasNoOutputDevices}"
+                           Margin="0,2,0,0"/>
+
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
 
                 <TextBlock Classes="tweak-section" Text="RIGHT PANEL"/>
                 <TextBlock Classes="tweak-label" Text="Default tab"/>

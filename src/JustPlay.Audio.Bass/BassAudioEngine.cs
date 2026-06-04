@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using JustPlay.Core.Abstractions;
 using ManagedBass;
 using ManagedBass.Mix;
+using AudioOutputDevice = JustPlay.Core.Models.AudioOutputDevice;
 using CorePlaybackState = JustPlay.Core.Models.PlaybackState;
 
 namespace JustPlay.Audio.Bass;
@@ -34,6 +36,13 @@ public sealed class BassAudioEngine : IAudioEngine
     // attaches to this handle; exposing it as internal so BassBroadcastService
     // (same assembly) can read it without a public API change.
     private int _mixer;
+
+    // ── Active output device index (updated by SetOutputDevice) ─────────
+    // Initialised to -1 (not yet set). After Bass.Init() in the constructor,
+    // the current device is effectively whatever Bass.Init() used (device 0 =
+    // default). We leave _currentDevice as -1 until the first explicit
+    // SetOutputDevice call or startup hydration so the VM can tell "not yet applied".
+    private int _currentDevice = -1;
 
     // ── Per-track decode source (one at a time) ───────────────────────────
     private int _source;
@@ -75,6 +84,81 @@ public sealed class BassAudioEngine : IAudioEngine
     // The broadcast service (same assembly) reads this to attach the LAME encoder.
     // Zero until the first Load() call. After that it is valid for the process lifetime.
     internal int OutputChannel => _mixer;
+
+    // ── IAudioEngine: output device selection ─────────────────────────────
+
+    /// <inheritdoc/>
+    public int CurrentOutputDevice => _currentDevice;
+
+    /// <summary>
+    /// Enumerate enabled, non-"No sound" BASS output devices.
+    ///
+    /// Enumeration API (verified against managedbass.github.io/api):
+    ///   Bass.GetDeviceInfo(int device, out DeviceInfo info) → bool
+    ///   Returns false when <paramref name="device"/> is out of range.
+    ///   Index 0 is always "No sound" — skip it.
+    ///   DeviceInfo.IsEnabled: device is present and ready.
+    ///   DeviceInfo.IsDefault: this is the system default output.
+    ///   DeviceInfo.Name: human-readable name string.
+    /// </summary>
+    public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
+    {
+        var result = new List<AudioOutputDevice>();
+        // Start at 1; index 0 is BASS's "No sound" virtual device.
+        for (var i = 1; ManagedBass.Bass.GetDeviceInfo(i, out var info); i++)
+        {
+            if (!info.IsEnabled) continue;
+            result.Add(new AudioOutputDevice(i, info.Name, info.IsDefault));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Move the persistent mixer output to a different BASS device.
+    ///
+    /// ManagedBass API calls (verified against managedbass.github.io/api):
+    ///   Bass.Init(int device, ...) — initialise a device; Errors.Already = already done, treat as success.
+    ///   Bass.ChannelSetDevice(int handle, int device) — move a channel (including a mixer stream)
+    ///     to a different already-initialised device. The channel continues playing on the new device.
+    ///
+    /// STREAM-CONTINUITY NOTE:
+    ///   The Icecast encoder (BASSenc, via BassBroadcastService) is attached to _mixer as a DSP
+    ///   callback. BASSenc reads PCM from the mixer via the DSP chain — it is NOT tied to the
+    ///   device the mixer outputs to. Moving the mixer's device with ChannelSetDevice changes
+    ///   WHERE the audio is heard but does NOT remove or disrupt the encoder DSP. The stream
+    ///   therefore continues uninterrupted across a device switch. This is by design in BASS:
+    ///   a channel's DSP/FX chain is channel-scoped, not device-scoped.
+    ///   (Ref: un4seen BASS docs — BASS_ChannelSetDevice; BASSenc manual — encoder as channel DSP.)
+    ///
+    /// On failure the engine logs and keeps the previous device rather than throwing.
+    /// </summary>
+    public void SetOutputDevice(int index)
+    {
+        // Initialise the target device if it hasn't been initialised yet in this process.
+        // Passing -1 for freq uses BASS's default sample rate.
+        if (!ManagedBass.Bass.Init(index))
+        {
+            var err = ManagedBass.Bass.LastError;
+            if (err != Errors.Already)
+            {
+                Console.WriteLine($"[SetOutputDevice] Bass.Init({index}) failed: {err}");
+                return;
+            }
+        }
+
+        // Move the persistent mixer to the new device. The mixer keeps playing and the
+        // encoder DSP (if attached) is not disturbed — see doc comment above.
+        if (_mixer != 0)
+        {
+            if (!ManagedBass.Bass.ChannelSetDevice(_mixer, index))
+            {
+                Console.WriteLine($"[SetOutputDevice] ChannelSetDevice({_mixer}, {index}) failed: {ManagedBass.Bass.LastError}");
+                return;
+            }
+        }
+
+        _currentDevice = index;
+    }
 
     public CorePlaybackState State => _state;
 

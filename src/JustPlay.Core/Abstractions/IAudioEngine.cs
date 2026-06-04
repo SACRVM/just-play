@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using JustPlay.Core.Models;
 
 namespace JustPlay.Core.Abstractions;
@@ -52,4 +53,39 @@ public interface IAudioEngine : IDisposable
     /// offline analysis).
     /// </summary>
     void GetFftBands(Span<float> destination);
+
+    // ── Output device selection ───────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the list of enabled audio output devices currently available to
+    /// the engine, ordered by BASS device index. Index 0 ("No sound") is excluded.
+    ///
+    /// The list is enumerated fresh on each call (devices may appear/disappear
+    /// at runtime), so callers should not cache it across user interactions.
+    /// </summary>
+    IReadOnlyList<AudioOutputDevice> GetOutputDevices();
+
+    /// <summary>
+    /// Move audio output to the device identified by <paramref name="index"/>
+    /// (the <see cref="AudioOutputDevice.Index"/> value from <see cref="GetOutputDevices"/>).
+    ///
+    /// Implementation contract:
+    ///   • If the target device is not yet initialised, <c>Bass.Init(index)</c> is
+    ///     called first; <c>Errors.Already</c> is treated as success.
+    ///   • The persistent mixer channel is then moved to the new device via
+    ///     <c>Bass.ChannelSetDevice(_mixer, index)</c>. Because the Icecast encoder
+    ///     (BassBroadcastService) is attached to the mixer, NOT to the device,
+    ///     moving the mixer's output device does NOT affect the encoder — the stream
+    ///     continues seamlessly across a device switch. See implementation comment
+    ///     in BassAudioEngine for the BASS_Mixer / BASSenc interaction.
+    ///   • On failure the engine logs and keeps the previous device; it does NOT throw
+    ///     (the user might be unplugging headphones mid-session).
+    /// </summary>
+    void SetOutputDevice(int index);
+
+    /// <summary>
+    /// The BASS device index currently used for output.
+    /// -1 means "not yet set" (engine just constructed, before the first explicit selection).
+    /// </summary>
+    int CurrentOutputDevice { get; }
 }

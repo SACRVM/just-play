@@ -60,6 +60,19 @@ public sealed record UserSettings
     /// </summary>
     public bool WriteDjComment { get; init; } = false;
 
+    // ── Audio output device ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The <see cref="AudioOutputDevice.Name"/> of the preferred audio output device,
+    /// as returned by <c>Bass.GetDeviceInfo</c>. Null means "use the system default".
+    ///
+    /// Persisted by NAME (not by BASS index) because the index can change across
+    /// reboots when devices are added or removed; the name is stable for a given
+    /// piece of hardware. On startup, the engine matches by name and falls back to
+    /// the system default if the saved device is no longer present (e.g. unplugged).
+    /// </summary>
+    public string? OutputDeviceName { get; init; } = null;
+
     // ── JUST STREAM — Icecast broadcast profiles (S1 config foundation) ──────────────
     // These fields are populated by the future JUST STREAM streaming UI (S2+).
     // Loading an old settings.json that lacks these fields is safe — the JSON deserializer
