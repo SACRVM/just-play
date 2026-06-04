@@ -492,6 +492,11 @@
             <Setter Property="Foreground" Value="#A6FFFFFF"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <!-- Kill the default focus adorner (Avalonia draws a dashed rectangle on keyboard
+                 focus; FluentTheme's Button template has no focus visual of its own — verified
+                 against release/12.0.3 Button.xaml). Icon buttons don't need a focus ring, and
+                 the heart was grabbing initial focus → a stray "highlighted" look at startup. -->
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
         </Style>
         <Style Selector="Button.iconbtn:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1AFFFFFF"/>

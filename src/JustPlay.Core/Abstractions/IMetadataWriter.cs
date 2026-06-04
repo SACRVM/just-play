@@ -52,6 +52,13 @@ public sealed record TagWrite
     /// energy prefix + preserved user text) and passes it here. Null = leave comment untouched.
     /// </summary>
     public string? Comment { get; init; }
+
+    /// <summary>
+    /// When non-null, set or clear the POPM favourite flag. True → write POPM rating 255
+    /// ("loved", the Windows Media Player convention); false → remove the POPM frame.
+    /// Null = leave the POPM frame untouched.
+    /// </summary>
+    public bool? Favorite { get; init; }
 }
 
 /// <summary>

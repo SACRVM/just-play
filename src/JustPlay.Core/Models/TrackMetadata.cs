@@ -47,6 +47,13 @@ public sealed record TrackMetadata
     /// </summary>
     public TrackAnalysisState? StoredAnalysis { get; init; }
 
+    /// <summary>
+    /// Whether this track is marked as a favourite, read from the ID3v2 POPM
+    /// (Popularimeter) frame. True when the POPM rating byte is &gt; 0. For non-ID3
+    /// formats that carry no POPM equivalent the field is silently false (no crash).
+    /// </summary>
+    public bool IsFavorite { get; init; }
+
     /// <summary>Fallback display name when no title tag exists (the file name).</summary>
     public required string FallbackName { get; init; }
 

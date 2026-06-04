@@ -43,6 +43,7 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 TaggedEnergy = taggedEnergy,
                 StoredAnalysis = AnalysisStateCodec.TryParse(TagCustomFields.Get(file, "JUSTPLAY")),
                 CoverArt = FirstPicture(tag),
+                IsFavorite = ReadPopm(file),
             };
         }
         catch
@@ -62,4 +63,36 @@ public sealed class TagLibMetadataReader : IMetadataReader
         var data = pics[0].Data;
         return data.Count > 0 ? data.Data : null;
     }
+
+    /// <summary>
+    /// Read the POPM (Popularimeter) rating from the file's ID3v2 tag.
+    /// Returns true when rating &gt; 0 (any non-zero value means "liked").
+    /// Falls back gracefully to false for non-ID3 formats or missing frames.
+    /// Also handles Xiph RATING comment fields (FLAC/OGG) where a value of
+    /// "5" (1–5 stars) or "255" (0–255 raw) is treated as "liked".
+    /// </summary>
+    private static bool ReadPopm(TagLib.File file)
+    {
+        // ID3v2: POPM frame — the standard path for MP3.
+        if (file.GetTag(TagLib.TagTypes.Id3v2, false) is TagLib.Id3v2.Tag id3)
+        {
+            var frame = TagLib.Id3v2.PopularimeterFrame.Get(id3, PopmUser, false);
+            return frame is not null && frame.Rating > 0;
+        }
+
+        // Xiph (FLAC/OGG): non-standard RATING field as a courtesy fallback.
+        // Vorbis comment RATING is often 0-5 (star scale) or 0-255 (raw byte).
+        if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment xiph)
+        {
+            var raw = xiph.GetFirstField("RATING");
+            if (!string.IsNullOrEmpty(raw) &&
+                int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var r))
+                return r > 0;
+        }
+
+        return false;
+    }
+
+    /// <summary>POPM user identifier — an ASCII string stored in the ID3 frame to namespace the rating.</summary>
+    internal const string PopmUser = "JustPlay";
 }

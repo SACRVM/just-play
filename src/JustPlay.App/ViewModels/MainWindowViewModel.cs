@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
@@ -1188,6 +1189,33 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
+    /// <summary>
+    /// Toggle-favourite callback wired onto every <see cref="TrackViewModel"/>.
+    /// Runs the file I/O on a background thread (Task.Run) so a slow network drive
+    /// never freezes the UI — mirrors the same pattern as WriteTags / FillMissing.
+    /// On success the metadata is re-read and the VM refreshed via Dispatcher.Post.
+    /// </summary>
+    private Task ToggleFavoriteForTrack(TrackViewModel tvm, bool liked)
+        => Task.Run(() =>
+        {
+            var write = new TagWrite { Favorite = liked };
+            _controller.WithFileReleased(tvm.Model, () =>
+            {
+                try
+                {
+                    _writer.Write(tvm.Model.FilePath, write);
+                    tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+                    Dispatcher.UIThread.Post(() => tvm.IsFavorite = tvm.Model.Metadata?.IsFavorite ?? false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Favorite write FAIL] {tvm.Model.FilePath}: {ex.GetType().Name}: {ex.Message}");
+                    // Revert the optimistic flip the command applied in TrackViewModel.ToggleFavorite.
+                    Dispatcher.UIThread.Post(() => tvm.IsFavorite = !liked);
+                }
+            });
+        });
+
     /// <summary>Write all of a track's detected values into its tags (used by auto-write-on-analyse).
     /// Goes through the same Persist path, so decisions are stamped Applied and the conflict flags
     /// clear. Not wrapped in undo capture — auto-writes aren't a discrete user action.</summary>
@@ -1259,6 +1287,146 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
+    // ---- Three-dots list menu commands ----------------------------------
+    //
+    // HarmonicSort, ClearList, WriteAllTags are surfaced from the "…" menu
+    // in the transport bar. They operate on the full Tracks collection, not
+    // just the current selection.
+
+    /// <summary>
+    /// Reorder the queue for the smoothest possible mix using
+    /// <see cref="HarmonicSequencer"/> (greedy nearest-neighbour + 2-opt).
+    ///
+    /// <para>Start track: the currently-playing track if it is in the queue,
+    /// otherwise the first track (index 0). The start track is always pinned to
+    /// position 0 in the new order so playback is not disrupted.</para>
+    ///
+    /// <para>Unanalyzed tracks (no Key, BPM, or Energy) are moved to the END of the
+    /// queue in their original relative order — they cannot contribute to a
+    /// compatibility score.</para>
+    ///
+    /// <para>v1 — Key + Tempo + Energy axes only; beat fingerprint is null because
+    /// <see cref="BeatFingerprintExtractor"/> is not yet wired into
+    /// <see cref="ITrackAnalysisService"/>. Anti-monotony / energy-arc shaping is
+    /// planned for a later iteration once this baseline is validated on Chloe's ear.</para>
+    ///
+    /// <para>Runs the sequencer on a background thread (it is O(n²) but queues are
+    /// small). The collection reorder is marshalled back to the UI thread.</para>
+    /// </summary>
+    [RelayCommand]
+    private Task HarmonicSort()
+    {
+        if (Tracks.Count < 2) return Task.CompletedTask;
+
+        // Snapshot on the UI thread before going async.
+        var snapshot = Tracks.ToList();
+
+        // The pinned start is the current track if it is in the queue; otherwise 0.
+        var startIndex = Current is { } cur ? snapshot.IndexOf(cur) : 0;
+        if (startIndex < 0) startIndex = 0;
+
+        return Task.Run(() =>
+        {
+            // Build TrackFeatures for each track.
+            // v1: Fingerprint = null — beat axis scores 0 weight (excluded + renormalised).
+            var features = snapshot
+                .Select(tvm =>
+                {
+                    var a = tvm.Model.Analysis;
+                    if (a is null) return new TrackFeatures(null, null, null, null);
+                    return new TrackFeatures(a.Bpm, a.Key, a.Energy, Fingerprint: null);
+                })
+                .ToList();
+
+            var result = HarmonicSequencer.Sequence(features, startIndex);
+
+            // Reorder the ObservableCollection on the UI thread.
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Build the reordered list from the original snapshot.
+                var ordered = result.Order.Select(i => snapshot[i]).ToList();
+
+                // Apply in-place: match what ApplySort does (Clear + re-add).
+                Tracks.Clear();
+                foreach (var tvm in ordered) Tracks.Add(tvm);
+                RecalcIndexes();
+                RaiseTrackListChanged();
+            });
+        });
+    }
+
+    /// <summary>
+    /// Empty the queue. If the current track is playing, stops playback first
+    /// (same behaviour as the existing drag-off path when the last track is removed).
+    /// Mirrors <c>ClearTracksCommand</c> (Ctrl+Delete / internal), surfaced here
+    /// for the "…" list menu without needing a duplicate private method.
+    /// </summary>
+    [RelayCommand]
+    private void ClearList()
+    {
+        _controller.Stop();
+        Tracks.Clear();
+        SetCurrent(null);
+        _shuffleHistory.Clear();
+        _shufflePos = -1;
+        RaiseTrackListChanged();
+    }
+
+    /// <summary>
+    /// Remove duplicate tracks from the queue, keeping the first occurrence of each.
+    /// Duplicate key = normalised "Artist | Title" (case-insensitive) so the same song
+    /// added twice — even from different file copies / folders — collapses to one, while
+    /// distinct remixes (different titles) survive. Falls back to the file path when
+    /// artist+title are both empty. The currently-playing track is always kept.
+    /// </summary>
+    [RelayCommand]
+    private void RemoveDuplicates()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (Current is not null) seen.Add(DuplicateKey(Current));
+
+        var dupes = new List<TrackViewModel>();
+        foreach (var t in Tracks)
+        {
+            if (ReferenceEquals(t, Current)) continue;   // never drop the playing track
+            if (!seen.Add(DuplicateKey(t))) dupes.Add(t);
+        }
+
+        if (dupes.Count == 0) return;
+        foreach (var d in dupes) Tracks.Remove(d);
+        RaiseTrackListChanged();
+    }
+
+    /// <summary>Normalised dedup key: "ArtistTitle" (case-insensitive), or the file path
+    /// when both are empty. Title falls back to the filename, so two copies of the same file in
+    /// different folders still collapse, while different remixes keep distinct titles.</summary>
+    private static string DuplicateKey(TrackViewModel t)
+    {
+        var artist = (t.Artist ?? string.Empty).Trim();
+        var title = (t.Title ?? string.Empty).Trim();
+        if (artist.Length > 0 || title.Length > 0)
+            return artist + "" + title;
+        return t.Model.FilePath ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Write detected BPM / Key / Energy tags for every track in the queue —
+    /// the same fields and consent logic as the per-selection "Write meta tags"
+    /// in the context menu, just scoped to ALL tracks rather than the selection.
+    ///
+    /// <para>Runs on a background thread via <see cref="Task.Run"/> (file I/O on
+    /// a network drive can block for hundreds of ms — the exact past freeze bug
+    /// that prompted the off-thread pattern). The undo batch is populated so a
+    /// single Ctrl+Z reverts the whole write.</para>
+    /// </summary>
+    [RelayCommand]
+    private Task WriteAllTags()
+    {
+        // Snapshot the full queue on the UI thread before going async.
+        var all = Tracks.ToList();
+        return Task.Run(() => WriteSelectedTags(all, fillMissingOnly: false));
+    }
+
     // ---- File intake ----------------------------------------------------
 
     /// <summary>Add dropped files/folders. Tracks appear instantly; tags load in the background.</summary>
@@ -1278,7 +1446,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var added = new List<TrackViewModel>();
         foreach (var f in files.Where(IsAudio).OrderBy(f => f, NaturalComparer.Instance))
         {
-            var tvm = new TrackViewModel(new Track(f)) { AddOrder = _addSeq++ };
+            var tvm = new TrackViewModel(new Track(f))
+            {
+                AddOrder = _addSeq++,
+                ToggleFavoriteCallback = ToggleFavoriteForTrack,
+            };
             Tracks.Add(tvm);
             added.Add(tvm);
         }

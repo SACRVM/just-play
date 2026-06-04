@@ -38,6 +38,9 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         if (write.Comment is { } comment)
             tag.Comment = comment.Length == 0 ? null : comment;
 
+        if (write.Favorite is { } favorite)
+            SetPopm(file, favorite);
+
         file.Save();
     }
 
@@ -74,4 +77,41 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// <summary>MusicalKey → ID3v2 TKEY string ("A","C#","Am","F#m", …).</summary>
     private static string ToId3Key(MusicalKey key)
         => PitchNames[((key.PitchClass % 12) + 12) % 12] + (key.Mode == KeyMode.Minor ? "m" : "");
+
+    /// <summary>
+    /// Set or clear the favourite rating in the file's tag system.
+    /// MP3 / ID3v2: POPM frame, rating 255 (liked) or frame removed (not liked).
+    /// FLAC / Xiph: non-standard RATING field ("5" liked, removed when not liked).
+    /// Other formats: silently ignored (no crash).
+    /// </summary>
+    private static void SetPopm(TagLib.File file, bool liked)
+    {
+        // ID3v2 path — POPM is the standard rating frame for MP3.
+        if (file.GetTag(TagLib.TagTypes.Id3v2, liked) is TagLib.Id3v2.Tag id3)
+        {
+            if (liked)
+            {
+                // create:true — creates the frame if missing.
+                var frame = TagLib.Id3v2.PopularimeterFrame.Get(id3, TagLibMetadataReader.PopmUser, true)!;
+                frame.Rating = 255; // 255 = "loved" / 5-star in WMP convention.
+            }
+            else
+            {
+                // create:false — returns null when the frame doesn't exist.
+                var frame = TagLib.Id3v2.PopularimeterFrame.Get(id3, TagLibMetadataReader.PopmUser, false);
+                if (frame is not null) id3.RemoveFrame(frame);
+            }
+            return;
+        }
+
+        // Xiph fallback for FLAC/OGG.
+        if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment xiph)
+        {
+            if (liked)
+                xiph.SetField("RATING", "5");
+            else
+                xiph.RemoveField("RATING");
+        }
+        // Other formats (MP4/AAC, WMA, …): no standard rating tag — silently do nothing.
+    }
 }

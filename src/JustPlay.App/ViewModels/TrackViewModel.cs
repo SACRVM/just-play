@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Models;
 
 namespace JustPlay.App.ViewModels;
@@ -15,6 +16,13 @@ public sealed partial class TrackViewModel : ObservableObject
     private Bitmap? _cover;
     private bool _coverResolved;
 
+    /// <summary>
+    /// Injected by <see cref="MainWindowViewModel"/> so the toggle-favourite
+    /// command can run its file I/O there (where the writer and file-release
+    /// logic live) without TrackViewModel needing a direct reference to them.
+    /// </summary>
+    public Func<TrackViewModel, bool, System.Threading.Tasks.Task>? ToggleFavoriteCallback { get; set; }
+
     public TrackViewModel(Track model) => Model = model;
 
     public Track Model { get; }
@@ -23,6 +31,27 @@ public sealed partial class TrackViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowIndexNumber))]
     [NotifyPropertyChangedFor(nameof(ShowPlayBars))]
     private bool _isCurrent;
+
+    /// <summary>
+    /// Whether the track is marked as a favourite. Populated from the POPM tag on
+    /// load via <see cref="Refresh"/>; toggled by <see cref="ToggleFavoriteCommand"/>,
+    /// which writes the change to the file on a background thread.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isFavorite;
+
+    /// <summary>Toggle the favourite flag and persist it to the POPM tag (off the UI thread).
+    /// The property is flipped optimistically so the heart responds instantly; the callback
+    /// reverts it if the file write fails.</summary>
+    [RelayCommand]
+    private System.Threading.Tasks.Task ToggleFavorite()
+    {
+        var newState = !IsFavorite;
+        IsFavorite = newState; // optimistic — immediate visual feedback
+        if (ToggleFavoriteCallback is { } cb)
+            return cb(this, newState);
+        return System.Threading.Tasks.Task.CompletedTask;
+    }
 
     /// <summary>1-based position in the current Tracks list (assigned by the shell VM).</summary>
     [ObservableProperty]
@@ -203,6 +232,10 @@ public sealed partial class TrackViewModel : ObservableObject
     public void Refresh()
     {
         _coverResolved = false;
+        // Sync the favourite flag from the freshly-read metadata (POPM tag).
+        // Assign via the generated property so the toolkit's change-notification fires
+        // correctly (direct field access triggers MVVMTK0034 and skips the setter path).
+        IsFavorite = Model.Metadata?.IsFavorite ?? false;
         OnPropertyChanged(string.Empty); // refresh every binding on this object
     }
 }

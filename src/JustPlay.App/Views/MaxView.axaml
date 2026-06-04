@@ -270,6 +270,47 @@
 
         <!-- Tweaks-panel styles (swatch / swatchbtn / tweak-*) now travel with the
              Controls/TweaksPanel control. -->
+
+        <!--
+          "…" list-menu flyout — dark skin for MenuFlyoutPresenter and its MenuItems.
+
+          Background #F01a1828: the app's deep-purple card dark at ~94% opacity, same
+          shade as the window base (BgTo) so the flyout reads as a native part of the UI.
+          Border hairline: same 1/8-opacity white as the ContextMenu separator.
+          MenuItem hover/press: translucent white overlay (same pattern as ListBoxItem).
+
+          Scoped to MenuFlyoutPresenter (not ContextMenu/Presenter) so these styles only
+          target the three-dots flyout, not the queue row context menu.
+        -->
+        <Style Selector="MenuFlyoutPresenter">
+            <Setter Property="Background" Value="#F01a1828"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+        <!-- MenuItem inside a flyout presenter: light text, generous hit area. -->
+        <Style Selector="MenuFlyoutPresenter MenuItem">
+            <Setter Property="Foreground" Value="#D9FFFFFF"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="MinWidth" Value="180"/>
+        </Style>
+        <Style Selector="MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="MenuFlyoutPresenter MenuItem:pressed /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <!-- Separator inside the flyout: thin hairline with breathing room. -->
+        <Style Selector="MenuFlyoutPresenter Separator">
+            <Setter Property="Margin" Value="8,4"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -406,7 +447,56 @@
                                              VerticalAlignment="Center"/>
                         <Border Width="1" Height="18" Background="#1FFFFFFF"/>
                         <controls:LikeButton/>
-                        <Button Classes="iconbtn" ToolTip.Tip="More">
+                        <!--
+                          "…" list-menu button: opens a dark-styled MenuFlyout on click.
+                          Three actions: Harmonic Sort (north-star sequencer), Clear list,
+                          Write tags to all.
+
+                          Placement=TopEdgeAlignedRight: flyout appears above the button
+                          (transport bar is docked at the bottom — opening upward avoids
+                          the flyout being clipped off-screen).
+
+                          MenuFlyout styling: MenuFlyoutPresenter and MenuItem styles
+                          are declared in UserControl.Styles (above) rather than inline,
+                          because MenuFlyout.Styles is not a valid property in Avalonia 12.
+                        -->
+                        <Button Classes="iconbtn" Name="MoreButton" ToolTip.Tip="List menu">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="TopEdgeAlignedRight">
+                                    <!--
+                                      Harmonic Sort — north-star headline action.
+                                      Sequences the whole queue for the smoothest mix using
+                                      pairwise Key+Tempo+Energy compatibility scores
+                                      (HarmonicSequencer: greedy nearest-neighbour + 2-opt).
+                                      v1: beat fingerprint is not yet wired; anti-monotony /
+                                      energy-arc shaping is the planned v2 refinement.
+                                    -->
+                                    <MenuItem Header="Harmonic Sort"
+                                              Command="{Binding HarmonicSortCommand}"/>
+                                    <Separator/>
+                                    <!--
+                                      Remove duplicates — collapse repeated tracks (same Artist|Title,
+                                      case-insensitive) to one; the playing track is kept and distinct
+                                      remixes (different titles) survive.
+                                    -->
+                                    <MenuItem Header="Remove duplicates"
+                                              Command="{Binding RemoveDuplicatesCommand}"/>
+                                    <!--
+                                      Clear list — empties the queue and stops playback.
+                                    -->
+                                    <MenuItem Header="Clear list"
+                                              Command="{Binding ClearListCommand}"/>
+                                    <!--
+                                      Write tags to all — writes BPM/Key/Energy detected values
+                                      into file tags for every track in the queue (same consent
+                                      path as the context-menu "Write meta tags", just scoped
+                                      to the whole queue). Runs off the UI thread via Task.Run;
+                                      populates the undo batch so Ctrl+Z reverts the whole write.
+                                    -->
+                                    <MenuItem Header="Write tags to all"
+                                              Command="{Binding WriteAllTagsCommand}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
                             <Path Width="14" Height="4" Stretch="None"
                                   Fill="{Binding $parent[Button].Foreground}"
                                   Data="M 1,2 m -1.5,0 a 1.5,1.5 0 1 0 3,0 a 1.5,1.5 0 1 0 -3,0 M 7,2 m -1.5,0 a 1.5,1.5 0 1 0 3,0 a 1.5,1.5 0 1 0 -3,0 M 13,2 m -1.5,0 a 1.5,1.5 0 1 0 3,0 a 1.5,1.5 0 1 0 -3,0"/>
