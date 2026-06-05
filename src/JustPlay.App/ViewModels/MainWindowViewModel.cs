@@ -35,6 +35,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IMetadataWriter _writer;
     private readonly ITrackAnalysisService _analysis;
     private readonly ISettingsService _settings;
+
+    /// <summary>Title-bar update badge state + background polling. Bound by MaxView/MiniView.</summary>
+    public UpdateViewModel Update { get; }
     private readonly IThemeService _themes;
     private readonly IBroadcastService _broadcast;
     private readonly DispatcherTimer _timer;
@@ -84,7 +87,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ITrackAnalysisService analysis,
         ISettingsService settings,
         IThemeService themes,
-        IBroadcastService broadcast)
+        IBroadcastService broadcast,
+        UpdateViewModel update)
     {
         _controller = controller;
         _engine = engine;
@@ -94,6 +98,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _settings = settings;
         _themes = themes;
         _broadcast = broadcast;
+        Update = update;
 
         // Subscribe to broadcast state changes; marshal to UI thread.
         _broadcast.StateChanged += OnBroadcastServiceStateChanged;

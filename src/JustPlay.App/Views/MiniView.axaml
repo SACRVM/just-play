@@ -37,6 +37,15 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
+                        <!-- Update badge — hidden until a newer release lands (Update.IsAvailable). -->
+                        <Button Classes="cap update" Click="OnUpdateBadge"
+                                IsVisible="{Binding Update.IsAvailable}"
+                                ToolTip.Tip="{Binding Update.Tooltip}">
+                            <Path Stretch="Uniform" Width="15" Height="15"
+                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
+                                  StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                  Data="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/>
+                        </Button>
                         <!-- Expand back to Max — single big box, centered 14×14 -->
                         <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand">
                             <Path Stretch="None" Width="14" Height="14"

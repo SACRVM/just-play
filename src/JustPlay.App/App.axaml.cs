@@ -59,6 +59,12 @@ public partial class App : Application
                     window.Activate();
                     _ = vm.OpenIncomingAsync(paths, addOnly);
                 }));
+
+            // ── Auto-update (v0.2) ───────────────────────────────────────────
+            // Begin background release checks for THIS build's version. No-op when the user
+            // opted out; surfaces the green title-bar badge when a newer release is found.
+            var appVersion = typeof(App).Assembly.GetName().Version ?? new System.Version(0, 0, 0);
+            vm.Update.Start(appVersion);
         }
 
         base.OnFrameworkInitializationCompleted();

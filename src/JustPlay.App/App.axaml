@@ -218,6 +218,19 @@
             <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
         </Style>
         <!--
+          Update badge: the Discord-style "download to a bar" glyph that appears (IsVisible bound to
+          Update.IsAvailable) when a newer release lands. Green by design — universally reads as
+          "ready / go", and it's the one cap button that wants to draw the eye. The glyph Stroke
+          binds to the button Foreground, so the green here colours it; hover brightens to a lighter
+          green. A soft green glow makes it pop against the dark chrome without shouting.
+        -->
+        <Style Selector="Button.cap.update">
+            <Setter Property="Foreground" Value="#3BD671"/>
+        </Style>
+        <Style Selector="Button.cap.update:pointerover">
+            <Setter Property="Foreground" Value="#5BE88A"/>
+        </Style>
+        <!--
           The close button sits in the TOP-RIGHT corner of the window. Without this corner
           radius its hover/pressed background paints a square red — which sticks out past
           the card's rounded top-right corner (CornerRadius=14 on the Card Border). Giving
@@ -258,6 +271,26 @@
         </Style>
         <Style Selector="Button.dialog-close:pressed /template/ ContentPresenter">
             <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <!--
+          "ghost" variant — a de-emphasised dialog action (e.g. "Ignore this version" sitting to the
+          left of the primary). Transparent until hover, muted text, tighter padding so a long label
+          doesn't crowd the primary actions. Pair with Classes="dialog-close ghost".
+        -->
+        <Style Selector="Button.dialog-close.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#80FFFFFF"/>
+            <Setter Property="Padding" Value="6,9"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style Selector="Button.dialog-close.ghost /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.dialog-close.ghost:pointerover">
+            <Setter Property="Foreground" Value="#CCFFFFFF"/>
+        </Style>
+        <Style Selector="Button.dialog-close.ghost:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!--

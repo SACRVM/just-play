@@ -89,5 +89,22 @@ public sealed record UserSettings
     /// </summary>
     public string? SelectedStreamServerId { get; init; } = null;
 
+    // ── Auto-update (v0.2) ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Poll GitHub Releases on startup + on an interval and surface the title-bar update
+    /// badge when a newer build lands. On by default — a music player that silently rots on
+    /// an old version is a worse default than one that offers the update (the user still
+    /// chooses to install). Set false to opt out of all network checks.
+    /// </summary>
+    public bool CheckForUpdates { get; init; } = true;
+
+    /// <summary>
+    /// A release version the user explicitly chose to skip ("Ignore this version"). The badge
+    /// stays hidden for this version and anything older; a NEWER release still shows. Null means
+    /// nothing is ignored. Stored as a 3-part "Major.Minor.Build" string.
+    /// </summary>
+    public string? IgnoredUpdateVersion { get; init; } = null;
+
     public static readonly UserSettings Defaults = new();
 }

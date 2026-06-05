@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using Avalonia;
 using JustPlay.Analysis;
 using JustPlay.App.KeyDetection;
@@ -9,6 +10,7 @@ using JustPlay.App.ViewModels;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Playback;
+using JustPlay.Core.Updates;
 using JustPlay.Metadata;
 using JustPlay.ML;
 using Microsoft.Extensions.DependencyInjection;
@@ -188,6 +190,20 @@ sealed class Program
         // can share the same instance.
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
+
+        // Auto-update (v0.2). One shared HttpClient backs both the API check and the installer
+        // download. The checker is Core (transport-only); the download + installer hand-off is the
+        // App-layer UpdateInstaller. Owner/repo match the public GitHub releases.
+        services.AddSingleton(_ =>
+        {
+            var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("JustPlay-Updater");
+            return http;
+        });
+        services.AddSingleton<IUpdateChecker>(sp => new GitHubUpdateChecker(
+            sp.GetRequiredService<HttpClient>(), "chloe-dream", "just-play",
+            log: m => Console.WriteLine($"[Update] {m}")));
+        services.AddSingleton<UpdateViewModel>();
 
         // Core logic.
         services.AddSingleton<PlaybackController>();

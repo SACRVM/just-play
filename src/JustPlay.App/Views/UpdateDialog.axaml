@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JustPlay.App.Views.UpdateDialog"
+        Title="Update available"
+        Width="500" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <!--
+      Update-available dialog. Frameless rounded card matching the other dialogs (About, Transfer,
+      InputDialog). Returns an UpdateDialog.Choice via ShowDialog — see UpdateDialog.AskAsync.
+      Three actions: primary install/open, "Ignore this version", and Later (Esc / card-dismiss).
+    -->
+    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
+            BoxShadow="0 18 54 0 #B3000000">
+        <Panel>
+            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
+            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
+            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
+            <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+
+            <StackPanel Margin="28,26,28,22" Spacing="0">
+
+                <!-- Header: green download glyph + title -->
+                <StackPanel Orientation="Horizontal" Spacing="11" VerticalAlignment="Center">
+                    <Path Width="20" Height="20" Stretch="Uniform"
+                          Stroke="#3BD671" StrokeThickness="2"
+                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                          Data="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/>
+                    <TextBlock x:Name="TitleText" Text="Update available"
+                               FontSize="15" FontWeight="SemiBold" Foreground="White"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Versions -->
+                <Grid ColumnDefinitions="Auto,14,Auto" RowDefinitions="Auto,Auto"
+                      Margin="0,16,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Installed"
+                               FontSize="12" Foreground="#80FFFFFF"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" x:Name="InstalledText"
+                               FontSize="12" Foreground="#CCFFFFFF"/>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Available"
+                               FontSize="12" Foreground="#80FFFFFF" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="2" x:Name="AvailableText"
+                               FontSize="12" FontWeight="SemiBold" Foreground="#3BD671" Margin="0,4,0,0"/>
+                </Grid>
+
+                <!-- Explanation (self-update vs browser fallback) -->
+                <TextBlock x:Name="ExplainText" TextWrapping="Wrap"
+                           FontSize="12.5" Foreground="#B3FFFFFF" LineHeight="18"
+                           Margin="0,16,0,0"/>
+
+                <!-- Release notes (optional) -->
+                <Border x:Name="NotesBox" Margin="0,14,0,0"
+                        Background="#0DFFFFFF" CornerRadius="10" Padding="14,11"
+                        IsVisible="False">
+                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
+                        <TextBlock x:Name="NotesText" TextWrapping="Wrap"
+                                   FontSize="12" Foreground="#CCFFFFFF" LineHeight="17"/>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- Actions: secondary "ignore" pulled to the LEFT (destructive-ish, de-emphasised);
+                     the two main actions grouped on the right with the primary last. The Grid stops
+                     the three pills from overflowing the card the way a single right-aligned row did. -->
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,20,0,0">
+                    <Button Grid.Column="0" Classes="dialog-close ghost" Content="Ignore this version" Click="OnIgnore"/>
+                    <Button Grid.Column="2" Classes="dialog-close" Content="Later" Click="OnLater" Margin="0,0,10,0"/>
+                    <Button Grid.Column="3" Classes="dialog-close" x:Name="PrimaryButton"
+                            Content="Update &amp; restart" Click="OnPrimary"/>
+                </Grid>
+            </StackPanel>
+        </Panel>
+    </Border>
+</Window>
