@@ -114,10 +114,12 @@ public sealed partial class TrackViewModel : ObservableObject
         ?? MusicalKey.TryParse(Model.Metadata?.TaggedKey)?.Camelot
         ?? Model.Metadata?.TaggedKey ?? "";
 
-    public string EnergyText =>
-        Model.Analysis?.Energy is int e ? e.ToString() : "";
+    /// <summary>Detected energy if we have it, else whatever the tag claimed — mirrors
+    /// <see cref="Bpm"/>/<see cref="KeyText"/> so all three value columns fill together (from the
+    /// tags) in the metadata pass, instead of energy lagging a step behind into the analysis pass.</summary>
+    public int? Energy => Model.Analysis?.Energy ?? Model.Metadata?.TaggedEnergy;
 
-    public int? Energy => Model.Analysis?.Energy;
+    public string EnergyText => Energy is int e ? e.ToString() : "";
 
     // ── Detected vs. claimed: conflict ("bold") computation ──────────────────
     // The displayed value above is always "detected wins, tag as fallback". A cell is
