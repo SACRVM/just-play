@@ -1115,6 +1115,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Bpm = bpm == FieldAction.Write ? a.Bpm : null,
             Key = key == FieldAction.Write ? a.Key : null,
             Energy = energy == FieldAction.Write ? a.Energy : null,
+            // ReplayGain rides along with every write (it's the mp3gain/MIK replacement): the
+            // REPLAYGAIN_TRACK_GAIN/_PEAK fields are non-destructive standards that don't collide
+            // with BPM/key/energy, so they need no per-field Write/Keep decision — whenever we have
+            // a loudness measurement, stamp it. Null (un-analysed) simply writes nothing.
+            ReplayGainDb = a.ReplayGainDb,
+            Peak = a.Peak,
             State = state,
             Comment = newComment,
         };
@@ -1183,6 +1189,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Key = MusicalKey.TryParse(md?.TaggedKey),
             Energy = md?.TaggedEnergy,
             State = md?.StoredAnalysis,
+            // ReplayGain prior value comes from the last stamped blob (the REPLAYGAIN_* tag fields
+            // aren't read into Metadata): restore the previously-written gain/peak, or remove the
+            // fields if none was stored. Mirrors how State is captured.
+            ReplayGainDb = md?.StoredAnalysis?.Detected.ReplayGainDb,
+            Peak = md?.StoredAnalysis?.Detected.Peak,
             // Capture the raw comment (before any DJ prefix is prepended) so Undo can restore it
             // verbatim. When the feature is off, CommentCaptured stays false → Restore skips it.
             Comment = WriteDjComment ? md?.Comment : null,

@@ -46,6 +46,10 @@ public static class AnalysisStateCodec
             FpSt = fp is not null ? FloatsToBase64(fp.ScaleTransform)  : null,
             FpCt = fp is not null ? FloatsToBase64(fp.CyclicTempogram) : null,
             FpDa = fp?.Danceability,
+            // Loudness / ReplayGain (v5+).
+            Lufs = state.Detected.LoudnessLufs,
+            Rg   = state.Detected.ReplayGainDb,
+            Pk   = state.Detected.Peak,
         };
         return JsonSerializer.Serialize(dto, AnalysisStateJsonContext.Default.AnalysisStateDto);
     }
@@ -93,6 +97,9 @@ public static class AnalysisStateCodec
                     KeyConfidence = dto.KeyConf,
                     Energy = dto.Energy,
                     Fingerprint = fingerprint,
+                    LoudnessLufs = dto.Lufs,
+                    ReplayGainDb = dto.Rg,
+                    Peak = dto.Pk,
                 },
                 Original = original,
                 BpmDecision = Decode(dto.ActBpm),
@@ -182,6 +189,10 @@ internal sealed class AnalysisStateDto
     [JsonPropertyName("fpst")] public string? FpSt { get; set; }
     [JsonPropertyName("fpct")] public string? FpCt { get; set; }
     [JsonPropertyName("fpda")] public float?  FpDa { get; set; }
+    // Loudness / ReplayGain (v5+).
+    [JsonPropertyName("lufs")] public double? Lufs { get; set; }
+    [JsonPropertyName("rg")]   public double? Rg   { get; set; }
+    [JsonPropertyName("pk")]   public double? Pk   { get; set; }
 }
 
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

@@ -59,6 +59,18 @@ public sealed record TagWrite
     /// Null = leave the POPM frame untouched.
     /// </summary>
     public bool? Favorite { get; init; }
+
+    /// <summary>
+    /// When non-null, write this value as the <c>REPLAYGAIN_TRACK_GAIN</c> custom field
+    /// (e.g. <c>"-6.35 dB"</c>). Null = leave the field untouched.
+    /// </summary>
+    public double? ReplayGainDb { get; init; }
+
+    /// <summary>
+    /// When non-null, write this value as the <c>REPLAYGAIN_TRACK_PEAK</c> custom field
+    /// (e.g. <c>"0.988553"</c>). Null = leave the field untouched.
+    /// </summary>
+    public double? Peak { get; init; }
 }
 
 /// <summary>
@@ -95,4 +107,14 @@ public sealed record TagRestore
     /// is true will <see cref="IMetadataWriter.Restore"/> touch the comment field.
     /// </summary>
     public bool CommentCaptured { get; init; }
+
+    /// <summary>
+    /// Previous <c>REPLAYGAIN_TRACK_GAIN</c> value; null → remove the field on restore.
+    /// </summary>
+    public double? ReplayGainDb { get; init; }
+
+    /// <summary>
+    /// Previous <c>REPLAYGAIN_TRACK_PEAK</c> value; null → remove the field on restore.
+    /// </summary>
+    public double? Peak { get; init; }
 }

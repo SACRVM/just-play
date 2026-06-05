@@ -41,6 +41,14 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         if (write.Favorite is { } favorite)
             SetPopm(file, favorite);
 
+        if (write.ReplayGainDb is { } g)
+            TagCustomFields.Set(file, "REPLAYGAIN_TRACK_GAIN",
+                g.ToString("0.00", CultureInfo.InvariantCulture) + " dB");
+
+        if (write.Peak is { } pk)
+            TagCustomFields.Set(file, "REPLAYGAIN_TRACK_PEAK",
+                pk.ToString("0.000000", CultureInfo.InvariantCulture));
+
         file.Save();
     }
 
@@ -65,6 +73,18 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             TagCustomFields.Set(file, "JUSTPLAY", AnalysisStateCodec.Serialize(state));
         else
             TagCustomFields.Remove(file, "JUSTPLAY");
+
+        if (restore.ReplayGainDb is { } rg)
+            TagCustomFields.Set(file, "REPLAYGAIN_TRACK_GAIN",
+                rg.ToString("0.00", CultureInfo.InvariantCulture) + " dB");
+        else
+            TagCustomFields.Remove(file, "REPLAYGAIN_TRACK_GAIN");
+
+        if (restore.Peak is { } pk)
+            TagCustomFields.Set(file, "REPLAYGAIN_TRACK_PEAK",
+                pk.ToString("0.000000", CultureInfo.InvariantCulture));
+        else
+            TagCustomFields.Remove(file, "REPLAYGAIN_TRACK_PEAK");
 
         // Only touch the comment if it was explicitly captured before the write; null CommentCaptured
         // means the DJ comment feature was off — leave the user's comment alone.

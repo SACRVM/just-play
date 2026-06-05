@@ -180,9 +180,9 @@ public class BeatFingerprintCodecTests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void CurrentVersion_Is_Four()
+    public void CurrentVersion_Is_Five()
     {
-        Assert.Equal(4, TrackAnalysisState.CurrentVersion);
+        Assert.Equal(5, TrackAnalysisState.CurrentVersion);
     }
 
     // -------------------------------------------------------------------------

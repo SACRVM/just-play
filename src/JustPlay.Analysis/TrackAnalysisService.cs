@@ -29,15 +29,17 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
     private readonly IAudioDecoder _decoder;
     private readonly IKeyDetector _key;
     private readonly IEnergyDetector _energy;
+    private readonly ILoudnessDetector _loudness;
     // Stateless — one instance is fine for the process lifetime.
     private readonly TempoOctaveCorrector _octaveCorrector = new();
 
-    public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key, IEnergyDetector energy)
+    public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key, IEnergyDetector energy, ILoudnessDetector loudness)
     {
         _bpm = bpm;
         _decoder = decoder;
         _key = key;
         _energy = energy;
+        _loudness = loudness;
     }
 
     public Task<AnalysisResult> AnalyzeAsync(
@@ -92,6 +94,15 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             else if (result.Bpm != bpm)
             {
                 // Energy failed but BPM was corrected — report the updated BPM.
+                progress?.Report(result);
+            }
+
+            // Loudness / ReplayGain — reuses the same 11 kHz buffer, no extra I/O.
+            ct.ThrowIfCancellationRequested();
+            if (_loudness.Detect(energyAudio, ct) is { } loud)
+            {
+                var gain = ReplayGain.TrackGainDb(loud.IntegratedLufs);
+                result = result with { LoudnessLufs = loud.IntegratedLufs, ReplayGainDb = gain, Peak = loud.Peak };
                 progress?.Report(result);
             }
 

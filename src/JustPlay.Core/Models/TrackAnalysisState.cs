@@ -21,7 +21,11 @@ public sealed record TrackAnalysisState
     // added to the normal analysis pass and persisted in the blob. Old blobs (v < 4) are
     // missing the fingerprint → trigger lazy re-analysis on next drop so Harmonic Sort's
     // Beat axis (weight 0.40) becomes populated.
-    public const int CurrentVersion = 4;
+    //
+    // v5 (2026-06-05): loudness/ReplayGain (BS.1770 LUFS + ReplayGain 2.0 gain + sample peak)
+    // added to the analysis pass and persisted. Old blobs (v < 5) lack it → lazy re-analysis
+    // on next drop populates it, enabling REPLAYGAIN_TRACK_GAIN / _PEAK tag writes.
+    public const int CurrentVersion = 5;
 
     public int Version { get; init; } = CurrentVersion;
 

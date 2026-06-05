@@ -26,6 +26,19 @@ public interface IEnergyDetector
 }
 
 /// <summary>
+/// Measures BS.1770 / EBU R128 integrated loudness and linear sample peak.
+/// Used to compute the ReplayGain 2.0 track gain written to <c>REPLAYGAIN_TRACK_GAIN</c>.
+/// </summary>
+public interface ILoudnessDetector
+{
+    /// <summary>
+    /// Returns the integrated loudness and linear peak for the decoded audio,
+    /// or <c>null</c> if the audio is too short, empty, or silent.
+    /// </summary>
+    LoudnessResult? Detect(DecodedAudio audio, CancellationToken ct = default);
+}
+
+/// <summary>
 /// Orchestrates the full analysis of one track: decode once, fan out to the detectors,
 /// and report progress as partial results land.
 /// </summary>

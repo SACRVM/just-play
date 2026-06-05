@@ -24,6 +24,26 @@ public sealed record AnalysisResult
     public int? Energy { get; init; }
 
     /// <summary>
+    /// BS.1770 / EBU R128 K-weighted gated integrated loudness in LUFS.
+    /// Null when the loudness analysis has not yet run or the track was silent.
+    /// </summary>
+    public double? LoudnessLufs { get; init; }
+
+    /// <summary>
+    /// ReplayGain 2.0 track gain in dB: the adjustment to bring the track to −18 LUFS.
+    /// Positive = turn up; negative = turn down. Null when <see cref="LoudnessLufs"/> is null.
+    /// Written as <c>REPLAYGAIN_TRACK_GAIN</c> (e.g. <c>"-6.35 dB"</c>).
+    /// </summary>
+    public double? ReplayGainDb { get; init; }
+
+    /// <summary>
+    /// Maximum absolute sample value (linear, 0..~1) in the decoded buffer.
+    /// Sample-domain peak (not true-peak / inter-sample). Null when loudness is null.
+    /// Written as <c>REPLAYGAIN_TRACK_PEAK</c> (e.g. <c>"0.988553"</c>).
+    /// </summary>
+    public double? Peak { get; init; }
+
+    /// <summary>
     /// Tempo-invariant beat/groove fingerprint (Scale Transform + Cyclic Tempogram + DFA).
     /// Computed by <c>JustPlay.Analysis.BeatFingerprintExtractor</c> during the normal
     /// analysis pass (from the same 11 kHz decode used for energy/BPM-correction).

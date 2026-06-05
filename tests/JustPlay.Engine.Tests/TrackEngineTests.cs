@@ -293,7 +293,8 @@ public sealed class TrackEngineTests : IDisposable
                     new StubBpmDetector(128.0),
                     new StubAudioDecoder(MakeCMajorSamples(EnergySampleRate)),
                     new ChromagramKeyDetector(),
-                    new SpectralEnergyDetector()),
+                    new SpectralEnergyDetector(),
+                    new Bs1770LoudnessDetector()),
                 null!,
                 new TagLibMetadataWriter()));
     }
@@ -307,7 +308,8 @@ public sealed class TrackEngineTests : IDisposable
                     new StubBpmDetector(128.0),
                     new StubAudioDecoder(MakeCMajorSamples(EnergySampleRate)),
                     new ChromagramKeyDetector(),
-                    new SpectralEnergyDetector()),
+                    new SpectralEnergyDetector(),
+                    new Bs1770LoudnessDetector()),
                 new TagLibMetadataReader(),
                 null!));
     }
@@ -330,10 +332,11 @@ public sealed class TrackEngineTests : IDisposable
             energySampleRate: EnergySampleRate, keySampleRate: KeySampleRate);
 
         var analysisService = new TrackAnalysisService(
-            bpm:     new StubBpmDetector(fixedBpm),
-            decoder: decoder,
-            key:     new ChromagramKeyDetector(),
-            energy:  new SpectralEnergyDetector());
+            bpm:      new StubBpmDetector(fixedBpm),
+            decoder:  decoder,
+            key:      new ChromagramKeyDetector(),
+            energy:   new SpectralEnergyDetector(),
+            loudness: new Bs1770LoudnessDetector());
 
         return new TrackEngine(analysisService, new TagLibMetadataReader(), new TagLibMetadataWriter());
     }

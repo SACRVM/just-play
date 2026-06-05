@@ -181,6 +181,7 @@ sealed class Program
             sp.GetRequiredService<HpcpKeyDetector>(),
             sp.GetRequiredService<ISettingsService>()));
         services.AddSingleton<IEnergyDetector, SpectralEnergyDetector>();
+        services.AddSingleton<ILoudnessDetector, Bs1770LoudnessDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 
         // Theming + user preferences. SettingsService reads settings.json
