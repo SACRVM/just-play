@@ -550,6 +550,13 @@
                                     -->
                                     <MenuItem Header="Open playlist…" Click="OnOpenPlaylist"/>
                                     <MenuItem Header="Export playlist…" Click="OnExportPlaylist"/>
+                                    <!-- Transfer ▸ : bundle the whole set (audio files numbered in set order
+                                         + the .m3u8) to share / upload / carry to other DJ tools — as a single
+                                         ZIP, or copied into a folder (e.g. straight onto a USB stick). -->
+                                    <MenuItem Header="Transfer">
+                                        <MenuItem Header="As ZIP…" Click="OnExportZip"/>
+                                        <MenuItem Header="To folder…" Click="OnExportFolder"/>
+                                    </MenuItem>
                                 </MenuFlyout>
                             </Button.Flyout>
                             <Path Width="14" Height="4" Stretch="None"
@@ -588,6 +595,14 @@
                             <TextBlock Text="{Binding Current.Index, StringFormat='TRACK {0}'}"
                                        Foreground="#80FFFFFF" FontSize="10" FontWeight="SemiBold" LetterSpacing="3"
                                        IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                            <!-- Set-wide tempo span (min–max BPM over the queue). Hidden while
+                                 analysing — the span flickers as rows resolve and the line runs long.
+                                 Visibility = track playing AND settled multi-track span (ShowBpmRange). -->
+                            <TextBlock Text="·" Foreground="#59FFFFFF" FontSize="10" VerticalAlignment="Center"
+                                       IsVisible="{Binding ShowBpmRange}"/>
+                            <TextBlock Text="{Binding BpmRangeText}"
+                                       Foreground="#80FFFFFF" FontSize="10" FontWeight="SemiBold" LetterSpacing="3"
+                                       IsVisible="{Binding ShowBpmRange}"/>
                         </StackPanel>
                         <TextBlock Text="{Binding Current.Title, FallbackValue='Drop a track to begin'}"
                                    FontSize="30" FontWeight="Bold"
@@ -853,8 +868,10 @@
                                                            Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
 
-                                            <!-- GENRE (from MP3 tag, may be empty — column simply renders blank then) -->
-                                            <TextBlock Grid.Column="2" Text="{Binding Model.Metadata.Genre, FallbackValue=''}"
+                                            <!-- GENRE (from MP3 tag, may be empty — column simply renders blank then).
+                                                 Bound via the GenreText VM property, NOT Model.Metadata.Genre directly,
+                                                 so it refreshes on Refresh() with the rest of the row (see TrackViewModel). -->
+                                            <TextBlock Grid.Column="2" Text="{Binding GenreText}"
                                                        FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
 

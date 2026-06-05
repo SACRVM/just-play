@@ -1,5 +1,8 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -240,13 +243,84 @@ public partial class MaxView : UserControl
         var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Export playlist",
-            SuggestedFileName = "JustPlay set",
+            SuggestedFileName = DefaultSetName(),
             DefaultExtension = "m3u8",
             FileTypeChoices = [new FilePickerFileType("M3U8 playlist") { Patterns = ["*.m3u8"] }],
         });
         if (file?.TryGetLocalPath() is { } path)
             await vm.ExportPlaylistM3uAsync(path);
     }
+
+    // Export the whole set as a self-contained .zip: the audio files (numbered in set order) plus an
+    // .m3u8 that lists them — one file to share / upload / carry on a stick into other DJ software.
+    private async void OnExportZip(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.Tracks.Count == 0) return;
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export set as ZIP (audio + playlist)",
+            SuggestedFileName = DefaultSetName(),
+            DefaultExtension = "zip",
+            FileTypeChoices = [new FilePickerFileType("ZIP archive") { Patterns = ["*.zip"] }],
+        });
+        if (file?.TryGetLocalPath() is not { } path) return;
+
+        // Name the .m3u8 inside the zip after the archive the user chose ("Summer Set.zip" → "Summer Set.m3u8").
+        var name = Path.GetFileNameWithoutExtension(path);
+        await RunTransfer(owner, vm, $"{name}  ·  ZIP",
+            (progress, ct) => vm.ExportPlaylistZipAsync(path, name, progress, ct));
+    }
+
+    // Export the set as loose files copied into a folder (audio numbered in set order + the .m3u8).
+    // We pick a destination, ASK what the set folder should be called, and create that subfolder inside
+    // the chosen location — so the set stays self-contained rather than dumping loose files.
+    private async void OnExportFolder(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.Tracks.Count == 0) return;
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Choose where to copy the set",
+            AllowMultiple = false,
+        });
+        if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } parent) return;
+
+        var name = await InputDialog.AskAsync(owner, "Name the set folder", DefaultSetName());
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        await RunTransfer(owner, vm, $"{name}  ·  folder",
+            (progress, ct) => vm.ExportPlaylistFolderAsync(Path.Combine(parent, name), name, progress, ct));
+    }
+
+    // Open the progress dialog, run the export with progress + cancellation wired to it, then close the
+    // dialog when the Task settles. Dismiss closes the window early but the Task runs on; Cancel trips
+    // the token and the Core writer removes its partial output.
+    private static async Task RunTransfer(Window owner, MainWindowViewModel vm, string target,
+        Func<IProgress<(int done, int total)>, CancellationToken, Task<int>> run)
+    {
+        var tvm = new TransferViewModel { Target = target };
+        tvm.Report(0, vm.Tracks.Count); // initial estimate; Core reports the exact total on the first file
+        var win = new TransferWindow { DataContext = tvm };
+        win.Show(owner);
+
+        var progress = new Progress<(int done, int total)>(p => tvm.Report(p.done, p.total));
+        try
+        {
+            await run(progress, tvm.Token);
+        }
+        catch (OperationCanceledException) { /* user cancelled — Core already cleaned up the partial output */ }
+        catch { /* swallow other I/O errors; the dialog just closes */ }
+        finally
+        {
+            win.Close(); // no-op if the window was already dismissed / closed by Cancel
+        }
+    }
+
+    /// <summary>Default export name: JustPlay_YEAR-MONTH-DAY_HH-MM (no extension — pickers add it).</summary>
+    private static string DefaultSetName() => $"JustPlay_{DateTime.Now:yyyy-MM-dd_HH-mm}";
 
     // Window min/max/close now live in the shared WindowControls control.
 }

@@ -67,6 +67,13 @@ public sealed partial class TrackViewModel : ObservableObject
     public string Artist =>
         string.IsNullOrWhiteSpace(Model.Metadata?.Artist) ? "—" : Model.Metadata!.Artist!;
 
+    /// <summary>Genre from the file's tag. Exposed as a VM property (rather than binding the column
+    /// directly to <c>Model.Metadata.Genre</c>) so it refreshes with the rest of the row on
+    /// <see cref="Refresh"/>. A direct three-level binding through Track/TrackMetadata — neither of
+    /// which raises change notifications — only updated lazily when the row was recycled by list
+    /// virtualization, so genre appeared to "lazy load" while title/artist showed immediately.</summary>
+    public string GenreText => Model.Metadata?.Genre ?? "";
+
     /// <summary>True while a BPM/key/energy analysis pass is in flight for this row — drives the
     /// rotating spinner in the index column (in place of the number / play-bars).</summary>
     public bool IsAnalyzing => Model.AnalysisStatus == AnalysisStatus.Running;

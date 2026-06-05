@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -38,6 +39,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IBroadcastService _broadcast;
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
+
+    // User-seek reconciliation: when the user scrubs, the native engine takes a moment to
+    // actually report the new position. Until it lands near the target, the timer must NOT
+    // write the stale pre-seek position back to the slider (that's the "jumps back, then
+    // forward" flicker). _pendingSeek holds the target; _pendingSeekTicks bounds the wait so
+    // a never-reached target can't freeze the thumb forever.
+    private double? _pendingSeek;
+    private int _pendingSeekTicks;
 
     // ── Shuffle state ────────────────────────────────────────────────────
     // A "bag shuffle" with history: every track plays once per cycle (no
@@ -299,7 +308,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanFillMissing));
     }
 
-    [ObservableProperty] private TrackViewModel? _current;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowBpmRange))]
+    private TrackViewModel? _current;
     [ObservableProperty] private bool _isMini;
     [ObservableProperty] private bool _isPlaying;
     [ObservableProperty] private double _positionSeconds;
@@ -436,6 +447,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAnalyzing))]
     [NotifyPropertyChangedFor(nameof(AnalyzingText))]
+    [NotifyPropertyChangedFor(nameof(BpmRangeText))]
+    [NotifyPropertyChangedFor(nameof(ShowBpmRange))]
     private int _analyzingCount;
 
     /// <summary>True while any track is being analysed — shows the header badge and disables
@@ -544,6 +557,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public string TrackCountText => Tracks.Count == 1 ? "1 TRACK" : $"{Tracks.Count} TRACKS";
+
+    /// <summary>Tempo span of the whole set — min–max BPM across every track with a known BPM
+    /// (analysed or tagged). Empty unless at least TWO tracks have a BPM (none or only one → no
+    /// span, per design). A single distinct value collapses to just that value ("128 BPM").</summary>
+    public string BpmRangeText
+    {
+        get
+        {
+            var count = 0;
+            double min = double.MaxValue, max = double.MinValue;
+            foreach (var t in Tracks)
+            {
+                if (t.Bpm is { } b && b > 0)
+                {
+                    count++;
+                    if (b < min) min = b;
+                    if (b > max) max = b;
+                }
+            }
+            if (count < 2) return "";
+            int lo = (int)Math.Round(min), hi = (int)Math.Round(max);
+            return lo == hi ? $"{lo} BPM" : $"{lo}–{hi} BPM";
+        }
+    }
+
+    /// <summary>The BPM-range chip on the NOW PLAYING line shows only with a track playing, a known
+    /// multi-track span, and no analysis in flight — while analysing it would flicker as each row
+    /// resolves and run the line too long, so it stays hidden until the queue settles.</summary>
+    public bool ShowBpmRange => Current is not null && !IsAnalyzing && BpmRangeText.Length > 0;
 
     // ---- Commands -------------------------------------------------------
 
@@ -920,6 +962,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasTracks));
         OnPropertyChanged(nameof(TrackCountText));
         OnPropertyChanged(nameof(TotalDurationText));
+        OnPropertyChanged(nameof(BpmRangeText));
+        OnPropertyChanged(nameof(ShowBpmRange));
         // Harmonic Sort's CanExecute depends on the queue having ≥ 2 tracks.
         HarmonicSortCommand.NotifyCanExecuteChanged();
     }
@@ -1380,9 +1424,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Snapshot on the UI thread before going async.
         var snapshot = Tracks.ToList();
 
-        // The pinned start is the current track if it is in the queue; otherwise 0.
-        var startIndex = Current is { } cur ? snapshot.IndexOf(cur) : 0;
-        if (startIndex < 0) startIndex = 0;
+        // Pin the currently-playing track as the anchor — you mix OUT of it, so it must
+        // stay first and not get re-sorted under your feet. When nothing is playing (set
+        // prep: drop tracks in, sort), pass -1 so the sequencer picks its own best start
+        // (highest average compatibility) instead of arbitrarily nailing down row 1.
+        var startIndex = Current is { } cur ? snapshot.IndexOf(cur) : -1;
 
         return Task.Run(() =>
         {
@@ -1625,6 +1671,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return Task.Run(() => M3uPlaylist.Write(destPath, entries));
     }
 
+    /// <summary>Export the queue as a self-contained .zip — every audio file (numbered in set order)
+    /// plus an .m3u8 listing them — for sharing / upload / USB-stick handoff into other DJ tools.
+    /// Snapshots on the UI thread, zips off it (copying audio can take a while). <paramref name="playlistName"/>
+    /// names the .m3u8 inside the archive. Returns the number of files written.</summary>
+    public Task<int> ExportPlaylistZipAsync(string destPath, string playlistName,
+        IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
+    {
+        var entries = Tracks.Select(t => new PlaylistBundle.Entry(
+            t.Model.FilePath, t.Model.Metadata?.Duration, BuildPlaylistTitle(t))).ToList();
+        return Task.Run(() => PlaylistBundle.WriteZip(destPath, playlistName, entries, progress, ct), ct);
+    }
+
+    /// <summary>Export the queue into a folder — every audio file (numbered in set order) copied in, plus
+    /// an .m3u8 listing them — the unpacked sibling of <see cref="ExportPlaylistZipAsync"/>, ideal for a
+    /// USB stick. Snapshots on the UI thread, copies off it. Returns the number of files written.</summary>
+    public Task<int> ExportPlaylistFolderAsync(string destFolder, string playlistName,
+        IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
+    {
+        var entries = Tracks.Select(t => new PlaylistBundle.Entry(
+            t.Model.FilePath, t.Model.Metadata?.Duration, BuildPlaylistTitle(t))).ToList();
+        return Task.Run(() => PlaylistBundle.WriteToFolder(destFolder, playlistName, entries, progress, ct), ct);
+    }
+
     private static string BuildPlaylistTitle(TrackViewModel t)
     {
         var artist = (t.Artist ?? string.Empty).Trim();
@@ -1832,8 +1901,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void Tick()
     {
         DurationSeconds = _controller.Duration.TotalSeconds;
+        var pos = _controller.Position.TotalSeconds;
+
+        // Hold the slider at the user's seek target until the engine reports a position near
+        // it — otherwise one tick of stale pre-seek position snaps the thumb backwards. Clear
+        // the hold once we're within tolerance, or after a short timeout as a safety valve.
+        if (_pendingSeek is { } target)
+        {
+            if (Math.Abs(pos - target) <= 0.75 || ++_pendingSeekTicks >= 5)
+                _pendingSeek = null;
+            else
+                return; // keep showing the target; don't write the stale position back
+        }
+
         _suppressSeek = true;
-        PositionSeconds = _controller.Position.TotalSeconds;
+        PositionSeconds = pos;
         _suppressSeek = false;
         OnPropertyChanged(nameof(PositionText));
         OnPropertyChanged(nameof(DurationText));
@@ -1850,6 +1932,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnPositionSecondsChanged(double value)
     {
         if (_suppressSeek) return; // change came from the timer, not the user
+        _pendingSeek = value;      // hold the slider here until the engine catches up (see Tick)
+        _pendingSeekTicks = 0;
         _controller.Position = TimeSpan.FromSeconds(value);
     }
 

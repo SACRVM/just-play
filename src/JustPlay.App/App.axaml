@@ -240,6 +240,27 @@
         </Style>
 
         <!--
+          Shared dialog button — pill, dark translucent, hover lift. Used by the frameless dialog
+          windows (About, Transfer, InputDialog). Overriding the pointerover/pressed ContentPresenter
+          background keeps FluentTheme's accent from leaking through (the documented custom-button quirk).
+        -->
+        <Style Selector="Button.dialog-close">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="28,9"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.dialog-close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2EFFFFFF"/>
+        </Style>
+        <Style Selector="Button.dialog-close:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+
+        <!--
           Primary play button: vertical cyan→pink gradient, layered inset bevel + outer rings
           + pink glow, hover scales up. Faithful port of CtrlButton(primary=true) in player.jsx.
         -->

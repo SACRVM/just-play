@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using JustPlay.App.ViewModels;
 
@@ -34,6 +35,24 @@ public partial class MainWindow : Window
         DragDrop.AddDropHandler(this, OnDrop);
         DragDrop.AddDragOverHandler(this, OnDragOver);
         DataContextChanged += OnDataContextChanged;
+
+        // Space is ALWAYS play/pause (unless typing or the settings overlay is open). Registered in the
+        // TUNNEL phase so it fires BEFORE the focused control — otherwise a focused button (e.g. the "…"
+        // list-menu button) would treat Space as a click and open its flyout. See OnSpaceKey.
+        AddHandler(KeyDownEvent, OnSpaceKey, RoutingStrategies.Tunnel);
+    }
+
+    // Global Space → play/pause. Dialog windows (About/Transfer/Input) are separate focus roots and an
+    // open flyout/menu is its own popup root, so this handler never steals their keys; the TextBox guard
+    // leaves typing alone, and IsTweaksOpen yields to the settings overlay (combos / edit fields there).
+    private void OnSpaceKey(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Space || e.KeyModifiers != KeyModifiers.None) return;
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (FocusManager?.GetFocusedElement() is TextBox) return; // let Space type a space
+        if (vm.IsTweaksOpen) return;                              // settings overlay owns its keys
+        vm.TogglePlayPauseCommand.Execute(null);
+        e.Handled = true;
     }
 
     protected override void OnOpened(EventArgs e)
@@ -176,16 +195,13 @@ public partial class MainWindow : Window
     {
         var hasFiles = e.DataTransfer?.Contains(DataFormat.File) == true;
         e.DragEffects = hasFiles ? DragDropEffects.Copy : DragDropEffects.None;
-        Console.WriteLine($"[DragOver] formats=[{string.Join(",", e.DataTransfer?.Formats.Select(f => f.Identifier) ?? Array.Empty<string>())}] hasFiles={hasFiles}");
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        Console.WriteLine($"[Drop] received, formats=[{string.Join(",", e.DataTransfer?.Formats.Select(f => f.Identifier) ?? Array.Empty<string>())}]");
-        if (ViewModel is not { } vm) { Console.WriteLine("[Drop] no ViewModel"); return; }
+        if (ViewModel is not { } vm) return;
 
         var items = e.DataTransfer?.TryGetFiles();
-        Console.WriteLine($"[Drop] items count = {items?.Length ?? -1}");
         if (items is null) return;
 
         var paths = items
@@ -194,8 +210,10 @@ public partial class MainWindow : Window
             .Select(p => p!)
             .ToList();
 
-        Console.WriteLine($"[Drop] resolved paths = {paths.Count}");
+        // Route like the file-association / double-click path: a dropped .m3u8/.m3u playlist
+        // REPLACES the queue (it's a complete set), plain audio files are ADDED without
+        // hijacking playback (addOnly). OpenIncomingAsync handles the playlist-vs-audio split.
         if (paths.Count > 0)
-            await vm.AddPathsAsync(paths);
+            await vm.OpenIncomingAsync(paths, addOnly: true);
     }
 }
