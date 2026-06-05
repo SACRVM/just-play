@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Models;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace JustPlay.App;

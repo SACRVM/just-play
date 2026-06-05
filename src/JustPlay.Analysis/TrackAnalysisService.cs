@@ -95,6 +95,20 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
                 progress?.Report(result);
             }
 
+            // Beat fingerprint (Scale Transform + Cyclic Tempogram + DFA danceability).
+            // Reuses the same 11 kHz decode already in memory — no extra I/O.
+            // The fingerprint is NOT reported as a progress intermediate (it does not update
+            // any visible UI column) — it is silently attached to the final result so it
+            // round-trips through the blob and is available to HarmonicSort.
+            if (energyAudio.Samples?.Length > 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                var fingerprint = BeatFingerprintExtractor.Extract(
+                    energyAudio.Samples, energyAudio.SampleRate, ct);
+                if (fingerprint is not null)
+                    result = result with { Fingerprint = fingerprint };
+            }
+
             return result;
         }, ct);
     }

@@ -16,7 +16,12 @@ public sealed record TrackAnalysisState
     /// </summary>
     // v3 (2026-06-03): BPM tempo-octave correction + DEAM-calibrated energy scale —
     // both change detector output, so previously-stamped tracks re-analyse on next drop.
-    public const int CurrentVersion = 3;
+    //
+    // v4 (2026-06-05): Beat fingerprint (Scale Transform + Cyclic Tempogram + DFA danceability)
+    // added to the normal analysis pass and persisted in the blob. Old blobs (v < 4) are
+    // missing the fingerprint → trigger lazy re-analysis on next drop so Harmonic Sort's
+    // Beat axis (weight 0.40) becomes populated.
+    public const int CurrentVersion = 4;
 
     public int Version { get; init; } = CurrentVersion;
 

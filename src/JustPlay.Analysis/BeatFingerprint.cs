@@ -1,83 +1,11 @@
+using JustPlay.Core.Models;
+
 namespace JustPlay.Analysis;
 
-/// <summary>
-/// Tempo-invariant beat/groove fingerprint for DJ mix-compatibility scoring (north-star P1 foundation).
-///
-/// <para><b>Three-component descriptor:</b></para>
-/// <list type="number">
-///   <item>
-///     <b>Scale Transform vector (ST)</b> — primary groove fingerprint, tempo-invariant by construction.
-///     Pipeline: onset-strength envelope → biased autocorrelation (ACF) → discrete scale/Mellin transform
-///     via the "Mellin-via-exponential-resampling" trick (log-warp the ACF lag axis → linear FFT on
-///     the warped domain → magnitude spectrum) → L2-normalise → compare with cosine distance.
-///     Tempo-invariance: two grooves at different tempi have ACFs that differ by a SCALING of the lag
-///     axis; the Mellin transform maps this scaling to a translation in the log domain, which does not
-///     affect the magnitude spectrum → cosine similarity is invariant to tempo.
-///     This solves the half/double-time confusion for free.
-///     Reference: Holzapfel &amp; Stylianou (ICASSP 2009 / IEEE TASLP 2011);
-///     Panteli &amp; Dixon (ISMIR 2016, paper 000161).
-///     See also: .claude/skills/dj-audio-analysis/references/rhythm-similarity.md §"Scale Transform".
-///   </item>
-///   <item>
-///     <b>Cyclic tempogram vector (CT)</b> — octave-folded tempo periodicity histogram.
-///     From the same onset envelope: autocorrelation-based periodicity scan → fold all tempi
-///     that differ by powers of two into one octave class (analogous to pitch-class chroma).
-///     Low-dimensional and index-friendly. Power-of-two invariant only (not 3:1 ratios).
-///     Reference: Grosche, Müller &amp; Kurth (ICASSP 2010); AudioLabs Tempogram Toolbox.
-///     See also: rhythm-similarity.md §"Cyclic tempogram".
-///   </item>
-///   <item>
-///     <b>DFA danceability scalar (DA)</b> — Streich &amp; Herrera groove/beat-stability term.
-///     10 ms frames → per-frame RMS envelope → integrate (cumulative sum) → Detrended Fluctuation
-///     Analysis over segment lengths τ ≈ 310 ms … 8800 ms (tauMultiplier 1.1).
-///     DFA exponent α characterises scaling of fluctuations with segment length:
-///     α ≈ 0.5 = uncorrelated (noise); α ≈ 1.5 = strongly correlated (steady beat).
-///     Danceability output = reciprocal of mean α (higher = more danceable / rhythmically steady).
-///     Reference: Streich &amp; Herrera (AES 2005); Essentia danceability.cpp.
-///     See also: rhythm-similarity.md §"DFA danceability".
-///   </item>
-/// </list>
-///
-/// <para>
-/// All three are derived from the same shared onset-strength envelope (reused from
-/// <see cref="TempoOctaveCorrector"/> — the identical BuildOnsetEnvelope logic).
-/// No NuGet DSP libraries, no reflection, trim-/AOT-safe. Hand-rolled FFT from <see cref="Fft"/>.
-/// </para>
-///
-/// <para><b>Usage:</b></para>
-/// <code>
-///   var fp = BeatFingerprintExtractor.Extract(samples, sampleRate);
-///   double similarity = BeatFingerprintExtractor.CosineSimilarity(fp1, fp2);
-///   // similarity ∈ [0,1]; 1.0 = identical groove.
-/// </code>
-/// </summary>
-public sealed class BeatFingerprint
-{
-    /// <summary>
-    /// L2-normalised Scale Transform magnitude vector.
-    /// Primary groove descriptor — cosine similarity is the recommended distance.
-    /// </summary>
-    public float[] ScaleTransform { get; }
-
-    /// <summary>
-    /// Cyclic tempogram — octave-folded periodicity histogram, L2-normalised.
-    /// Complement to the Scale Transform; invariant to power-of-two tempo scaling.
-    /// </summary>
-    public float[] CyclicTempogram { get; }
-
-    /// <summary>
-    /// DFA danceability scalar — reciprocal of mean DFA exponent α.
-    /// Range roughly 0–3; higher = more rhythmically steady / danceable.
-    /// </summary>
-    public float Danceability { get; }
-
-    public BeatFingerprint(float[] scaleTransform, float[] cyclicTempogram, float danceability)
-    {
-        ScaleTransform  = scaleTransform;
-        CyclicTempogram = cyclicTempogram;
-        Danceability    = danceability;
-    }
-}
+// BeatFingerprint (the data record) lives in JustPlay.Core.Models so it can be stored
+// on AnalysisResult and round-tripped through AnalysisStateCodec without a circular
+// project dependency. Only the extractor (heavy DSP) lives here in JustPlay.Analysis.
+// See src/JustPlay.Core/Models/BeatFingerprint.cs for the type definition.
 
 /// <summary>
 /// Computes <see cref="BeatFingerprint"/> from decoded mono audio.

@@ -23,5 +23,19 @@ public sealed record AnalysisResult
     /// </summary>
     public int? Energy { get; init; }
 
+    /// <summary>
+    /// Tempo-invariant beat/groove fingerprint (Scale Transform + Cyclic Tempogram + DFA).
+    /// Computed by <c>JustPlay.Analysis.BeatFingerprintExtractor</c> during the normal
+    /// analysis pass (from the same 11 kHz decode used for energy/BPM-correction).
+    /// Null when the track is too short (&lt; ~2 s) or analysis has not yet run.
+    ///
+    /// <para>
+    /// Not shown in the UI directly; used internally for Harmonic Sort's Beat axis
+    /// (weight 0.40 in <c>MixCompatibility.Score</c>).
+    /// Persisted in the JUSTPLAY file tag so it survives reload without re-analysis.
+    /// </para>
+    /// </summary>
+    public BeatFingerprint? Fingerprint { get; init; }
+
     public static readonly AnalysisResult Empty = new();
 }

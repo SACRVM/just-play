@@ -305,6 +305,24 @@
             <Setter Property="Background" Value="#2AFFFFFF"/>
             <Setter Property="CornerRadius" Value="6"/>
         </Style>
+        <!--
+          Reserve the check-mark gutter so toggling "Remove played tracks" never
+          resizes the flyout. FluentTheme's MenuItem template sets PART_ToggleIconPresenter
+          (column 0, SharedSizeGroup="ToggleIcon") to IsVisible="False" INLINE — i.e. a
+          LocalValue, which a plain Style setter cannot beat (the precedence trap noted in
+          CLAUDE.md). Only pseudo-class (StyleTrigger) setters outrank it — which is exactly
+          how FluentTheme's own ":checked:toggle" rule makes the check appear. So we ride the
+          ":toggle" pseudo-class (present whenever ToggleType != None) to force the presenter
+          visible at all times, and MinWidth reserves width even when it's empty (unchecked =
+          no content = 0 width otherwise). The SharedSizeGroup then propagates those 16px to
+          every item's column 0, giving the whole flyout one stable left gutter. The check
+          simply fades in/out inside the reserved space — no reflow, ever. Verified against
+          Avalonia 12.0.3 Themes.Fluent/Controls/MenuItem.xaml.
+        -->
+        <Style Selector="MenuFlyoutPresenter MenuItem:toggle /template/ ContentControl#PART_ToggleIconPresenter">
+            <Setter Property="IsVisible" Value="True"/>
+            <Setter Property="MinWidth" Value="16"/>
+        </Style>
         <!-- Separator inside the flyout: thin hairline with breathing room. -->
         <Style Selector="MenuFlyoutPresenter Separator">
             <Setter Property="Margin" Value="8,4"/>
@@ -464,6 +482,26 @@
                             <Button.Flyout>
                                 <MenuFlyout Placement="TopEdgeAlignedRight">
                                     <!--
+                                      Remove played tracks — consume-mode TOGGLE (not a command).
+                                      ToggleType=CheckBox + IsChecked binding gives the native checkmark
+                                      (via the :checked pseudo-class); StaysOpenOnClick keeps the flyout
+                                      open on click so you can toggle without it snapping shut. Momentary
+                                      state, not persisted (RemovePlayed) — off on every restart, like
+                                      shuffle. Placed above the one-shot actions and separated, so the
+                                      mode toggle reads distinctly from the commands below it.
+                                    -->
+                                    <!-- Mode=TwoWay is REQUIRED: MenuItem.IsChecked is registered
+                                         without defaultBindingMode (OneWay), so without this the
+                                         checkmark would toggle visually but never write RemovePlayed
+                                         back — the state would reset every time the flyout reopens and
+                                         consume mode would never actually engage. Verified against
+                                         Avalonia 12.0.3 Avalonia.Controls/MenuItem.cs. -->
+                                    <MenuItem Header="Remove played tracks"
+                                              ToggleType="CheckBox"
+                                              IsChecked="{Binding RemovePlayed, Mode=TwoWay}"
+                                              StaysOpenOnClick="True"/>
+                                    <Separator/>
+                                    <!--
                                       Harmonic Sort — north-star headline action.
                                       Sequences the whole queue for the smoothest mix using
                                       pairwise Key+Tempo+Energy compatibility scores
@@ -607,6 +645,20 @@
                                 <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
                                            Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
                                            VerticalAlignment="Center"/>
+                                <!--
+                                  Live-analysis badge: appears only while DSP analysis is in flight
+                                  (IsAnalyzing). Sits in the always-visible header so the user notices
+                                  work that's happening on rows scrolled out of view further down.
+                                  Accent-cyan (AccentABrush) reads as "scanning / in progress" and
+                                  follows the active theme.
+                                -->
+                                <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·"
+                                           Margin="10,0,4,0" VerticalAlignment="Center"
+                                           IsVisible="{Binding IsAnalyzing}"/>
+                                <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
+                                           Foreground="{DynamicResource AccentABrush}"
+                                           Text="{Binding AnalyzingText}" VerticalAlignment="Center"
+                                           IsVisible="{Binding IsAnalyzing}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" Background="Transparent"
                                         VerticalAlignment="Center" Tag="Genre" Tapped="OnHeaderTapped" Cursor="Hand">

@@ -297,19 +297,6 @@
                            Text="No output devices found."
                            IsVisible="{Binding HasNoOutputDevices}"
                            Margin="0,2,0,0"/>
-
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
-
-                <TextBlock Classes="tweak-section" Text="RIGHT PANEL"/>
-                <TextBlock Classes="tweak-label" Text="Default tab"/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Classes="tweak-radio" Content="Up Next"
-                            Classes.active="{Binding DefaultTab, Converter={StaticResource StringEquals}, ConverterParameter='Up Next'}"
-                            Command="{Binding SetDefaultTabCommand}" CommandParameter="Up Next"/>
-                    <Button Classes="tweak-radio" Content="Lyrics"
-                            Classes.active="{Binding DefaultTab, Converter={StaticResource StringEquals}, ConverterParameter=Lyrics}"
-                            Command="{Binding SetDefaultTabCommand}" CommandParameter="Lyrics"/>
-                </StackPanel>
             </StackPanel>
         </ScrollViewer>
     </Border>

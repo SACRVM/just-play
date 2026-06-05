@@ -30,19 +30,16 @@ namespace JustPlay.Analysis;
 ///   </item>
 /// </list>
 ///
-/// <para><b>v1 note — Key + Tempo + Energy only (Fingerprint = null):</b></para>
-/// <see cref="MixCompatibility.Score"/> degrades gracefully when <c>Fingerprint</c> is null:
-/// it excludes the Beat axis (weight 0.40) and re-normalises the remaining weights
-/// (Tempo 0.30, Harmonic 0.20, Energy 0.10 → normalised ≈ 0.50/0.33/0.17).  This is
-/// intentional for v1 — the beat fingerprint is not yet wired into the analysis pipeline.
-/// Planned refinements:
+/// <para><b>All four axes active (v4 blobs):</b></para>
+/// <see cref="MixCompatibility.Score"/> uses Beat (0.40), Tempo (0.30), Harmonic (0.20),
+/// and Energy (0.10) when all data is present.  Tracks analysed before blob v4 (or tracks
+/// too short for the fingerprint extractor) will have <c>Fingerprint = null</c>;
+/// <see cref="MixCompatibility"/> degrades gracefully — the Beat axis is excluded and
+/// the remaining weights are renormalised.
+/// Planned next iteration:
 /// <list type="bullet">
-///   <item>Wire <see cref="BeatFingerprintExtractor"/> into <c>TrackAnalysisService</c>
-///         and pass the extracted fingerprint through so the Beat axis participates.</item>
-///   <item>Anti-monotony / energy-arc shaping: instead of a pure-compatibility path,
-///         bias the 2-opt cost to gently vary the energy level so the set breathes
-///         (Chloe's "don't make it monotonous" rule). Design TBD once the Key+Tempo+Energy
-///         baseline has been validated on her ear.</item>
+///   <item>Anti-monotony / energy-arc shaping: bias the 2-opt cost to gently vary the
+///         energy level so the set breathes ("don't make it monotonous" rule).</item>
 /// </list>
 ///
 /// <para>

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Reflection-free / trim-AOT-safe: all JSON goes through source-generated contexts. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+    <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+    <ProjectReference Include="..\JustPlay.Metadata\JustPlay.Metadata.csproj" />
+  </ItemGroup>
+
+</Project>

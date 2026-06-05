@@ -24,9 +24,6 @@ public sealed record UserSettings
     /// <summary>Whether the FFT-driven waveform header animates (Tweaks toggle).</summary>
     public bool WaveformEnabled { get; init; } = true;
 
-    /// <summary>Which queue tab opens on launch ("Up Next" / "Lyrics" / ...).</summary>
-    public string DefaultTab { get; init; } = "Up Next";
-
     /// <summary>
     /// Use the trained "AI key" model (ONNX, MIREX ~0.75) when it's available, instead of the
     /// DSP template detector (~0.71). Falls back to DSP automatically if the model/runtime

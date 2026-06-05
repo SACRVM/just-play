@@ -11,8 +11,8 @@ namespace JustPlay.Analysis.Tests;
 /// scores — e.g. a tight compatible cluster vs a clear outlier — and the assertions
 /// verify both the outlier placement and the unanalyzed-last rule.
 ///
-/// v1 note: all features use Fingerprint = null (beat axis not yet wired into
-/// analysis). The sequencer degrades gracefully — Key + Tempo + Energy only.
+/// The sequencer tests use Fingerprint = null to keep the tests focused on key/BPM/energy
+/// ordering logic; the Beat axis integration is tested in MixCompatibilityTests.
 /// </summary>
 public class HarmonicSequencerTests
 {
@@ -23,7 +23,7 @@ public class HarmonicSequencerTests
     private static MusicalKey FSharp  => new(6, KeyMode.Major);   // 2B  tritone from C major (clashing)
 
     // ── Feature factory ───────────────────────────────────────────────────────
-    /// <summary>Fingerprint always null in v1 — see class-level note.</summary>
+    /// <summary>Fingerprint = null — sequencer tests focus on key/BPM/energy axis.</summary>
     private static TrackFeatures F(double? bpm, MusicalKey? key, int? energy)
         => new(bpm, key, energy, Fingerprint: null);
 

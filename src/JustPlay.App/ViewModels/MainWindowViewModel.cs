@@ -101,7 +101,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _currentTheme = s.Theme;
         _vinylSpinEnabled = s.VinylSpinEnabled;
         _waveformEnabled = s.WaveformEnabled;
-        _defaultTab = s.DefaultTab;
         _autoAnalyze = s.AutoAnalyze;
         _autoWriteOnAnalyze = s.AutoWriteOnAnalyze;
         _writeDjComment = s.WriteDjComment;
@@ -335,6 +334,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         else { _shuffleHistory.Clear(); _shufflePos = -1; }
     }
 
+    // ── Consume mode ("remove played tracks") ────────────────────────────
+    // Momentary, like shuffle/repeat — deliberately NOT persisted, so every
+    // cold start begins with it OFF. When on, a track is dropped from the queue
+    // the moment we advance forward off it (natural end OR manual skip-forward),
+    // but never when we step back or replay. This is mpd's "consume mode":
+    // gespielt = weg, the list shrinks to what's still ahead. Toggled from the
+    // "…" list menu, not the Tweaks panel — it's an in-the-moment mode, not a
+    // saved preference.
+    [ObservableProperty] private bool _removePlayed;
+
     // ── Streaming-panel state (S2: live BroadcastState + toggle command) ─
     [ObservableProperty] private bool _isStreamingOpen;
 
@@ -402,7 +411,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(ShouldSpin))]
     private bool _vinylSpinEnabled = true;
     [ObservableProperty] private bool _waveformEnabled = true;
-    [ObservableProperty] private string _defaultTab = "Up Next";
 
     // ── Analysis preferences (Tweaks) ─────────────────────────────────────
     // AutoAnalyze off by default: adding tracks never auto-runs the CPU-heavy DSP — the user
@@ -417,6 +425,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>String form of the thread count, so the Tweaks radio buttons can drive their
     /// active state via the existing StringEquals converter.</summary>
     public string AnalysisThreadsText => AnalysisThreads.ToString();
+
+    // ── Live analysis progress ────────────────────────────────────────────
+    // Number of tracks currently mid-analysis across ALL in-flight batches.
+    // Mutated ONLY on the UI thread (every change is marshalled through
+    // Dispatcher) so the generated setter never races the background DSP
+    // threads. Drives the "ANALYZING N" header badge and gates Harmonic Sort —
+    // sequencing a half-analysed queue would mis-order the not-yet-scored rows.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAnalyzing))]
+    [NotifyPropertyChangedFor(nameof(AnalyzingText))]
+    private int _analyzingCount;
+
+    /// <summary>True while any track is being analysed — shows the header badge and disables
+    /// Harmonic Sort (the rows further down the list aren't visible, so the badge is the only
+    /// cue that work is still happening).</summary>
+    public bool IsAnalyzing => AnalyzingCount > 0;
+
+    /// <summary>Header-badge text, e.g. "ANALYZING 5" — letterspaced caps to match the colheads.</summary>
+    public string AnalyzingText => $"ANALYZING {AnalyzingCount}";
+
+    partial void OnAnalyzingCountChanged(int value) => HarmonicSortCommand.NotifyCanExecuteChanged();
 
     /// <summary>Vinyl rotates only when actually playing AND spin is enabled in tweaks.</summary>
     public bool ShouldSpin => IsPlaying && VinylSpinEnabled;
@@ -451,12 +480,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PersistSettings();
     }
 
-    partial void OnDefaultTabChanged(string value)
-    {
-        if (!_settingsHydrated) return;
-        PersistSettings();
-    }
-
     partial void OnAutoAnalyzeChanged(bool value)
     {
         if (!_settingsHydrated) return;
@@ -486,7 +509,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         Theme             = CurrentTheme,
         VinylSpinEnabled  = VinylSpinEnabled,
         WaveformEnabled   = WaveformEnabled,
-        DefaultTab        = DefaultTab,
         AutoAnalyze        = AutoAnalyze,
         AutoWriteOnAnalyze = AutoWriteOnAnalyze,
         WriteDjComment     = WriteDjComment,
@@ -604,12 +626,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void SetTheme(string? name)
     {
         if (!string.IsNullOrEmpty(name)) CurrentTheme = name;
-    }
-
-    [RelayCommand]
-    private void SetDefaultTab(string? tab)
-    {
-        if (!string.IsNullOrEmpty(tab)) DefaultTab = tab;
     }
 
     [RelayCommand]
@@ -882,6 +898,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasTracks));
         OnPropertyChanged(nameof(TrackCountText));
         OnPropertyChanged(nameof(TotalDurationText));
+        // Harmonic Sort's CanExecute depends on the queue having ≥ 2 tracks.
+        HarmonicSortCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Number the rows 1..N — these are positions in the current session list,
@@ -1162,6 +1180,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// just caps how many run at once.</summary>
     private async Task AnalyzeTracksAsync(IReadOnlyList<TrackViewModel> targets)
     {
+        // Bump the live-progress counter for the whole batch up front (so the header badge
+        // appears the instant analysis is requested), then drop it one-per-track as each row
+        // finishes. Posted to the UI thread because AnalyzingCount is UI-thread-only state.
+        Dispatcher.UIThread.Post(() => AnalyzingCount += targets.Count);
+
         var opts = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, AnalysisThreads) };
         await Parallel.ForEachAsync(targets, opts, async (tvm, ct) =>
         {
@@ -1178,7 +1201,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 tvm.Model.AnalysisStatus = AnalysisStatus.Failed;
                 Console.WriteLine($"[Analyze FAIL] {tvm.Model.FilePath}: {ex.Message}");
             }
-            Dispatcher.UIThread.Post(() => tvm.Refresh());
+            Dispatcher.UIThread.Post(() => { tvm.Refresh(); AnalyzingCount--; });
 
             // "New truth on analyse": optionally stamp our detected values into the file's tags
             // right away (consent given once, in settings). Runs HERE on the background analysis
@@ -1245,6 +1268,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         RaiseTrackListChanged();
     }
 
+    /// <summary>Consume-mode removal: drop a single just-played track from the queue and any shuffle
+    /// bookkeeping. Mirrors <see cref="RemoveSelected"/> for one row; never touches the file and never
+    /// the still-playing track (the caller guarantees this row is no longer Current). The ListBox drops
+    /// the row from its own selection when the item leaves the collection — no SelectedTracks fiddling.</summary>
+    private void ConsumePlayed(TrackViewModel played)
+    {
+        Tracks.Remove(played);
+        _shuffleHistory.Remove(played);
+        if (_shufflePos >= _shuffleHistory.Count) _shufflePos = _shuffleHistory.Count - 1;
+        RaiseTrackListChanged();
+    }
+
     // ── Context-menu commands (bound from the queue's ListBox.ContextMenu) ────
     // Bulk actions operate on the multi-selection; the per-field ones target ContextTarget
     // (the single right-clicked row). Field is passed as a "Bpm"/"Key"/"Energy" CommandParameter.
@@ -1305,15 +1340,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// queue in their original relative order — they cannot contribute to a
     /// compatibility score.</para>
     ///
-    /// <para>v1 — Key + Tempo + Energy axes only; beat fingerprint is null because
-    /// <see cref="BeatFingerprintExtractor"/> is not yet wired into
-    /// <see cref="ITrackAnalysisService"/>. Anti-monotony / energy-arc shaping is
-    /// planned for a later iteration once this baseline is validated on Chloe's ear.</para>
+    /// <para>All four axes (Beat/groove, Tempo, Harmonic, Energy) are now active.
+    /// The beat fingerprint is computed during the normal analysis pass (v4 blob) and
+    /// stored on <see cref="AnalysisResult.Fingerprint"/>. Tracks analysed before v4
+    /// will have Fingerprint = null and degrade gracefully (Beat axis excluded, remaining
+    /// weights renormalised). Anti-monotony / energy-arc shaping is planned for a
+    /// later iteration.</para>
     ///
     /// <para>Runs the sequencer on a background thread (it is O(n²) but queues are
     /// small). The collection reorder is marshalled back to the UI thread.</para>
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanHarmonicSort))]
     private Task HarmonicSort()
     {
         if (Tracks.Count < 2) return Task.CompletedTask;
@@ -1328,13 +1365,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return Task.Run(() =>
         {
             // Build TrackFeatures for each track.
-            // v1: Fingerprint = null — beat axis scores 0 weight (excluded + renormalised).
+            // Fingerprint comes from the stored AnalysisResult (computed during the normal
+            // analysis pass by BeatFingerprintExtractor and persisted in the JUSTPLAY blob).
+            // Tracks that have not yet been analysed or are too short have Fingerprint = null;
+            // MixCompatibility degrades gracefully — the Beat axis is excluded and the
+            // remaining weights (Tempo 0.30, Harmonic 0.20, Energy 0.10) are renormalised.
             var features = snapshot
                 .Select(tvm =>
                 {
                     var a = tvm.Model.Analysis;
                     if (a is null) return new TrackFeatures(null, null, null, null);
-                    return new TrackFeatures(a.Bpm, a.Key, a.Energy, Fingerprint: null);
+                    return new TrackFeatures(a.Bpm, a.Key, a.Energy, a.Fingerprint);
                 })
                 .ToList();
 
@@ -1354,6 +1395,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             });
         });
     }
+
+    /// <summary>Harmonic Sort is available only when there are at least two tracks AND no analysis
+    /// is in flight — sequencing a queue whose rows are still being scored would order the
+    /// not-yet-analysed tracks as if they had no features (dumping them to the end). The "…" menu
+    /// item greys out automatically while <see cref="IsAnalyzing"/> is true.</summary>
+    private bool CanHarmonicSort() => !IsAnalyzing && Tracks.Count >= 2;
 
     /// <summary>
     /// Empty the queue. If the current track is playing, stops playback first
@@ -1549,11 +1596,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // ---- Internals ------------------------------------------------------
 
     /// <summary>
-    /// The one navigation entry-point. <paramref name="auto"/> distinguishes a track
-    /// ending on its own (respects Repeat fully) from a user pressing next/prev
-    /// (always moves — Repeat-One never traps the user on one track).
+    /// The one navigation entry-point. Resolves the next track, then — in consume mode —
+    /// drops the track we just left. Splitting the navigation into <see cref="AdvanceCore"/>
+    /// keeps every early-return path in the core logic intact while the consume step runs
+    /// exactly once, after we know whether we actually moved.
     /// </summary>
     private void Advance(bool forward, bool auto)
+    {
+        var outgoing = Current;
+        AdvanceCore(forward, auto);
+
+        // Consume mode: once we've stepped FORWARD off a track (natural end or manual skip),
+        // remove it from the queue. Guarded so we never consume when nothing moved — a
+        // repeat-one replay or an end-of-queue stop leaves Current pointing at the same track.
+        // Backward navigation never consumes (stepping back means you want it again).
+        if (forward && RemovePlayed && outgoing is not null && !ReferenceEquals(outgoing, Current))
+            ConsumePlayed(outgoing);
+    }
+
+    /// <summary><paramref name="auto"/> distinguishes a track ending on its own (respects Repeat
+    /// fully) from a user pressing next/prev (always moves — Repeat-One never traps the user on
+    /// one track).</summary>
+    private void AdvanceCore(bool forward, bool auto)
     {
         if (Tracks.Count == 0) return;
 
