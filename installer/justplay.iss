@@ -10,7 +10,7 @@
 ;   ISCC.exe /DAppVersion=0.1.0 installer\justplay.iss
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.1.1"
 #endif
 
 #define AppName "JustPlay"
