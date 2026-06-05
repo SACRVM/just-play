@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using JustPlay.Analysis;
 using JustPlay.App.KeyDetection;
@@ -18,6 +19,16 @@ sealed class Program
 {
     /// <summary>Composition root — the one place that knows the concrete backends.</summary>
     public static IServiceProvider Services { get; private set; } = default!;
+
+    /// <summary>The single-instance gate (owned by the primary process). App wires its pipe
+    /// server to the running ViewModel; null on the CLI-harness paths.</summary>
+    public static SingleInstance? Single { get; private set; }
+
+    /// <summary>Files this process was launched with (file association / double-click), handed
+    /// to the ViewModel once the window exists. AddOnly = the "Add to JustPlay" verb (append,
+    /// don't start playback); otherwise "open" (play if nothing is playing yet).</summary>
+    public static (IReadOnlyList<string> Files, bool AddOnly) PendingOpen { get; private set; }
+        = (Array.Empty<string>(), false);
 
     [STAThread]
     public static void Main(string[] args)
@@ -119,6 +130,21 @@ sealed class Program
             BeatSimReport.Run(Services, beatSimFolder);
             return;
         }
+
+        // ── Single-instance gate (GUI path only) ─────────────────────────────
+        // A double-click on an associated file launches us with the file as an arg. If
+        // JustPlay is already running, forward the file(s) to that instance and exit, so the
+        // song joins the existing queue instead of opening a second window. ConfigureServices
+        // above only REGISTERS services (singletons stay lazy), so a forward-and-exit process
+        // never spins up BASS or a window.
+        var (files, addOnly) = SingleInstance.ParseFileArgs(args);
+        Single = new SingleInstance();
+        if (!Single.Acquire())
+        {
+            if (files.Count > 0) SingleInstance.ForwardToPrimary(files, addOnly);
+            return;
+        }
+        PendingOpen = (files, addOnly);
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }

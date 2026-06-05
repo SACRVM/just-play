@@ -173,5 +173,45 @@ public partial class MaxView : UserControl
         lt?.Classes.Set("active", !queue);
     }
 
+    // ── Streaming cap-button right-click menu ──────────────────────────────
+    // Built fresh on every open so the items track the live broadcast state and the
+    // current radio list: "Disconnect" while on air, otherwise one "Connect to <name>"
+    // per configured radio (or "Add a radio…" when none), then a settings shortcut.
+    // Done in code rather than via XAML ItemsSource so each item's Click wiring stays
+    // trivial — no per-item Command binding on generated MenuItems.
+    private void OnStreamMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (sender is not ContextMenu menu || DataContext is not MainWindowViewModel vm) return;
+        menu.Items.Clear();
+
+        if (vm.IsConnectedOrConnecting)
+        {
+            menu.Items.Add(StreamMenuItem("Disconnect", () => _ = vm.DisconnectBroadcastAsync()));
+        }
+        else if (vm.StreamServers.Count == 0)
+        {
+            menu.Items.Add(StreamMenuItem("Add a radio…", vm.OpenStreaming));
+        }
+        else
+        {
+            foreach (var server in vm.StreamServers)
+            {
+                var target = server; // capture per iteration for the closure
+                var label = string.IsNullOrWhiteSpace(target.Name) ? target.Host : target.Name;
+                menu.Items.Add(StreamMenuItem($"Connect to {label}", () => _ = vm.ConnectBroadcastAsync(target)));
+            }
+        }
+
+        menu.Items.Add(new Separator());
+        menu.Items.Add(StreamMenuItem("Streaming settings…", vm.OpenStreaming));
+    }
+
+    private static MenuItem StreamMenuItem(string header, Action onClick)
+    {
+        var item = new MenuItem { Header = header };
+        item.Click += (_, _) => onClick();
+        return item;
+    }
+
     // Window min/max/close now live in the shared WindowControls control.
 }

@@ -388,8 +388,16 @@
                                   Data="M21 9 V6 a2 2 0 0 0 -2 -2 H4 a2 2 0 0 0 -2 2 v10 c0 1.1 .9 2 2 2 h4
                                         M14 13 h6 a2 2 0 0 1 2 2 v3 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-3 a2 2 0 0 1 2 -2 Z"/>
                         </Button>
-                        <!-- Streaming / broadcast — opens the Icecast streaming section. -->
-                        <Button Classes="cap" Command="{Binding ToggleStreamingCommand}" ToolTip.Tip="Streaming">
+                        <!-- Streaming / broadcast — left-click opens the Icecast streaming section;
+                             right-click is a quick connect/disconnect menu (built in code-behind).
+                             The glyph lights up in the accent when on air (Classes.streaming). -->
+                        <Button Classes="cap" Command="{Binding ToggleStreamingCommand}" ToolTip.Tip="Streaming"
+                                Classes.streaming="{Binding IsConnectedOrConnecting}">
+                            <Button.ContextMenu>
+                                <!-- Items are populated on Opening (OnStreamMenuOpening) from the live
+                                     broadcast state + radio list. Empty here by design. -->
+                                <ContextMenu x:DataType="vm:MainWindowViewModel" Opening="OnStreamMenuOpening"/>
+                            </Button.ContextMenu>
                             <!-- Lucide "radio-tower" (ISC) — real icon data, verbatim path values
                                  (only separators normalised). https://lucide.dev/icons/radio-tower -->
                             <Path Stretch="Uniform" Width="17" Height="17"

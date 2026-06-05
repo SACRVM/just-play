@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -40,6 +41,24 @@ public partial class App : Application
                 Dispatcher.UIThread.Post(() => window.Icon = ThemedWindowIcon.Render(theme));
 
             desktop.MainWindow = window;
+
+            // ── File-open intake (single-instance) ───────────────────────────
+            // Add any files we were launched with (double-click / file association), and listen
+            // for files forwarded by LATER launches while we're already running. Everything is
+            // marshalled to the UI thread; a forwarded open also surfaces the window.
+            var vm = (MainWindowViewModel)window.DataContext!;
+            if (Program.PendingOpen.Files.Count > 0)
+            {
+                var open = Program.PendingOpen;
+                Dispatcher.UIThread.Post(() => _ = vm.OpenFilesAsync(open.Files, play: !open.AddOnly));
+            }
+            Program.Single?.StartServer((paths, addOnly) =>
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+                    window.Activate();
+                    _ = vm.OpenFilesAsync(paths, play: !addOnly);
+                }));
         }
 
         base.OnFrameworkInitializationCompleted();

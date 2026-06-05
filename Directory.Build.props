@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Single source of truth for the product version + identity. <Version> flows into
+    AssemblyInformationalVersion at build time, which the About dialog reads back
+    (see AppInfo.ResolveVersion). The installer / CI release job will read the same
+    <Version> later, so a release is just: bump this, tag v<x.y.z>, push.
+
+    Applies to every project under the solution root (MSBuild auto-imports the
+    nearest Directory.Build.props). Test projects inherit it too — harmless.
+  -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Product>JustPlay</Product>
+    <Authors>Chloe Dream</Authors>
+    <Company>Chloe Dream</Company>
+    <Copyright>© 2026 Chloe Dream</Copyright>
+  </PropertyGroup>
+</Project>

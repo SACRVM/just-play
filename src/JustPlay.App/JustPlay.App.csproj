@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Brand mark (Aurora) embedded as the .exe file icon — taskbar/Explorer/installer.
+         Regenerate with build\make-icon.ps1 if the mark changes. -->
+    <ApplicationIcon>Assets\justplay.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

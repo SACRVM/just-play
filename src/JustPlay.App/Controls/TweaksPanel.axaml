@@ -74,6 +74,23 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+        <!-- "About" footer row — a flat, full-width clickable row that opens the About dialog. -->
+        <Style Selector="Button.about-row">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.about-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="Button.about-row:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+
         <!-- Palette swatch (chip) — coloured ring + accent glow when active.
              RenderTransform=none is the resting state so the hover lift can transition. -->
         <Style Selector="Border.swatch">
@@ -297,6 +314,28 @@
                            Text="No output devices found."
                            IsVisible="{Binding HasNoOutputDevices}"
                            Margin="0,2,0,0"/>
+
+                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
+
+                <!-- ABOUT — brand chip + name + version; click opens the themed About dialog.
+                     Version label is set from AppInfo in code-behind. -->
+                <TextBlock Classes="tweak-section" Text="ABOUT"/>
+                <Button Classes="about-row" Click="OnAboutClick">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Border Width="24" Height="24" CornerRadius="6"
+                                Background="{DynamicResource AccentGradient}"
+                                VerticalAlignment="Center">
+                            <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform"
+                                  Width="9" Height="9"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Spacing="1" VerticalAlignment="Center">
+                            <TextBlock Text="JustPlay" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#F2FFFFFF"/>
+                            <TextBlock x:Name="VersionLabel" FontSize="10" Foreground="#73FFFFFF"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </ScrollViewer>
     </Border>

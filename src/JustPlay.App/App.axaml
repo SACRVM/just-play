@@ -208,6 +208,16 @@
             <Setter Property="Background" Value="#33FFFFFF"/>
         </Style>
         <!--
+          "Live" state for the streaming/broadcast cap button: when connected or
+          connecting the radio-tower glyph lights up in the theme accent (its Stroke
+          binds to the button Foreground), so a glance tells you the app is on air.
+          Set via Classes.streaming="{Binding IsConnectedOrConnecting}" in MaxView.
+          Accent cyan reads as "active/transmitting" and follows the active theme.
+        -->
+        <Style Selector="Button.cap.streaming">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <!--
           The close button sits in the TOP-RIGHT corner of the window. Without this corner
           radius its hover/pressed background paints a square red — which sticks out past
           the card's rounded top-right corner (CornerRadius=14 on the Card Border). Giving

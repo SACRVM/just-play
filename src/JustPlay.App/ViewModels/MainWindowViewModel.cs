@@ -881,6 +881,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnSelectedStreamServerChanged(StreamServerProfile? value)
         => ToggleConnectCommand.NotifyCanExecuteChanged();
 
+    // ── Streaming quick-actions (radio cap-button right-click menu) ───────
+    // Surfaced from MaxView's streaming-button context menu so the user can go
+    // on/off air — and pick WHICH radio — without opening the panel. They drive
+    // the same IBroadcastService the Connect button uses.
+
+    /// <summary>Open the streaming panel (from the "Add a radio…" / "Streaming settings…" items).</summary>
+    public void OpenStreaming() => IsStreamingOpen = true;
+
+    /// <summary>Disconnect the live broadcast (no-op when not connected).</summary>
+    public Task DisconnectBroadcastAsync() => _broadcast.DisconnectAsync();
+
+    /// <summary>Go on air to a specific radio profile, making it the selected one. If a broadcast is
+    /// already live it's dropped first so we cleanly switch stations.</summary>
+    public async Task ConnectBroadcastAsync(StreamServerProfile profile)
+    {
+        SelectedStreamServer = profile;
+        if (BroadcastState == BroadcastState.Connected || BroadcastState == BroadcastState.Reconnecting)
+            await _broadcast.DisconnectAsync();
+        await _broadcast.ConnectAsync(profile);
+    }
+
     [RelayCommand]
     private void ClearTracks()
     {
@@ -1551,6 +1572,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (AutoAnalyze && needAnalysis.Count > 0)
                 await AnalyzeTracksAsync(needAnalysis);
         });
+    }
+
+    /// <summary>Entry point for files handed to us by a file-association / double-click launch
+    /// (via the single-instance pipe). Adds them to the queue; when <paramref name="play"/> is set
+    /// (the "open" verb) AND nothing is playing yet, the first newly-added track starts — so a
+    /// double-clicked song just plays, while an already-running set is never interrupted. The
+    /// future "Add to JustPlay" verb passes play=false (append only).</summary>
+    public async Task OpenFilesAsync(IReadOnlyList<string> paths, bool play)
+    {
+        var before = Tracks.Count;
+        await AddPathsAsync(paths);
+        if (play && _controller.CurrentTrack is null && Tracks.Count > before)
+            PlayTrack(Tracks[before]);   // first track we just added
     }
 
     private static bool IsAudio(string path) => AudioExtensions.Contains(Path.GetExtension(path));
