@@ -1,6 +1,6 @@
 # JustPlay
 
-A stateless, DJ-focused music player for Windows / macOS / Linux.
+The music player for DJs and music lovers — Windows / macOS / Linux.
 Drop tracks in, double-click to play. No library, no memory between sessions, no nag — just play.
 
 > 🎧 **v0.1.0 — early, but functional.** The headline analysis (BPM · Camelot key · energy)
@@ -27,11 +27,11 @@ The DJ tilt comes from analysis baked straight into the player:
 - **Camelot key detection** — the headline feature: a hand-rolled chromagram + EDMA key
   profiles, with an optional ONNX "AI key" model used automatically when present. Build a
   harmonic set without a separate tool.
-- **Energy score** (1–10, Mixed-In-Key style) for ordering by intensity.
+- **Energy score** (1–10) for ordering by intensity.
 - **Harmonic Sort** — reorder the whole queue for the smoothest mix, scoring each pair on
   key + tempo + energy + groove (beat fingerprint).
 
-Think MIK's analysis living *inside* the player — without the library overhead.
+Serious DJ analysis, living *inside* the player — without the library overhead.
 
 ## Status
 
@@ -138,7 +138,7 @@ Roughly in priority order toward a shippable v0.1.0 and beyond:
    Releases, in-app update check.
 2. **Landing page** — a small static site pointing at the latest release.
 3. **Validated macOS + Linux builds.**
-4. **Loudness / gain analysis** — EBU R128 → ReplayGain tags (replace mp3gain / MIK gain).
+4. **Loudness / gain analysis** — EBU R128 → ReplayGain tags (a modern replacement for mp3gain-style normalisation).
 5. **Lyrics tab** — LRC parsing / online lookup (still deciding).
 6. **Headless engine** — CLI + MCP surface over `JustPlay.Engine` so agents can analyse,
    tag and sort music libraries.

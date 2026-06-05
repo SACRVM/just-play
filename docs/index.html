@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>JustPlay — DJ music player with automatic key, BPM &amp; energy detection</title>
+<meta name="description" content="JustPlay is a free, stateless DJ music player for Windows. Drop tracks in and it detects Camelot key, BPM and energy, sorts your set harmonically, writes the analysis into your tags, and streams live to Icecast — the analysis a DJ needs, built right into the player.">
+<meta name="theme-color" content="#120a26">
+
+<!-- Open Graph / social -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="JustPlay — the music player for DJs and music lovers">
+<meta property="og:description" content="Drop tracks in, double-click to play. Automatic Camelot key, BPM &amp; energy detection, harmonic sort, tag writing and live streaming — free, no library, no nag.">
+<meta property="og:url" content="https://chloe-dream.github.io/just-play/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Brand-mark favicon (the Aurora play chip), inline so there's no extra request. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236ce0ff'/%3E%3Cstop offset='1' stop-color='%23ff5fae'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cpath d='M40 32 L40 68 L70 50 Z' fill='white'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg-from:#3a1d6b; --bg-via:#251347; --bg-to:#120a26;
+    --cyan:#6ce0ff; --pink:#ff5fae; --purple:#8a5fff;
+    --text:#ffffff; --muted:rgba(255,255,255,.66); --dim:rgba(255,255,255,.45);
+    --hair:rgba(255,255,255,.10); --card:rgba(255,255,255,.045);
+    --maxw:1080px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--text); line-height:1.6;
+    background:var(--bg-to);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* Aurora background: deep diagonal base + cyan/pink/purple blooms, fixed. */
+  .aurora{
+    position:fixed; inset:0; z-index:-1;
+    background:
+      radial-gradient(60% 55% at 72% 18%, rgba(140,105,255,.42), transparent 70%),
+      radial-gradient(55% 50% at 12% 82%, rgba(138,95,255,.40), transparent 70%),
+      radial-gradient(45% 45% at 88% 88%, rgba(255,95,174,.20), transparent 70%),
+      linear-gradient(135deg, var(--bg-from) 0%, var(--bg-via) 50%, var(--bg-to) 100%);
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+
+  /* ── Hero ── */
+  header{padding:88px 0 64px; text-align:center}
+  .chip{
+    width:104px;height:104px;border-radius:26px;margin:0 auto 28px;
+    display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--cyan),var(--pink));
+    box-shadow:0 18px 50px rgba(255,95,174,.45), 0 0 0 1px rgba(255,255,255,.12) inset;
+  }
+  .chip svg{width:54%;height:54%;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
+  h1{
+    font-size:clamp(48px,9vw,86px); font-weight:800; letter-spacing:-.03em; line-height:1;
+    background:linear-gradient(100deg,var(--cyan) 0%,#fff 50%,var(--pink) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    margin-bottom:18px;
+  }
+  .tagline{font-size:clamp(20px,2.8vw,26px); color:#fff; font-weight:600; max-width:640px; margin:0 auto 12px; letter-spacing:-.01em}
+  .lead{font-size:16px; color:var(--muted); max-width:540px; margin:0 auto 22px}
+  .sub{color:var(--dim); font-size:14px; letter-spacing:.04em; margin-bottom:36px}
+  .sub b{color:var(--muted);font-weight:600}
+
+  .btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:14px 26px;border-radius:12px;font-weight:600;font-size:15px;
+    text-decoration:none;transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn svg{width:18px;height:18px}
+  .btn-primary{
+    color:#1a0f2e;background:linear-gradient(135deg,var(--cyan),var(--pink));
+    box-shadow:0 10px 30px rgba(255,95,174,.4);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(255,95,174,.55)}
+  .btn-ghost{
+    color:var(--text);background:rgba(255,255,255,.06);border:1px solid var(--hair);
+    backdrop-filter:blur(8px);
+  }
+  .btn-ghost:hover{background:rgba(255,255,255,.11);transform:translateY(-2px)}
+
+  /* ── Features ── */
+  section{padding:42px 0}
+  .eyebrow{text-align:center;color:var(--purple);font-weight:700;letter-spacing:.22em;font-size:12px;text-transform:uppercase;margin-bottom:10px}
+  h2{text-align:center;font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.02em;margin-bottom:46px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:18px}
+  .card{
+    background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:24px;
+    backdrop-filter:blur(10px);transition:transform .18s ease,border-color .18s ease,background .18s ease;
+  }
+  .card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.07)}
+  .ico{
+    width:42px;height:42px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;
+    background:linear-gradient(135deg,rgba(108,224,255,.18),rgba(255,95,174,.18));
+    border:1px solid var(--hair);
+  }
+  .ico svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .card h3{font-size:17px;font-weight:650;margin-bottom:7px}
+  .card p{color:var(--muted);font-size:14.5px}
+  .card .tag{display:inline-block;margin-top:11px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--cyan);
+    background:rgba(108,224,255,.1);border:1px solid rgba(108,224,255,.25);border-radius:999px;padding:3px 10px}
+
+  /* ── Manifesto ── */
+  .manifesto{max-width:760px;margin:0 auto;text-align:center}
+  .manifesto p{color:var(--muted);font-size:18px;margin-bottom:20px}
+  .manifesto .hl{color:#fff;font-weight:600}
+  .manifesto .big{font-size:clamp(20px,2.6vw,26px);color:#fff;font-weight:600;line-height:1.45;margin-top:34px;letter-spacing:-.01em}
+  .manifesto .feast{
+    margin-top:16px;font-size:clamp(22px,3.2vw,32px);font-weight:800;font-style:italic;letter-spacing:-.015em;
+    background:linear-gradient(100deg,var(--cyan),#fff,var(--pink));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+
+  /* ── Footer ── */
+  footer{border-top:1px solid var(--hair);margin-top:48px;padding:34px 0 56px;text-align:center;color:var(--dim);font-size:13px}
+  footer a{color:var(--muted);text-decoration:none;border-bottom:1px solid transparent}
+  footer a:hover{border-bottom-color:var(--muted)}
+  .note{max-width:680px;margin:16px auto 0;font-size:12px;color:var(--dim);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="aurora"></div>
+
+<div class="wrap">
+
+  <header>
+    <div class="chip">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 20 L24 80 L82 50 Z" fill="#fff"/></svg>
+    </div>
+    <h1>JustPlay</h1>
+    <p class="tagline">The music player for DJs and music lovers.</p>
+    <p class="lead">Drop tracks in, double-click to play — it hears the key, BPM and energy for you.</p>
+    <p class="sub"><b>Free</b> &nbsp;·&nbsp; Windows &nbsp;·&nbsp; no library, no sign-in, no nag</p>
+    <div class="btns">
+      <a class="btn btn-primary" href="https://github.com/chloe-dream/just-play/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Download for Windows
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/chloe-dream/just-play">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </header>
+
+  <section>
+    <p class="eyebrow">What it does</p>
+    <h2>The analysis — not just for DJs — baked right in</h2>
+    <div class="grid">
+
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="3"/><path d="M10 17V5l10-2v12"/><circle cx="17" cy="15" r="3"/></svg></div>
+        <h3>Camelot key detection</h3>
+        <p>A hand-rolled chromagram + key profiles read the musical key and show it in Camelot notation — build a harmonic set without a second tool.</p>
+        <span class="tag">HEADLINE</span>
+      </div>
+
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h3l2-7 4 14 3-9 2 2h4"/></svg></div>
+        <h3>BPM &amp; energy</h3>
+        <p>Tempo and a 1–10 energy score detected on add, so you can order a set by feel and intensity at a glance.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/><path d="M3 8V3h5"/><path d="M21 16v5h-5"/></svg></div>
+        <h3>Harmonic Sort</h3>
+        <p>Reorder the whole queue for the smoothest possible mix — scored on key, tempo, energy and groove together.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M20.6 8.6 12 17.2l-3.8-3.8"/><path d="M3 7l4-4 4 4"/><path d="M7 3v12"/></svg></div>
+        <h3>It tags your music for you</h3>
+        <p>The detected key, BPM and energy can be saved straight into each file — so the analysis travels with the track and any other app can read it. Only when you choose to, and every change is undoable.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M5 16a7 7 0 0 1 0-8M19 8a7 7 0 0 1 0 8"/><path d="M2 19a11 11 0 0 1 0-14M22 5a11 11 0 0 1 0 14"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <h3>Live streaming</h3>
+        <p>Broadcast your set straight to an Icecast server — multiple server profiles, MP3 or Opus, with a one-glance on-air indicator.</p>
+      </div>
+
+      <div class="card">
+        <div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+        <h3>Drop &amp; play</h3>
+        <p>No library to manage, no scan, no account. Drop files in, double-click, go. Close it and the queue is empty again — just play.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="manifesto">
+      <p class="eyebrow">The idea</p>
+      <p>Most music players insist on scanning your folders, managing your whole library, and quietly telling you how to listen. But <span class="hl">enjoying your music should be the priority</span> — not the housekeeping.</p>
+      <p>JustPlay does exactly one thing: it plays your music. Everything else is yours. How you keep your collection, whether a track was just downloaded, whether you want a soundtrack for your day or to share your favourites with the world in a live radio stream — all of it is up to you.</p>
+      <p>Music is wonderful, and it deserves a player worthy of it — one that makes the experience beautiful, not just functional.</p>
+      <p class="big">You are the conductor and the master of your music.<br>JustPlay simply plays it — as stylishly as it possibly can.</p>
+      <p class="feast">You listen with your eyes.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Made by <a href="https://github.com/chloe-dream">Chloe Dream</a> &nbsp;·&nbsp; <a href="https://github.com/chloe-dream/just-play">Source on GitHub</a></p>
+    <p class="note">JustPlay is MIT-licensed. It bundles BASS audio libraries from un4seen.com, free for personal / non-commercial use — see the repository for licence details. Windows build is self-contained; no .NET install required.</p>
+  </footer>
+
+</div>
+</body>
+</html>
