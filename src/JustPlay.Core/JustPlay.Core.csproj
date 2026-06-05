@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Expose internal members (e.g. GitHubUpdateChecker.Parse/TryParseTag) to the unit tests
+       so the parsing logic can be exercised directly without making it part of the public API. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="JustPlay.Core.Tests" />
+  </ItemGroup>
+
 </Project>
