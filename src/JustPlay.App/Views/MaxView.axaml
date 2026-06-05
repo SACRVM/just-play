@@ -541,6 +541,15 @@
                                     -->
                                     <MenuItem Header="Write tags to all"
                                               Command="{Binding WriteAllTagsCommand}"/>
+                                    <Separator/>
+                                    <!--
+                                      Playlists (M3U8 — the universal interchange format). "Open" REPLACES
+                                      the queue with the set; "Export" writes the current order out so it
+                                      imports into Traktor / rekordbox / Serato (analysis rides in the tags).
+                                      Click handlers (not commands) because they show a file dialog.
+                                    -->
+                                    <MenuItem Header="Open playlist…" Click="OnOpenPlaylist"/>
+                                    <MenuItem Header="Export playlist…" Click="OnExportPlaylist"/>
                                 </MenuFlyout>
                             </Button.Flyout>
                             <Path Width="14" Height="4" Stretch="None"

@@ -50,14 +50,14 @@ public partial class App : Application
             if (Program.PendingOpen.Files.Count > 0)
             {
                 var open = Program.PendingOpen;
-                Dispatcher.UIThread.Post(() => _ = vm.OpenFilesAsync(open.Files, play: !open.AddOnly));
+                Dispatcher.UIThread.Post(() => _ = vm.OpenIncomingAsync(open.Files, open.AddOnly));
             }
             Program.Single?.StartServer((paths, addOnly) =>
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
                     window.Activate();
-                    _ = vm.OpenFilesAsync(paths, play: !addOnly);
+                    _ = vm.OpenIncomingAsync(paths, addOnly);
                 }));
         }
 

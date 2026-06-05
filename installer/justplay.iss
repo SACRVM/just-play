@@ -61,6 +61,7 @@ Name: "assoc_ogg";  Description: ".ogg";        GroupDescription: "Open these in
 Name: "assoc_opus"; Description: ".opus";       GroupDescription: "Open these in JustPlay on double-click:"; Flags: unchecked
 Name: "assoc_wma";  Description: ".wma";        GroupDescription: "Open these in JustPlay on double-click:"; Flags: unchecked
 Name: "assoc_aiff"; Description: ".aiff / .aif"; GroupDescription: "Open these in JustPlay on double-click:"; Flags: unchecked
+Name: "assoc_m3u";  Description: ".m3u8 / .m3u playlists (opening one loads the whole set)"; GroupDescription: "Open these in JustPlay on double-click:"
 
 [Files]
 ; The entire self-contained publish drop, shipped verbatim: JustPlay.App.exe plus the
@@ -99,6 +100,15 @@ Root: HKCU; Subkey: "Software\Classes\.aiff\OpenWithProgids"; ValueType: string;
 Root: HKCU; Subkey: "Software\Classes\.aiff"; ValueType: string; ValueData: "JustPlay.AudioFile"; Flags: uninsdeletevalue; Tasks: assoc_aiff
 Root: HKCU; Subkey: "Software\Classes\.aif\OpenWithProgids";  ValueType: string; ValueName: "JustPlay.AudioFile"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc_aiff
 Root: HKCU; Subkey: "Software\Classes\.aif";  ValueType: string; ValueData: "JustPlay.AudioFile"; Flags: uninsdeletevalue; Tasks: assoc_aiff
+
+; ── Playlist ProgID (.m3u8 / .m3u) — opening one REPLACES the queue with the whole set. ──
+Root: HKCU; Subkey: "Software\Classes\JustPlay.Playlist"; ValueType: string; ValueData: "JustPlay Playlist"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\JustPlay.Playlist\DefaultIcon"; ValueType: string; ValueData: "{app}\{#AppExe},0"
+Root: HKCU; Subkey: "Software\Classes\JustPlay.Playlist\shell\open\command"; ValueType: string; ValueData: """{app}\{#AppExe}"" ""%1"""
+Root: HKCU; Subkey: "Software\Classes\.m3u8\OpenWithProgids"; ValueType: string; ValueName: "JustPlay.Playlist"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc_m3u
+Root: HKCU; Subkey: "Software\Classes\.m3u8"; ValueType: string; ValueData: "JustPlay.Playlist"; Flags: uninsdeletevalue; Tasks: assoc_m3u
+Root: HKCU; Subkey: "Software\Classes\.m3u\OpenWithProgids"; ValueType: string; ValueName: "JustPlay.Playlist"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoc_m3u
+Root: HKCU; Subkey: "Software\Classes\.m3u"; ValueType: string; ValueData: "JustPlay.Playlist"; Flags: uninsdeletevalue; Tasks: assoc_m3u
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"

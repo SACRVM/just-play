@@ -11,6 +11,7 @@ using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
+using JustPlay.Core.Playlists;
 using JustPlay.Core.Theming;
 using JustPlay.Metadata;
 using BroadcastState = JustPlay.Core.Abstractions.BroadcastState;
@@ -1574,17 +1575,61 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    /// <summary>Entry point for files handed to us by a file-association / double-click launch
-    /// (via the single-instance pipe). Adds them to the queue; when <paramref name="play"/> is set
-    /// (the "open" verb) AND nothing is playing yet, the first newly-added track starts — so a
-    /// double-clicked song just plays, while an already-running set is never interrupted. The
-    /// future "Add to JustPlay" verb passes play=false (append only).</summary>
+    /// <summary>Route files handed to us by a launch / file-association / single-instance forward.
+    /// A playlist (.m3u8/.m3u) is a COMPLETE set, so it REPLACES the queue; plain audio files are
+    /// ADDED (the existing consume-friendly behaviour). Mixed input favours the playlist.</summary>
+    public async Task OpenIncomingAsync(IReadOnlyList<string> paths, bool addOnly)
+    {
+        var playlist = paths.FirstOrDefault(M3uPlaylist.IsPlaylist);
+        if (playlist is not null)
+        {
+            await LoadPlaylistAsync(playlist);
+            return;
+        }
+        await OpenFilesAsync(paths, play: !addOnly);
+    }
+
+    /// <summary>Add audio files to the queue (file-association / "Add to JustPlay"). When
+    /// <paramref name="play"/> is set (the "open" verb) AND nothing is playing yet, the first
+    /// newly-added track starts — so a double-clicked song just plays, while an already-running set
+    /// is never interrupted. The "Add to JustPlay" verb passes play=false (append only).</summary>
     public async Task OpenFilesAsync(IReadOnlyList<string> paths, bool play)
     {
         var before = Tracks.Count;
         await AddPathsAsync(paths);
         if (play && _controller.CurrentTrack is null && Tracks.Count > before)
             PlayTrack(Tracks[before]);   // first track we just added
+    }
+
+    /// <summary>Load an M3U/M3U8 playlist, REPLACING the whole queue with its tracks — a playlist is
+    /// a complete set, not tracks to append, so opening one swaps the list and starts from the top.
+    /// Reading happens off the UI thread; the missing/foreign entries are silently skipped.</summary>
+    public async Task LoadPlaylistAsync(string playlistPath)
+    {
+        var audio = (await Task.Run(() => M3uPlaylist.ReadPaths(playlistPath)))
+            .Where(IsAudio).ToList();
+        if (audio.Count == 0) return;
+
+        ClearList();                 // stop playback, clear queue + shuffle bookkeeping
+        await AddPathsAsync(audio);
+        if (Tracks.Count > 0) PlayTrack(Tracks[0]);
+    }
+
+    /// <summary>Export the current queue order to an M3U8 playlist — the universal format Traktor,
+    /// rekordbox, Serato &amp; co. all import. Snapshots on the UI thread, writes off it (a network
+    /// drive can block). Analysis travels via the files' tags; we never touch the other tool's library.</summary>
+    public Task ExportPlaylistM3uAsync(string destPath)
+    {
+        var entries = Tracks.Select(t => new M3uPlaylist.Entry(
+            t.Model.FilePath, t.Model.Metadata?.Duration, BuildPlaylistTitle(t))).ToList();
+        return Task.Run(() => M3uPlaylist.Write(destPath, entries));
+    }
+
+    private static string BuildPlaylistTitle(TrackViewModel t)
+    {
+        var artist = (t.Artist ?? string.Empty).Trim();
+        var title = (t.Title ?? string.Empty).Trim();
+        return artist.Length > 0 ? $"{artist} - {title}" : title;
     }
 
     private static bool IsAudio(string path) => AudioExtensions.Contains(Path.GetExtension(path));

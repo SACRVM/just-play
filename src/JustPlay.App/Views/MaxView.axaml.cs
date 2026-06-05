@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using JustPlay.App.Controls;
@@ -211,6 +212,40 @@ public partial class MaxView : UserControl
         var item = new MenuItem { Header = header };
         item.Click += (_, _) => onClick();
         return item;
+    }
+
+    // ── Playlist open / export (M3U8) ──────────────────────────────────────
+    // Dialogs live in code-behind (they need the window's StorageProvider). "Open" REPLACES the
+    // queue with the playlist's set; "Export" writes the current order to a .m3u8.
+    private async void OnOpenPlaylist(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (TopLevel.GetTopLevel(this) is not { } top) return;
+
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open playlist",
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType("Playlists") { Patterns = ["*.m3u8", "*.m3u"] }],
+        });
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+            await vm.LoadPlaylistAsync(path);
+    }
+
+    private async void OnExportPlaylist(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || vm.Tracks.Count == 0) return;
+        if (TopLevel.GetTopLevel(this) is not { } top) return;
+
+        var file = await top.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export playlist",
+            SuggestedFileName = "JustPlay set",
+            DefaultExtension = "m3u8",
+            FileTypeChoices = [new FilePickerFileType("M3U8 playlist") { Patterns = ["*.m3u8"] }],
+        });
+        if (file?.TryGetLocalPath() is { } path)
+            await vm.ExportPlaylistM3uAsync(path);
     }
 
     // Window min/max/close now live in the shared WindowControls control.
