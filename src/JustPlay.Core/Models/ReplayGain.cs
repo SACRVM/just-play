@@ -24,4 +24,30 @@ public static class ReplayGain
     /// <returns>Gain in dB — positive means "turn up", negative means "turn down".</returns>
     public static double TrackGainDb(double integratedLufs)
         => Math.Clamp(ReferenceLufs - integratedLufs, -51.0, 51.0);
+
+    /// <summary>
+    /// The gain a PLAYER actually applies: re-references the stored −18 ReplayGain to a chosen
+    /// playback target (Quiet −19 / Normal −14 / Loud −11), then clip-prevents — a positive gain is
+    /// capped so the measured linear <paramref name="peakLinear"/> lands at most at full scale, and
+    /// if the peak is unknown a positive gain is suppressed entirely (never amplify blind). At
+    /// <paramref name="targetLufs"/> == <see cref="ReferenceLufs"/> this returns the tag gain verbatim.
+    /// Shared by the playback engine (PlaybackController) and the GAIN-column display so both agree.
+    /// </summary>
+    /// <param name="replayGainDb">The stored −18-referenced ReplayGain track gain (dB).</param>
+    /// <param name="peakLinear">Measured linear sample peak (0..~1), or null if unknown.</param>
+    /// <param name="targetLufs">The playback loudness target in LUFS.</param>
+    public static double AppliedGainDb(double replayGainDb, double? peakLinear, double targetLufs)
+    {
+        var g = replayGainDb + (targetLufs - ReferenceLufs);
+        if (peakLinear is { } p && p > 0)
+        {
+            var peakDb = 20.0 * Math.Log10(p);
+            if (g > 0 && peakDb + g > 0) g = -peakDb;   // peak lands exactly at 0 dBFS — no clip
+        }
+        else if (g > 0)
+        {
+            g = 0.0;   // peak unknown → don't amplify blind
+        }
+        return Math.Clamp(g, -51.0, 51.0);
+    }
 }

@@ -32,6 +32,13 @@ public partial class MaxView : UserControl
         (TopLevel.GetTopLevel(this) as Window)?.BeginMoveDrag(e);
     }
 
+    // Title-bar brand → open the themed About dialog (moved here from the Tweaks panel).
+    private void OnAboutClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is Window owner)
+            new AboutWindow().ShowDialog(owner);
+    }
+
     // Title-bar update badge → show the update dialog, then install / ignore / dismiss.
     private async void OnUpdateBadge(object? sender, RoutedEventArgs e)
     {

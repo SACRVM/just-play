@@ -62,6 +62,84 @@ public class ReplayGainTests
     }
 
     // -------------------------------------------------------------------------
+    // AppliedGainDb — the gain a PLAYER applies: re-reference the −18 tag to the
+    // chosen Quiet/Normal/Loud target, then clip-prevent. The PlaybackController
+    // tests only ever use the default −18 target (so the re-reference term is 0);
+    // these exercise the Quiet/Normal/Loud math that is otherwise untested.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void AppliedGainDb_AtReferenceTarget_ReturnsTagGainVerbatim()
+    {
+        // target == −18 (the RG reference) → re-reference term is 0 → tag value unchanged.
+        Assert.Equal(-6.0, ReplayGain.AppliedGainDb(-6.0, peakLinear: null, targetLufs: -18.0));
+    }
+
+    [Fact]
+    public void AppliedGainDb_NormalTarget_AddsFourLU()
+    {
+        // Normal (−14) is 4 LU above the −18 reference → tag gain + 4. −6 → −2.
+        Assert.Equal(-2.0, ReplayGain.AppliedGainDb(-6.0, peakLinear: null, targetLufs: -14.0), precision: 6);
+    }
+
+    [Fact]
+    public void AppliedGainDb_QuietTarget_SubtractsOneLU()
+    {
+        // Quiet (−19) is 1 LU below the reference → tag gain − 1. −6 → −7.
+        Assert.Equal(-7.0, ReplayGain.AppliedGainDb(-6.0, peakLinear: null, targetLufs: -19.0), precision: 6);
+    }
+
+    [Fact]
+    public void AppliedGainDb_LoudTarget_PeakUnknown_PositiveResultSuppressed()
+    {
+        // Loud (−11) is +7 LU; −6 tag → +1 desired. Peak unknown → never amplify blind → 0.
+        Assert.Equal(0.0, ReplayGain.AppliedGainDb(-6.0, peakLinear: null, targetLufs: -11.0));
+    }
+
+    [Fact]
+    public void AppliedGainDb_LoudTarget_HeadroomAvailable_PositiveGainApplied()
+    {
+        // Loud (−11): −6 tag → +1 desired. peak 0.5 (−6 dBFS) leaves plenty of headroom → +1 applied.
+        Assert.Equal(1.0, ReplayGain.AppliedGainDb(-6.0, peakLinear: 0.5, targetLufs: -11.0), precision: 6);
+    }
+
+    [Fact]
+    public void AppliedGainDb_LoudTarget_PositiveGainCappedByPeak()
+    {
+        // Loud (−11): +2 tag → +9 desired. peak 0.9 (−0.915 dBFS) can only rise by +0.915
+        // before clipping → gain is capped to −peakDb, NOT +9.
+        var expected = -20.0 * System.Math.Log10(0.9);   // ≈ +0.9151
+        Assert.Equal(expected, ReplayGain.AppliedGainDb(2.0, peakLinear: 0.9, targetLufs: -11.0), precision: 6);
+    }
+
+    [Fact]
+    public void AppliedGainDb_NegativeGain_NeverCapped_EvenAtFullScalePeak()
+    {
+        // Attenuation can never clip, so a high peak must NOT cap a negative gain.
+        Assert.Equal(-10.0, ReplayGain.AppliedGainDb(-10.0, peakLinear: 0.99, targetLufs: -18.0), precision: 6);
+    }
+
+    [Fact]
+    public void AppliedGainDb_BrickWalledMaster_GetsNoPositiveGain()
+    {
+        // peak == 1.0 (0 dBFS) → zero headroom → any positive desired gain is capped to 0.
+        Assert.Equal(0.0, ReplayGain.AppliedGainDb(3.0, peakLinear: 1.0, targetLufs: -18.0), precision: 6);
+    }
+
+    [Fact]
+    public void AppliedGainDb_CapThenClamp_PositiveCeilingIsFiftyOne()
+    {
+        // A tiny peak (0.001 = −60 dBFS) permits a huge cap; the final clamp still bounds it to +51.
+        Assert.Equal(51.0, ReplayGain.AppliedGainDb(100.0, peakLinear: 0.001, targetLufs: -18.0));
+    }
+
+    [Fact]
+    public void AppliedGainDb_NegativeFloorIsClampedToMinusFiftyOne()
+    {
+        Assert.Equal(-51.0, ReplayGain.AppliedGainDb(-100.0, peakLinear: null, targetLufs: -18.0));
+    }
+
+    // -------------------------------------------------------------------------
     // Codec round-trip: LoudnessLufs / ReplayGainDb / Peak survive serialisation
     // -------------------------------------------------------------------------
 

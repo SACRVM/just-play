@@ -338,25 +338,29 @@
             <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar" Background="Transparent">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto">
 
-                    <!-- Brand -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="14,0,0,0">
-                        <Border Width="20" Height="20" CornerRadius="5"
-                                Background="{DynamicResource AccentGradient}">
-                            <Border.Effect>
-                                <!-- Halo colour tracks the live theme's warm accent. -->
-                                <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="8" OffsetX="0" OffsetY="0" Opacity="0.45"/>
-                            </Border.Effect>
-                            <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="8" Height="8">
-                                <!-- Contrast shadow: white ▶ on the bright accent chip, same soft
-                                     drop as the transport icons / global text. -->
-                                <Path.Effect>
-                                    <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
-                                </Path.Effect>
-                            </Path>
-                        </Border>
-                        <TextBlock Text="JUST PLAY" FontSize="11" FontWeight="SemiBold"
-                                   LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
-                    </StackPanel>
+                    <!-- Brand — click opens the About dialog (replaces the old Tweaks "About" row).
+                         A Button so the frameless-window drag handler treats it as interactive. -->
+                    <Button Classes="brand" Click="OnAboutClick" Margin="14,0,0,0"
+                            VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Border Width="20" Height="20" CornerRadius="5"
+                                    Background="{DynamicResource AccentGradient}">
+                                <Border.Effect>
+                                    <!-- Halo colour tracks the live theme's warm accent. -->
+                                    <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="8" OffsetX="0" OffsetY="0" Opacity="0.45"/>
+                                </Border.Effect>
+                                <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="8" Height="8">
+                                    <!-- Contrast shadow: white ▶ on the bright accent chip, same soft
+                                         drop as the transport icons / global text. -->
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                    </Path.Effect>
+                                </Path>
+                            </Border>
+                            <TextBlock Text="JUST PLAY" FontSize="11" FontWeight="SemiBold"
+                                       LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
                     <!-- Center breadcrumb -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
@@ -593,8 +597,11 @@
                                     Spinning="{Binding ShouldSpin}"/>
                 </Panel>
 
-                <!-- RIGHT: track meta + queue/lyrics -->
-                <DockPanel Grid.Column="1" Margin="20,4,0,0">
+                <!-- RIGHT: track meta + queue/lyrics.
+                     Grid.IsSharedSizeScope="True" here so the header Grid (col 2..8) and every
+                     row template Grid share the same SharedSizeGroup widths (cGenre…cDuration).
+                     Both the header Border and the ListBox are descendants of this DockPanel. -->
+                <DockPanel Grid.Column="1" Margin="20,4,0,0" Grid.IsSharedSizeScope="True">
 
                     <!-- Title + meta block. "NOW PLAYING · TRACK n" appears when a track is current. -->
                     <StackPanel DockPanel.Dock="Top" Spacing="8">
@@ -639,22 +646,90 @@
                          (design app.jsx:733). Underline width = text width (Panel content area). -->
                     <Border DockPanel.Dock="Top" Margin="0,18,0,8"
                             BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
-                        <StackPanel Orientation="Horizontal" Spacing="0">
-                            <Button Classes="tab active" Click="OnUpNextTabClick" Name="UpNextTab">
-                                <Panel>
-                                    <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" LetterSpacing="2"
-                                               VerticalAlignment="Top"/>
-                                    <Border Classes="tabline"/>
-                                </Panel>
-                            </Button>
-                            <Button Classes="tab" Click="OnLyricsTabClick" Name="LyricsTab">
-                                <Panel>
-                                    <TextBlock Text="LYRICS" FontSize="12" FontWeight="Bold" LetterSpacing="2"
-                                               VerticalAlignment="Top"/>
-                                    <Border Classes="tabline"/>
-                                </Panel>
-                            </Button>
-                        </StackPanel>
+                        <DockPanel>
+                            <!-- Column-view switch: A | B | C — three user-customisable column sets.
+                                 Right-click the container to toggle individual columns for the active view.
+                                 Hidden until there are tracks. -->
+                            <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,0,6"
+                                    Background="#14FFFFFF" CornerRadius="8" Padding="2" Height="24"
+                                    IsVisible="{Binding HasTracks}">
+                                <Border.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="GENRE"          ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowGenre, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
+                                        <MenuItem Header="BPM"            ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowBpm, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
+                                        <MenuItem Header="KEY"            ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowKey, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="key"/>
+                                        <MenuItem Header="Energy (NRG)"   ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowNrg, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="nrg"/>
+                                        <MenuItem Header="GAIN"           ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowGain, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="gain"/>
+                                        <MenuItem Header="LUFS"           ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowLufs, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="lufs"/>
+                                        <MenuItem Header="DURATION"       ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowDuration, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
+                                    </MenuFlyout>
+                                </Border.ContextFlyout>
+                                <!-- Flush segmented control: outer corners rounded, middle joint square. -->
+                                <StackPanel Orientation="Horizontal" Spacing="0">
+                                    <Button Classes="lens-seg" Classes.active="{Binding IsViewA}"
+                                            CornerRadius="6,0,0,6"
+                                            Command="{Binding SetColumnViewCommand}" CommandParameter="A"
+                                            ToolTip.Tip="View A — Mix (Key · Energy · Genre)">
+                                        <TextBlock Text="A">
+                                            <TextBlock.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                            </TextBlock.Effect>
+                                        </TextBlock>
+                                    </Button>
+                                    <Button Classes="lens-seg" Classes.active="{Binding IsViewB}"
+                                            CornerRadius="0"
+                                            Command="{Binding SetColumnViewCommand}" CommandParameter="B"
+                                            ToolTip.Tip="View B — Levels (Gain · LUFS)">
+                                        <TextBlock Text="B">
+                                            <TextBlock.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                            </TextBlock.Effect>
+                                        </TextBlock>
+                                    </Button>
+                                    <Button Classes="lens-seg" Classes.active="{Binding IsViewC}"
+                                            CornerRadius="0,6,6,0"
+                                            Command="{Binding SetColumnViewCommand}" CommandParameter="C"
+                                            ToolTip.Tip="View C — Minimal (BPM · Duration)">
+                                        <TextBlock Text="C">
+                                            <TextBlock.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                            </TextBlock.Effect>
+                                        </TextBlock>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="0">
+                                <Button Classes="tab active" Click="OnUpNextTabClick" Name="UpNextTab">
+                                    <Panel>
+                                        <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" LetterSpacing="2"
+                                                   VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab" Click="OnLyricsTabClick" Name="LyricsTab">
+                                    <Panel>
+                                        <TextBlock Text="LYRICS" FontSize="12" FontWeight="Bold" LetterSpacing="2"
+                                                   VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                            </StackPanel>
+                        </DockPanel>
                     </Border>
 
                     <!-- Queue header row + hairline divider. No bottom margin so the list sits
@@ -664,23 +739,77 @@
                             Padding="0,0,0,6" Margin="0,2,0,0"
                             IsVisible="{Binding HasTracks}">
                         <!--
-                          Columns mirror the row template exactly: 7 cols, Genre slot between
-                          Title and BPM. Widths: # 28, Title *, GENRE 100, BPM 44, KEY 52,
-                          NRG 44, Duration 52 (BPM and NRG both 44, per spec).
+                          DockPanel layout (NOT a Grid/SharedSizeGroup — that reserved width for
+                          hidden columns and broke the * title). # docks left (28), the toggleable
+                          data cells dock RIGHT as fixed-width cells (a collapsed cell takes ZERO
+                          width in the StackPanel, so hiding a column truly reclaims its space), and
+                          UP NEXT fills the middle. Row cells use the SAME fixed widths + right-dock,
+                          so columns line up without any shared-size machinery.
 
-                          Right margin = 22 = 16 (content↔scrollbar gap, matches row Grid's 16)
-                          + 6 (the scrollbar's own width) — so header column right-edges line up
-                          with row column right-edges even though the bar only consumes width
-                          inside the ListBox.
-
-                          "#" centred (matches row index); "UP NEXT" gets 4-px left margin so it
-                          sits flush above the Title text (row StackPanel also has Margin="4,0,…").
+                          Right margin = 16, SAME as the row margin — Avalonia's auto-hide scrollbar
+                          OVERLAYS the content (reserves no layout width), so no extra gutter is
+                          needed; a +6 "scrollbar" margin shifted the whole header 6px left of the
+                          rows (visible as a column offset, worst at GENRE).
                         -->
-                        <Grid ColumnDefinitions="28,3*,1.3*,44,52,44,52" Margin="6,0,16,0">
-                            <TextBlock Classes="colhead" Text="#"
+                        <DockPanel Margin="6,0,16,0">
+                            <TextBlock DockPanel.Dock="Left" Classes="colhead" Text="#" Width="28"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0"
-                                        VerticalAlignment="Center" Margin="4,0,0,0">
+
+                            <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). -->
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="110" Background="Transparent" Tag="Genre" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowGenre}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="GENRE"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding GenreSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="50" Background="Transparent" Tag="Bpm" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowBpm}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="BPM"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding BpmSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="58" Background="Transparent" Tag="Key" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowKey}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="KEY"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding KeySortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="42" Background="Transparent" Tag="Nrg" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowNrg}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="NRG"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding NrgSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="56" Background="Transparent" Tag="Gain" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowGain}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="GAIN"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding GainSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="56" Background="Transparent" Tag="Lufs" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowLufs}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="LUFS"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding LufsSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="62" Background="Transparent" Tag="Duration" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowDuration}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="{Binding TotalDurationText}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding DurationSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- UP NEXT — fills the remaining middle (last child). -->
+                            <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="4,0,8,0">
                                 <TextBlock Classes="colhead" Text="UP NEXT" Tag="Title"
                                            Tapped="OnHeaderTapped" Cursor="Hand"/>
                                 <TextBlock Classes="colhead sortarrow" Text="{Binding TitleSortGlyph}"/>
@@ -688,13 +817,7 @@
                                 <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
                                            Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
                                            VerticalAlignment="Center"/>
-                                <!--
-                                  Live-analysis badge: appears only while DSP analysis is in flight
-                                  (IsAnalyzing). Sits in the always-visible header so the user notices
-                                  work that's happening on rows scrolled out of view further down.
-                                  Accent-cyan (AccentABrush) reads as "scanning / in progress" and
-                                  follows the active theme.
-                                -->
+                                <!-- Live-analysis badge: only while DSP analysis is in flight (IsAnalyzing). -->
                                 <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·"
                                            Margin="10,0,4,0" VerticalAlignment="Center"
                                            IsVisible="{Binding IsAnalyzing}"/>
@@ -703,32 +826,7 @@
                                            Text="{Binding AnalyzingText}" VerticalAlignment="Center"
                                            IsVisible="{Binding IsAnalyzing}"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" Background="Transparent"
-                                        VerticalAlignment="Center" Tag="Genre" Tapped="OnHeaderTapped" Cursor="Hand">
-                                <TextBlock Classes="colhead" Text="GENRE"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding GenreSortGlyph}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="0" Background="Transparent"
-                                        HorizontalAlignment="Right" VerticalAlignment="Center" Tag="Bpm" Tapped="OnHeaderTapped" Cursor="Hand">
-                                <TextBlock Classes="colhead" Text="BPM"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding BpmSortGlyph}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="0" Background="Transparent"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Key" Tapped="OnHeaderTapped" Cursor="Hand">
-                                <TextBlock Classes="colhead" Text="KEY"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding KeySortGlyph}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="0" Background="Transparent"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Nrg" Tapped="OnHeaderTapped" Cursor="Hand">
-                                <TextBlock Classes="colhead" Text="NRG"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding NrgSortGlyph}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="0" Background="Transparent"
-                                        HorizontalAlignment="Right" VerticalAlignment="Center" Tag="Duration" Tapped="OnHeaderTapped" Cursor="Hand">
-                                <TextBlock Classes="colhead" Text="{Binding TotalDurationText}"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding DurationSortGlyph}"/>
-                            </StackPanel>
-                        </Grid>
+                        </DockPanel>
                     </Border>
 
                     <!-- Queue / lyrics swap (lyrics is placeholder for now) -->
@@ -809,131 +907,111 @@
                                 </ListBox.ContextMenu>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:TrackViewModel">
-                                        <!-- Row margin right = 16 → that's the visible gap between the
-                                             last column (Duration) and the scrollbar at the right edge.
-                                             Header has matching margin (+6 for scrollbar width) so column
-                                             right-edges line up. -->
-                                        <Grid ColumnDefinitions="28,3*,1.3*,44,52,44,52" Margin="6,0,16,0" MinHeight="44">
-
-                                            <!--
-                                              Cyan→pink accent edge on the left of the active row.
-
-                                              Margin left = -8 → sits at ListBoxItem x=-2 (the row Grid has
-                                              Margin=6 left so -8 = -6 + -2). That's the "kante sitzt außen" look.
-
-                                              Spans the FULL row height (Margin top/bottom = 0). The design's
-                                              4/4 inset was carried over from earlier iterations; it left the
-                                              bar visibly shorter than the row and read as a stub. Going edge-
-                                              to-edge gives the bar the proper "now-playing rail" presence.
-
-                                              Gradient is VERTICAL (cyan TOP → pink BOTTOM) — direct port of
-                                              the design's `linear-gradient(to bottom, accentA, accentB)`.
-                                              The shared AccentGradient resource is diagonal (0%,0% → 100%,100%)
-                                              which on a 3-px-wide rail just reads as muddy violet; the vertical
-                                              gradient actually shows the cyan→pink range.
-
-                                              Pink BoxShadow halo around the bar — port of the design's
-                                              `boxShadow: 0 0 6px ${accentB}` so the active row pulses with
-                                              accent light, not just colour.
-                                            -->
+                                        <!-- DockPanel row (mirrors the header): # left, toggleable data cells
+                                             right (fixed widths, collapsed = 0 width), title fills the middle.
+                                             Same widths + right-dock as the header → columns align without
+                                             SharedSizeGroup. Right margin 16 = gap to the scrollbar. -->
+                                        <Panel Margin="6,0,16,0" MinHeight="44">
+                                            <!-- Cyan→pink accent edge on the active row (overlay at the left edge). -->
                                             <Border Width="3" CornerRadius="1.5"
                                                     HorizontalAlignment="Left" Margin="-8,0,0,0"
-                                                    Grid.ColumnSpan="7"
                                                     IsVisible="{Binding IsCurrent}"
                                                     BoxShadow="{DynamicResource ActiveRowEdgeHalo}">
                                                 <Border.Background>
                                                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                                        <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>  <!-- cyan top -->
-                                                        <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>  <!-- pink bottom -->
+                                                        <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
+                                                        <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
                                                     </LinearGradientBrush>
                                                 </Border.Background>
                                             </Border>
 
-                                            <!-- Index column, mutually exclusive content:
-                                                 spinner while analysing → play-bars on the current
-                                                 track → plain position number otherwise. -->
-                                            <Grid Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                <TextBlock Text="{Binding Index}" FontSize="11" FontWeight="SemiBold"
-                                                           Foreground="#73FFFFFF"
-                                                           VerticalAlignment="Center"
-                                                           IsVisible="{Binding ShowIndexNumber}"/>
-                                                <StackPanel Orientation="Horizontal" Spacing="2"
-                                                            VerticalAlignment="Bottom" Height="14"
-                                                            IsVisible="{Binding ShowPlayBars}">
-                                                    <Rectangle Classes="pbar pbar1"/>
-                                                    <Rectangle Classes="pbar pbar2"/>
-                                                    <Rectangle Classes="pbar pbar3"/>
+                                            <DockPanel>
+                                                <!-- Index — spinner / play-bars / number -->
+                                                <Grid DockPanel.Dock="Left" Width="28" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <TextBlock Text="{Binding Index}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#73FFFFFF" VerticalAlignment="Center"
+                                                               IsVisible="{Binding ShowIndexNumber}"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="2"
+                                                                VerticalAlignment="Bottom" Height="14"
+                                                                IsVisible="{Binding ShowPlayBars}">
+                                                        <Rectangle Classes="pbar pbar1"/>
+                                                        <Rectangle Classes="pbar pbar2"/>
+                                                        <Rectangle Classes="pbar pbar3"/>
+                                                    </StackPanel>
+                                                    <Path Classes="spinner" Width="14" Height="14"
+                                                          Stroke="{DynamicResource AccentABrush}" StrokeThickness="2"
+                                                          Data="M 7,1 A 6,6 0 1 1 1,7"
+                                                          VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                          IsVisible="{Binding IsAnalyzing}"/>
+                                                </Grid>
+
+                                                <!-- Toggleable data cells, docked right (fixed widths; collapsed = 0). -->
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- GENRE -->
+                                                    <TextBlock Width="110" Text="{Binding GenreText}"
+                                                               FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowGenre}"/>
+                                                    <!-- BPM -->
+                                                    <TextBlock Width="50" Text="{Binding BpmText}" Tag="Bpm"
+                                                               FontSize="12"
+                                                               Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
+                                                               FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
+                                                               TextAlignment="Right" VerticalAlignment="Center"
+                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowBpm}"/>
+                                                    <!-- KEY pill (+ conflict dot) -->
+                                                    <Panel Width="58" Tag="Key" VerticalAlignment="Center"
+                                                           IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowKey}">
+                                                        <Border CornerRadius="10" Padding="7,3" BorderThickness="1"
+                                                                HorizontalAlignment="Center"
+                                                                Background="{Binding KeyText, Converter={StaticResource CamelotToBrush}}"
+                                                                BorderBrush="{Binding KeyText, Converter={StaticResource CamelotBorder}}"
+                                                                IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
+                                                                       LetterSpacing="0.5" Foreground="White"/>
+                                                        </Border>
+                                                        <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                                 Margin="0,-2,8,0" Fill="{DynamicResource AccentB}"
+                                                                 IsVisible="{Binding KeyConflict}"/>
+                                                    </Panel>
+                                                    <!-- NRG — centered number (+ conflict dot). Bars dropped for compactness. -->
+                                                    <Panel Width="42" VerticalAlignment="Center"
+                                                           IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowNrg}">
+                                                        <TextBlock Tag="Energy" Text="{Binding EnergyText}"
+                                                                   FontSize="12" Foreground="#CCFFFFFF"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                                 Margin="0,-2,2,0" Fill="{DynamicResource AccentB}"
+                                                                 IsVisible="{Binding EnergyConflict}"/>
+                                                    </Panel>
+                                                    <!-- GAIN (red via gain-cell.gain-clip style; no inline Foreground) -->
+                                                    <TextBlock Width="56" Tag="Gain" Text="{Binding GainText}"
+                                                               ToolTip.Tip="{Binding GainTooltip}"
+                                                               Classes="gain-cell" Classes.gain-clip="{Binding GainClips}"
+                                                               FontSize="12" TextAlignment="Center" VerticalAlignment="Center"
+                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowGain}"/>
+                                                    <!-- LUFS -->
+                                                    <TextBlock Width="56" Tag="Lufs" Text="{Binding LufsText}"
+                                                               ToolTip.Tip="Integrated loudness (LUFS)"
+                                                               FontSize="12" Foreground="#CCFFFFFF"
+                                                               TextAlignment="Center" VerticalAlignment="Center"
+                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowLufs}"/>
+                                                    <!-- DURATION -->
+                                                    <TextBlock Width="62" Text="{Binding DurationText}"
+                                                               FontSize="12" Foreground="#B3FFFFFF"
+                                                               TextAlignment="Right" VerticalAlignment="Center"
+                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowDuration}"/>
                                                 </StackPanel>
-                                                <Path Classes="spinner" Width="14" Height="14"
-                                                      Stroke="{DynamicResource AccentABrush}" StrokeThickness="2"
-                                                      Data="M 7,1 A 6,6 0 1 1 1,7"
-                                                      VerticalAlignment="Center" HorizontalAlignment="Center"
-                                                      IsVisible="{Binding IsAnalyzing}"/>
-                                            </Grid>
 
-                                            <!-- Title + artist -->
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0,8,0">
-                                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding Artist}" FontSize="11"
-                                                           Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-
-                                            <!-- GENRE (from MP3 tag, may be empty — column simply renders blank then).
-                                                 Bound via the GenreText VM property, NOT Model.Metadata.Genre directly,
-                                                 so it refreshes on Refresh() with the rest of the row (see TrackViewModel). -->
-                                            <TextBlock Grid.Column="2" Text="{Binding GenreText}"
-                                                       FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-
-                                            <!-- BPM (bold when our detected value diverges from the file's claimed BPM).
-                                                 Tag drives cell-targeted right-click (see OnListContextRequested). -->
-                                            <TextBlock Grid.Column="3" Text="{Binding BpmText}" Tag="Bpm"
-                                                       FontSize="12"
-                                                       Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
-                                                       FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
-                                                       TextAlignment="Right" VerticalAlignment="Center"/>
-
-                                            <!-- KEY pill (+ accent dot when our key conflicts with the claimed key) -->
-                                            <Panel Grid.Column="4" Tag="Key" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Border CornerRadius="10" Padding="7,3" BorderThickness="1"
-                                                        Background="{Binding KeyText, Converter={StaticResource CamelotToBrush}}"
-                                                        BorderBrush="{Binding KeyText, Converter={StaticResource CamelotBorder}}"
-                                                        IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                    <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
-                                                               LetterSpacing="0.5" Foreground="White"/>
-                                                </Border>
-                                                <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                         Margin="0,-2,-2,0" Fill="{DynamicResource AccentB}"
-                                                         IsVisible="{Binding KeyConflict}"/>
-                                            </Panel>
-
-                                            <!-- ENERGY bars -->
-                                            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2" Tag="Energy"
-                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                        IsVisible="{Binding Energy, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                                <Rectangle Width="2.5" Height="4" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom"
-                                                           Fill="{Binding Energy, Converter={StaticResource EnergyBarColor}, ConverterParameter=0}"/>
-                                                <Rectangle Width="2.5" Height="6" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom"
-                                                           Fill="{Binding Energy, Converter={StaticResource EnergyBarColor}, ConverterParameter=1}"/>
-                                                <Rectangle Width="2.5" Height="8" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom"
-                                                           Fill="{Binding Energy, Converter={StaticResource EnergyBarColor}, ConverterParameter=2}"/>
-                                                <Rectangle Width="2.5" Height="10" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom"
-                                                           Fill="{Binding Energy, Converter={StaticResource EnergyBarColor}, ConverterParameter=3}"/>
-                                                <Rectangle Width="2.5" Height="12" RadiusX="1" RadiusY="1" VerticalAlignment="Bottom"
-                                                           Fill="{Binding Energy, Converter={StaticResource EnergyBarColor}, ConverterParameter=4}"/>
-                                                <TextBlock Text="{Binding EnergyText}" FontSize="10" FontWeight="SemiBold"
-                                                           Foreground="#A6FFFFFF" Margin="4,0,0,0" VerticalAlignment="Center"/>
-                                                <!-- Accent dot: our energy diverges from the file's claimed ENERGY tag (rare). -->
-                                                <Ellipse Width="6" Height="6" Margin="3,0,0,0" VerticalAlignment="Center"
-                                                         Fill="{DynamicResource AccentB}" IsVisible="{Binding EnergyConflict}"/>
-                                            </StackPanel>
-
-                                            <!-- DURATION -->
-                                            <TextBlock Grid.Column="6" Text="{Binding DurationText}"
-                                                       FontSize="12" Foreground="#B3FFFFFF"
-                                                       TextAlignment="Right" VerticalAlignment="Center"/>
-                                        </Grid>
+                                                <!-- Title + artist — fills the remaining middle (last child). -->
+                                                <StackPanel VerticalAlignment="Center" Margin="4,0,8,0">
+                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Artist}" FontSize="11"
+                                                               Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Panel>
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>

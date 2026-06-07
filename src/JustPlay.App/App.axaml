@@ -231,6 +231,92 @@
             <Setter Property="Foreground" Value="#5BE88A"/>
         </Style>
         <!--
+          Column-view segment — the A | B | C pills that switch the visible column set.
+          Transparent + muted when inactive; the active segment fills with the theme accent.
+          ContentPresenter backgrounds are set explicitly for every state (FluentTheme leaks
+          its own onto a custom button's ContentPresenter — the documented quirk).
+        -->
+        <Style Selector="Button.lens-seg">
+            <Setter Property="MinWidth" Value="34"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#80FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.lens-seg /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.lens-seg:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.lens-seg.active">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.lens-seg.active /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <Style Selector="Button.lens-seg.active:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <!--
+          PREP "GAIN" cell. Default + clip colour are BOTH styles (no inline Foreground): an inline
+          value has LocalValue precedence and would beat the .gain-clip setter, so the red would
+          silently never show (the documented Avalonia precedence trap). Red = the track would clip
+          on playback (brick-walled, or a positive gain overflows) — see TrackViewModel.GainClips.
+        -->
+        <Style Selector="TextBlock.gain-cell">
+            <Setter Property="Foreground" Value="#CCFFFFFF"/>
+        </Style>
+        <Style Selector="TextBlock.gain-cell.gain-clip">
+            <Setter Property="Foreground" Value="#FF6B6B"/>
+        </Style>
+        <!--
+          Title-bar brand button (opens About). Chrome-less: no background/border/padding in any
+          state, so it reads as the plain brand mark, not a button. ContentPresenter background is
+          forced transparent for hover/pressed (FluentTheme would otherwise tint it).
+        -->
+        <Style Selector="Button.brand">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+        <Style Selector="Button.brand /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.brand:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.brand:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!--
+          Hand cursor on everything clickable — web-style affordance the user asked for. Covers the
+          control types that represent a click action; clickable TextBlocks (sort headers, etc.)
+          already set Cursor="Hand" inline where they live.
+        -->
+        <Style Selector="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ToggleSwitch">
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ToggleButton">
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <!--
           The close button sits in the TOP-RIGHT corner of the window. Without this corner
           radius its hover/pressed background paints a square red — which sticks out past
           the card's rounded top-right corner (CornerRadius=14 on the Card Border). Giving

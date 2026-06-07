@@ -119,7 +119,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _autoAnalyze = s.AutoAnalyze;
         _autoWriteOnAnalyze = s.AutoWriteOnAnalyze;
         _writeDjComment = s.WriteDjComment;
+        _playbackNormalization = s.PlaybackNormalization;
+        _normalizationLevel = s.NormalizationLevel;
+        _controller.NormalizationEnabled = s.PlaybackNormalization;
+        _controller.TargetLufs = LevelToLufs(s.NormalizationLevel);
         _analysisThreads = s.AnalysisThreads;
+
+        // Seed column views from persisted settings (before _settingsHydrated — mirroring the tweak seed block).
+        _viewA = new HashSet<string>(s.ColumnViewA);
+        _viewB = new HashSet<string>(s.ColumnViewB);
+        _viewC = new HashSet<string>(s.ColumnViewC);
+        _activeColumnView = s.ActiveColumnView is "A" or "B" or "C" ? s.ActiveColumnView : "A";
 
         // Seed streaming profiles from persisted settings.
         foreach (var p in s.StreamServers)
@@ -222,6 +232,65 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string WithCount(string verb) =>
         SelectedTracks.Count > 1 ? $"{verb} ({SelectedTracks.Count})" : verb;
 
+    // ── Column views (A | B | C) ──────────────────────────────────────────────────
+    // Three named sets of visible optional columns. A = Mix (key/nrg), B = Levels (gain/lufs),
+    // C = Minimal (bpm + duration). The active set determines which columns render; switching
+    // views is instant. Each set is a HashSet so contains-check is O(1).
+    // Structural columns (# and UP NEXT) are always visible and not part of these sets.
+    private HashSet<string> _viewA = [];
+    private HashSet<string> _viewB = [];
+    private HashSet<string> _viewC = [];
+
+    private HashSet<string> ActiveSet => ActiveColumnView switch { "B" => _viewB, "C" => _viewC, _ => _viewA };
+
+    [ObservableProperty] private string _activeColumnView = "A";
+
+    public bool IsViewA => ActiveColumnView == "A";
+    public bool IsViewB => ActiveColumnView == "B";
+    public bool IsViewC => ActiveColumnView == "C";
+
+    public bool ShowGenre    => ActiveSet.Contains("genre");
+    public bool ShowBpm      => ActiveSet.Contains("bpm");
+    public bool ShowKey      => ActiveSet.Contains("key");
+    public bool ShowNrg      => ActiveSet.Contains("nrg");
+    public bool ShowGain     => ActiveSet.Contains("gain");
+    public bool ShowLufs     => ActiveSet.Contains("lufs");
+    public bool ShowDuration => ActiveSet.Contains("duration");
+
+    partial void OnActiveColumnViewChanged(string value)
+    {
+        RaiseColumnViewProps();
+        if (_settingsHydrated) PersistSettings();
+    }
+
+    private void RaiseColumnViewProps()
+    {
+        OnPropertyChanged(nameof(IsViewA));
+        OnPropertyChanged(nameof(IsViewB));
+        OnPropertyChanged(nameof(IsViewC));
+        OnPropertyChanged(nameof(ShowGenre));
+        OnPropertyChanged(nameof(ShowBpm));
+        OnPropertyChanged(nameof(ShowKey));
+        OnPropertyChanged(nameof(ShowNrg));
+        OnPropertyChanged(nameof(ShowGain));
+        OnPropertyChanged(nameof(ShowLufs));
+        OnPropertyChanged(nameof(ShowDuration));
+    }
+
+    /// <summary>Switch to a named column view. CommandParameter is "A", "B", or "C".</summary>
+    [RelayCommand]
+    private void SetColumnView(string which) => ActiveColumnView = which;
+
+    /// <summary>Toggle a single column id in the active view's enabled set.</summary>
+    [RelayCommand]
+    private void ToggleColumn(string id)
+    {
+        var set = ActiveSet;
+        if (!set.Remove(id)) set.Add(id);
+        RaiseColumnViewProps();
+        if (_settingsHydrated) PersistSettings();
+    }
+
     // ── Column sorting (click a header to sort; click again to flip direction) ──
     [ObservableProperty] private string? _sortColumn;
     [ObservableProperty] private bool _sortDescending;
@@ -234,6 +303,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public string BpmSortGlyph => Glyph("Bpm");
     public string KeySortGlyph => Glyph("Key");
     public string NrgSortGlyph => Glyph("Nrg");
+    public string GainSortGlyph => Glyph("Gain");
+    public string LufsSortGlyph => Glyph("Lufs");
     public string DurationSortGlyph => Glyph("Duration");
 
     partial void OnSortColumnChanged(string? value) => RaiseSortHeaders();
@@ -246,6 +317,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(BpmSortGlyph));
         OnPropertyChanged(nameof(KeySortGlyph));
         OnPropertyChanged(nameof(NrgSortGlyph));
+        OnPropertyChanged(nameof(GainSortGlyph));
+        OnPropertyChanged(nameof(LufsSortGlyph));
         OnPropertyChanged(nameof(DurationSortGlyph));
     }
 
@@ -290,6 +363,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     "Key"      => NaturalComparer.Instance.Compare(a.KeyText, b.KeyText),
                     "Bpm"      => Nullable.Compare(a.Bpm, b.Bpm),
                     "Nrg"      => Nullable.Compare(a.Energy, b.Energy),
+                    "Gain"     => Nullable.Compare(a.ReplayGainDb, b.ReplayGainDb),
+                    "Lufs"     => Nullable.Compare(a.LoudnessLufs, b.LoudnessLufs),
                     "Duration" => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
                     _          => 0,
                 };
@@ -435,6 +510,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private bool _autoAnalyze;
     [ObservableProperty] private bool _autoWriteOnAnalyze;
     [ObservableProperty] private bool _writeDjComment;
+
+    // Playback loudness normalization (Tweaks). Applies each track's ReplayGain on output so the
+    // queue plays at an even level (non-destructive, clip-protected). Off by default.
+    [ObservableProperty] private bool _playbackNormalization;
+
+    // Loudness target for normalization: "Quiet" −19 / "Normal" −14 / "Loud" −11 (streaming-style).
+    [ObservableProperty] private string _normalizationLevel = "Normal";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AnalysisThreadsText))]
     private int _analysisThreads = 4;
@@ -517,6 +600,58 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PersistSettings();
     }
 
+    partial void OnPlaybackNormalizationChanged(bool value)
+    {
+        // Apply to the controller (affects the next track) and re-apply to the CURRENT track so the
+        // change is heard immediately. Always wire the controller; persist only after hydration.
+        _controller.NormalizationEnabled = value;
+        _controller.RefreshNormalization();
+        if (!_settingsHydrated) return;
+        PersistSettings();
+
+        // Turning it ON couples in full analysis (the user's choice): measure any queued track that
+        // lacks a ReplayGain yet, so normalization works without a manual Analyze pass.
+        if (value) EnsureAnalyzedForNormalization();
+    }
+
+    partial void OnNormalizationLevelChanged(string value)
+    {
+        // Re-reference the playback target and re-apply to the current track so the level change is
+        // heard immediately. The written ReplayGain TAG stays at the −18 standard — this only moves
+        // the playback target.
+        _controller.TargetLufs = LevelToLufs(value);
+        _controller.RefreshNormalization();
+        // The GAIN column shows the gain applied AT THE ACTIVE LEVEL — push the new target to every
+        // row so the displayed numbers track the Quiet/Normal/Loud switch.
+        var target = LevelToLufs(value);
+        foreach (var t in Tracks) { t.NormalizationTargetDb = target; t.RaiseGainDisplay(); }
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    /// <summary>Set the normalization level from the Tweaks segmented control ("Quiet"/"Normal"/"Loud").</summary>
+    [RelayCommand]
+    private void SetNormalizationLevel(string which) => NormalizationLevel = which;
+
+    /// <summary>Map the streaming-style level name to its LUFS target. Unknown → Normal (−14).</summary>
+    private static double LevelToLufs(string level) => level switch
+    {
+        "Quiet" => -19.0,
+        "Loud"  => -11.0,
+        _       => -14.0,
+    };
+
+    /// <summary>Run full analysis on queued tracks that have no ReplayGain yet, so playback
+    /// normalization has a gain to apply. No-op when normalization is off or nothing needs it.</summary>
+    private void EnsureAnalyzedForNormalization()
+    {
+        if (!PlaybackNormalization) return;
+        var need = Tracks
+            .Where(t => t.Model.Analysis?.ReplayGainDb is null && t.Model.AnalysisStatus != AnalysisStatus.Running)
+            .ToList();
+        if (need.Count > 0) _ = AnalyzeTracksAsync(need);
+    }
+
     partial void OnAnalysisThreadsChanged(int value)
     {
         if (!_settingsHydrated) return;
@@ -531,13 +666,24 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         AutoAnalyze        = AutoAnalyze,
         AutoWriteOnAnalyze = AutoWriteOnAnalyze,
         WriteDjComment     = WriteDjComment,
+        PlaybackNormalization = PlaybackNormalization,
+        NormalizationLevel    = NormalizationLevel,
         AnalysisThreads    = AnalysisThreads,
         UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
+        // Auto-update prefs have no Tweaks UI — preserve so a tweak save never resets them
+        // (the update flow writes IgnoredUpdateVersion; a wipe here would un-ignore it).
+        CheckForUpdates      = _settings.Current.CheckForUpdates,
+        IgnoredUpdateVersion = _settings.Current.IgnoredUpdateVersion,
         // Output device — persist by name so it survives a reboot (index can change).
         OutputDeviceName = SelectedOutputDevice?.Name,
         // Streaming profiles — persist the full list and selected profile id.
         StreamServers          = [.. StreamServers],
         SelectedStreamServerId = SelectedStreamServer?.Id,
+        // Column view sets — persisted so view A/B/C customisations survive restarts.
+        ColumnViewA      = [.. _viewA],
+        ColumnViewB      = [.. _viewB],
+        ColumnViewC      = [.. _viewC],
+        ActiveColumnView = ActiveColumnView,
     });
 
     public string PositionText => Format(PositionSeconds);
@@ -1581,6 +1727,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 AddOrder = _addSeq++,
                 ToggleFavoriteCallback = ToggleFavoriteForTrack,
+                NormalizationTargetDb = LevelToLufs(NormalizationLevel),
             };
             Tracks.Add(tvm);
             added.Add(tvm);
@@ -1632,7 +1779,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            if (AutoAnalyze && needAnalysis.Count > 0)
+            // Auto-analyze on add when the user opted in — OR when loudness normalization is on,
+            // since that needs each track's ReplayGain to do anything (the user chose to couple the
+            // two: turning normalization on implies "measure my tracks so it just works").
+            if ((AutoAnalyze || PlaybackNormalization) && needAnalysis.Count > 0)
                 await AnalyzeTracksAsync(needAnalysis);
         });
     }

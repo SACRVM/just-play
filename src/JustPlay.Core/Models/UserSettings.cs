@@ -57,6 +57,22 @@ public sealed record UserSettings
     /// </summary>
     public bool WriteDjComment { get; init; } = false;
 
+    /// <summary>
+    /// Apply each track's measured ReplayGain on playback so the whole queue plays at an even
+    /// loudness (non-destructively, via output volume — the file is never altered). Clipping is
+    /// prevented using the measured peak. Off by default: only analysed tracks carry a gain, and
+    /// raw playback is the least-surprising default; flip it on in Tweaks. [[future-gain-loudness-feature]]
+    /// </summary>
+    public bool PlaybackNormalization { get; init; } = false;
+
+    /// <summary>
+    /// Loudness target for playback normalization, streaming-player style: "Quiet" (−19 LUFS),
+    /// "Normal" (−14, default), or "Loud" (−11). Higher = louder + closer to modern masters (less
+    /// gain reduction); the RG 2.0 reference (−18) is intentionally quiet/broadcast and was too
+    /// soft as a player default. Unknown values fall back to Normal. See [[future-gain-loudness-feature]].
+    /// </summary>
+    public string NormalizationLevel { get; init; } = "Normal";
+
     // ── Audio output device ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -88,6 +104,27 @@ public sealed record UserSettings
     /// in the streaming panel. Null when no profile is selected or the profile list is empty.
     /// </summary>
     public string? SelectedStreamServerId { get; init; } = null;
+
+    // ── Column views (A | B | C) ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Visible toggleable-column ids for view A (default: Mix — harmonic info).
+    /// Forward-compatible: unknown ids are ignored at runtime so adding new columns
+    /// in a later build does not break existing settings files.
+    /// </summary>
+    public List<string> ColumnViewA { get; init; } = ["genre", "bpm", "key", "nrg", "duration"];
+
+    /// <summary>Visible toggleable-column ids for view B (default: Levels — loudness/gain info).</summary>
+    public List<string> ColumnViewB { get; init; } = ["bpm", "gain", "lufs", "duration"];
+
+    /// <summary>Visible toggleable-column ids for view C (default: Minimal — BPM + time only).</summary>
+    public List<string> ColumnViewC { get; init; } = ["bpm", "duration"];
+
+    /// <summary>
+    /// The active column-view letter ("A", "B", or "C"). Defaults to "A".
+    /// Unknown values are treated as "A" at runtime.
+    /// </summary>
+    public string ActiveColumnView { get; init; } = "A";
 
     // ── Auto-update (v0.2) ───────────────────────────────────────────────────────────
 

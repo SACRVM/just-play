@@ -48,6 +48,7 @@ public sealed class BassAudioEngine : IAudioEngine
     private int _source;
 
     private double _volume = 1.0;
+    private double _normGainDb = 0.0;
     private CorePlaybackState _state = CorePlaybackState.Stopped;
 
     // BASS invokes sync callbacks on its own thread; keep the delegate alive so the
@@ -183,6 +184,27 @@ public sealed class BassAudioEngine : IAudioEngine
         }
     }
 
+    public double NormalizationGainDb
+    {
+        get => _normGainDb;
+        set
+        {
+            _normGainDb = value;
+            ApplyNormalization();
+        }
+    }
+
+    // Apply the per-track normalization gain on the SOURCE channel (not the mixer) so it's
+    // independent of the master Volume and the same normalised signal feeds the Icecast encoder.
+    // dB → linear factor (10^(dB/20)); 0 dB = factor 1.0 = unity. The controller caps positive
+    // gain by the track's peak, so the factor never pushes the source past full scale.
+    private void ApplyNormalization()
+    {
+        if (_source == 0) return;
+        var factor = _normGainDb == 0.0 ? 1.0 : System.Math.Pow(10.0, _normGainDb / 20.0);
+        ManagedBass.Bass.ChannelSetAttribute(_source, ChannelAttribute.Volume, factor);
+    }
+
     public TimeSpan Position
     {
         get
@@ -250,6 +272,10 @@ public sealed class BassAudioEngine : IAudioEngine
         // is called (State would say Stopped while audio is heard). Pausing it here makes
         // Load silent; Play() clears MixerChanPause to start it. (Reviewed fix, 2026-06-04.)
         BassMix.ChannelFlags(_source, BassFlags.MixerChanPause, BassFlags.MixerChanPause);
+
+        // Apply the current normalization gain to the freshly-created source (re-applied here so a
+        // reload — e.g. WithFileReleased around a tag write — keeps the same per-track gain).
+        ApplyNormalization();
 
         // Wire the end-of-track sync on the source channel.
         // BassMix.ChannelSetSync is the mixer-aware sync — it fires when the source

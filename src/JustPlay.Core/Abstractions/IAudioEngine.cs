@@ -14,6 +14,14 @@ public interface IAudioEngine : IDisposable
     /// <summary>Linear volume, 0..1.</summary>
     double Volume { get; set; }
 
+    /// <summary>
+    /// Per-track loudness-normalization gain in dB, applied to the current source channel only
+    /// (independent of <see cref="Volume"/>, which is the master). 0 = unity (no change). Set by
+    /// the controller from the track's ReplayGain when playback normalization is on; re-applied
+    /// automatically whenever a source is (re)loaded. Non-destructive — the file is never touched.
+    /// </summary>
+    double NormalizationGainDb { get; set; }
+
     /// <summary>Current playhead position.</summary>
     TimeSpan Position { get; set; }
 

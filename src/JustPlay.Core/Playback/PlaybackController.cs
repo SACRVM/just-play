@@ -21,6 +21,22 @@ public sealed class PlaybackController : IDisposable
 
     public Track? CurrentTrack { get; private set; }
 
+    /// <summary>
+    /// When true, each played track's ReplayGain is applied on the engine (output volume) so the
+    /// queue plays at an even loudness. Set from settings; toggling it mid-playback takes effect
+    /// after <see cref="RefreshNormalization"/> (or on the next track). Off → unity gain.
+    /// </summary>
+    public bool NormalizationEnabled { get; set; }
+
+    /// <summary>
+    /// The loudness TARGET for playback normalization, in LUFS. The stored ReplayGain is referenced
+    /// to −18 LUFS (the RG 2.0 / tag standard); playback re-references it to this target so the user
+    /// can pick how loud the level-matched output sits — Quiet −19 / Normal −14 / Loud −11, mirroring
+    /// the streaming players. −18 (the RG reference) means "apply the tag's gain verbatim". Defaults
+    /// to −18 so unit tests see the tag value unchanged; the app sets it from the user's level.
+    /// </summary>
+    public double TargetLufs { get; set; } = ReplayGain.ReferenceLufs;
+
     public PlaybackState State => _engine.State;
 
     public TimeSpan Position
@@ -51,8 +67,27 @@ public sealed class PlaybackController : IDisposable
         ArgumentNullException.ThrowIfNull(track);
         CurrentTrack = track;
         _engine.Load(track.FilePath);
+        _engine.NormalizationGainDb = ComputeGainDb(track);   // applied to the freshly-loaded source
         _engine.Play();
         CurrentTrackChanged?.Invoke(this, track);
+    }
+
+    /// <summary>Re-apply normalization to the CURRENT track — call after toggling
+    /// <see cref="NormalizationEnabled"/> so the change is heard without reloading the track.</summary>
+    public void RefreshNormalization() => _engine.NormalizationGainDb = ComputeGainDb(CurrentTrack);
+
+    /// <summary>
+    /// The dB gain to apply for <paramref name="t"/>: its ReplayGain when normalization is on,
+    /// 0 otherwise. Clipping is prevented — a positive gain is capped so the measured peak lands
+    /// at most at full scale; if the peak is unknown we never amplify (only attenuate).
+    /// </summary>
+    private double ComputeGainDb(Track? t)
+    {
+        if (!NormalizationEnabled || t?.Analysis is not { ReplayGainDb: { } gain }) return 0.0;
+        // Re-reference the −18-LUFS tag gain to the chosen playback target + clip-prevent. Shared with
+        // the GAIN-column display so what's shown == what's applied. At TargetLufs = −18 this is the
+        // verbatim tag gain (so the unit tests, which use the default, see the tag value unchanged).
+        return ReplayGain.AppliedGainDb(gain, t.Analysis.Peak, TargetLufs);
     }
 
     /// <summary>Toggle play/pause on the current track; no-op if nothing is loaded.</summary>

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -127,6 +128,81 @@ public sealed partial class TrackViewModel : ObservableObject
     public int? Energy => Model.Analysis?.Energy ?? Model.Metadata?.TaggedEnergy;
 
     public string EnergyText => Energy is int e ? e.ToString() : "";
+
+    // ── PREP lens: loudness / ReplayGain + beat (danceability) ───────────────
+    // These have no standard-tag fallback (the REPLAYGAIN_* fields aren't read into Metadata),
+    // so they come from the live analysis OR the stored v5 blob — so a file analysed in a prior
+    // session shows its gain/beat immediately on load, like KeyText does from the tags.
+
+    /// <summary>ReplayGain 2.0 track gain in dB (−18 LUFS reference). Null until analysed.</summary>
+    public double? ReplayGainDb => Model.Analysis?.ReplayGainDb ?? StoredCurrent?.Detected.ReplayGainDb;
+
+    /// <summary>BS.1770 integrated loudness in LUFS (shown in the GAIN cell's tooltip).</summary>
+    public double? LoudnessLufs => Model.Analysis?.LoudnessLufs ?? StoredCurrent?.Detected.LoudnessLufs;
+
+    /// <summary>
+    /// The playback loudness target (LUFS) the GAIN column re-references to — set by the shell VM from
+    /// the user's Quiet/Normal/Loud level so the column shows the gain ACTUALLY applied, not the −18
+    /// tag value. Defaults to −18 (so before the VM sets it, GAIN == the raw tag gain).
+    /// </summary>
+    public double NormalizationTargetDb { get; set; } = ReplayGain.ReferenceLufs;
+
+    /// <summary>Refresh the GAIN cell after <see cref="NormalizationTargetDb"/> changes (the shell VM
+    /// sets the target on every row when the user switches Quiet/Normal/Loud).</summary>
+    public void RaiseGainDisplay()
+    {
+        OnPropertyChanged(nameof(GainText));
+        OnPropertyChanged(nameof(GainClips));
+        OnPropertyChanged(nameof(GainTooltip));
+    }
+
+    /// <summary>Signed gain ACTUALLY applied at the active level (clip-capped), e.g. "−1.0" / "+3.2";
+    /// blank if un-analysed. The written REPLAYGAIN tag stays the −18 standard regardless.</summary>
+    public string GainText => ReplayGainDb is { } rg
+        ? (AppliedGain is { } g && g >= 0.05 ? "+" : "") + (AppliedGain ?? 0).ToString("0.0", CultureInfo.InvariantCulture)
+        : "";
+
+    /// <summary>The clip-capped gain applied at <see cref="NormalizationTargetDb"/> (null if un-analysed).</summary>
+    private double? AppliedGain =>
+        ReplayGainDb is { } rg ? ReplayGain.AppliedGainDb(rg, PeakLinear, NormalizationTargetDb) : null;
+
+    /// <summary>The uncapped gain the track WANTS at the active level (before clip-prevention).</summary>
+    private double? DesiredGain =>
+        ReplayGainDb is { } rg ? rg + (NormalizationTargetDb - ReplayGain.ReferenceLufs) : null;
+
+    /// <summary>Absolute integrated loudness for the LUFS column, e.g. "−9.5"; blank if none.</summary>
+    public string LufsText => LoudnessLufs is { } l ? l.ToString("0.0", CultureInfo.InvariantCulture) : "";
+
+    /// <summary>Linear sample peak (0..~1) from analysis. Not shown directly — drives the clip flag.</summary>
+    public double? PeakLinear => Model.Analysis?.Peak ?? StoredCurrent?.Detected.Peak;
+
+    /// <summary>Sample peak in dBFS: 0 = full scale, negative = headroom. −∞ for silence, null un-analysed.</summary>
+    private double? PeakDbfs => PeakLinear is { } p ? (p > 0 ? 20.0 * Math.Log10(p) : double.NegativeInfinity) : null;
+
+    /// <summary>True when, AT THE ACTIVE LEVEL, the track is held at the ceiling: the master is already
+    /// brick-walled (peak ≥ −0.1 dBFS) OR the wanted gain is clip-capped (can't reach the target without
+    /// clipping). Renders the GAIN cell red (see the gain-clip style).</summary>
+    public bool GainClips =>
+        PeakDbfs is { } pk && DesiredGain is { } g && (pk >= -0.1 || (g > 0 && pk + g > 0));
+
+    /// <summary>Tooltip on the GAIN cell: the clip reason at the active level, else the peak headroom.</summary>
+    public string GainTooltip
+    {
+        get
+        {
+            if (DesiredGain is not { } g || PeakDbfs is not { } pk) return "";
+            if (g > 0 && pk + g > 0) return $"Capped: wants +{g:0.0} dB but peak {pk:0.0} dBFS limits it";
+            if (pk >= -0.1) return $"No headroom — peak {pk:0.0} dBFS (brick-walled master)";
+            return $"Peak {pk:0.0} dBFS";
+        }
+    }
+
+    // Danceability (1/α DFA, range ~0..3) — computed and persisted, but NOT shown yet. Reserved for
+    // a future "FEEL" lens (MIX │ PREP │ FEEL): it discriminates dance-vs-not, so it clusters high in
+    // an all-club library and needs companion groove features before it earns a column.
+    /// <summary>Danceability (DFA 1/α, ~0..3) from the beat fingerprint. Reserved for the FEEL lens.</summary>
+    public double? Beat =>
+        (Model.Analysis?.Fingerprint ?? StoredCurrent?.Detected.Fingerprint) is { } fp ? (double)fp.Danceability : null;
 
     // ── Detected vs. claimed: conflict ("bold") computation ──────────────────
     // The displayed value above is always "detected wins, tag as fallback". A cell is
