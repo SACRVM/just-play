@@ -96,4 +96,25 @@ public interface IAudioEngine : IDisposable
     /// -1 means "not yet set" (engine just constructed, before the first explicit selection).
     /// </summary>
     int CurrentOutputDevice { get; }
+
+    /// <summary>
+    /// Smoothly ramp the master output volume from its current level to silence over
+    /// <paramref name="fadeMs"/> milliseconds, then return. Intended for graceful-quit:
+    /// call this <em>before</em> <see cref="IDisposable.Dispose"/> to avoid the hard
+    /// digital click/buzz that occurs when BASS channels are freed mid-playback.
+    ///
+    /// <para>Implementation contract:</para>
+    /// <list type="bullet">
+    ///   <item>No-op (returns immediately) when nothing is playing.</item>
+    ///   <item>Guard against double-fade (second call while one is already running returns immediately).</item>
+    ///   <item>Does NOT persist the volume change — Volume property and user settings are left untouched;
+    ///         only the hardware output level slides to zero. The process exits right after, so there is
+    ///         nothing to restore.</item>
+    ///   <item>The slide is non-blocking on the audio thread; the method awaits a
+    ///         <see cref="System.Threading.Tasks.Task.Delay(int)"/> of roughly <paramref name="fadeMs"/>
+    ///         so the caller does not have to block the UI thread.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="fadeMs">Target ramp duration in milliseconds. Clamped to 50–500 ms.</param>
+    Task FadeOutAsync(int fadeMs = 200);
 }

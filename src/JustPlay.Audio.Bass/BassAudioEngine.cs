@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using JustPlay.Core.Abstractions;
 using ManagedBass;
 using ManagedBass.Mix;
@@ -36,6 +38,10 @@ public sealed class BassAudioEngine : IAudioEngine
     // attaches to this handle; exposing it as internal so BassBroadcastService
     // (same assembly) can read it without a public API change.
     private int _mixer;
+
+    // Guard so a second FadeOutAsync call during teardown returns immediately
+    // rather than stomping on a fade already in progress.
+    private int _fading; // 0 = idle, 1 = fading (Interlocked.Exchange flag)
 
     // ── Active output device index (updated by SetOutputDevice) ─────────
     // Initialised to -1 (not yet set). After Bass.Init() in the constructor,
@@ -377,6 +383,59 @@ public sealed class BassAudioEngine : IAudioEngine
         ManagedBass.Bass.StreamFree(_source);
         _source = 0;
         _endSync = null;
+    }
+
+    /// <summary>
+    /// Graceful-quit fade: slide the MIXER output volume to 0 over <paramref name="fadeMs"/>
+    /// milliseconds, then return so the caller can call Dispose.
+    ///
+    /// <para>WHY _mixer and not _source:</para>
+    /// The master output channel for ALL audio leaving the app is <c>_mixer</c>.
+    /// Per-track volume lives on <c>_source</c> (normalization gain — set by
+    /// <see cref="ApplyNormalization"/>).  Sliding <c>_source</c> would only silence the
+    /// current track; the mixer keeps running and any future sound (e.g. a brief click from
+    /// the Icecast encoder DSP) would still be audible at full volume. Sliding <c>_mixer</c>
+    /// silences EVERYTHING that goes to the hardware — the same handle that the master
+    /// <see cref="Volume"/> property already controls, so this is the correct master-level
+    /// fade. The slide happens on BASS's internal audio thread (non-blocking for us); we
+    /// await Task.Delay so the UI thread yields rather than spinning.</para>
+    ///
+    /// <para>The slide does NOT write back to <c>_volume</c> or user settings. The process
+    /// exits immediately after — there is nothing to restore.</para>
+    /// </summary>
+    public async Task FadeOutAsync(int fadeMs = 200)
+    {
+        // Already fading or already silent/stopped — nothing to do.
+        if (Interlocked.Exchange(ref _fading, 1) != 0)
+            return;
+
+        // No-op when not playing (nothing heard, no click risk).
+        if (_mixer == 0 || _state != CorePlaybackState.Playing)
+        {
+            _fading = 0;
+            return;
+        }
+
+        // Clamp to a sane range: fast enough not to feel sluggish, long enough to be smooth.
+        var clampedMs = Math.Clamp(fadeMs, 50, 500);
+
+        // BASS ChannelSlideAttribute: smoothly interpolates from the current channel attribute
+        // value to the target over the given number of milliseconds, running on BASS's own
+        // audio thread. Returns immediately — we then await the duration so the audio has time
+        // to fade before we free the channel in Dispose.
+        // API ref: managedbass.github.io/api — Bass.ChannelSlideAttribute
+        //   handle  = _mixer  (the persistent stereo output mixer — the master volume point)
+        //   attrib  = ChannelAttribute.Volume
+        //   value   = 0f      (target: silence)
+        //   time    = clampedMs (ramp duration)
+        ManagedBass.Bass.ChannelSlideAttribute(_mixer, ChannelAttribute.Volume, 0f, clampedMs);
+
+        // Await the ramp plus a tiny margin so BASS finishes the slide before Dispose frees
+        // the channel.  A hard Task.Delay is the simplest cross-platform approach here; polling
+        // Bass.ChannelIsSliding would also work but adds complexity for no user-visible gain.
+        await Task.Delay(clampedMs + 30);
+
+        _fading = 0;
     }
 
     public void Dispose()

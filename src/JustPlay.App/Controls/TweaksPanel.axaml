@@ -157,6 +157,25 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
+        <!--
+          Hover/pressed must not let FluentTheme's own ContentPresenter tint paint over our fills —
+          tweak-radio had no :pointerover style, so Fluent's grey hover covered the active accent pill
+          ("hover wins over active"). Set the CP background explicitly for every interactive state
+          (belt-and-braces, see App.axaml). The .active variants come AFTER the plain ones so, when a
+          button is BOTH active and hovered/pressed, the accent wins (equal-specificity → last match).
+        -->
+        <Style Selector="Button.tweak-radio:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Button.tweak-radio:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF"/>
+        </Style>
+        <Style Selector="Button.tweak-radio.active:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        </Style>
+        <Style Selector="Button.tweak-radio.active:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        </Style>
 
         <!-- White toggle knob on the accent track needs a shadow to read against the
              colour (design knob: box-shadow 0 1px 2px rgba(0,0,0,.25), tweaks-panel.jsx:115).

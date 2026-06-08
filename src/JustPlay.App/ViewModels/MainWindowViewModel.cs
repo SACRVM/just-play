@@ -2110,6 +2110,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return t.Hours > 0 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"m\:ss");
     }
 
+    /// <summary>
+    /// Graceful-quit helper called by <see cref="MainWindow"/> during <c>OnClosing</c>.
+    /// Fades the master output to silence before the window (and therefore the engine) is
+    /// disposed, preventing the hard digital click/buzz of an abrupt BASS free mid-playback.
+    ///
+    /// <para>Only meaningful when the engine is actively playing — the engine's own no-op guard
+    /// handles the stopped/paused case so callers do not need to check first.</para>
+    ///
+    /// <para>200 ms is long enough for the human ear to perceive a smooth fade (no click), short
+    /// enough that quit never feels laggy. The engine clamps the value to 50–500 ms.</para>
+    /// </summary>
+    public Task FadeBeforeQuitAsync() => _engine.FadeOutAsync(200);
+
     public void Dispose()
     {
         _timer.Stop();

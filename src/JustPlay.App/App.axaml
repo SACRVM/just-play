@@ -660,6 +660,18 @@
         <Style Selector="Button.iconbtn.active:pointerover">
             <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
         </Style>
+        <!--
+          Disabled (e.g. the like heart with no track loaded): FluentTheme paints a translucent-white
+          ContentPresenter background that reads far too prominent for something you CAN'T click. Keep
+          it subtle — don't touch the background, just fade the whole glyph to 50%. Opacity on the
+          Button dims the icon Paths with it.
+        -->
+        <Style Selector="Button.iconbtn:disabled /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.iconbtn:disabled">
+            <Setter Property="Opacity" Value="0.5"/>
+        </Style>
 
         <!-- Small ghost icon/text button (chrome + panel secondaries, e.g. the
              Tweaks-panel close ✕). Shared by both views. -->

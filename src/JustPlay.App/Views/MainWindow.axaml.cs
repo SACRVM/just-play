@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -60,6 +61,54 @@ public partial class MainWindow : Window
         base.OnOpened(e);
         Console.WriteLine($"[JustPlay] ActualTransparencyLevel = {ActualTransparencyLevel}");
         UpdateChromeForState();
+    }
+
+    // ── Graceful-quit fade ──────────────────────────────────────────────────
+    // When the user closes the window mid-playback (X button, Alt-F4, or the
+    // self-update path that calls desktop.Shutdown()), we fade the mixer output
+    // to silence (~200 ms) before letting Avalonia dispose the engine, preventing
+    // the hard digital click/buzz of an abrupt BASS free.
+    //
+    // Pattern: cancel the FIRST close → run the async fade → call Close() again
+    // with _closingFadeComplete = true so the second pass skips the fade and
+    // lets Avalonia's normal close/dispose pipeline finish.
+    //
+    // Guard against re-entrance: if Close() is called a second time while the
+    // fade is still awaiting (e.g. the user hammers Alt-F4), the bool is already
+    // true and we fall through immediately — no infinite loop.
+    private bool _closingFadeComplete;
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        base.OnClosing(e);
+
+        if (_closingFadeComplete)
+            return; // second pass from our own Close() call below — let it proceed
+
+        if (DataContext is not MainWindowViewModel vm)
+            return; // no VM yet (shouldn't happen in practice, but be safe)
+
+        // Cancel this close event and kick off the async fade on the UI thread.
+        e.Cancel = true;
+        _ = RunFadeAndCloseAsync(vm);
+    }
+
+    private async Task RunFadeAndCloseAsync(MainWindowViewModel vm)
+    {
+        try
+        {
+            await vm.FadeBeforeQuitAsync();
+        }
+        catch (Exception ex)
+        {
+            // Don't let a fade failure prevent the app from quitting.
+            Console.WriteLine($"[JustPlay] FadeBeforeQuit error (ignored): {ex.Message}");
+        }
+        finally
+        {
+            _closingFadeComplete = true;
+            Close(); // re-issue the close; _closingFadeComplete = true skips OnClosing re-entry
+        }
     }
 
     // ── Custom maximize ─────────────────────────────────────────────────────
