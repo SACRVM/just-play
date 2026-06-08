@@ -42,7 +42,10 @@ public static class ReplayGain
         if (peakLinear is { } p && p > 0)
         {
             var peakDb = 20.0 * Math.Log10(p);
-            if (g > 0 && peakDb + g > 0) g = -peakDb;   // peak lands exactly at 0 dBFS — no clip
+            // Cap so the peak lands exactly at 0 dBFS. peakDb == 0 (peak == 1.0, a fully-clipped
+            // master) would make -peakDb the IEEE −0.0, which formats as "-0.0" in the GAIN cell —
+            // pin it to +0.0 so the display reads a clean "0.0".
+            if (g > 0 && peakDb + g > 0) g = peakDb == 0.0 ? 0.0 : -peakDb;
         }
         else if (g > 0)
         {

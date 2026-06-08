@@ -127,6 +127,16 @@ public class ReplayGainTests
     }
 
     [Fact]
+    public void AppliedGainDb_BrickWalledMaster_ReturnsPositiveZero_NotNegativeZero()
+    {
+        // peak == 1.0 → peakDb == 0 → the cap (g = −peakDb) must not produce IEEE −0.0, which would
+        // render as "-0.0" in the GAIN cell. It has to be a clean +0.0.
+        var result = ReplayGain.AppliedGainDb(3.0, peakLinear: 1.0, targetLufs: -18.0);
+        Assert.Equal(0.0, result);
+        Assert.False(double.IsNegative(result), "must be +0.0, not IEEE −0.0 (would display as \"-0.0\")");
+    }
+
+    [Fact]
     public void AppliedGainDb_CapThenClamp_PositiveCeilingIsFiftyOne()
     {
         // A tiny peak (0.001 = −60 dBFS) permits a huge cap; the final clamp still bounds it to +51.

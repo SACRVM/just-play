@@ -179,20 +179,23 @@ public sealed partial class TrackViewModel : ObservableObject
     /// <summary>Sample peak in dBFS: 0 = full scale, negative = headroom. −∞ for silence, null un-analysed.</summary>
     private double? PeakDbfs => PeakLinear is { } p ? (p > 0 ? 20.0 * Math.Log10(p) : double.NegativeInfinity) : null;
 
-    /// <summary>True when, AT THE ACTIVE LEVEL, the track is held at the ceiling: the master is already
-    /// brick-walled (peak ≥ −0.1 dBFS) OR the wanted gain is clip-capped (can't reach the target without
-    /// clipping). Renders the GAIN cell red (see the gain-clip style).</summary>
+    /// <summary>True only when a POSITIVE (amplifying) gain is held back by the ceiling at the active
+    /// level — i.e. the track wants to be louder to hit the target but the measured peak won't allow it
+    /// without clipping (brick-walled, or the gain overflows 0 dBFS). Reds the GAIN cell. A track being
+    /// turned DOWN (g ≤ 0) can never clip, so it is never flagged — in an all-brick-walled club library
+    /// that keeps red rare and actionable instead of lighting up almost every row.</summary>
     public bool GainClips =>
-        PeakDbfs is { } pk && DesiredGain is { } g && (pk >= -0.1 || (g > 0 && pk + g > 0));
+        PeakDbfs is { } pk && DesiredGain is { } g && g > 0 && (pk >= -0.1 || pk + g > 0);
 
-    /// <summary>Tooltip on the GAIN cell: the clip reason at the active level, else the peak headroom.</summary>
+    /// <summary>Tooltip on the GAIN cell: the clip reason when a positive gain is capped, else the peak
+    /// (noting a brick-walled master as plain info — only the capped case is the red "problem").</summary>
     public string GainTooltip
     {
         get
         {
             if (DesiredGain is not { } g || PeakDbfs is not { } pk) return "";
             if (g > 0 && pk + g > 0) return $"Capped: wants +{g:0.0} dB but peak {pk:0.0} dBFS limits it";
-            if (pk >= -0.1) return $"No headroom — peak {pk:0.0} dBFS (brick-walled master)";
+            if (pk >= -0.1) return $"Brick-walled master — peak {pk:0.0} dBFS";
             return $"Peak {pk:0.0} dBFS";
         }
     }
