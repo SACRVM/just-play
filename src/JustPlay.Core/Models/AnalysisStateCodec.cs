@@ -26,6 +26,7 @@ public static class AnalysisStateCodec
         var o = state.Original;
         var ok = o?.Key;
         var fp = state.Detected.Fingerprint;
+        var rp = state.Detected.Rhythm;
         var dto = new AnalysisStateDto
         {
             V = state.Version,
@@ -50,6 +51,23 @@ public static class AnalysisStateCodec
             Lufs = state.Detected.LoudnessLufs,
             Rg   = state.Detected.ReplayGainDb,
             Pk   = state.Detected.Peak,
+            // RhythmPattern (v6+). All five scalars + the label string.
+            RpFof  = rp?.FourOnFloor,
+            RpObe  = rp?.OffbeatEnergy,
+            RpSwg  = rp?.Swing,
+            RpSyn  = rp?.Syncopation,
+            RpHtf  = rp?.HalfTimeFeel,
+            RpBt   = rp?.BeatType,
+            // Vibe quartet + fatigue flag (v7+ for punch/groove/harshness/flatness; v8+ for dark/hypnotic).
+            // "chr" (Character label) is no longer written — dropped in v8. Old blobs with "chr" are
+            // simply ignored on read (JSON unknown-field tolerance).
+            RawNrg  = state.Detected.RawEnergyScore,
+            SpFlat  = state.Detected.SpectralFlatness,
+            Harsh   = state.Detected.Harshness,
+            BsPunch = state.Detected.BassPunch,
+            BsGrv   = state.Detected.BassGroove,
+            Dark    = state.Detected.Dark,
+            Hypnot  = state.Detected.Hypnotic,
         };
         return JsonSerializer.Serialize(dto, AnalysisStateJsonContext.Default.AnalysisStateDto);
     }
@@ -87,6 +105,22 @@ public static class AnalysisStateCodec
                     fingerprint = new BeatFingerprint(st, ct, fpDa);
             }
 
+            // RhythmPattern — present only when ALL five scalars and the label are non-null (v6+).
+            RhythmPattern? rhythm = null;
+            if (dto.RpFof is { } fof && dto.RpObe is { } obe && dto.RpSwg is { } swg &&
+                dto.RpSyn is { } syn && dto.RpHtf is { } htf && dto.RpBt is { } bt)
+            {
+                rhythm = new RhythmPattern
+                {
+                    FourOnFloor   = fof,
+                    OffbeatEnergy = obe,
+                    Swing         = swg,
+                    Syncopation   = syn,
+                    HalfTimeFeel  = htf,
+                    BeatType      = bt,
+                };
+            }
+
             return new TrackAnalysisState
             {
                 Version = dto.V,
@@ -100,6 +134,16 @@ public static class AnalysisStateCodec
                     LoudnessLufs = dto.Lufs,
                     ReplayGainDb = dto.Rg,
                     Peak = dto.Pk,
+                    Rhythm = rhythm,
+                    // Vibe quartet + fatigue flag (v7+ scalars; v8+ adds Dark + Hypnotic).
+                    // "chr" was dropped in v8 — Character field no longer in AnalysisResult.
+                    RawEnergyScore   = dto.RawNrg,
+                    SpectralFlatness = dto.SpFlat,
+                    Harshness        = dto.Harsh,
+                    BassPunch        = dto.BsPunch,
+                    BassGroove       = dto.BsGrv,
+                    Dark             = dto.Dark,
+                    Hypnotic         = dto.Hypnot,
                 },
                 Original = original,
                 BpmDecision = Decode(dto.ActBpm),
@@ -193,6 +237,26 @@ internal sealed class AnalysisStateDto
     [JsonPropertyName("lufs")] public double? Lufs { get; set; }
     [JsonPropertyName("rg")]   public double? Rg   { get; set; }
     [JsonPropertyName("pk")]   public double? Pk   { get; set; }
+    // RhythmPattern scalars (v6+). Short keys: rp_fof = FourOnFloor, rp_obe = OffbeatEnergy,
+    // rp_swg = Swing, rp_syn = Syncopation, rp_htf = HalfTimeFeel, rp_bt = BeatType.
+    // All six must be present to reconstruct a RhythmPattern (older blobs parse as null).
+    [JsonPropertyName("rp_fof")] public double? RpFof { get; set; }
+    [JsonPropertyName("rp_obe")] public double? RpObe { get; set; }
+    [JsonPropertyName("rp_swg")] public double? RpSwg { get; set; }
+    [JsonPropertyName("rp_syn")] public double? RpSyn { get; set; }
+    [JsonPropertyName("rp_htf")] public double? RpHtf { get; set; }
+    [JsonPropertyName("rp_bt")]  public string? RpBt  { get; set; }
+    // Vibe quartet + fatigue flag (v7+ for raw_nrg/sp_flat/harsh/bs_pnch/bs_grv; v8+ adds dark/hypnot).
+    // "chr" was written in v7 blobs; it is intentionally NOT declared here so the JSON deserializer
+    // ignores it on read (unknown-field tolerance). Do NOT add it back.
+    [JsonPropertyName("raw_nrg")] public double? RawNrg  { get; set; }
+    [JsonPropertyName("sp_flat")] public double? SpFlat  { get; set; }
+    [JsonPropertyName("harsh")]   public double? Harsh   { get; set; }
+    [JsonPropertyName("bs_pnch")] public double? BsPunch { get; set; }
+    [JsonPropertyName("bs_grv")]  public double? BsGrv   { get; set; }
+    // Vibe quartet additions (v8+): dark = tonal darkness; hypnot = repetition/minimal.
+    [JsonPropertyName("dark")]    public double? Dark    { get; set; }
+    [JsonPropertyName("hypnot")]  public double? Hypnot  { get; set; }
 }
 
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

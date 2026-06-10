@@ -171,7 +171,7 @@ public class ReplayGainTests
         var restored = AnalysisStateCodec.TryParse(AnalysisStateCodec.Serialize(state));
 
         Assert.NotNull(restored);
-        Assert.Equal(5, restored!.Version);
+        Assert.Equal(8, restored!.Version);
         Assert.Equal(-9.72, restored.Detected.LoudnessLufs);
         Assert.Equal(ReplayGain.TrackGainDb(-9.72), restored.Detected.ReplayGainDb);
         Assert.Equal(0.988553, restored.Detected.Peak!.Value, precision: 5);

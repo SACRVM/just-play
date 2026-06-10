@@ -3,6 +3,7 @@
     <Project Path="src/JustPlay.Analysis/JustPlay.Analysis.csproj" />
     <Project Path="src/JustPlay.App/JustPlay.App.csproj" />
     <Project Path="src/JustPlay.Audio.Bass/JustPlay.Audio.Bass.csproj" />
+    <Project Path="src/JustPlay.Cli/JustPlay.Cli.csproj" />
     <Project Path="src/JustPlay.Core/JustPlay.Core.csproj" />
     <Project Path="src/JustPlay.Engine/JustPlay.Engine.csproj" />
     <Project Path="src/JustPlay.Metadata/JustPlay.Metadata.csproj" />
@@ -10,6 +11,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JustPlay.Analysis.Tests/JustPlay.Analysis.Tests.csproj" />
+    <Project Path="tests/JustPlay.Cli.Tests/JustPlay.Cli.Tests.csproj" />
     <Project Path="tests/JustPlay.Core.Tests/JustPlay.Core.Tests.csproj" />
     <Project Path="tests/JustPlay.Engine.Tests/JustPlay.Engine.Tests.csproj" />
     <Project Path="tests/JustPlay.Metadata.Tests/JustPlay.Metadata.Tests.csproj" />

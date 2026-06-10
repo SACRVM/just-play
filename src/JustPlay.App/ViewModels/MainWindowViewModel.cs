@@ -1707,7 +1707,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // ---- File intake ----------------------------------------------------
 
     /// <summary>Add dropped files/folders. Tracks appear instantly; tags load in the background.</summary>
-    public async Task AddPathsAsync(IEnumerable<string> paths)
+    public async Task AddPathsAsync(IEnumerable<string> paths, bool preserveOrder = false)
     {
         var files = new List<string>();
         foreach (var p in paths)
@@ -1718,10 +1718,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 files.Add(p);
         }
 
-        // Sort like Explorer (natural/logical order: "track2" before "track10"), so a dropped
-        // folder lands in a sensible, predictable order instead of the OS's raw enumeration order.
+        // Folder drops get Explorer-like natural order ("track2" before "track10") instead of the OS's raw
+        // enumeration order. But an EXPLICIT ordered list — a loaded playlist / sequenced DJ set — MUST keep
+        // its order (preserveOrder); otherwise the carefully-built set gets alphabetised (the m3u-load bug:
+        // a set dropped in started on whatever track sorted first by filename).
+        IEnumerable<string> audioFiles = files.Where(IsAudio);
+        if (!preserveOrder)
+            audioFiles = audioFiles.OrderBy(f => f, NaturalComparer.Instance);
         var added = new List<TrackViewModel>();
-        foreach (var f in files.Where(IsAudio).OrderBy(f => f, NaturalComparer.Instance))
+        foreach (var f in audioFiles)
         {
             var tvm = new TrackViewModel(new Track(f))
             {
@@ -1823,7 +1828,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (audio.Count == 0) return;
 
         ClearList();                 // stop playback, clear queue + shuffle bookkeeping
-        await AddPathsAsync(audio);
+        await AddPathsAsync(audio, preserveOrder: true);   // a playlist IS the order — never re-sort it
         if (Tracks.Count > 0) PlayTrack(Tracks[0]);
     }
 

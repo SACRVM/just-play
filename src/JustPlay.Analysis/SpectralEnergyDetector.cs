@@ -149,10 +149,18 @@ public sealed class SpectralEnergyDetector : IEnergyDetector
     /// </summary>
     public static int ScoreFeatures(EnergyFeatures f)
     {
-        var score  = WLoud * f.NLoud + WFlux * f.NFlux + WBright * f.NBright + WRmsSd * f.NRmsSd;
-        var energy = (int)Math.Round(EnergyFloor + EnergySpan * score);
+        var energy = (int)Math.Round(EnergyFloor + EnergySpan * BlendedScore(f));
         return Math.Clamp(energy, 1, 10);
     }
+
+    /// <summary>
+    /// Returns the continuous blended energy score in [0, 1] — the raw value before the
+    /// 1–10 integer mapping. Store this alongside <see cref="ScoreFeatures"/> so the
+    /// 1–10 scale can be re-calibrated to the DJ's ear later WITHOUT re-analysis.
+    /// [energy-detection.md §raw score note]
+    /// </summary>
+    public static double BlendedScore(EnergyFeatures f)
+        => WLoud * f.NLoud + WFlux * f.NFlux + WBright * f.NBright + WRmsSd * f.NRmsSd;
 
     // -------------------------------------------------------------------------
     // Spectral features: flux, centroid, RMS-SD

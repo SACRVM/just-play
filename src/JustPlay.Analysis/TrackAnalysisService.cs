@@ -86,7 +86,29 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
                 }
             }
 
-            if (_energy.Detect(energyAudio, ct) is { } e)
+            // RawEnergyScore: extract continuous score [0,1] alongside the 1-10 integer.
+            // Stored so the 1-10 mapping can be re-calibrated later without re-analysis.
+            double? rawEnergyScore = null;
+            if (energyAudio.Samples?.Length > 0 &&
+                _energy is SpectralEnergyDetector sed)
+            {
+                var ef = sed.ExtractFeatures(energyAudio, ct);
+                if (ef is { } features)
+                {
+                    rawEnergyScore = SpectralEnergyDetector.BlendedScore(features);
+                    result = result with
+                    {
+                        Energy = SpectralEnergyDetector.ScoreFeatures(features),
+                        RawEnergyScore = rawEnergyScore,
+                    };
+                    progress?.Report(result);
+                }
+                else if (result.Bpm != bpm)
+                {
+                    progress?.Report(result);
+                }
+            }
+            else if (_energy.Detect(energyAudio, ct) is { } e)
             {
                 result = result with { Energy = e };
                 progress?.Report(result);
@@ -118,6 +140,50 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
                     energyAudio.Samples, energyAudio.SampleRate, ct);
                 if (fingerprint is not null)
                     result = result with { Fingerprint = fingerprint };
+            }
+
+            // Rhythm pattern (FourOnFloor, OffbeatEnergy, Swing, Syncopation, HalfTimeFeel,
+            // BeatType). Reuses the same 11 kHz decode — no extra I/O. Requires a known BPM;
+            // skip if BPM was not detected. Also not a visible progress intermediate.
+            if (energyAudio.Samples?.Length > 0 && result.Bpm is { } finalBpm)
+            {
+                ct.ThrowIfCancellationRequested();
+                var rhythm = RhythmPatternDetector.Detect(
+                    energyAudio.Samples, energyAudio.SampleRate, finalBpm, ct);
+                if (rhythm is not null)
+                    result = result with { Rhythm = rhythm };
+            }
+
+            // Vibe quartet (punch/groove/dark/hypnotic) + noisy fatigue flag (harshness).
+            // Requires: samples, loudness (LUFS + peak), raw energy score, rhythm pattern.
+            // Reuses all already-computed values — no extra I/O or decode.
+            if (energyAudio.Samples?.Length > 0 &&
+                result.LoudnessLufs is { } charLufs &&
+                result.Peak is { } charPeak &&
+                result.RawEnergyScore is { } charRawScore)
+            {
+                ct.ThrowIfCancellationRequested();
+                var cf = CharacterClassifier.Compute(
+                    energyAudio.Samples,
+                    energyAudio.SampleRate,
+                    result.Bpm,
+                    charLufs,
+                    charPeak,
+                    charRawScore,
+                    result.Rhythm,
+                    ct);
+                if (cf is not null)
+                {
+                    result = result with
+                    {
+                        SpectralFlatness = cf.SpectralFlatness,
+                        Harshness        = cf.Harshness,
+                        BassPunch        = cf.BassPunch,
+                        BassGroove       = cf.BassGroove,
+                        Dark             = cf.Dark,
+                        Hypnotic         = cf.Hypnotic,
+                    };
+                }
             }
 
             return result;

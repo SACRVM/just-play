@@ -25,7 +25,22 @@ public sealed record TrackAnalysisState
     // v5 (2026-06-05): loudness/ReplayGain (BS.1770 LUFS + ReplayGain 2.0 gain + sample peak)
     // added to the analysis pass and persisted. Old blobs (v < 5) lack it → lazy re-analysis
     // on next drop populates it, enabling REPLAYGAIN_TRACK_GAIN / _PEAK tag writes.
-    public const int CurrentVersion = 5;
+    //
+    // v6 (2026-06-08): RhythmPattern (FourOnFloor, OffbeatEnergy, Swing, Syncopation,
+    // HalfTimeFeel, BeatType) added to the analysis pass and persisted. Old blobs (v < 6)
+    // lack it → lazy re-analysis on next drop so the "Sort by beat character" UI axis works.
+    //
+    // v7 (2026-06-09): Character classification (punchy/groovy/noisy/dreamy) + supporting
+    // scalars (SpectralFlatness, Harshness, BassPunch, BassGroove) + RawEnergyScore added.
+    // Old blobs (v < 7) lack it → lazy re-analysis on next drop populates character labels.
+    //
+    // v8 (2026-06-09): Vibe quartet replaces discrete classifier. The Character string label
+    // and "dreamy" were dropped. Two new continuous scores added:
+    //   Dark    = 1 − normalizedBrightness (spectral centroid; 1=dark/no highs, 0=bright)
+    //   Hypnotic = 1 − normalizedCentroidVariance (1=looping/minimal, 0=evolving/progressive)
+    // All five continuous scores (punch, groove, dark, hypnotic, harshness/noisy) persist.
+    // Old v7 blobs lack Dark + Hypnotic → lazy re-analysis on next drop.
+    public const int CurrentVersion = 8;
 
     public int Version { get; init; } = CurrentVersion;
 

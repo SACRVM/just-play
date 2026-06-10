@@ -176,13 +176,13 @@ public class BeatFingerprintCodecTests
     }
 
     // -------------------------------------------------------------------------
-    // 6. Version bump: CurrentVersion is 4
+    // 6. Version bump: CurrentVersion is 6 (v6 added RhythmPattern)
     // -------------------------------------------------------------------------
 
     [Fact]
-    public void CurrentVersion_Is_Five()
+    public void CurrentVersion_Is_Eight()
     {
-        Assert.Equal(5, TrackAnalysisState.CurrentVersion);
+        Assert.Equal(8, TrackAnalysisState.CurrentVersion);
     }
 
     // -------------------------------------------------------------------------
