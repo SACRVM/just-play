@@ -160,13 +160,13 @@ public class RhythmPatternCodecTests
     }
 
     // =========================================================================
-    // 6. Version bump: CurrentVersion is now 6
+    // 6. Version bump: CurrentVersion is now 9
     // =========================================================================
 
     [Fact]
-    public void CurrentVersion_Is_Eight()
+    public void CurrentVersion_Is_Nine()
     {
-        Assert.Equal(8, TrackAnalysisState.CurrentVersion);
+        Assert.Equal(9, TrackAnalysisState.CurrentVersion);
     }
 
     // =========================================================================

@@ -123,6 +123,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _normalizationLevel = s.NormalizationLevel;
         _controller.NormalizationEnabled = s.PlaybackNormalization;
         _controller.TargetLufs = LevelToLufs(s.NormalizationLevel);
+        _crossfadeSeconds = s.CrossfadeSeconds;
         _analysisThreads = s.AnalysisThreads;
 
         // Seed column views from persisted settings (before _settingsHydrated — mirroring the tweak seed block).
@@ -339,6 +340,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             SortDescending = false;
         }
         ApplySort();
+        MarkPlaylistEdited();
     }
 
     private void ApplySort()
@@ -518,6 +520,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // Loudness target for normalization: "Quiet" −19 / "Normal" −14 / "Loud" −11 (streaming-style).
     [ObservableProperty] private string _normalizationLevel = "Normal";
 
+    // Crossfade length in seconds for auto-advance (0 = off / hard cut). Allowed: 0, 2, 4, 8.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CrossfadeSecondsText))]
+    private int _crossfadeSeconds;
+
+    // Set true once we've fired the crossfade for the current track, so the 200ms tick fires it once.
+    private bool _crossfadeArmed;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AnalysisThreadsText))]
     private int _analysisThreads = 4;
@@ -525,6 +535,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>String form of the thread count, so the Tweaks radio buttons can drive their
     /// active state via the existing StringEquals converter.</summary>
     public string AnalysisThreadsText => AnalysisThreads.ToString();
+
+    /// <summary>String form of the crossfade length in seconds (e.g. "0", "2", "4", "8") so the Tweaks
+    /// segmented buttons can drive their active state via the StringEquals converter.</summary>
+    public string CrossfadeSecondsText => CrossfadeSeconds.ToString();
 
     // ── Live analysis progress ────────────────────────────────────────────
     // Number of tracks currently mid-analysis across ALL in-flight batches.
@@ -629,9 +643,22 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PersistSettings();
     }
 
+    partial void OnCrossfadeSecondsChanged(int value)
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
     /// <summary>Set the normalization level from the Tweaks segmented control ("Quiet"/"Normal"/"Loud").</summary>
     [RelayCommand]
     private void SetNormalizationLevel(string which) => NormalizationLevel = which;
+
+    /// <summary>Set the crossfade length from the Tweaks segmented control (0/2/4/8 seconds).</summary>
+    [RelayCommand]
+    private void SetCrossfadeLength(string which)
+    {
+        if (int.TryParse(which, out var secs)) CrossfadeSeconds = secs;
+    }
 
     /// <summary>Map the streaming-style level name to its LUFS target. Unknown → Normal (−14).</summary>
     private static double LevelToLufs(string level) => level switch
@@ -668,6 +695,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         WriteDjComment     = WriteDjComment,
         PlaybackNormalization = PlaybackNormalization,
         NormalizationLevel    = NormalizationLevel,
+        CrossfadeSeconds      = CrossfadeSeconds,
         AnalysisThreads    = AnalysisThreads,
         UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
         // Auto-update prefs have no Tweaks UI — preserve so a tweak save never resets them
@@ -708,6 +736,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     public string TrackCountText => Tracks.Count == 1 ? "1 TRACK" : $"{Tracks.Count} TRACKS";
+
+    // ── Loaded-playlist memory ────────────────────────────────────────────────
+    // Path of the .m3u/.m3u8 most recently opened via LoadPlaylistAsync. Null when
+    // no playlist is loaded (raw drops, or after ClearList/ClearTracks). Cleared
+    // automatically when the queue goes empty so there is never a stale reference
+    // to a playlist whose tracks are all gone.
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LoadedPlaylistName))]
+    [NotifyPropertyChangedFor(nameof(HasLoadedPlaylist))]
+    [NotifyPropertyChangedFor(nameof(QueueTitle))]
+    [NotifyCanExecuteChangedFor(nameof(SavePlaylistCommand))]
+    private string? _loadedPlaylistPath;
+
+    [ObservableProperty] private bool _playlistDirty;
+
+    public string? LoadedPlaylistName => LoadedPlaylistPath is null ? null : Path.GetFileNameWithoutExtension(LoadedPlaylistPath);
+    public bool HasLoadedPlaylist => LoadedPlaylistPath is not null;
+    public string QueueTitle => LoadedPlaylistName ?? "UP NEXT";
 
     /// <summary>Tempo span of the whole set — min–max BPM across every track with a known BPM
     /// (analysed or tagged). Empty unless at least TWO tracks have a BPM (none or only one → no
@@ -752,11 +799,40 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Load + play a track without disturbing shuffle bookkeeping — the shared
     /// path for user picks and internal next/prev navigation alike.</summary>
-    private void PlayInternal(TrackViewModel track)
+    private void PlayInternal(TrackViewModel track, int crossfadeMs = 0)
     {
+        var prev = Current;
         SetCurrent(track);
-        _controller.Play(track.Model);
+
+        // Crossfade only when: a fade was requested, something is actually playing, and we're moving
+        // to a DIFFERENT file. The same-file guard makes repeat-one / re-pick safe (no self-overlap).
+        var canFade = crossfadeMs > 0
+            && prev is not null
+            && !ReferenceEquals(prev, track)
+            && !string.Equals(prev.Model.FilePath, track.Model.FilePath, StringComparison.OrdinalIgnoreCase)
+            && _controller.State == PlaybackState.Playing;
+
+        var fade = canFade ? SmartCrossfadeMs(prev!, track, crossfadeMs) : 0;
+        if (fade > 0) _controller.CrossfadeTo(track.Model, fade);
+        else          _controller.Play(track.Model);
         _controller.Volume = Volume;
+    }
+
+    /// <summary>Trim the user's crossfade length when the two tracks would clash through a long blanket
+    /// blend: a big tempo gap (beat stumble) or harmonically incompatible keys (dissonance) each halve
+    /// it; below ~1.2s a clash-blend sounds worse than a clean cut, so hard-cut (return 0).</summary>
+    private static int SmartCrossfadeMs(TrackViewModel from, TrackViewModel to, int requestedMs)
+    {
+        var ms = requestedMs;
+        if (from.Bpm is { } a and > 0 && to.Bpm is { } b and > 0)
+        {
+            var ratio = System.Math.Abs(a - b) / System.Math.Min(a, b);
+            if (ratio > 0.12) ms /= 2;   // >12% tempo gap — beyond easy beat-matching
+        }
+        if (from.Model.Analysis?.Key is { } k1 && to.Model.Analysis?.Key is { } k2
+            && !k1.IsHarmonicallyCompatibleWith(k2))
+            ms /= 2;                      // key clash
+        return ms < 1200 ? 0 : ms;
     }
 
     [RelayCommand]
@@ -1117,6 +1193,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowBpmRange));
         // Harmonic Sort's CanExecute depends on the queue having ≥ 2 tracks.
         HarmonicSortCommand.NotifyCanExecuteChanged();
+        // If the queue is now empty and a playlist was loaded, break the reference —
+        // "select all + delete" or any drain path that empties the queue is treated as
+        // a Clear, which severs the playlist association.
+        if (Tracks.Count == 0 && LoadedPlaylistPath != null)
+        {
+            LoadedPlaylistPath = null;
+            PlaylistDirty = false;
+        }
     }
 
     /// <summary>Number the rows 1..N — these are positions in the current session list,
@@ -1494,6 +1578,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_shufflePos >= _shuffleHistory.Count) _shufflePos = _shuffleHistory.Count - 1;
         SelectedTracks.Clear();
         RaiseTrackListChanged();
+        MarkPlaylistEdited();
     }
 
     /// <summary>Consume-mode removal: drop a single just-played track from the queue and any shuffle
@@ -1506,6 +1591,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _shuffleHistory.Remove(played);
         if (_shufflePos >= _shuffleHistory.Count) _shufflePos = _shuffleHistory.Count - 1;
         RaiseTrackListChanged();
+        MarkPlaylistEdited();
     }
 
     // ── Context-menu commands (bound from the queue's ListBox.ContextMenu) ────
@@ -1646,6 +1732,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         SetCurrent(null);
         _shuffleHistory.Clear();
         _shufflePos = -1;
+        LoadedPlaylistPath = null;
+        PlaylistDirty = false;
         RaiseTrackListChanged();
     }
 
@@ -1672,6 +1760,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (dupes.Count == 0) return;
         foreach (var d in dupes) Tracks.Remove(d);
         RaiseTrackListChanged();
+        MarkPlaylistEdited();
     }
 
     /// <summary>Normalised dedup key: "ArtistTitle" (case-insensitive), or the file path
@@ -1740,6 +1829,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (added.Count == 0) return;
         RaiseTrackListChanged();
+        MarkPlaylistEdited();
 
         // Read tags off the UI thread, then refresh each row. Two passes:
         //   pass 1 — metadata (fast, ~ms): titles/artists/duration show immediately.
@@ -1768,14 +1858,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 var stored = tvm.Model.Metadata?.StoredAnalysis;
                 if (stored is not null)
                 {
-                    // Show OUR last-known detection IMMEDIATELY (Camelot key, our BPM/energy) instead of
-                    // flashing the foreign tag value. Current-version blobs are trusted outright; a stale
-                    // blob (e.g. after a detection-version bump) is still displayed now and quietly refined
-                    // by re-analysis below — so the row never first shows the old/foreign key.
+                    // Show OUR last-known detection (Camelot key, our BPM/energy) and TRUST it as-is.
+                    // We do NOT auto-re-analyze a track just because its blob predates the current
+                    // detection version — refreshing to a newer version is an explicit, user-driven
+                    // action (right-click → Re-analyze). This keeps a cleanly-tagged file from being
+                    // silently re-analysed (and, with AutoWriteOnAnalyze on, rewritten on disk) merely
+                    // by loading it. (User decision, 2026-06-12.)
                     tvm.Model.Analysis = stored.Detected;
                     tvm.Model.AnalysisStatus = AnalysisStatus.Done;
                     Dispatcher.UIThread.Post(() => tvm.Refresh());
-                    if (stored.Version != TrackAnalysisState.CurrentVersion)
+                    // One exception: loudness normalization needs a ReplayGain figure. An older blob
+                    // that predates ReplayGain has none, so it's still measured when normalization is on.
+                    if (PlaybackNormalization && stored.Detected.ReplayGainDb is null)
                         needAnalysis.Add(tvm);
                 }
                 else
@@ -1830,6 +1924,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ClearList();                 // stop playback, clear queue + shuffle bookkeeping
         await AddPathsAsync(audio, preserveOrder: true);   // a playlist IS the order — never re-sort it
         if (Tracks.Count > 0) PlayTrack(Tracks[0]);
+        // Remember the loaded playlist so Save can write back in place.
+        // _loadedPlaylistPath was null during AddPathsAsync (ClearList nulled it), so
+        // MarkPlaylistEdited inside AddPathsAsync was a no-op — the load itself is NOT dirty.
+        LoadedPlaylistPath = playlistPath;
+        PlaylistDirty = false;
+    }
+
+    /// <summary>Write the current queue order back into the loaded playlist file (in place).
+    /// Only callable when a playlist is loaded (<see cref="HasLoadedPlaylist"/>).</summary>
+    [RelayCommand(CanExecute = nameof(HasLoadedPlaylist))]
+    private async Task SavePlaylistAsync()
+    {
+        if (LoadedPlaylistPath is null) return;
+        await ExportPlaylistM3uAsync(LoadedPlaylistPath);
+        PlaylistDirty = false;
+    }
+
+    /// <summary>Mark the loaded playlist as having unsaved edits. No-op when no playlist is loaded
+    /// or the queue is empty — emptying the queue clears the reference entirely via
+    /// <see cref="RaiseTrackListChanged"/>.</summary>
+    private void MarkPlaylistEdited()
+    {
+        if (LoadedPlaylistPath != null && Tracks.Count > 0) PlaylistDirty = true;
     }
 
     /// <summary>Export the current queue order to an M3U8 playlist — the universal format Traktor,
@@ -1920,10 +2037,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// keeps every early-return path in the core logic intact while the consume step runs
     /// exactly once, after we know whether we actually moved.
     /// </summary>
-    private void Advance(bool forward, bool auto)
+    private void Advance(bool forward, bool auto, int crossfadeMs = 0)
     {
         var outgoing = Current;
-        AdvanceCore(forward, auto);
+        AdvanceCore(forward, auto, crossfadeMs);
 
         // Consume mode: once we've stepped FORWARD off a track (natural end or manual skip),
         // remove it from the queue. Guarded so we never consume when nothing moved — a
@@ -1936,7 +2053,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary><paramref name="auto"/> distinguishes a track ending on its own (respects Repeat
     /// fully) from a user pressing next/prev (always moves — Repeat-One never traps the user on
     /// one track).</summary>
-    private void AdvanceCore(bool forward, bool auto)
+    private void AdvanceCore(bool forward, bool auto, int crossfadeMs = 0)
     {
         if (Tracks.Count == 0) return;
 
@@ -1947,7 +2064,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (Shuffle) { AdvanceShuffle(forward, auto); return; }
+        if (Shuffle) { AdvanceShuffle(forward, auto, crossfadeMs); return; }
 
         // ── Linear navigation ──
         var index = Current is null ? -1 : Tracks.IndexOf(Current);
@@ -1961,7 +2078,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 if (auto && Repeat != RepeatMode.All) { _controller.Stop(); return; }
                 next = 0;
             }
-            PlayInternal(Tracks[next]);
+            PlayInternal(Tracks[next], crossfadeMs);
         }
         else
         {
@@ -1973,7 +2090,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ── Shuffle navigation ───────────────────────────────────────────────
 
-    private void AdvanceShuffle(bool forward, bool auto)
+    private void AdvanceShuffle(bool forward, bool auto, int crossfadeMs = 0)
     {
         if (forward)
         {
@@ -1982,7 +2099,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             if (_shufflePos < _shuffleHistory.Count - 1)
             {
                 _shufflePos++;
-                PlayInternal(_shuffleHistory[_shufflePos]);
+                PlayInternal(_shuffleHistory[_shufflePos], crossfadeMs);
                 return;
             }
 
@@ -2011,7 +2128,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             _shuffleHistory.Add(pick);
             _shufflePos = _shuffleHistory.Count - 1;
-            PlayInternal(pick);
+            PlayInternal(pick, crossfadeMs);
         }
         else
         {
@@ -2049,6 +2166,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void SetCurrent(TrackViewModel? track)
     {
+        _crossfadeArmed = false;
         if (Current is not null) Current.IsCurrent = false;
         Current = track;
         if (track is not null)
@@ -2090,6 +2208,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _suppressSeek = false;
         OnPropertyChanged(nameof(PositionText));
         OnPropertyChanged(nameof(DurationText));
+
+        MaybeStartCrossfade(pos, DurationSeconds);
+    }
+
+    private void MaybeStartCrossfade(double posSeconds, double durationSeconds)
+    {
+        var secs = CrossfadeSeconds;
+        if (secs <= 0 || durationSeconds <= 0 || !IsPlaying) return;
+        if (Repeat == RepeatMode.One) return;                    // self-overlap makes no sense
+
+        // Trigger a touch before (duration - fade) so the 200ms tick can't miss the window / clip the end.
+        var triggerAt = durationSeconds - secs - 0.25;
+        if (posSeconds < triggerAt) { _crossfadeArmed = false; return; }  // re-arm if user seeked back out
+        if (_crossfadeArmed) return;
+        if (!HasNextForAutoAdvance()) { _crossfadeArmed = true; return; } // last track → let it play out & stop
+
+        _crossfadeArmed = true;
+        Advance(forward: true, auto: true, crossfadeMs: secs * 1000);
+    }
+
+    /// <summary>Would an auto-advance from the current track move to another track (vs. stop at the end
+    /// of the queue)? Mirrors the stop conditions in AdvanceCore/AdvanceShuffle. Used so the crossfade
+    /// window-trigger never fires on the final track (which would cut it short by the fade length).</summary>
+    private bool HasNextForAutoAdvance()
+    {
+        if (Tracks.Count == 0 || Current is null) return false;
+        if (Repeat == RepeatMode.All) return true;               // always wraps
+        if (Shuffle) return PickUnplayed() is not null;          // unplayed remaining this cycle
+        return Tracks.IndexOf(Current) + 1 < Tracks.Count;       // a later track exists
     }
 
     private void OnEngineStateChanged(object? sender, PlaybackState state)

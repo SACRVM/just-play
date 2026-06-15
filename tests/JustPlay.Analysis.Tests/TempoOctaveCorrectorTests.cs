@@ -291,6 +291,54 @@ public class TempoOctaveCorrectorTests
     }
 
     // -------------------------------------------------------------------------
+    // AcfSharpness (v9+)
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// CorrectWithSharpness returns the same BPM as Correct AND a sharpness in [0, 1].
+    /// </summary>
+    [Fact]
+    public void CorrectWithSharpness_ReturnsConsistentBpmAndInRangeSharpness()
+    {
+        var samples = ClickTrain(trueBpm: 128.0, DurationSeconds, SampleRate);
+
+        var corrected          = _corrector.Correct(128.0, samples, SampleRate);
+        var (corrBpm, sharpness) = _corrector.CorrectWithSharpness(128.0, samples, SampleRate);
+
+        // BPM from both overloads must match.
+        Assert.Equal(corrected, corrBpm, precision: 3);
+        // Sharpness must be in [0, 1].
+        Assert.InRange(sharpness, 0.0, 1.0);
+    }
+
+    /// <summary>
+    /// A pure click train at a single tempo has one dominant ACF peak — the sharpness
+    /// should be clearly above 0.5 (the midpoint), indicating a well-defined grid.
+    /// </summary>
+    [Fact]
+    public void ClickTrain_AcfSharpness_IsHigherThan_0_5()
+    {
+        var samples = ClickTrain(trueBpm: 128.0, DurationSeconds, SampleRate);
+        var (_, sharpness) = _corrector.CorrectWithSharpness(128.0, samples, SampleRate);
+
+        Assert.True(sharpness > 0.5,
+            $"Clean click train should have AcfSharpness > 0.5 (got {sharpness:F3})");
+    }
+
+    /// <summary>
+    /// Fallback guard: CorrectWithSharpness on a guard input returns 0.0 sharpness.
+    /// </summary>
+    [Fact]
+    public void CorrectWithSharpness_ZeroBpm_ReturnsZeroSharpness()
+    {
+        var samples = ClickTrain(120.0, DurationSeconds, SampleRate);
+        var (bpm, sharpness) = _corrector.CorrectWithSharpness(0.0, samples, SampleRate);
+
+        Assert.Equal(0.0, bpm);
+        Assert.Equal(0.0, sharpness);
+    }
+
+    // -------------------------------------------------------------------------
     // Signal generator
     // -------------------------------------------------------------------------
 

@@ -68,6 +68,9 @@ public static class AnalysisStateCodec
             BsGrv   = state.Detected.BassGroove,
             Dark    = state.Detected.Dark,
             Hypnot  = state.Detected.Hypnotic,
+            // Grid-confidence bundle (v9+).
+            AcfSh   = state.Detected.AcfSharpness,
+            Gc      = state.Detected.GridConfidence,
         };
         return JsonSerializer.Serialize(dto, AnalysisStateJsonContext.Default.AnalysisStateDto);
     }
@@ -144,6 +147,9 @@ public static class AnalysisStateCodec
                     BassGroove       = dto.BsGrv,
                     Dark             = dto.Dark,
                     Hypnotic         = dto.Hypnot,
+                    // Grid-confidence bundle (v9+).
+                    AcfSharpness     = dto.AcfSh,
+                    GridConfidence   = dto.Gc,
                 },
                 Original = original,
                 BpmDecision = Decode(dto.ActBpm),
@@ -257,6 +263,9 @@ internal sealed class AnalysisStateDto
     // Vibe quartet additions (v8+): dark = tonal darkness; hypnot = repetition/minimal.
     [JsonPropertyName("dark")]    public double? Dark    { get; set; }
     [JsonPropertyName("hypnot")]  public double? Hypnot  { get; set; }
+    // Grid-confidence bundle (v9+): acf_sh = ACF peak sharpness [0,1]; gc = GridConfidence [0,1].
+    [JsonPropertyName("acf_sh")]  public double? AcfSh   { get; set; }
+    [JsonPropertyName("gc")]      public double? Gc      { get; set; }
 }
 
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

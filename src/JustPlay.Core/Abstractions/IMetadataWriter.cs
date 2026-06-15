@@ -71,6 +71,14 @@ public sealed record TagWrite
     /// (e.g. <c>"0.988553"</c>). Null = leave the field untouched.
     /// </summary>
     public double? Peak { get; init; }
+
+    /// <summary>
+    /// When non-null, write this string into the file's Content Group (Grouping) tag.
+    /// ID3v2: TIT1 frame; MP4: ©grp; FLAC: GROUPING comment.
+    /// Used by the CLI batch tagger to stamp the JP vibe tag where DJ software
+    /// surfaces the Grouping column.  Null = leave the field untouched.
+    /// </summary>
+    public string? Grouping { get; init; }
 }
 
 /// <summary>

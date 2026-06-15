@@ -19,6 +19,17 @@ public sealed record WriteTagsRequest
     /// <summary>Mark/unmark the track as a favourite (ID3 POPM / Xiph RATING).
     /// Null = leave untouched.</summary>
     [JsonPropertyName("favorite")]public bool?   Favorite { get; init; }
+    /// <summary>
+    /// When non-null, write this exact string as the file's comment tag.
+    /// Pass the full built comment (including any existing user text you want to preserve).
+    /// Null = leave comment untouched.
+    /// </summary>
+    [JsonPropertyName("comment")] public string? Comment  { get; init; }
+    /// <summary>
+    /// When non-null, write this string into the Content Group / Grouping tag
+    /// (ID3v2 TIT1, MP4 ©grp, FLAC GROUPING).  Null = leave untouched.
+    /// </summary>
+    [JsonPropertyName("grouping")]public string? Grouping { get; init; }
 }
 
 /// <summary>

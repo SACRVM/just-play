@@ -122,14 +122,36 @@ public sealed record AnalysisResult
     /// Vibe quartet — HYPNOTIC [0, 1].
     /// Repetition / low structural variation: 1 = looping/minimal (same loop repeating),
     /// 0 = evolving/progressive (continuous timbral development).
-    /// Computed as 1 − normalizedCentroidVariance: tracks whose spectral centroid is nearly
-    /// constant over time score high (minimal/techno loops); tracks with wide timbral
-    /// variation score low (progressive/evolving sets). Uses per-frame centroid values from
-    /// the existing spectral flatness pass — no extra FFT or decode.
-    /// Normalization: CentroidVarLo = 0 Hz², CentroidVarHi = 200 000 Hz² (first-guess).
+    /// Computed as 1 − normalizedCentroidCV where CV = std_dev/mean of the per-frame spectral
+    /// centroid across the track. Using the coefficient of variation (relative std-dev) removes
+    /// the dependency on absolute tonal centre: a dark minimal loop and a bright minimal loop
+    /// are equally hypnotic. CentroidCvHi = 0.5 (first-guess).
     /// Null when character analysis has not run.
     /// </summary>
     public double? Hypnotic { get; init; }
+
+    // ── Grid-confidence (v9+) ────────────────────────────────────────────────
+
+    /// <summary>
+    /// ACF peak sharpness ratio [0, 1]. Derived from the onset autocorrelation computed
+    /// in <c>TempoOctaveCorrector</c> — zero extra decode or FFT pass.
+    /// 1.0 = single sharp ACF peak at the beat period (clear grid anchor).
+    /// 0.0 = broad or ambiguous ACF (competing meter levels — fragile grid).
+    /// Null when BPM octave correction did not run or the track is too short.
+    /// See <c>references/beatgrid-confidence.md §3.4</c>.
+    /// </summary>
+    public double? AcfSharpness { get; init; }
+
+    /// <summary>
+    /// Composite beat-grid confidence score [0, 1]. Predicts whether a standard beat
+    /// tracker (Traktor / BASS_FX / madmom) will produce a reliable beatgrid.
+    /// Recipe: 0.40 × FourOnFloor + 0.25 × AcfSharpness + 0.20 × (1−HalfTimeFeel)
+    ///         + 0.15 × (1−min(Syncopation×2, 1)).
+    /// ⚠ GRID_SOFT_WARN threshold = 0.45; GRID_HARD_FAIL = 0.25.
+    /// Null when RhythmPattern or AcfSharpness has not been computed.
+    /// See <c>references/beatgrid-confidence.md §3.2–3.3</c>.
+    /// </summary>
+    public double? GridConfidence { get; init; }
 
     public static readonly AnalysisResult Empty = new();
 }

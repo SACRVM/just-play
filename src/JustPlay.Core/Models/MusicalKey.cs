@@ -36,6 +36,34 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
         }
     }
 
+    /// <summary>Camelot wheel number (1..12) for this key — the hour position, mode-independent.</summary>
+    public int CamelotNumber
+    {
+        get
+        {
+            var pc = ((PitchClass % 12) + 12) % 12;
+            return Mode == KeyMode.Major ? CamelotMajor[pc] : CamelotMinor[pc];
+        }
+    }
+
+    /// <summary>
+    /// True when <paramref name="other"/> is a "safe" harmonic mix with this key under the
+    /// Camelot wheel rules DJs use: the same key, its relative major/minor (same number, other
+    /// letter), or an adjacent hour on the wheel in the same mode (±1, wrapping 12↔1). This is
+    /// the standard energy-preserving compatibility set — it does NOT include the larger
+    /// "energy boost"/diagonal moves, deliberately, so callers get a conservative yes/no.
+    /// </summary>
+    public bool IsHarmonicallyCompatibleWith(MusicalKey other)
+    {
+        var (n1, n2) = (CamelotNumber, other.CamelotNumber);
+        if (Mode == other.Mode)
+        {
+            var d = System.Math.Abs(n1 - n2);
+            return System.Math.Min(d, 12 - d) <= 1;   // same or ±1 hour, wrapping the wheel
+        }
+        return n1 == n2;                        // relative major/minor (e.g. 8A ↔ 8B)
+    }
+
     public override string ToString() => $"{Name} ({Camelot})";
 
     /// <summary>

@@ -87,6 +87,10 @@ internal static class StatsCommand
         var darkHist        = BuildDecileHist(analysed, e => e.Dark);
         var hypnoticHist    = BuildDecileHist(analysed, e => e.Hypnotic);
 
+        // ── Grid-confidence (v9+) ─────────────────────────────────────────────
+        var gridConfHist    = BuildDecileHist(analysed, e => e.GridConfidence);
+        var gridSoftCount   = analysed.Count(e => e.GridConfidence is { } gc && gc < 0.45);
+
         if (harshnessHist.Count > 0)
         {
             Console.WriteLine();
@@ -124,6 +128,16 @@ internal static class StatsCommand
             PrintHist(rawEnergyHist.Select(kv => (kv.Key, kv.Value)));
         }
 
+        // ── Grid-confidence histogram + grid-soft count (v9+) ────────────────
+        if (gridConfHist.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  GridConfidence distribution (0.1 buckets; <0.45 = grid-soft ⚠):");
+            PrintHist(gridConfHist.Select(kv => (kv.Key, kv.Value)));
+            Console.WriteLine($"  Grid-soft tracks (GridConfidence < 0.45): {gridSoftCount:N0}" +
+                              $"  ({(analysed.Count > 0 ? (double)gridSoftCount / analysed.Count * 100 : 0):F1}% of analysed)");
+        }
+
         // ── Build report + optionally write JSON ─────────────────────────────
         var report = new StatsReport
         {
@@ -142,6 +156,8 @@ internal static class StatsCommand
             DarkHist       = darkHist,
             HypnoticHist   = hypnoticHist,
             RawEnergyHist  = rawEnergyHist,
+            GridConfHist   = gridConfHist,
+            GridSoftCount  = gridSoftCount,
         };
 
         if (jsonOut is not null)

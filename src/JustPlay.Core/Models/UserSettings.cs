@@ -73,6 +73,12 @@ public sealed record UserSettings
     /// </summary>
     public string NormalizationLevel { get; init; } = "Normal";
 
+    /// <summary>
+    /// Crossfade length between tracks on auto-advance, in seconds. 0 = off (hard track boundaries).
+    /// The UI offers Off/2/4/8.
+    /// </summary>
+    public int CrossfadeSeconds { get; init; } = 0;
+
     // ── Audio output device ───────────────────────────────────────────────────────────
 
     /// <summary>

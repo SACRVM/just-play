@@ -131,6 +131,8 @@ public sealed class TrackEngine : ITrackEngine
                     Key      = key,
                     Energy   = request.Energy,
                     Favorite = request.Favorite,
+                    Comment  = request.Comment,
+                    Grouping = request.Grouping,
                 };
 
                 _writer.Write(filePath, tagWrite);
@@ -217,6 +219,7 @@ public sealed class TrackEngine : ITrackEngine
         Genre             = meta.Genre,
         Year              = meta.Year,
         Comment           = meta.Comment,
+        Grouping          = meta.Grouping,
         DurationSec       = meta.Duration.TotalSeconds,
         BitrateKbps       = meta.Bitrate,
         SampleRate        = meta.SampleRate,

@@ -30,9 +30,10 @@ namespace JustPlay.Analysis;
 ///   <item><b>Dark</b> — 1 − normalizedBrightness, where brightness = spectral centroid of each
 ///     frame, averaged, normalised to [CentroidLo=300 Hz, CentroidHi=3000 Hz].
 ///     Reuses the per-frame centroid already computed in the flatness/HF pass.</item>
-///   <item><b>Hypnotic</b> — 1 − normalizedCentroidVariance. The temporal standard deviation
-///     of per-frame spectral centroid is normalised by [CentroidVarLo=0, CentroidVarHi=200 000 Hz²].
-///     Low variance → repetitive/looping → Hypnotic≈1. High variance → evolving → Hypnotic≈0.
+///   <item><b>Hypnotic</b> — 1 − normalizedCentroidCV. The temporal coefficient of variation
+///     (CV = std_dev/mean) of per-frame spectral centroid, normalised by CentroidCvHi = 0.5.
+///     CV near 0 → same spectrum every frame → repetitive/looping → Hypnotic≈1.
+///     CV ≥ 0.5 → centroid varies widely relative to its mean → evolving → Hypnotic≈0.
 ///     Reuses the centroid values already computed in the same pass — zero extra FFT cost.</item>
 ///   <item><b>BassPunch</b> — transient sharpness / attack steepness of low-band onsets.
 ///     Computed from the low-band onset envelope built here (separate low-band FFT pass,
@@ -72,12 +73,22 @@ public static class CharacterClassifier
     private const double CentroidLo = 300.0;   // Hz (sub-bass end)
     private const double CentroidHi = 3000.0;  // Hz (above DEAM max)
 
-    // Hypnotic: temporal standard-deviation of per-frame centroid in Hz.
-    // First-guess calibration: variance = (std_dev)^2.
-    //   Very repetitive loop (same spectrum every frame) → std_dev ≈ 0 Hz → Hypnotic = 1.
-    //   Highly evolving track (centroid sweeps 300–3000 Hz) → std_dev ≈ 500 Hz → Hypnotic ≈ 0.
-    // CentroidStdDevHi = 450 Hz → Hypnotic=0 at this point and above; first-guess, tune via stats.
-    private const double CentroidStdDevHi = 450.0;  // Hz
+    // Hypnotic: uses the COEFFICIENT OF VARIATION (CV = std_dev / mean_centroid) rather than
+    // absolute std_dev. This self-normalises to the track's own tonal centre so a dark minimal
+    // loop (mean centroid ~600 Hz, std_dev ~30 Hz, CV ~0.05) and a bright hypnotic loop (mean
+    // centroid ~2000 Hz, std_dev ~100 Hz, CV ~0.05) both score equally high — the timbral
+    // stability is what matters, not the absolute spectral position.
+    //
+    // Bug fixed (2026-06-10): the old calibration used CentroidStdDevHi = 450 Hz, but real
+    // EDM tracks can easily have centroid std-dev of 800–2000 Hz across dynamic sections
+    // (breakdown → peak → breakdown), saturating the normaliser to 1 → Hypnotic = 0 for
+    // ALL tracks. The CV is invariant to the mean and scales naturally: a full 4-minute club
+    // track with 50% dynamic range sweeps from ~600 Hz to ~2400 Hz, giving CV ≈ 0.4–0.5.
+    // A minimal looping track keeps CV < 0.05.
+    //
+    // CentroidCvHi = 0.5: CV at or above this maps to Hypnotic = 0 (fully evolving).
+        // ── Hypnotic = 1 − normalizedCentroidCV (coefficient of variation) ──────────────
+    private const double CentroidCvHi = 0.5;
 
     // =========================================================================
     // Onset parameters (must match RhythmPatternDetector for low-band reuse)
@@ -106,10 +117,10 @@ public static class CharacterClassifier
     /// centroid normalised over [300 Hz, 3000 Hz]. Reuses centroids from the same flatness pass
     /// — no extra FFT.</para>
     ///
-    /// <para><b>Hypnotic computation:</b> 1 − normalizedCentroidStdDev where centroid std-dev is
-    /// measured across frames and normalised by CentroidStdDevHi = 450 Hz (first-guess). Low
-    /// temporal centroid variance = repetitive/looping → Hypnotic≈1. Reuses per-frame centroid
-    /// values already computed for Dark — no extra FFT pass at all.</para>
+    /// <para><b>Hypnotic computation:</b> 1 − normalizedCentroidCV where CV = std_dev/mean_centroid.
+    /// Using the coefficient of variation removes the absolute-Hz dependency: dark minimal loops
+    /// and bright minimal loops are equally hypnotic. CV near 0 → looping → Hypnotic≈1.
+    /// CV ≥ 0.5 → evolving → Hypnotic≈0. Reuses per-frame centroids from Dark → no extra FFT pass.</para>
     ///
     /// Returns null when audio is too short, or loudness/peak are missing.
     /// </summary>
@@ -154,11 +165,13 @@ public static class CharacterClassifier
         var dark = Math.Clamp(1.0 - nBright, 0.0, 1.0);
 
         // ── Hypnotic = 1 − normalizedCentroidStdDev ──────────────────────────
-        // centroidStdDev in Hz; normalise by CentroidStdDevHi (first-guess 450 Hz).
-        // Low variance → same spectrum every frame → repetitive/looping → Hypnotic≈1.
-        // High variance → evolving/progressive → Hypnotic≈0.
-        var nCentroidVar = Norm(centroidStdDev, 0.0, CentroidStdDevHi);
-        var hypnotic = Math.Clamp(1.0 - nCentroidVar, 0.0, 1.0);
+        // centroidStdDev in Hz; compute CV = std_dev/mean and normalise by CentroidCvHi (0.5).
+        // Coefficient of variation (CV = std_dev / mean_centroid): self-normalises to the
+        // track's own tonal centre. CV ≈ 0 → same spectrum every frame → looping/minimal.
+        // CV ≥ CentroidCvHi (0.5) → centroid varies widely relative to mean → evolving → Hypnotic≈0.
+        var cv = meanCentroid > 1.0 ? centroidStdDev / meanCentroid : 0.0;
+        var nCv = Norm(cv, 0.0, CentroidCvHi);
+        var hypnotic = Math.Clamp(1.0 - nCv, 0.0, 1.0);
 
         // ── BassPunch: transient sharpness of low-band onsets ─────────────────
         var bpm_ = bpm ?? 0.0;
@@ -207,6 +220,43 @@ public static class CharacterClassifier
             Dark:             dark,
             Hypnotic:         hypnotic,
             LowConfidence:    lowConfidence);
+    }
+
+    // =========================================================================
+    // Grid-confidence score
+    // =========================================================================
+
+    /// <summary>
+    /// Composite beat-grid confidence score [0, 1] using the recipe from
+    /// <c>references/beatgrid-confidence.md §3.2</c>.
+    ///
+    /// <para>Formula:
+    /// <code>
+    /// GridConfidence = 0.40 × FourOnFloor
+    ///                + 0.25 × AcfSharpness
+    ///                + 0.20 × (1 − HalfTimeFeel)
+    ///                + 0.15 × (1 − min(Syncopation × 2, 1))
+    /// </code>
+    /// All inputs are in [0, 1]. Weights are first-guess; calibrate from real-gig outcomes
+    /// once <c>justplay stats --index</c> shows the distribution on the full library.</para>
+    ///
+    /// <para>Flag thresholds (for display / sequencer — computation only, no flag here):
+    /// ⚠ GRID_SOFT_WARN = 0.45; GRID_HARD_FAIL = 0.25.</para>
+    /// </summary>
+    /// <param name="rhythm">The rhythm pattern for the track. Required — returns 0.0 when null.</param>
+    /// <param name="acfSharpness">ACF peak sharpness ratio [0,1] from <c>TempoOctaveCorrector.CorrectWithSharpness</c>.</param>
+    public static double ComputeGridConfidence(RhythmPattern? rhythm, double acfSharpness)
+    {
+        if (rhythm is null) return 0.0;
+
+        var gcFof  = rhythm.FourOnFloor;                                       // [0,1]
+        var gcOct  = 1.0 - rhythm.HalfTimeFeel;                               // [0,1]
+        var gcSync = 1.0 - Math.Min(rhythm.Syncopation * 2.0, 1.0);           // [0,1] (0.5 syncopation → 0)
+        var gcAcf  = acfSharpness;                                             // [0,1] already normalised
+
+        return Math.Clamp(
+            0.40 * gcFof + 0.25 * gcAcf + 0.20 * gcOct + 0.15 * gcSync,
+            0.0, 1.0);
     }
 
     // =========================================================================

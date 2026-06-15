@@ -37,6 +37,12 @@ public sealed record StatsReport
     [JsonPropertyName("hypnoticHist")]    public Dictionary<string, int>   HypnoticHist     { get; init; } = [];
     /// <summary>Histogram of rawEnergyScore values (0.1 buckets).</summary>
     [JsonPropertyName("rawEnergyHist")]   public Dictionary<string, int>   RawEnergyHist    { get; init; } = [];
+
+    // ── Grid-confidence (v9+) ─────────────────────────────────────────────────
+    /// <summary>Histogram of GridConfidence values (0.1 buckets). GridConfidence &lt; 0.45 = grid-soft.</summary>
+    [JsonPropertyName("gridConfHist")]    public Dictionary<string, int>   GridConfHist     { get; init; } = [];
+    /// <summary>Number of successfully analysed tracks with GridConfidence &lt; 0.45 (grid-soft warning threshold).</summary>
+    [JsonPropertyName("gridSoftCount")]   public int                        GridSoftCount    { get; init; }
 }
 
 public sealed record BpmBucket

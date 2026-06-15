@@ -57,7 +57,6 @@ Serious DJ analysis, living *inside* the player — without the library overhead
 | About dialog + version                                          | ✅ themed, build-stamped                         |
 | Installer + auto-update                                         | 🟡 in progress (Inno Setup + GitHub Releases)   |
 | macOS / Linux builds                                            | ❌ target, not validated yet                    |
-| Lyrics tab                                                      | ❌ placeholder only                             |
 
 ## Stack
 

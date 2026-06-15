@@ -50,8 +50,19 @@ public sealed class BassAudioEngine : IAudioEngine
     // SetOutputDevice call or startup hydration so the VM can tell "not yet applied".
     private int _currentDevice = -1;
 
-    // ── Per-track decode source (one at a time) ───────────────────────────
+    // ── Per-track decode source (the current / incoming track) ────────────
     private int _source;
+
+    // ── Crossfade: the outgoing (old) source fades out here while _source holds the
+    // incoming track. Both overlap on the mixer during the blend. A wall-clock handoff
+    // timer frees the outgoing once the fade completes. 0 = no crossfade in flight.
+    // All mutation goes through _xfadeLock + a generation counter so a late handoff
+    // timer can never free a source that a newer crossfade has already reassigned.
+    private int _outgoing;
+    private SyncProcedure? _outgoingEndSync;          // kept alive so the native sync ptr stays valid
+    private System.Threading.Timer? _handoffTimer;
+    private int _xfadeGen;
+    private readonly object _xfadeLock = new();
 
     private double _volume = 1.0;
     private double _normGainDb = 0.0;
@@ -252,6 +263,8 @@ public sealed class BassAudioEngine : IAudioEngine
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
+        // A hard Load cancels any in-flight crossfade — drop the outgoing source too.
+        FreeOutgoing();
         // Remove and free the old decode source (if any) before loading the new one.
         FreeSource();
 
@@ -288,14 +301,92 @@ public sealed class BassAudioEngine : IAudioEngine
         // in the mixer is exhausted, not when the mixer itself ends (it never does,
         // thanks to MixerNonStop). SyncFlags.End fires when the source decode reaches EOF.
         // Source: managedbass.github.io/api — BassMix.ChannelSetSync.
+        WireEndSync(_source);
+
+        SetState(CorePlaybackState.Stopped);
+    }
+
+    /// <summary>
+    /// Wire the end-of-track sync on <paramref name="source"/> so it raises <see cref="PlaybackEnded"/>
+    /// when that source's decode hits EOF. The captured handle is compared against the live
+    /// <see cref="_source"/> at fire time: a sync from a source that is no longer current (e.g. an
+    /// outgoing crossfade tail that reached EOF before the handoff timer freed it) is ignored, so the
+    /// outgoing track never triggers a spurious advance.
+    /// </summary>
+    private void WireEndSync(int source)
+    {
         _endSync = (_, _, _, _) =>
         {
+            if (source != _source) return;
             SetState(CorePlaybackState.Stopped);
             PlaybackEnded?.Invoke(this, EventArgs.Empty);
         };
-        BassMix.ChannelSetSync(_source, SyncFlags.End, 0, _endSync);
+        BassMix.ChannelSetSync(source, SyncFlags.End, 0, _endSync);
+    }
 
-        SetState(CorePlaybackState.Stopped);
+    /// <summary>
+    /// Crossfade into <paramref name="filePath"/> over <paramref name="fadeMs"/> ms: the current
+    /// source fades out (becoming the "outgoing" deck) while the new track fades in to its
+    /// <paramref name="normGainDb"/> level — both overlap on the persistent mixer. The new track
+    /// becomes current immediately (Position/Duration/seek track it). When nothing is playing or
+    /// fadeMs ≤ 0 this degrades to a hard Load + gain + Play. The outgoing source is muted and
+    /// freed by a handoff timer ~150 ms after the blend completes, and deliberately raises NO
+    /// <see cref="PlaybackEnded"/> (the queue already advanced when the crossfade began).
+    /// </summary>
+    public void CrossfadeTo(string filePath, double normGainDb, int fadeMs)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        EnsureMixer();
+
+        // Nothing to fade FROM, or crossfade disabled → behave exactly like the hard path.
+        if (_source == 0 || fadeMs <= 0)
+        {
+            Load(filePath);
+            NormalizationGainDb = normGainDb;
+            Play();
+            return;
+        }
+
+        var clampedMs = Math.Clamp(fadeMs, 250, 12000);
+        // Target volume for the incoming track = its normalization factor (same math as ApplyNormalization).
+        var target = normGainDb == 0.0 ? 1.0f : (float)System.Math.Pow(10.0, normGainDb / 20.0);
+
+        lock (_xfadeLock)
+        {
+            // Invalidate any pending handoff timer and clear a still-fading prior outgoing
+            // (rapid re-trigger / very short tracks) before reusing the slot.
+            _xfadeGen++;
+            FreeOutgoingCore();
+
+            // Create the incoming source FIRST so a load failure leaves the current playback untouched.
+            var incoming = ManagedBass.Bass.CreateStream(filePath, 0, 0, BassFlags.Decode | BassFlags.Float);
+            if (incoming == 0)
+                throw new InvalidOperationException($"Could not load '{filePath}': {ManagedBass.Bass.LastError}");
+
+            // Demote the current source to "outgoing" and fade it out. Keep its delegate alive.
+            _outgoing = _source;
+            _outgoingEndSync = _endSync;
+            ManagedBass.Bass.ChannelSlideAttribute(_outgoing, ChannelAttribute.Volume, 0f, clampedMs);
+
+            // Plug the incoming source into the mixer, start it silent and un-paused, then slide it up.
+            BassMix.MixerAddChannel(_mixer, incoming, BassFlags.MixerChanBuffer);
+            ManagedBass.Bass.ChannelSetAttribute(incoming, ChannelAttribute.Volume, 0f);
+            BassMix.ChannelFlags(incoming, BassFlags.Default, BassFlags.MixerChanPause); // clear pause → start playing
+
+            _source = incoming;
+            _normGainDb = normGainDb;
+            ManagedBass.Bass.ChannelSlideAttribute(_source, ChannelAttribute.Volume, target, clampedMs);
+            WireEndSync(_source);
+            SetState(CorePlaybackState.Playing);
+
+            // Free the outgoing source once the blend has finished. The captured generation guards
+            // against a newer crossfade having reassigned _outgoing in the meantime.
+            var gen = _xfadeGen;
+            _handoffTimer?.Dispose();
+            _handoffTimer = new System.Threading.Timer(
+                _ => { lock (_xfadeLock) { if (gen == _xfadeGen) FreeOutgoingCore(); } },
+                null, clampedMs + 150, System.Threading.Timeout.Infinite);
+        }
     }
 
     public void Play()
@@ -307,6 +398,8 @@ public sealed class BassAudioEngine : IAudioEngine
         // To CLEAR MixerPause: set=0, mask=MixerPause.
         // Source: managedbass.github.io/api — BassMix.ChannelFlags, BassFlags.MixerChanPause.
         BassMix.ChannelFlags(_source, BassFlags.Default, BassFlags.MixerChanPause);
+        // Resume the outgoing deck too, if a crossfade is mid-blend (keeps both sides moving).
+        if (_outgoing != 0) BassMix.ChannelFlags(_outgoing, BassFlags.Default, BassFlags.MixerChanPause);
 
         // The mixer itself must be playing (started once; subsequent Play calls are no-ops
         // because the mixer never stops — it just outputs silence while sources are paused).
@@ -325,6 +418,7 @@ public sealed class BassAudioEngine : IAudioEngine
         // BassMix.ChannelFlags: set=MixerPause, mask=MixerPause.
         // Source: managedbass.github.io/api — BassMix.ChannelFlags, BassFlags.MixerChanPause.
         BassMix.ChannelFlags(_source, BassFlags.MixerChanPause, BassFlags.MixerChanPause);
+        if (_outgoing != 0) BassMix.ChannelFlags(_outgoing, BassFlags.MixerChanPause, BassFlags.MixerChanPause);
 
         SetState(CorePlaybackState.Paused);
     }
@@ -332,6 +426,8 @@ public sealed class BassAudioEngine : IAudioEngine
     public void Stop()
     {
         if (_source == 0) return;
+        // Cancel any in-flight crossfade — there is no longer a "next" to blend into.
+        FreeOutgoing();
         // Pause the source and rewind it.
         BassMix.ChannelFlags(_source, BassFlags.MixerChanPause, BassFlags.MixerChanPause);
         ManagedBass.Bass.ChannelSetPosition(_source, 0);
@@ -383,6 +479,27 @@ public sealed class BassAudioEngine : IAudioEngine
         ManagedBass.Bass.StreamFree(_source);
         _source = 0;
         _endSync = null;
+    }
+
+    /// <summary>Cancel any in-flight crossfade and free the outgoing source now. Bumps the
+    /// generation so a pending handoff timer becomes a no-op. Safe to call when idle.</summary>
+    private void FreeOutgoing()
+    {
+        lock (_xfadeLock)
+        {
+            _xfadeGen++;
+            FreeOutgoingCore();
+        }
+    }
+
+    /// <summary>Free the outgoing source. MUST be called while holding <see cref="_xfadeLock"/>.</summary>
+    private void FreeOutgoingCore()
+    {
+        if (_outgoing == 0) return;
+        BassMix.MixerRemoveChannel(_outgoing);
+        ManagedBass.Bass.StreamFree(_outgoing);
+        _outgoing = 0;
+        _outgoingEndSync = null;
     }
 
     /// <summary>
@@ -440,6 +557,8 @@ public sealed class BassAudioEngine : IAudioEngine
 
     public void Dispose()
     {
+        _handoffTimer?.Dispose();
+        FreeOutgoing();
         FreeSource();
         if (_mixer != 0)
         {

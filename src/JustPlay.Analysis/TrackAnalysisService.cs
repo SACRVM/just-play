@@ -73,12 +73,14 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
 
             // BPM octave correction (half/double-tempo fix via onset autocorrelation +
             // log-Gaussian prior). Runs on the 11 kHz decode — cheap, no extra I/O.
-            // Reports a corrected BPM back to the progress even if energy detection fails,
-            // so the UI always shows the best available BPM before analysis completes.
+            // Also yields the ACF peak sharpness ratio (v9+) at zero additional cost —
+            // it's derived from the same ACF that the corrector already computes.
+            double? acfSharpness = null;
             if (bpm is { } rawBpm && energyAudio.Samples?.Length > 0)
             {
-                var correctedBpm = _octaveCorrector.Correct(
+                var (correctedBpm, sharp) = _octaveCorrector.CorrectWithSharpness(
                     rawBpm, energyAudio.Samples, energyAudio.SampleRate, ct);
+                acfSharpness = sharp;
                 if (Math.Abs(correctedBpm - rawBpm) > 0.01)
                 {
                     // Correction was applied — update result so the final stored value is corrected.
@@ -182,6 +184,21 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
                         BassGroove       = cf.BassGroove,
                         Dark             = cf.Dark,
                         Hypnotic         = cf.Hypnotic,
+                    };
+                }
+            }
+
+            // AcfSharpness + GridConfidence (v9+).
+            // AcfSharpness was captured from the BPM octave-corrector call above — zero extra pass.
+            // GridConfidence is derived from AcfSharpness + the already-computed RhythmPattern.
+            if (acfSharpness is { } acfSharp)
+            {
+                result = result with { AcfSharpness = acfSharp };
+                if (result.Rhythm is { } r)
+                {
+                    result = result with
+                    {
+                        GridConfidence = CharacterClassifier.ComputeGridConfidence(r, acfSharp),
                     };
                 }
             }

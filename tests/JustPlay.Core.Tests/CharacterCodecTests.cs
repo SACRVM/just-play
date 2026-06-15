@@ -182,13 +182,13 @@ public class CharacterCodecTests
     }
 
     // =========================================================================
-    // 6. CurrentVersion is now 8
+    // 6. CurrentVersion is now 9
     // =========================================================================
 
     [Fact]
-    public void CurrentVersion_Is_Eight()
+    public void CurrentVersion_Is_Nine()
     {
-        Assert.Equal(8, TrackAnalysisState.CurrentVersion);
+        Assert.Equal(9, TrackAnalysisState.CurrentVersion);
     }
 
     // =========================================================================
@@ -208,5 +208,67 @@ public class CharacterCodecTests
         Assert.True(delta <= 260,
             $"Vibe quartet added {delta} chars to blob (expected ≤ 260). " +
             $"With: {blobWith.Length}, without: {blobWithout.Length}.");
+    }
+
+    // =========================================================================
+    // 8. AcfSharpness + GridConfidence round-trip (v9+)
+    // =========================================================================
+
+    [Fact]
+    public void AcfSharpnessAndGridConfidence_RoundTrip()
+    {
+        var state = new TrackAnalysisState
+        {
+            Version  = TrackAnalysisState.CurrentVersion,
+            Detected = new AnalysisResult
+            {
+                Bpm           = 128.0,
+                AcfSharpness  = 0.78,
+                GridConfidence = 0.62,
+            },
+        };
+        var blob     = AnalysisStateCodec.Serialize(state);
+        var restored = AnalysisStateCodec.TryParse(blob);
+
+        Assert.NotNull(restored);
+        Assert.Equal(0.78, restored!.Detected.AcfSharpness!.Value, precision: 5);
+        Assert.Equal(0.62, restored.Detected.GridConfidence!.Value, precision: 5);
+    }
+
+    [Fact]
+    public void NullAcfSharpnessAndGridConfidence_RoundTrip_AsNull()
+    {
+        var state = new TrackAnalysisState
+        {
+            Version  = TrackAnalysisState.CurrentVersion,
+            Detected = new AnalysisResult { Bpm = 128.0 },
+        };
+        var blob     = AnalysisStateCodec.Serialize(state);
+        var restored = AnalysisStateCodec.TryParse(blob);
+
+        Assert.NotNull(restored);
+        Assert.Null(restored!.Detected.AcfSharpness);
+        Assert.Null(restored.Detected.GridConfidence);
+    }
+
+    [Fact]
+    public void V8Blob_WithoutGridConfidenceFields_ParsesAsNull()
+    {
+        // Hand-crafted v8 blob — no acf_sh or gc keys.
+        const string v8Blob = "{\"v\":8,\"bpm\":128.0,\"kpc\":0,\"kmd\":\"maj\",\"nrg\":7," +
+                              "\"lufs\":-9.5,\"rg\":8.5,\"pk\":0.988," +
+                              "\"rp_fof\":0.90,\"rp_obe\":0.20,\"rp_swg\":0.10," +
+                              "\"rp_syn\":0.10,\"rp_htf\":0.10,\"rp_bt\":\"4x4-driving\"," +
+                              "\"raw_nrg\":0.62,\"sp_flat\":0.18,\"harsh\":0.42," +
+                              "\"bs_pnch\":0.71,\"bs_grv\":0.14,\"dark\":0.60,\"hypnot\":0.80}";
+
+        var restored = AnalysisStateCodec.TryParse(v8Blob);
+
+        Assert.NotNull(restored);
+        Assert.Null(restored!.Detected.AcfSharpness);
+        Assert.Null(restored.Detected.GridConfidence);
+        // Other fields intact.
+        Assert.Equal(128.0, restored.Detected.Bpm);
+        Assert.Equal(0.80, restored.Detected.Hypnotic!.Value, precision: 5);
     }
 }

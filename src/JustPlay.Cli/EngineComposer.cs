@@ -30,19 +30,27 @@ internal sealed class EngineComposer : IDisposable
     public ITrackAnalysisService AnalysisService { get; }
     public ITrackEngine          Engine          { get; }
     public IMetadataReader       MetadataReader  { get; }
+    /// <summary>
+    /// Direct access to the metadata writer, used by the promote command to write
+    /// the JUSTPLAY blob (TrackAnalysisState) + standard tags in a single file save —
+    /// the Engine facade's WriteTagsAsync does not expose the blob field.
+    /// </summary>
+    public IMetadataWriter       MetadataWriter  { get; }
 
     private EngineComposer(
         BassAudioDecoder decoder,
         BassBpmDetector bpmDetector,
         ITrackAnalysisService analysisService,
         ITrackEngine engine,
-        IMetadataReader metadataReader)
+        IMetadataReader metadataReader,
+        IMetadataWriter metadataWriter)
     {
         _decoder         = decoder;
         _bpmDetector     = bpmDetector;
         AnalysisService  = analysisService;
         Engine           = engine;
         MetadataReader   = metadataReader;
+        MetadataWriter   = metadataWriter;
     }
 
     /// <summary>
@@ -75,7 +83,7 @@ internal sealed class EngineComposer : IDisposable
         var analysisService = new TrackAnalysisService(bpm, decoder, key, energy, loudness);
         var engine          = new TrackEngine(analysisService, reader, writer);
 
-        return new EngineComposer(decoder, bpm, analysisService, engine, reader);
+        return new EngineComposer(decoder, bpm, analysisService, engine, reader, writer);
     }
 
     public void Dispose()

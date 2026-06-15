@@ -34,6 +34,7 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 Genre = Clean(tag.FirstGenre),
                 Year = tag.Year == 0 ? null : tag.Year,
                 Comment = Clean(tag.Comment),
+                Grouping = Clean(tag.Grouping),
                 Duration = props?.Duration ?? TimeSpan.Zero,
                 Bitrate = props?.AudioBitrate is > 0 and var br ? br : null,
                 SampleRate = props?.AudioSampleRate is > 0 and var sr ? sr : null,

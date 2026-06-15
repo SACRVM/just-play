@@ -41,6 +41,17 @@ public interface IAudioEngine : IDisposable
     void Stop();
 
     /// <summary>
+    /// Crossfade into <paramref name="filePath"/> over <paramref name="fadeMs"/> ms: the currently
+    /// playing source fades out while the new track fades in to its <paramref name="normGainDb"/>
+    /// level, both overlapping on the mixer. The new track becomes the current track immediately
+    /// (<see cref="Position"/>/<see cref="Duration"/>/seek follow it). When nothing is playing or
+    /// <paramref name="fadeMs"/> ≤ 0 this is equivalent to <see cref="Load"/> + set gain + <see cref="Play"/>.
+    /// The outgoing source does NOT raise <see cref="PlaybackEnded"/> — the queue already advanced when
+    /// the crossfade began, so only the new track's natural end fires it.
+    /// </summary>
+    void CrossfadeTo(string filePath, double normGainDb, int fadeMs);
+
+    /// <summary>
     /// Fully release the loaded stream and its underlying file handle (unlike
     /// <see cref="Stop"/>, which keeps the file open). Needed before another
     /// process — e.g. the tag writer — can open the file for writing. After this

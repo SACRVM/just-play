@@ -177,23 +177,6 @@ public partial class MaxView : UserControl
         return null;
     }
 
-    // ── Tab swap (UP NEXT / LYRICS) ────────────────────────────────────────
-    private void OnUpNextTabClick(object? sender, RoutedEventArgs e) => ShowTab(queue: true);
-    private void OnLyricsTabClick(object? sender, RoutedEventArgs e) => ShowTab(queue: false);
-
-
-    private void ShowTab(bool queue)
-    {
-        var qp = this.FindControl<Panel>("QueuePanel");
-        var lp = this.FindControl<StackPanel>("LyricsPanel");
-        var qt = this.FindControl<Button>("UpNextTab");
-        var lt = this.FindControl<Button>("LyricsTab");
-        if (qp is not null) qp.IsVisible = queue;
-        if (lp is not null) lp.IsVisible = !queue;
-        qt?.Classes.Set("active", queue);
-        lt?.Classes.Set("active", !queue);
-    }
-
     // ── Streaming cap-button right-click menu ──────────────────────────────
     // Built fresh on every open so the items track the live broadcast state and the
     // current radio list: "Disconnect" while on air, otherwise one "Connect to <name>"

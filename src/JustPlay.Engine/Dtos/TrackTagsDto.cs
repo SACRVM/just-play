@@ -16,6 +16,8 @@ public sealed record TrackTagsDto
     [JsonPropertyName("genre")]       public string?  Genre      { get; init; }
     [JsonPropertyName("year")]        public uint?    Year       { get; init; }
     [JsonPropertyName("comment")]     public string?  Comment    { get; init; }
+    /// <summary>Content Group / Grouping tag (ID3v2 TIT1, MP4 ©grp, FLAC GROUPING).</summary>
+    [JsonPropertyName("grouping")]    public string?  Grouping   { get; init; }
     [JsonPropertyName("durationSec")] public double   DurationSec { get; init; }
     [JsonPropertyName("bitrateKbps")] public int?     BitrateKbps { get; init; }
     [JsonPropertyName("sampleRate")]  public int?     SampleRate  { get; init; }

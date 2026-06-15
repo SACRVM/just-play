@@ -64,4 +64,10 @@ public sealed record TrackIndexEntry
     [JsonPropertyName("dark")]             public double?  Dark             { get; init; }
     /// <summary>Vibe quartet HYPNOTIC [0,1]: 1 = minimal/looping; 0 = evolving/progressive.</summary>
     [JsonPropertyName("hypnotic")]         public double?  Hypnotic         { get; init; }
+
+    // ── Grid-confidence (v9+) ─────────────────────────────────────────────────
+    /// <summary>ACF peak sharpness ratio [0,1]: 1 = sharp/unambiguous, 0 = broad/competing peaks.</summary>
+    [JsonPropertyName("acfSharpness")]     public double?  AcfSharpness     { get; init; }
+    /// <summary>Composite beat-grid confidence [0,1]. ⚠ threshold 0.45 (grid-soft), 0.25 (grid-fail).</summary>
+    [JsonPropertyName("gridConfidence")]   public double?  GridConfidence   { get; init; }
 }

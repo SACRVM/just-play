@@ -413,6 +413,48 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
+    // 18. CrossfadeTo: becomes current, forwards path + fade, fires CurrentTrackChanged
+    // =========================================================================
+
+    [Fact]
+    public void CrossfadeTo_BecomesCurrent_ForwardsPathAndFade_FiresEvent()
+    {
+        var engine = new FakeAudioEngine();
+        var ctrl   = new PlaybackController(engine) { NormalizationEnabled = false };
+
+        ctrl.Play(new Track("C:\\a.mp3"));
+
+        Track? notified = null;
+        ctrl.CurrentTrackChanged += (_, t) => notified = t;
+
+        var next = new Track("C:\\b.mp3");
+        ctrl.CrossfadeTo(next, fadeMs: 4000);
+
+        Assert.Same(next, ctrl.CurrentTrack);
+        Assert.Same(next, notified);
+        Assert.Equal(1, engine.CrossfadeCount);
+        Assert.Equal("C:\\b.mp3", engine.LastCrossfadePath);
+        Assert.Equal(4000, engine.LastCrossfadeMs);
+    }
+
+    // =========================================================================
+    // 19. CrossfadeTo applies the SAME normalization gain logic as Play
+    // =========================================================================
+
+    [Fact]
+    public void CrossfadeTo_AppliesNormalizationGain_LikePlay()
+    {
+        var engine = new FakeAudioEngine();
+        var ctrl   = new PlaybackController(engine) { NormalizationEnabled = true };
+
+        ctrl.Play(new Track("C:\\a.mp3"));
+        // peak 0.5 = −6.02 dBFS; gain −6 dB → no clip → applied as-is.
+        ctrl.CrossfadeTo(TrackWithGain(replayGainDb: -6.0, peak: 0.5), fadeMs: 2000);
+
+        Assert.Equal(-6.0, engine.NormalizationGainDb, precision: 6);
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
 
@@ -446,6 +488,10 @@ file sealed class FakeAudioEngine : IAudioEngine
     public int UnloadCount  { get; private set; }
     public int FadeOutCount { get; private set; }
     public int LastFadeMs   { get; private set; }
+
+    public int     CrossfadeCount    { get; private set; }
+    public string? LastCrossfadePath { get; private set; }
+    public int     LastCrossfadeMs   { get; private set; }
 
     // --- IAudioEngine ---
     public PlaybackState State          => _state;
@@ -485,6 +531,17 @@ file sealed class FakeAudioEngine : IAudioEngine
     public void Stop()
     {
         _state = PlaybackState.Stopped;
+        StateChanged?.Invoke(this, _state);
+    }
+
+    public void CrossfadeTo(string filePath, double normGainDb, int fadeMs)
+    {
+        CrossfadeCount++;
+        LastCrossfadePath = filePath;
+        LastCrossfadeMs   = fadeMs;
+        NormalizationGainDb = normGainDb;
+        LoadCount++;                       // a fresh source was loaded for the incoming track
+        _state = PlaybackState.Playing;
         StateChanged?.Invoke(this, _state);
     }
 

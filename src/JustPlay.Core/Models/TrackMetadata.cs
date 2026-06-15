@@ -14,6 +14,13 @@ public sealed record TrackMetadata
     /// <summary>Free-text comment tag (where some tools, e.g. Mixed In Key, stash the key/energy).</summary>
     public string? Comment { get; init; }
 
+    /// <summary>
+    /// Content Group / Grouping tag (ID3v2 TIT1, MP4 ©grp, FLAC GROUPING).
+    /// Used by JustPlay's batch tagger to store the JP vibe string in a field
+    /// that DJ software surfaces in the Grouping column.
+    /// </summary>
+    public string? Grouping { get; init; }
+
     /// <summary>Total track length.</summary>
     public TimeSpan Duration { get; init; }
 

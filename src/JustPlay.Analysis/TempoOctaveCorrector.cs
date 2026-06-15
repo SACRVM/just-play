@@ -94,6 +94,8 @@ public sealed class TempoOctaveCorrector
 
     /// <summary>
     /// Applies octave correction to a raw BPM estimate.
+    /// Thin wrapper around <see cref="CorrectWithSharpness"/> — for callers that only
+    /// need the corrected BPM and not the ACF sharpness ratio.
     /// </summary>
     /// <param name="rawBpm">Raw BPM from BASS_FX. Returned unchanged on failure.</param>
     /// <param name="samples">Decoded mono float samples (any sample rate ≥ 8000 Hz).</param>
@@ -104,21 +106,39 @@ public sealed class TempoOctaveCorrector
     /// the correction margin is not met or the audio is too short.
     /// </returns>
     public double Correct(double rawBpm, float[] samples, int sampleRate, CancellationToken ct = default)
+        => CorrectWithSharpness(rawBpm, samples, sampleRate, ct).CorrectedBpm;
+
+    /// <summary>
+    /// Applies octave correction to a raw BPM estimate AND computes the ACF peak
+    /// sharpness ratio — a confidence signal for the beat-grid quality.
+    ///
+    /// <para><b>ACF sharpness</b> [0, 1]:
+    /// Ratio of the dominant beat-period ACF peak to the next non-octave rival peak.
+    /// A sharp, isolated peak (approaching 1.0) means the onset autocorrelation has a
+    /// single dominant period → the beat tracker has a clear anchor → high grid confidence.
+    /// A broad or ambiguous peak (approaching 0) means competing meter levels are present
+    /// (e.g. 2-step with both a beat-period and a bar-period peak) → fragile grid.
+    /// Defined as <c>(peak0/(peak0+peak1) − 0.5) × 2</c> normalised from [0.5,1.0] to [0,1].
+    /// When no signal is present, returns 0.0 (worst case — triggers the grid-soft flag).
+    /// Per <c>references/beatgrid-confidence.md §3.4</c>.</para>
+    /// </summary>
+    public (double CorrectedBpm, double AcfSharpness) CorrectWithSharpness(
+        double rawBpm, float[] samples, int sampleRate, CancellationToken ct = default)
     {
         if (rawBpm <= 0 || samples is null || samples.Length == 0 || sampleRate <= 0)
-            return rawBpm;
+            return (rawBpm, 0.0);
 
         // ---- 1. Build onset-strength envelope ----
         var envelope = BuildOnsetEnvelope(samples, ct);
         if (envelope is null || envelope.Length < 4)
-            return rawBpm;
+            return (rawBpm, 0.0);
 
         // ---- 2. Autocorrelate the envelope ----
         var maxLagFrames = (int)Math.Min(
             MaxLagSeconds * sampleRate / OnsetHopSize,
             envelope.Length - 1);
         if (maxLagFrames < 2)
-            return rawBpm;
+            return (rawBpm, 0.0);
 
         var acf = Autocorrelate(envelope, maxLagFrames, ct);
 
@@ -172,20 +192,87 @@ public sealed class TempoOctaveCorrector
         // ---- 5. Conservative correction guard ----
         // No change if raw already won.
         if (Math.Abs(bestBpm - rawBpm) < 0.5)
-            return rawBpm;
+            return (rawBpm, ComputeAcfSharpness(acf, sampleRate, maxLagFrames, rawBpm, ct));
 
         // No change if the best alternate has no positive ACF energy.
         if (bestScore <= 0)
-            return rawBpm;
+            return (rawBpm, 0.0);
 
         // If raw is in range and has a positive score, require a clear margin.
         // This prevents the prior from flipping confident-correct tracks.
         // Raw out-of-range (e.g. BASS returned 31 BPM below the 45 BPM floor)
         // means the raw value is unreliable — allow correction without a margin fight.
         if (rawInRange && rawScore > 0 && bestScore <= rawScore * (1.0 + MinScoreMargin))
-            return rawBpm;
+            return (rawBpm, ComputeAcfSharpness(acf, sampleRate, maxLagFrames, rawBpm, ct));
 
-        return bestBpm;
+        return (bestBpm, ComputeAcfSharpness(acf, sampleRate, maxLagFrames, bestBpm, ct));
+    }
+
+    // -------------------------------------------------------------------------
+    // ACF peak sharpness
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Computes the ACF peak sharpness ratio from the raw (unweighted) autocorrelation.
+    ///
+    /// <para>Algorithm (from <c>beatgrid-confidence.md §3.4</c>):</para>
+    /// <list type="number">
+    ///   <item>Scan every integer BPM in [MinFundamentalBpm, MaxFundamentalBpm]; collect
+    ///     (lagFrames, rawAcf[lagFrames]) pairs.</item>
+    ///   <item>Sort by raw ACF amplitude descending — this is the dominant beat period.</item>
+    ///   <item>Find the next rival peak whose lag is NOT an octave harmonic of peak0
+    ///     (excludes lags within 15% of ×1, ×2, ×0.5 of peak0.Lag).</item>
+    ///   <item>Sharpness = peak0/(peak0+peak1) ∈ [0.5, 1.0]; normalise to [0, 1].</item>
+    ///   <item>Returns 0.0 when the ACF has no positive signal (silence / noise).</item>
+    /// </list>
+    /// </summary>
+    private static double ComputeAcfSharpness(
+        double[] acf, int sampleRate, int maxLagFrames, double bpm, CancellationToken ct)
+    {
+        // Build (lagFrames, rawAcfValue) for each integer BPM in the fundamental range.
+        // Use RAW (unweighted) ACF values — sharpness reflects the intrinsic onset periodicity,
+        // independent of the log-Gaussian prior that biases toward 120 BPM.
+        var peaks = new List<(int Lag, double Amp)>(capacity: 140);
+        for (var bpmI = (int)MinFundamentalBpm; bpmI <= (int)MaxFundamentalBpm; bpmI++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var lag = (int)Math.Round(60.0 * sampleRate / OnsetHopSize / bpmI);
+            if (lag < 1 || lag > maxLagFrames) continue;
+            peaks.Add((lag, acf[lag]));
+        }
+
+        if (peaks.Count == 0) return 0.0;
+
+        // Sort by raw ACF amplitude descending.
+        peaks.Sort(static (a, b) => b.Amp.CompareTo(a.Amp));
+
+        var peak0Amp = peaks[0].Amp;
+        if (peak0Amp <= 0.0) return 0.0;  // no onset signal → low confidence
+
+        var peak0Lag = peaks[0].Lag;
+
+        // Find the highest non-octave rival peak.
+        // Exclude lags within 15% of ×1 (same), ×2 (half BPM), ×0.5 (double BPM).
+        var peak1Amp = 0.0;
+        for (var i = 1; i < peaks.Count; i++)
+        {
+            var ratio = (double)peaks[i].Lag / peak0Lag;
+            if (Math.Abs(ratio - 1.0) > 0.15 &&   // not the same lag
+                Math.Abs(ratio - 2.0) > 0.15 &&   // not the 2× lag (half-BPM octave)
+                Math.Abs(ratio - 0.5) > 0.15)     // not the 0.5× lag (double-BPM octave)
+            {
+                peak1Amp = peaks[i].Amp;
+                break;
+            }
+        }
+
+        // rawRatio ∈ [0.5, 1.0]: 1.0 = perfectly sharp (no rival), 0.5 = equal rival.
+        var rawRatio = (peak0Amp + peak1Amp) > 0.0
+            ? peak0Amp / (peak0Amp + peak1Amp)
+            : 1.0;
+
+        // Normalise [0.5, 1.0] → [0, 1].
+        return Math.Clamp((rawRatio - 0.5) * 2.0, 0.0, 1.0);
     }
 
     // -------------------------------------------------------------------------

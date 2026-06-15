@@ -72,6 +72,22 @@ public sealed class PlaybackController : IDisposable
         CurrentTrackChanged?.Invoke(this, track);
     }
 
+    /// <summary>
+    /// Crossfade from the current track into <paramref name="next"/> over <paramref name="fadeMs"/> ms.
+    /// Mirrors <see cref="Play"/>'s bookkeeping (CurrentTrack, normalization, CurrentTrackChanged) but
+    /// the outgoing track keeps playing as it fades out — no hard cut. <paramref name="next"/> becomes
+    /// the current track immediately; the OLD track does not raise <see cref="TrackEnded"/> (the engine
+    /// suppresses it), so the queue advances exactly once per track. With <paramref name="fadeMs"/> ≤ 0
+    /// (or nothing playing) the engine degrades this to a plain load-and-play.
+    /// </summary>
+    public void CrossfadeTo(Track next, int fadeMs)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        CurrentTrack = next;
+        _engine.CrossfadeTo(next.FilePath, ComputeGainDb(next), fadeMs);
+        CurrentTrackChanged?.Invoke(this, next);
+    }
+
     /// <summary>Re-apply normalization to the CURRENT track — call after toggling
     /// <see cref="NormalizationEnabled"/> so the change is heard without reloading the track.</summary>
     public void RefreshNormalization() => _engine.NormalizationGainDb = ComputeGainDb(CurrentTrack);

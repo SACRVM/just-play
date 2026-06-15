@@ -190,6 +190,9 @@ internal static class AnalyzeCommand
                     BassGroove       = result?.BassGroove,
                     Dark             = result?.Dark,
                     Hypnotic         = result?.Hypnotic,
+                    // Grid-confidence bundle (v9+)
+                    AcfSharpness     = result?.AcfSharpness,
+                    GridConfidence   = result?.GridConfidence,
                 };
 
                 // 6. Write to index (serialised)

@@ -37,10 +37,19 @@ public sealed record TrackAnalysisState
     // v8 (2026-06-09): Vibe quartet replaces discrete classifier. The Character string label
     // and "dreamy" were dropped. Two new continuous scores added:
     //   Dark    = 1 − normalizedBrightness (spectral centroid; 1=dark/no highs, 0=bright)
-    //   Hypnotic = 1 − normalizedCentroidVariance (1=looping/minimal, 0=evolving/progressive)
+    //   Hypnotic = 1 − normalizedCentroidCV (CV=std_dev/mean; 1=looping/minimal, 0=evolving)
     // All five continuous scores (punch, groove, dark, hypnotic, harshness/noisy) persist.
     // Old v7 blobs lack Dark + Hypnotic → lazy re-analysis on next drop.
-    public const int CurrentVersion = 8;
+    //
+    // v9 (2026-06-10): Grid-confidence bundle.
+    //   AcfSharpness = ACF peak sharpness ratio [0,1] from TempoOctaveCorrector — zero extra
+    //     decode. Predicts tempo-tracking ambiguity (1=sharp, 0=ambiguous/competing peaks).
+    //   GridConfidence = 0.40×FoF + 0.25×AcfSharpness + 0.20×(1−HalfTime) + 0.15×(1−Sync2)
+    //     [0,1]; ⚠ threshold 0.45. Predicts beatgrid fragility on syncopated genres (UKG/2-step).
+    //   Hypnotic bug fixed: switched from absolute std_dev/450 Hz to CV=std_dev/mean (threshold
+    //     now 0.5). Real tracks' centroid std-dev was always > 450 Hz → Hypnotic was stuck at 0.
+    // Old v8 blobs lack AcfSharpness + GridConfidence → lazy re-analysis on next drop.
+    public const int CurrentVersion = 9;
 
     public int Version { get; init; } = CurrentVersion;
 

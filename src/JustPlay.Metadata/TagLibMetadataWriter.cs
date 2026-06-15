@@ -38,6 +38,9 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         if (write.Comment is { } comment)
             tag.Comment = comment.Length == 0 ? null : comment;
 
+        if (write.Grouping is { } grouping)
+            tag.Grouping = grouping.Length == 0 ? null : grouping;
+
         if (write.Favorite is { } favorite)
             SetPopm(file, favorite);
 

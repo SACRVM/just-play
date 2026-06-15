@@ -317,6 +317,125 @@ public class CharacterClassifierTests
     }
 
     // =========================================================================
+    // 11. Hypnotic bug fix: values are NOT all the same across diverse signals
+    //     (regression test for the CentroidStdDevHi=450 Hz saturation bug)
+    // =========================================================================
+
+    [Fact]
+    public void Hypnotic_IsNotAllZero_AcrossSignals()
+    {
+        // Before the CV fix all three signals returned Hypnotic ≈ 0.
+        // After the fix they should differ meaningfully.
+        var sine440  = QuietSine(440.0,  DurationSeconds, SampleRate, amplitude: 0.5f);
+        var sine2000 = QuietSine(2000.0, DurationSeconds, SampleRate, amplitude: 0.5f);
+        var chirp    = LinearChirp(200.0, 4000.0, DurationSeconds, SampleRate, amplitude: 0.5f);
+
+        var cf440  = CharacterClassifier.Compute(sine440,  SampleRate, null, -10.0, 0.5, 0.4, null);
+        var cf2000 = CharacterClassifier.Compute(sine2000, SampleRate, null, -10.0, 0.5, 0.4, null);
+        var cfChirp = CharacterClassifier.Compute(chirp,   SampleRate, null, -10.0, 0.5, 0.4, null);
+
+        Assert.NotNull(cf440);
+        Assert.NotNull(cf2000);
+        Assert.NotNull(cfChirp);
+
+        // Pure sines have constant spectrum → should score high.
+        Assert.True(cf440!.Hypnotic  > 0.5,
+            $"440 Hz sine should be hypnotic (>0.5), got {cf440.Hypnotic:F3}");
+        Assert.True(cf2000!.Hypnotic > 0.5,
+            $"2000 Hz sine should be hypnotic (>0.5), got {cf2000.Hypnotic:F3}");
+        // Chirp sweeps from 200→4000 Hz → should score low (evolving).
+        Assert.True(cfChirp!.Hypnotic < 0.3,
+            $"Chirp (200→4000 Hz) should NOT be hypnotic (<0.3), got {cfChirp.Hypnotic:F3}");
+        // The three values must NOT all be equal — that would indicate the saturation bug is back.
+        Assert.False(
+            Math.Abs(cf440.Hypnotic - cfChirp.Hypnotic) < 0.05,
+            $"Sine (hypnotic={cf440.Hypnotic:F3}) and chirp (hypnotic={cfChirp.Hypnotic:F3}) " +
+            "should differ significantly — saturation bug may have returned");
+    }
+
+    // =========================================================================
+    // 12. GridConfidence: clean 4/4 scores above 0.45; syncopated/UKG scores below
+    // =========================================================================
+
+    [Fact]
+    public void Clean4x4_GridConfidence_IsAboveGridSoftThreshold()
+    {
+        // Calibrated values from rhythm-similarity.md §6 (pure 4/4 click train):
+        // FourOnFloor=0.977, HalfTimeFeel=0.498, Syncopation=0.000.
+        var clean4x4 = new JustPlay.Core.Models.RhythmPattern
+        {
+            FourOnFloor   = 0.977,
+            HalfTimeFeel  = 0.498,
+            Syncopation   = 0.000,
+            OffbeatEnergy = 0.0,
+            Swing         = 0.0,
+            BeatType      = "4x4-driving",
+        };
+        // Sharp ACF from a clean click train — use high value.
+        const double cleanAcfSharpness = 0.85;
+
+        var gc = CharacterClassifier.ComputeGridConfidence(clean4x4, cleanAcfSharpness);
+
+        Assert.True(gc > 0.45,
+            $"Clean 4/4 should be above grid-soft threshold (>0.45), got {gc:F3}");
+        Assert.True(gc > 0.70,
+            $"Clean 4/4 with sharp ACF should score well (>0.70), got {gc:F3}");
+    }
+
+    [Fact]
+    public void SyncopatedUKG_GridConfidence_IsBelowGridSoftThreshold()
+    {
+        // Calibrated values from rhythm-similarity.md §6 (broken kick + syncopation):
+        // FourOnFloor=0.488, HalfTimeFeel=0.631, Syncopation=0.293.
+        var ukgPattern = new JustPlay.Core.Models.RhythmPattern
+        {
+            FourOnFloor   = 0.488,
+            HalfTimeFeel  = 0.631,
+            Syncopation   = 0.293,
+            OffbeatEnergy = 0.55,
+            Swing         = 0.30,
+            BeatType      = "breaks",
+        };
+        // Ambiguous ACF from competing meter levels — use low value.
+        const double ambiguousAcfSharpness = 0.25;
+
+        var gc = CharacterClassifier.ComputeGridConfidence(ukgPattern, ambiguousAcfSharpness);
+
+        Assert.True(gc < 0.45,
+            $"UKG/syncopated pattern should be below grid-soft threshold (<0.45), got {gc:F3}");
+    }
+
+    [Fact]
+    public void GridConfidence_NullRhythm_ReturnsZero()
+    {
+        var gc = CharacterClassifier.ComputeGridConfidence(null, 0.8);
+        Assert.Equal(0.0, gc);
+    }
+
+    [Fact]
+    public void GridConfidence_IsInUnitInterval_ForExtremeInputs()
+    {
+        // Max everything → should clamp to [0, 1].
+        var maxPattern = new JustPlay.Core.Models.RhythmPattern
+        {
+            FourOnFloor = 1.0, HalfTimeFeel = 0.0, Syncopation = 0.0,
+            OffbeatEnergy = 0.0, Swing = 0.0, BeatType = "4x4-driving",
+        };
+        var minPattern = new JustPlay.Core.Models.RhythmPattern
+        {
+            FourOnFloor = 0.0, HalfTimeFeel = 1.0, Syncopation = 1.0,
+            OffbeatEnergy = 1.0, Swing = 1.0, BeatType = "halftime",
+        };
+
+        var gcMax = CharacterClassifier.ComputeGridConfidence(maxPattern, 1.0);
+        var gcMin = CharacterClassifier.ComputeGridConfidence(minPattern, 0.0);
+
+        Assert.InRange(gcMax, 0.0, 1.0);
+        Assert.InRange(gcMin, 0.0, 1.0);
+        Assert.True(gcMax > gcMin, $"Max pattern ({gcMax:F3}) should score higher than min pattern ({gcMin:F3})");
+    }
+
+    // =========================================================================
     // Synthetic signal generators
     // =========================================================================
 

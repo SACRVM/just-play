@@ -558,13 +558,17 @@
                                               Command="{Binding WriteAllTagsCommand}"/>
                                     <Separator/>
                                     <!--
-                                      Playlists (M3U8 — the universal interchange format). "Open" REPLACES
-                                      the queue with the set; "Export" writes the current order out so it
-                                      imports into Traktor / rekordbox / Serato (analysis rides in the tags).
-                                      Click handlers (not commands) because they show a file dialog.
+                                      Playlists (M3U8 — the universal interchange format).
+                                      "Save" writes the current queue order back into the loaded
+                                      playlist file (in place); only shown when a playlist is loaded.
+                                      "Save as…" exports to a new path (always available).
+                                      "Open playlist…" REPLACES the queue with the set.
+                                      Click handlers for the dialog-backed items; Save uses a command.
                                     -->
+                                    <MenuItem Header="{Binding LoadedPlaylistName}" IsEnabled="False" IsVisible="{Binding HasLoadedPlaylist}"/>
+                                    <MenuItem Header="Save" Command="{Binding SavePlaylistCommand}" IsVisible="{Binding HasLoadedPlaylist}"/>
+                                    <MenuItem Header="Save as…" Click="OnExportPlaylist"/>
                                     <MenuItem Header="Open playlist…" Click="OnOpenPlaylist"/>
-                                    <MenuItem Header="Export playlist…" Click="OnExportPlaylist"/>
                                     <!-- Transfer ▸ : bundle the whole set (audio files numbered in set order
                                          + the .m3u8) to share / upload / carry to other DJ tools — as a single
                                          ZIP, or copied into a folder (e.g. straight onto a USB stick). -->
@@ -597,7 +601,7 @@
                                     Spinning="{Binding ShouldSpin}"/>
                 </Panel>
 
-                <!-- RIGHT: track meta + queue/lyrics.
+                <!-- RIGHT: track meta + queue.
                      Grid.IsSharedSizeScope="True" here so the header Grid (col 2..8) and every
                      row template Grid share the same SharedSizeGroup widths (cGenre…cDuration).
                      Both the header Border and the ListBox are descendants of this DockPanel. -->
@@ -714,16 +718,9 @@
                             </Border>
 
                             <StackPanel Orientation="Horizontal" Spacing="0">
-                                <Button Classes="tab active" Click="OnUpNextTabClick" Name="UpNextTab">
+                                <Button Classes="tab active">
                                     <Panel>
                                         <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" LetterSpacing="2"
-                                                   VerticalAlignment="Top"/>
-                                        <Border Classes="tabline"/>
-                                    </Panel>
-                                </Button>
-                                <Button Classes="tab" Click="OnLyricsTabClick" Name="LyricsTab">
-                                    <Panel>
-                                        <TextBlock Text="LYRICS" FontSize="12" FontWeight="Bold" LetterSpacing="2"
                                                    VerticalAlignment="Top"/>
                                         <Border Classes="tabline"/>
                                     </Panel>
@@ -808,10 +805,13 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- UP NEXT — fills the remaining middle (last child). -->
+                            <!-- UP NEXT / loaded-playlist name — fills the remaining middle (last child). -->
                             <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="4,0,8,0">
-                                <TextBlock Classes="colhead" Text="UP NEXT" Tag="Title"
+                                <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="Title"
                                            Tapped="OnHeaderTapped" Cursor="Hand"/>
+                                <!-- Dirty dot: shown when the loaded playlist has unsaved edits. -->
+                                <TextBlock Classes="colhead" Text="•" IsVisible="{Binding PlaylistDirty}"
+                                           Foreground="{DynamicResource AccentABrush}" Margin="4,0,0,0" VerticalAlignment="Center"/>
                                 <TextBlock Classes="colhead sortarrow" Text="{Binding TitleSortGlyph}"/>
                                 <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" Margin="10,0,4,0" VerticalAlignment="Center"/>
                                 <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
@@ -829,7 +829,7 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Queue / lyrics swap (lyrics is placeholder for now) -->
+                    <!-- Queue list. -->
                     <Panel Name="RightPanelHost">
                         <Panel Name="QueuePanel">
                             <!--
@@ -1027,16 +1027,6 @@
                                            HorizontalAlignment="Center" Foreground="#59FFFFFF" LetterSpacing="1"/>
                             </StackPanel>
                         </Panel>
-
-                        <!-- Lyrics placeholder (visible when LYRICS tab is selected) -->
-                        <StackPanel Name="LyricsPanel" IsVisible="False" VerticalAlignment="Center"
-                                    HorizontalAlignment="Center" Spacing="8">
-                            <TextBlock Text="♪" FontSize="56" HorizontalAlignment="Center" Foreground="#33FFFFFF"/>
-                            <TextBlock Text="Lyrics" FontSize="15" FontWeight="SemiBold"
-                                       HorizontalAlignment="Center" Foreground="#A6FFFFFF"/>
-                            <TextBlock Text="Coming with synced-lyrics support" FontSize="11"
-                                       HorizontalAlignment="Center" Foreground="#59FFFFFF" LetterSpacing="1"/>
-                        </StackPanel>
                     </Panel>
                 </DockPanel>
             </Grid>
