@@ -53,16 +53,6 @@ Every track — whether playing locally or streaming to Icecast — passes throu
 harsh top-end of hard-techno / hardstyle toward the reference curve and pushes it loud via
 the limiter).
 
-### Spectral diagram
-
-```
-justplay spectrum <file>
-```
-
-Renders a before/after long-term spectrum (dry signal vs. bus-processed) overlaid against
-the reference target curve as a **PNG** — zero external dependencies beyond the CLI itself.
-Use it to see what the DSP rack is actually doing to a track, or to tune presets by eye.
-
 ### Headless CLI — `justplay`
 
 ```
@@ -72,7 +62,6 @@ justplay analyze   <dir>   — BPM / key / energy in bulk, no GUI needed
 justplay stats     <dir>   — library overview (BPM spread, key distribution, energy)
 justplay tag       <file>  — write analysis results back into file tags
 justplay promote   <dir>   — promote vibe tags to standard fields for DJ software
-justplay spectrum  <file>  — render before/after spectral PNG
 ```
 
 The CLI is a thin shell over `JustPlay.Engine` — the same analysis code the GUI uses.
@@ -129,7 +118,6 @@ optional **Like** column (POPM tag) so you can flag favourites without leaving t
 | Crossfade on auto-advance (Off / 2 / 4 / 8 s)                  | ✅ equal-power, smart-lite skip                  |
 | Output bus DSP rack (EQ · AutoTilt · Punch · Limiter)          | ✅ shapes local playback + Icecast stream         |
 | Hard / Neutral one-click DSP presets                            | ✅ works                                          |
-| Spectral diagram CLI (`justplay spectrum`)                      | ✅ dry-vs-processed PNG, zero extra deps         |
 | Headless CLI (`justplay` scan/dedup/analyze/stats/tag/promote)  | ✅ works                                          |
 | Theme switch (Aurora / Sunset / Midnight / Neon / Hardcore)     | ✅ live palette swap                              |
 | Waveform header                                                 | ✅ FFT-driven 4-band scaleY + beat-pulse         |
@@ -164,7 +152,7 @@ JustPlay.Analysis     — key (chromagram/EDMA), energy, beat fingerprint, struc
                         sequencer, DSP bus (EQ / AutoTilt / Punch / Limiter)
 JustPlay.ML           — optional ONNX "AI key" detector (falls back to DSP when absent)
 JustPlay.Engine       — headless analysis/tagging facade
-JustPlay.Cli          — headless CLI (scan · dedup · analyze · stats · tag · promote · spectrum)
+JustPlay.Cli          — headless CLI (scan · dedup · analyze · stats · tag · promote)
 JustPlay.App          — Avalonia shell: Views, ViewModels, Controls
 ```
 
@@ -184,7 +172,7 @@ You need the .NET 10 SDK installed (download from https://dotnet.microsoft.com/d
 dotnet run --project src/JustPlay.App
 
 # Headless CLI:
-dotnet run --project src/JustPlay.Cli -- spectrum path/to/track.mp3
+dotnet run --project src/JustPlay.Cli -- analyze path/to/library
 
 # Release publish (Windows self-contained single-file .exe, no .NET install needed
 # on the target machine, no C++ toolchain needed to build):
@@ -220,7 +208,10 @@ build/
 
 ## Roadmap
 
-Roughly in priority order:
+**Next — v0.4.0:** bug-fixes, plus the **in-app spectral analyser** — a live before/after
+tonal-balance view *inside* the app (the offline `spectrum` tool grows a real GUI home).
+
+Beyond that, roughly in priority order:
 
 1. **Validated macOS + Linux builds** — the codebase is cross-platform; they just need
    real-hardware CI runs and any OS-specific device-picker wiring.
