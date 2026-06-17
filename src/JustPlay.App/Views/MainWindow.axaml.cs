@@ -248,21 +248,30 @@ public partial class MainWindow : Window
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        if (ViewModel is not { } vm) return;
+        // Hardened: dropping files — especially from a flaky/slow NETWORK SHARE (NAS, UNC paths) — must
+        // never crash the app. Any failure is reported via the Oops dialog and swallowed here.
+        try
+        {
+            if (ViewModel is not { } vm) return;
 
-        var items = e.DataTransfer?.TryGetFiles();
-        if (items is null) return;
+            var items = e.DataTransfer?.TryGetFiles();
+            if (items is null) return;
 
-        var paths = items
-            .Select(f => f.TryGetLocalPath())
-            .Where(p => !string.IsNullOrEmpty(p))
-            .Select(p => p!)
-            .ToList();
+            var paths = items
+                .Select(f => f.TryGetLocalPath())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .Select(p => p!)
+                .ToList();
 
-        // Route like the file-association / double-click path: a dropped .m3u8/.m3u playlist
-        // REPLACES the queue (it's a complete set), plain audio files are ADDED without
-        // hijacking playback (addOnly). OpenIncomingAsync handles the playlist-vs-audio split.
-        if (paths.Count > 0)
-            await vm.OpenIncomingAsync(paths, addOnly: true);
+            // Route like the file-association / double-click path: a dropped .m3u8/.m3u playlist
+            // REPLACES the queue (it's a complete set), plain audio files are ADDED without
+            // hijacking playback (addOnly). OpenIncomingAsync handles the playlist-vs-audio split.
+            if (paths.Count > 0)
+                await vm.OpenIncomingAsync(paths, addOnly: true);
+        }
+        catch (System.Exception ex)
+        {
+            JustPlay.App.ErrorReporter.Report(ex, "Drag-and-drop add (incl. network / NAS paths)");
+        }
     }
 }

@@ -2210,10 +2210,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var files = new List<string>();
         foreach (var p in paths)
         {
-            if (Directory.Exists(p))
-                files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories));
-            else if (File.Exists(p))
-                files.Add(p);
+            // Per-path guard: a flaky/slow network share (NAS, UNC) can throw on Exists/EnumerateFiles
+            // (IO / access / path errors). Skip the bad path + report it rather than abort the whole drop.
+            try
+            {
+                if (Directory.Exists(p))
+                    files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories));
+                else if (File.Exists(p))
+                    files.Add(p);
+            }
+            catch (Exception ex)
+            {
+                ErrorReporter.Report(ex, $"Scanning dropped path (network/NAS?): {p}");
+            }
         }
 
         // Folder drops get Explorer-like natural order ("track2" before "track10") instead of the OS's raw

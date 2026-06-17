@@ -35,6 +35,23 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // ── Crash safety net (2026: try/catch is table stakes) ───────────────────────────────────
+        // Anything that escapes a local try/catch is logged + shown in a copyable Oops dialog instead
+        // of killing the app. The UI-thread handler marks the error Handled so the app keeps running;
+        // background-task and AppDomain-fatal throws are at least captured + reported.
+        System.AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            ErrorReporter.Report(e.ExceptionObject as System.Exception, "AppDomain.UnhandledException (fatal)");
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            ErrorReporter.Report(e.Exception, "Unobserved background-task exception");
+            e.SetObserved();
+        };
+        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            ErrorReporter.Report(e.Exception, "UI thread");
+            e.Handled = true;   // keep the app alive instead of crashing
+        };
+
         Services = ConfigureServices();
 
         // Headless validation tool: `--key-report <folder>` compares our key
@@ -148,7 +165,14 @@ sealed class Program
         }
         PendingOpen = (files, addOnly);
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (System.Exception ex)
+        {
+            ErrorReporter.Report(ex, "Avalonia startup / fatal runtime");
+        }
     }
 
     private static IServiceProvider ConfigureServices()

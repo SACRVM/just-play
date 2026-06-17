@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JustPlay.App.Views.OopsDialog"
+        Title="Oops"
+        Width="620" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <Window.Styles>
+        <!-- Read-only monospace report box (mirrors InputDialog's TextBox theming so the system accent
+             colour can't bleed onto the focus border / selection). -->
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="SelectionBrush" Value="#448a5fff"/>
+        </Style>
+        <Style Selector="TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="CornerRadius" Value="9"/>
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#4DFFFFFF"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+    </Window.Styles>
+
+    <!--
+      Friendly crash/error dialog. The app already survived (handlers mark the error Handled); this just
+      hands the user the full report with a Copy button so they can send it to us. Frameless rounded card
+      matching the other dialogs.
+    -->
+    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
+            BoxShadow="0 18 54 0 #B3000000">
+        <Panel>
+            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
+            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
+            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
+            <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+
+            <StackPanel Margin="28,26,28,22" Spacing="0">
+                <TextBlock Text="Oops — JustPlay hit a snag" FontSize="16" FontWeight="Bold"
+                           Foreground="White"/>
+                <TextBlock TextWrapping="Wrap" FontSize="12.5" Foreground="#A6FFFFFF" Margin="0,8,0,0"
+                           Text="The app kept running — nothing crashed. Copy the details below and send them to us so we can fix it. We stand by our bugs."/>
+
+                <TextBox x:Name="Details" Margin="0,14,0,0"
+                         IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                         Height="250" FontFamily="Consolas, Menlo, monospace" FontSize="11"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,16,0,0">
+                    <TextBlock x:Name="CopiedHint" Grid.Column="0" Text="Copied to clipboard ✓"
+                               IsVisible="False" VerticalAlignment="Center"
+                               Foreground="{DynamicResource AccentABrush}" FontSize="11.5"/>
+                    <Button Grid.Column="2" Classes="dialog-close" Content="Copy details" Click="OnCopy"/>
+                    <Button Grid.Column="3" Classes="dialog-close" Content="Close" Click="OnClose"
+                            Margin="10,0,0,0"/>
+                </Grid>
+            </StackPanel>
+        </Panel>
+    </Border>
+</Window>
