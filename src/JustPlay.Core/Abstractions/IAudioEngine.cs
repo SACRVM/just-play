@@ -128,4 +128,51 @@ public interface IAudioEngine : IDisposable
     /// </summary>
     /// <param name="fadeMs">Target ramp duration in milliseconds. Clamped to 50–500 ms.</param>
     Task FadeOutAsync(int fadeMs = 200);
+
+    /// <summary>
+    /// Configure the master true-peak limiter / maximizer on the output bus. Sits on the persistent
+    /// mixer, so it shapes BOTH the local playback and the Icecast stream (the encoder taps the mixer
+    /// after the DSP chain). True-peak ceiling is fixed at −1 dBTP (broadcast-safe) inside the engine.
+    ///
+    /// <para><paramref name="enabled"/> false removes the DSP entirely (true bypass — zero cost).
+    /// <paramref name="driveDb"/> is the maximizer makeup gain pushed in before limiting:
+    /// 0 dB = transparent safety limiter (peaks only); higher = louder/denser "club" level.
+    /// <paramref name="ceilingDbTp"/> is the true-peak ceiling: −1 dBTP is broadcast-safe; the Tweaks
+    /// "Loud" mode raises it toward −0.1 dBTP to squeeze out the last bit of level. The engine maps
+    /// its Off/Soft/Club/Loud control onto these arguments.</para>
+    ///
+    /// <para>Idempotent and live: safe to call repeatedly while playing; changing drive/ceiling swaps
+    /// the limiter without dropping the stream. Non-destructive — files are never touched.</para>
+    /// </summary>
+    void SetLimiter(bool enabled, double driveDb, double ceilingDbTp);
+
+    /// <summary>
+    /// Configure the 3-band DJ EQ / isolator on the output bus (Low / Mid / High). Gains are LINEAR:
+    /// 1.0 = unity (flat), 0.0 = full kill, 2.0 = +6 dB. Sits at the HEAD of the bus DSP chain (ahead
+    /// of virtual bass and the limiter), so tone shaping happens first and feeds both local playback
+    /// and the Icecast stream.
+    ///
+    /// <para>When all three gains are unity (flat) the engine removes the DSP entirely (true bypass —
+    /// zero cost, perfectly transparent). Live and idempotent; safe to call while playing. The
+    /// crossovers are fixed at 200 Hz and 4 kHz. Non-destructive.</para>
+    /// </summary>
+    void SetEqualizer(double lowGain, double midGain, double highGain);
+
+    // ── "Revive" rack — anti-flat enhancement, all on the output bus just after the EQ, so they
+    //    shape both local playback and the Icecast stream. Each is neutral (true bypass) at its zero
+    //    value, live/idempotent, and non-destructive (files are never touched). ──
+
+    /// <summary>
+    /// Adaptive spectral "tilt" (a gentle auto-master): slowly nudges a track's low/high balance toward
+    /// a target so dull or thin tracks sit more evenly. <paramref name="strength"/> 0 = off/bypass, up to
+    /// 1.0 = full correction (total tilt clamped internally to a few dB). Priority 180 (just after the EQ).
+    /// </summary>
+    void SetAdaptiveTilt(double strength);
+
+    /// <summary>
+    /// Transient designer: boosts attacks (kick/snare snap) level-independently to bring punch back to
+    /// brickwall-flat masters, without making them louder or more compressed. <paramref name="punch"/>
+    /// 0 = off/bypass, up to 1.0 = max punch. Stereo-linked so the image is preserved. Priority 140.
+    /// </summary>
+    void SetTransientDesigner(double punch);
 }

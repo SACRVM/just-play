@@ -8,12 +8,17 @@ using JustPlay.Cli.Commands;
 //   justplay stats   --index <path> [--json <out>]
 //   justplay tag write --index <path> [--root <dir>] [--apply]
 //   justplay promote --index <path> --root <dir> [--apply] [--backup-dir <dir>]
+//   justplay spectrum <audiofile> [--out path.png]
+//             [--eq-low x] [--eq-mid x] [--eq-high x]
+//             [--tilt x] [--punch x]
+//             [--limiter off|soft|club|loud]
 //
 // All commands are READ-ONLY on the audio library (except analyze which writes the
 // sidecar index file, "tag write --apply" which writes tags into audio files, and
 // "promote --apply" which writes JUSTPLAY blobs + standard tags into audio files).
 // Phase 0 = scan + dedup. Phase 1 = analyze + stats. Phase 2 = tag write.
 // N15 = promote (make our analysis the authoritative truth, kill conflict dots).
+// spectrum = offline DSP tuning tool (Phase 1 of spectral diagram feature).
 // ─────────────────────────────────────────────────────────────────────────────
 
 if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
@@ -26,12 +31,13 @@ var verb = args[0].ToLowerInvariant();
 
 return verb switch
 {
-    "scan"    => RunScan(args[1..]),
-    "dedup"   => RunDedup(args[1..]),
-    "analyze" => RunAnalyze(args[1..]),
-    "stats"   => RunStats(args[1..]),
-    "tag"     => RunTag(args[1..]),
-    "promote" => RunPromote(args[1..]),
+    "scan"     => RunScan(args[1..]),
+    "dedup"    => RunDedup(args[1..]),
+    "analyze"  => RunAnalyze(args[1..]),
+    "stats"    => RunStats(args[1..]),
+    "tag"      => RunTag(args[1..]),
+    "promote"  => RunPromote(args[1..]),
+    "spectrum" => RunSpectrum(args[1..]),
     _ => Fail($"Unknown command '{args[0]}'. Run 'justplay --help' for usage."),
 };
 
@@ -119,6 +125,29 @@ static int RunTag(string[] args)
     return TagWriteCommand.Run(indexPath, root, apply, noGrouping);
 }
 
+// ── Spectrum ─────────────────────────────────────────────────────────────────
+static int RunSpectrum(string[] args)
+{
+    if (args.Length == 0)
+        return Fail("spectrum requires an <audiofile> path.");
+
+    var file    = args[0];
+    var outPath = ParseStringFlag(args[1..], "--out");
+
+    var opts = new SpectrumOptions
+    {
+        EqLow          = ParseDoubleFlag(args[1..], "--eq-low",    1.0),
+        EqMid          = ParseDoubleFlag(args[1..], "--eq-mid",    1.0),
+        EqHigh         = ParseDoubleFlag(args[1..], "--eq-high",   1.0),
+        TiltStrength   = ParseDoubleFlag(args[1..], "--tilt",      0.0),
+        TransientPunch = ParseDoubleFlag(args[1..], "--punch",     0.0),
+        LimiterMode    = ParseStringFlag(args[1..], "--limiter") ?? "off",
+        Mode           = ParseStringFlag(args[1..], "--mode")   ?? "shape",
+    };
+
+    return SpectrumCommand.Run(file, outPath, opts);
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 static int Fail(string msg)
@@ -143,6 +172,15 @@ static int ParseIntFlag(string[] args, string flag, int defaultValue)
 
 static bool ParseBoolFlag(string[] args, string flag)
     => args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+
+static double ParseDoubleFlag(string[] args, string flag, double defaultValue)
+{
+    var s = ParseStringFlag(args, flag);
+    return s is not null && double.TryParse(s,
+        System.Globalization.NumberStyles.Float,
+        System.Globalization.CultureInfo.InvariantCulture,
+        out var v) ? v : defaultValue;
+}
 
 static void PrintHelp()
 {
@@ -218,5 +256,22 @@ static void PrintHelp()
           EXAMPLES
           justplay promote --index C:\tmp\sets.v9.index.json --root \\nas\music\GENRES
           justplay promote --index C:\tmp\sets.v9.index.json --root \\nas\music\GENRES --apply
+
+          spectrum <audiofile> [--out path.png]
+                   [--eq-low x] [--eq-mid x] [--eq-high x]
+                   [--tilt x] [--punch x]
+                   [--limiter off|soft|club|loud]
+              Offline DSP tuning tool (Phase 1 of spectral diagram feature).
+              Decodes <audiofile>, computes DRY and WET long-term-average spectra
+              (LTAS via Welch's method), compares against a pink-noise reference
+              target curve, and saves a before/after PNG plot.
+              DSP chain: EQ → Tilt → Transient → Limiter.
+              All DSP flags default to NEUTRAL (all-bypass).  Pass at least one flag
+              to see the chain's effect on the WET curve.
+              --limiter: off (default) | soft (0 dB drive) | club (3 dB) | loud (6 dB)
+
+          EXAMPLES
+          justplay spectrum C:\music\track.flac
+          justplay spectrum C:\music\track.flac --eq-low 1.5 --limiter club --out C:\tmp\plot.png
         """);
 }

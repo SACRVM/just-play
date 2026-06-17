@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
 using ManagedBass;
 using ManagedBass.Mix;
@@ -72,6 +73,48 @@ public sealed class BassAudioEngine : IAudioEngine
     // GC can't collect it while BASS still holds the pointer.
     // (CallbackOnCollectedDelegate risk — pin as a field.)
     private SyncProcedure? _endSync;
+
+    // ── Master true-peak limiter / maximizer (DSP on the mixer output) ────────
+    // The limiter processes the post-mix signal, so it shapes BOTH local playback and the
+    // Icecast encoder (BASSenc attaches at DSP priority −1000, i.e. AFTER this limiter, so the
+    // stream is limited too — no special ordering needed). The limiter math is platform-agnostic
+    // (JustPlay.Analysis.MasteringLimiter); the engine only owns the BASS wiring.
+    //
+    // _limiter is swapped (atomic reference write) when the drive changes — the DSP callback reads
+    // whatever instance is current each call, so a drive change never drops the stream. Null when
+    // bypassed. The DSPProcedure delegate is pinned as a field (same CallbackOnCollectedDelegate
+    // risk as the sync callbacks). _limiterDspHandle is the ChannelSetDSP handle for removal.
+    private volatile MasteringLimiter? _limiter;
+    private DSPProcedure? _limiterDsp;
+    private int _limiterDspHandle;
+    private readonly object _limiterLock = new();
+
+    // ── 3-band DJ EQ / isolator (DSP on the mixer, at the HEAD of the chain) ────────────────────
+    // Wired at DSP priority 200 (highest) so the bus order is:
+    //   EQ (200) → AutoTilt (180) → Transient (140) → limiter (0) → BASSenc encoder (−1000).
+    // Tone shaping first, then the limiter as the final true-peak stage.
+    private volatile ThreeBandEqualizer? _equalizer;
+    private DSPProcedure? _equalizerDsp;
+    private int _equalizerDspHandle;
+    private readonly object _equalizerLock = new();
+
+    // ── "Revive" rack: anti-flat blocks that sit just after the EQ ──────────────────────────────
+    // Full bus order (higher DSP priority runs first):
+    //   EQ (200) → AutoTilt (180) → Transient (140) → limiter (0) → BASSenc encoder (−1000).
+    // Each uses the same pinned-delegate + atomic instance-swap + true-bypass-when-neutral pattern
+    // as the limiter/EQ above.
+
+    // Adaptive spectral tilt (auto-master): priority 180.
+    private volatile AdaptiveTilt? _tilt;
+    private DSPProcedure? _tiltDsp;
+    private int _tiltDspHandle;
+    private readonly object _tiltLock = new();
+
+    // Transient designer (punch): priority 140.
+    private volatile TransientDesigner? _transient;
+    private DSPProcedure? _transientDsp;
+    private int _transientDspHandle;
+    private readonly object _transientLock = new();
 
     // FFT scratch + smoothing state. FFT2048 returns 1024 floats; we collapse those
     // into 4 perceptual bands (bass / lowMid / mid / treble) and apply EMA smoothing
@@ -553,6 +596,183 @@ public sealed class BassAudioEngine : IAudioEngine
         await Task.Delay(clampedMs + 30);
 
         _fading = 0;
+    }
+
+    /// <summary>
+    /// Configure the master true-peak limiter / maximizer on the mixer output. See
+    /// <see cref="IAudioEngine.SetLimiter"/>. Ceiling is fixed at −1 dBTP (broadcast-safe);
+    /// <paramref name="driveDb"/> is the maximizer makeup gain (0 = transparent safety limiter).
+    ///
+    /// Disabling removes the DSP from the chain (true bypass — no per-sample cost). Enabling wires the
+    /// DSP once and then only swaps the limiter instance on subsequent drive changes, so toggling the
+    /// drive while live never interrupts the audio or the Icecast stream.
+    /// </summary>
+    public void SetLimiter(bool enabled, double driveDb, double ceilingDbTp)
+    {
+        EnsureMixer();
+        lock (_limiterLock)
+        {
+            if (!enabled)
+            {
+                if (_limiterDspHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _limiterDspHandle);
+                    _limiterDspHandle = 0;
+                }
+                _limiterDsp = null;
+                _limiter    = null;
+                return;
+            }
+
+            // (Re)create the limiter at the mixer's fixed format (44.1 kHz stereo float). Swapping the
+            // reference is atomic; the DSP callback picks up the new drive/ceiling on its next call.
+            _limiter = new MasteringLimiter(sampleRate: 44100, ceilingDbTp: ceilingDbTp, driveDb: driveDb);
+
+            // Wire the DSP exactly once. Default priority (0) places it ahead of the BASSenc encoder
+            // (priority −1000), so the stream is limited too. Pin the delegate as a field.
+            if (_limiterDspHandle == 0)
+            {
+                _limiterDsp = LimiterDspCallback;
+                _limiterDspHandle = ManagedBass.Bass.ChannelSetDSP(_mixer, _limiterDsp, IntPtr.Zero, 0);
+            }
+        }
+    }
+
+    /// <summary>
+    /// BASS DSP callback (fires on BASS's audio thread). The mixer is float PCM, so the native buffer
+    /// is a block of interleaved-stereo floats; wrap it in a <see cref="Span{T}"/> with no copy and let
+    /// the limiter process it in place. Reads <see cref="_limiter"/> once so a concurrent SetLimiter
+    /// swap is seen atomically (and a disable mid-call is a harmless no-op).
+    /// </summary>
+    private unsafe void LimiterDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
+    {
+        var lim = _limiter;
+        if (lim is null || length <= 0) return;
+        var samples = new Span<float>((void*)buffer, length / sizeof(float));
+        lim.ProcessInterleavedStereo(samples);
+    }
+
+    /// <summary>
+    /// Configure the 3-band DJ EQ on the mixer output. See <see cref="IAudioEngine.SetEqualizer"/>.
+    /// Wired at priority 200 so it runs at the head of the bus chain. Flat (all unity) → DSP removed.
+    /// </summary>
+    public void SetEqualizer(double lowGain, double midGain, double highGain)
+    {
+        EnsureMixer();
+        lock (_equalizerLock)
+        {
+            // Flat within a hair → true bypass (no DSP, perfectly transparent).
+            const double eps = 0.001;
+            bool flat = Math.Abs(lowGain - 1.0) < eps
+                     && Math.Abs(midGain - 1.0) < eps
+                     && Math.Abs(highGain - 1.0) < eps;
+            if (flat)
+            {
+                if (_equalizerDspHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _equalizerDspHandle);
+                    _equalizerDspHandle = 0;
+                }
+                _equalizerDsp = null;
+                _equalizer    = null;
+                return;
+            }
+
+            _equalizer = new ThreeBandEqualizer(sampleRate: 44100, lowGain, midGain, highGain);
+
+            // Priority 200 > limiter (0) → EQ processes first, limiter is the final stage.
+            if (_equalizerDspHandle == 0)
+            {
+                _equalizerDsp = EqualizerDspCallback;
+                _equalizerDspHandle = ManagedBass.Bass.ChannelSetDSP(_mixer, _equalizerDsp, IntPtr.Zero, 200);
+            }
+        }
+    }
+
+    private unsafe void EqualizerDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
+    {
+        var eq = _equalizer;
+        if (eq is null || length <= 0) return;
+        var samples = new Span<float>((void*)buffer, length / sizeof(float));
+        eq.ProcessInterleavedStereo(samples);
+    }
+
+    /// <summary>
+    /// Configure the adaptive spectral tilt ("auto-master") on the mixer output. See
+    /// <see cref="IAudioEngine.SetAdaptiveTilt"/>. Priority 180 (just after the EQ). Strength 0 → bypass.
+    /// </summary>
+    public void SetAdaptiveTilt(double strength)
+    {
+        EnsureMixer();
+        lock (_tiltLock)
+        {
+            if (strength <= 0.001)
+            {
+                if (_tiltDspHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _tiltDspHandle);
+                    _tiltDspHandle = 0;
+                }
+                _tiltDsp = null;
+                _tilt    = null;
+                return;
+            }
+
+            _tilt = new AdaptiveTilt(sampleRate: 44100, strength: strength);
+
+            if (_tiltDspHandle == 0)
+            {
+                _tiltDsp = TiltDspCallback;
+                _tiltDspHandle = ManagedBass.Bass.ChannelSetDSP(_mixer, _tiltDsp, IntPtr.Zero, 180);
+            }
+        }
+    }
+
+    private unsafe void TiltDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
+    {
+        var t = _tilt;
+        if (t is null || length <= 0) return;
+        var samples = new Span<float>((void*)buffer, length / sizeof(float));
+        t.ProcessInterleavedStereo(samples);
+    }
+
+    /// <summary>
+    /// Configure the transient designer (punch) on the mixer output. See <see cref="IAudioEngine.SetTransientDesigner"/>.
+    /// Priority 140 (after the tilt, before the limiter). Punch 0 → bypass.
+    /// </summary>
+    public void SetTransientDesigner(double punch)
+    {
+        EnsureMixer();
+        lock (_transientLock)
+        {
+            if (punch <= 0.001)
+            {
+                if (_transientDspHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _transientDspHandle);
+                    _transientDspHandle = 0;
+                }
+                _transientDsp = null;
+                _transient    = null;
+                return;
+            }
+
+            _transient = new TransientDesigner(sampleRate: 44100, punch: punch);
+
+            if (_transientDspHandle == 0)
+            {
+                _transientDsp = TransientDspCallback;
+                _transientDspHandle = ManagedBass.Bass.ChannelSetDSP(_mixer, _transientDsp, IntPtr.Zero, 140);
+            }
+        }
+    }
+
+    private unsafe void TransientDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
+    {
+        var tr = _transient;
+        if (tr is null || length <= 0) return;
+        var samples = new Span<float>((void*)buffer, length / sizeof(float));
+        tr.ProcessInterleavedStereo(samples);
     }
 
     public void Dispose()

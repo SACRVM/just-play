@@ -59,6 +59,21 @@ public partial class SkeuSlider : UserControl
         PointerMoved += OnPointerMoved;
         PointerReleased += OnPointerReleased;
         PointerCaptureLost += (_, _) => _dragging = false;
+        PointerWheelChanged += OnPointerWheel;
+    }
+
+    /// <summary>Scroll the mouse wheel while hovering to nudge the value — the usability touch most
+    /// players skip. ~3% of the range per notch; covers BOTH the volume knob and the seek bar (the
+    /// transport progress bar hosts a SkeuSlider), so wheel-to-seek and wheel-to-volume both work.</summary>
+    private void OnPointerWheel(object? sender, PointerWheelEventArgs e)
+    {
+        var range = Maximum - Minimum;
+        if (range <= 0) return;
+        var d = e.Delta.Y != 0 ? e.Delta.Y : e.Delta.X;
+        if (d == 0) return;
+        var step = range * 0.03;
+        Value = Math.Clamp(Value + (d > 0 ? step : -step), Minimum, Maximum);
+        e.Handled = true;
     }
 
     public double Minimum { get => GetValue(MinimumProperty); set => SetValue(MinimumProperty, value); }

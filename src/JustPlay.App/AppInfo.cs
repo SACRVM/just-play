@@ -14,6 +14,19 @@ public static class AppInfo
     public const string Author = "Chloe Dream";
     public const string Copyright = "© 2026 Chloe Dream";
 
+    /// <summary>
+    /// True in DEBUG builds, false in RELEASE. Gates IN-PROGRESS / not-yet-working UI so release
+    /// installers ship WITHOUT the dead bits, while development (dotnet run = Debug) still shows them.
+    /// Currently gates: the headphone <b>Pre-Cue</b> tab (drag-in not working yet) and the <b>Opus</b>
+    /// stream format (no Opus encoder shipped — MP3 only). Bind UI via
+    /// <c>MainWindowViewModel.ShowExperimentalUi</c>.
+    /// </summary>
+#if DEBUG
+    public const bool Experimental = true;
+#else
+    public const bool Experimental = false;
+#endif
+
     /// <summary>User-facing version, e.g. "0.1.0". Resolved once at first access.</summary>
     public static string Version { get; } = ResolveVersion();
 

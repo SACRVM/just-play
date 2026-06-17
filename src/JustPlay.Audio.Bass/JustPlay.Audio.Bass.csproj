@@ -2,6 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+    <!-- The master-bus true-peak limiter/maximizer DSP lives in (platform-agnostic) Analysis;
+         the engine reuses it inside its BASS DSP callback. Analysis has no Avalonia/BASS deps,
+         so this stays within the layering rule (an adapter may depend on Core + Analysis). -->
+    <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +43,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- The limiter DSP callback wraps the native BASS buffer pointer in a Span<float> with no
+         copy (zero-alloc on the audio thread). That single use of a raw pointer needs unsafe. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
 </Project>

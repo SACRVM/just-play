@@ -322,5 +322,34 @@ public partial class MaxView : UserControl
     /// <summary>Default export name: JustPlay_YEAR-MONTH-DAY_HH-MM (no extension — pickers add it).</summary>
     private static string DefaultSetName() => $"JustPlay_{DateTime.Now:yyyy-MM-dd_HH-mm}";
 
+    // ── PRE-CUE: "Add files…" button ──────────────────────────────────────────
+    // Opens a multi-select file picker then hands the chosen paths to the ViewModel,
+    // which builds TrackViewModel wrappers and appends them to PreCueTracks.
+    // Lives in code-behind because file pickers require the window's StorageProvider.
+    private async void OnAddPreCueFilesClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (TopLevel.GetTopLevel(this) is not { } top) return;
+
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Add tracks to audition list",
+            AllowMultiple = true,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Audio files")
+                {
+                    Patterns = ["*.mp3", "*.flac", "*.wav", "*.aiff", "*.aif", "*.ogg", "*.m4a", "*.opus", "*.wma"],
+                }
+            ],
+        });
+
+        var paths = files
+            .Select(f => f.TryGetLocalPath())
+            .OfType<string>();
+
+        await vm.AddPreCuePathsAsync(paths);
+    }
+
     // Window min/max/close now live in the shared WindowControls control.
 }

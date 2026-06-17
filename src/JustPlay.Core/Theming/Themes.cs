@@ -1,8 +1,9 @@
 namespace JustPlay.Core.Theming;
 
 /// <summary>
-/// The four built-in palettes — direct port of the design's <c>THEMES</c>
-/// object (<c>.design/just-play-music-player/project/player.jsx</c>:7-56).
+/// The built-in palettes — the first four are a direct port of the design's <c>THEMES</c>
+/// object (<c>.design/just-play-music-player/project/player.jsx</c>:7-56); <c>Hardcore</c> is a
+/// JustPlay-original (black/red + cyan) added for the hardcore/schranz crowd.
 ///
 /// CSS <c>rgba(r,g,b,a)</c> values are converted to ARGB-hex by stuffing the
 /// alpha byte into the front: <c>round(a × 255)</c> → leading byte. Glow on
@@ -59,8 +60,29 @@ public static class Themes
         BottomBarFrom:   "#2bd4a8",
         BottomBarTo:     "#83e85a");
 
+    /// <summary>
+    /// "Hardcore" — black/red with electric-cyan accents. NOT a design-file port (the JSX THEMES has
+    /// only the four above); this is a JustPlay-original aggressive palette for the hardcore/schranz
+    /// crowd. Role mapping is deliberate: AccentB is the heavily-glowing one (play halo, active-row
+    /// edge, slider/fill glow, toggles) → RED so the chrome reads aggressive; AccentA is the "cool"
+    /// primary (like-heart, EQ fill, gradient-cyan side) → CYAN as the pop accent; AccentC (radial
+    /// background blooms + selected-row wash + sleeve aura) → deep crimson so the near-black bg gets a
+    /// red glow rather than purple. Background is near-pure-black with a faint blood tint.
+    /// </summary>
+    public static readonly Theme Hardcore = new(
+        Name:            "Hardcore",
+        BgFrom:          "#1e0709",
+        BgVia:           "#120406",
+        BgTo:            "#060203",
+        AccentA:         "#22e6ff",     // electric cyan — the accent pop
+        AccentB:         "#ff2233",     // hot red — dominant glow/halo colour
+        AccentC:         "#c8112a",     // deep crimson — background blooms + row washes
+        Glow:            "#80ff2233",   // rgba(255, 34, 51, 0.5) — red bloom behind glowing elements
+        BottomBarFrom:   "#e01024",
+        BottomBarTo:     "#ff4d3a");
+
     public static readonly IReadOnlyList<Theme> All =
-        new[] { Aurora, Sunset, Midnight, Neon };
+        new[] { Aurora, Sunset, Midnight, Neon, Hardcore };
 
     /// <summary>
     /// Look up a theme by its <see cref="Theme.Name"/>. Falls back to Aurora

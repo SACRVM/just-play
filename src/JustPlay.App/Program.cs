@@ -163,6 +163,9 @@ sealed class Program
         services.AddSingleton<IAudioEngine>(sp => sp.GetRequiredService<BassAudioEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
+        // Pre-listen (PFL) cue engine — structurally isolated from the main engine (separate
+        // BASS mixer, separate device, no encoder). Singleton for the process lifetime.
+        services.AddSingleton<IPreListenEngine, BassPreListenEngine>();
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
         services.AddSingleton<IMetadataWriter, TagLibMetadataWriter>();
 

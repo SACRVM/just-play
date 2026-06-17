@@ -79,6 +79,40 @@ public sealed record UserSettings
     /// </summary>
     public int CrossfadeSeconds { get; init; } = 0;
 
+    /// <summary>
+    /// Master true-peak limiter / maximizer mode on the output bus. The UI offers
+    /// "Off" / "Soft" / "Club" / "Loud":
+    ///   • Off  — bypassed (no DSP on the mixer).
+    ///   • Soft — transparent −1 dBTP safety limiter, 0 dB drive (peaks only).
+    ///   • Club — −1 dBTP + 3 dB maximizer drive.
+    ///   • Loud — −1 dBTP + 6 dB maximizer drive.
+    /// Off by default — raw output is the least-surprising default; flip it on in Tweaks. The
+    /// ceiling stays broadcast-safe (−1 dBTP) in every non-Off mode. Shapes both local playback
+    /// AND the Icecast stream (the encoder taps the mixer after the limiter). [[own-limiter-no-vst]]
+    /// </summary>
+    public string LimiterMode { get; init; } = "Off";
+
+    /// <summary>
+    /// 3-band DJ EQ / isolator band gains (LINEAR): 1.0 = unity/flat, 0.0 = full kill, 2.0 = +6 dB.
+    /// All default to 1.0 (flat → the EQ bypasses entirely). Crossovers fixed at 200 Hz / 4 kHz.
+    /// Low/Mid/High shape both local playback and the stream. [[own-limiter-no-vst]]
+    /// </summary>
+    public double EqLowGain  { get; init; } = 1.0;
+    /// <inheritdoc cref="EqLowGain"/>
+    public double EqMidGain  { get; init; } = 1.0;
+    /// <inheritdoc cref="EqLowGain"/>
+    public double EqHighGain { get; init; } = 1.0;
+
+    /// <summary>
+    /// "Revive" rack — anti-flat enhancement on the output bus, for tracks that sound dull/lifeless.
+    /// All neutral by default (each block bypasses at its zero value), so the bus stays bit-transparent
+    /// until the user dials something in. They shape both local playback and the stream. [[own-limiter-no-vst]]
+    /// </summary>
+    /// <remarks>Each block bypasses at 0; tune by ear.</remarks>
+    public double TransientPunch  { get; init; } = 0.0;
+    /// <inheritdoc cref="TransientPunch"/>
+    public double AutoTiltStrength { get; init; } = 0.0;
+
     // ── Audio output device ───────────────────────────────────────────────────────────
 
     /// <summary>
@@ -91,6 +125,26 @@ public sealed record UserSettings
     /// the system default if the saved device is no longer present (e.g. unplugged).
     /// </summary>
     public string? OutputDeviceName { get; init; } = null;
+
+    /// <summary>
+    /// The <see cref="AudioOutputDevice.Name"/> of the preferred headphone device for
+    /// pre-listen (PFL) cue monitoring. Null means no headphone device is selected —
+    /// the pre-listen engine produces no audio until a device is chosen.
+    ///
+    /// Persisted by name (same stability reason as <see cref="OutputDeviceName"/>).
+    /// On startup the engine resolves the name to a BASS device index; if the device
+    /// is no longer present (e.g. headphones unplugged) the selection stays null and
+    /// the pre-listen panel shows the "choose a device" hint. [[roadmap-precue-headphone]]
+    /// </summary>
+    public string? HeadphoneDeviceName { get; init; } = null;
+
+    /// <summary>
+    /// Volume for the pre-listen (PFL) headphone output, 0..1. Persisted separately
+    /// from the main output volume so switching back to monitoring restores the last
+    /// headphone level. Defaults to 0.8 (slightly under full to protect ears on
+    /// headphone plug-in). [[roadmap-precue-headphone]]
+    /// </summary>
+    public double PreCueVolume { get; init; } = 0.8;
 
     // ── JUST STREAM — Icecast broadcast profiles (S1 config foundation) ──────────────
     // These fields are populated by the future JUST STREAM streaming UI (S2+).

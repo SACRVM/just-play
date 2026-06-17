@@ -564,6 +564,32 @@ file sealed class FakeAudioEngine : IAudioEngine
 
     public void SetOutputDevice(int _) { }
 
+    public bool   LimiterEnabled { get; private set; }
+    public double LimiterDriveDb { get; private set; }
+    public double LimiterCeilingDbTp { get; private set; }
+    public void SetLimiter(bool enabled, double driveDb, double ceilingDbTp)
+    {
+        LimiterEnabled = enabled;
+        LimiterDriveDb = driveDb;
+        LimiterCeilingDbTp = ceilingDbTp;
+    }
+
+    public double EqLowGain  { get; private set; } = 1.0;
+    public double EqMidGain  { get; private set; } = 1.0;
+    public double EqHighGain { get; private set; } = 1.0;
+    public void SetEqualizer(double lowGain, double midGain, double highGain)
+    {
+        EqLowGain  = lowGain;
+        EqMidGain  = midGain;
+        EqHighGain = highGain;
+    }
+
+    public double TiltStrength { get; private set; }
+    public void SetAdaptiveTilt(double strength) => TiltStrength = strength;
+
+    public double TransientPunch { get; private set; }
+    public void SetTransientDesigner(double punch) => TransientPunch = punch;
+
     public void Dispose() { }
 
     // Test helpers — let tests trigger engine events directly.

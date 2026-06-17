@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:models="using:JustPlay.Core.Models"
+             xmlns:behaviors="using:JustPlay.App.Behaviors"
              x:Class="JustPlay.App.Controls.TweaksPanel"
              x:DataType="vm:MainWindowViewModel">
 
@@ -187,6 +188,40 @@
             </Setter>
         </Style>
 
+        <!-- 3-band EQ as vertical faders (DJ-mixer look). Range 0..2 (0 = kill, 1 = flat, 2 = +6 dB).
+             Styled against the Avalonia 12.0.3 Slider template: PART_DecreaseButton paints the rail
+             from the bottom (low values) up to the thumb via its Background TemplateBinding, so the
+             accent fill shows the level; PART_IncreaseButton is the faint groove above. -->
+        <Style Selector="Slider.eq">
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="2"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Slider.eq:vertical /template/ RepeatButton#PART_DecreaseButton">
+            <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <Style Selector="Slider.eq:vertical /template/ RepeatButton#PART_IncreaseButton">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Slider.eq /template/ Thumb">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="Black" BlurRadius="4" OffsetX="0" OffsetY="1" Opacity="0.4"/>
+            </Setter>
+        </Style>
+
+        <!-- Tabs reuse the SHARED underline-tab style (Button.tab / Border.tabline) now in App.axaml
+             — same look as the UP NEXT strip, no reinvented styles here. -->
+
+        <!-- Labeled-control group: label hugs ITS control (Spacing 4); the outer panel spacing
+             separates groups → fixes "the heading hangs above its control, not below". -->
+        <Style Selector="StackPanel.tweakgroup">
+            <Setter Property="Spacing" Value="4"/>
+        </Style>
+
         <!--
           Modern slim scrollbar for the panel's ScrollViewer. Fluent's default is a chunky
           expanded bar (with up/down arrow buttons) or an auto-hiding line; we want a thin,
@@ -236,7 +271,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       AllowAutoHide="False">
-            <StackPanel Spacing="9" ClipToBounds="False" Width="276">
+            <StackPanel Spacing="12" ClipToBounds="False" Width="276">
 
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
@@ -245,157 +280,312 @@
                             Command="{Binding ToggleTweaksCommand}"/>
                 </Grid>
 
-                <TextBlock Classes="tweak-section" Text="THEME"/>
+                <!-- Tab strip — reuses the SHARED underline tabs (App.axaml), same look as UP NEXT.
+                     One group of controls per tab keeps the panel short and lets the Sound rack grow. -->
+                <Border BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Classes="tab"
+                                Classes.active="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Look}"
+                                Command="{Binding SetTweaksTabCommand}" CommandParameter="Look">
+                            <Panel>
+                                <TextBlock Text="Look" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                <Border Classes="tabline"/>
+                            </Panel>
+                        </Button>
+                        <Button Classes="tab"
+                                Classes.active="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Sound}"
+                                Command="{Binding SetTweaksTabCommand}" CommandParameter="Sound">
+                            <Panel>
+                                <TextBlock Text="Sound" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                <Border Classes="tabline"/>
+                            </Panel>
+                        </Button>
+                        <Button Classes="tab"
+                                Classes.active="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Library}"
+                                Command="{Binding SetTweaksTabCommand}" CommandParameter="Library">
+                            <Panel>
+                                <TextBlock Text="Library" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                <Border Classes="tabline"/>
+                            </Panel>
+                        </Button>
+                        <Button Classes="tab"
+                                Classes.active="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Audio}"
+                                Command="{Binding SetTweaksTabCommand}" CommandParameter="Audio">
+                            <Panel>
+                                <TextBlock Text="Audio" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                <Border Classes="tabline"/>
+                            </Panel>
+                        </Button>
+                    </StackPanel>
+                </Border>
 
-                <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
-                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
-                        <Border Classes="swatch" Background="{StaticResource SwatchAurora}"
-                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Aurora}"/>
-                    </Button>
-                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
-                        <Border Classes="swatch" Background="{StaticResource SwatchSunset}"
-                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Sunset}"/>
-                    </Button>
-                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
-                        <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
-                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Midnight}"/>
-                    </Button>
-                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
-                        <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
-                                Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Neon}"/>
-                    </Button>
-                </StackPanel>
-                <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
-                           Foreground="#73FFFFFF" LetterSpacing="2"/>
+                <!-- ════════════ LOOK ════════════ -->
+                <StackPanel Spacing="10" ClipToBounds="False"
+                            IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Look}">
+                    <TextBlock Classes="tweak-section" Text="THEME"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
+                        <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
+                            <Border Classes="swatch" Background="{StaticResource SwatchAurora}"
+                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Aurora}"/>
+                        </Button>
+                        <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
+                            <Border Classes="swatch" Background="{StaticResource SwatchSunset}"
+                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Sunset}"/>
+                        </Button>
+                        <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
+                            <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
+                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Midnight}"/>
+                        </Button>
+                        <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
+                            <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
+                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Neon}"/>
+                        </Button>
+                        <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Hardcore">
+                            <Border Classes="swatch" Background="{StaticResource SwatchHardcore}"
+                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Hardcore}"/>
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
+                               Foreground="#73FFFFFF" LetterSpacing="2"/>
 
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
+                    <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,4"/>
 
-                <TextBlock Classes="tweak-section" Text="STAGE"/>
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="tweak-label" Text="Vinyl spin" VerticalAlignment="Center"/>
-                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding VinylSpinEnabled}"
-                                  OnContent="" OffContent=""/>
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="tweak-label" Text="Waveform" VerticalAlignment="Center"/>
-                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding WaveformEnabled}"
-                                  OnContent="" OffContent=""/>
-                </Grid>
-                <!-- "Compact layout" removed — it has its own title-bar button (mini player). -->
-
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
-
-                <TextBlock Classes="tweak-section" Text="ANALYSIS"/>
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="tweak-label" Text="Auto-analyze on add" VerticalAlignment="Center"/>
-                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoAnalyze}"
-                                  OnContent="" OffContent=""/>
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Classes="tweak-label" Text="Auto-write tags on analyze" VerticalAlignment="Center"/>
-                    <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoWriteOnAnalyze}"
-                                  OnContent="" OffContent=""/>
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto"
-                      ToolTip.Tip="Writes Camelot + Energy into the comment tag (e.g. 8A - Energy 7). Existing text is kept.">
-                    <TextBlock Grid.Column="0" Classes="tweak-label" Text="DJ comment tag" VerticalAlignment="Center"/>
-                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
-                                  IsChecked="{Binding WriteDjComment}"
-                                  OnContent="" OffContent=""/>
-                </Grid>
-                <Grid ColumnDefinitions="*,Auto"
-                      ToolTip.Tip="Even out playback level (ReplayGain — non-destructive, clip-safe). On = added tracks are analyzed automatically.">
-                    <TextBlock Grid.Column="0" Classes="tweak-label" Text="Normalize loudness" VerticalAlignment="Center"/>
-                    <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
-                                  IsChecked="{Binding PlaybackNormalization}"
-                                  OnContent="" OffContent=""/>
-                </Grid>
-                <!-- Loudness target (streaming-style). Only meaningful while normalization is on. -->
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0"
-                            IsVisible="{Binding PlaybackNormalization}">
-                    <Button Classes="tweak-radio" Content="Quiet"
-                            Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Quiet}"
-                            Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Quiet"
-                            ToolTip.Tip="−19 LUFS — most headroom"/>
-                    <Button Classes="tweak-radio" Content="Normal"
-                            Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Normal}"
-                            Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Normal"
-                            ToolTip.Tip="−14 LUFS — like Spotify/YouTube"/>
-                    <Button Classes="tweak-radio" Content="Loud"
-                            Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Loud}"
-                            Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Loud"
-                            ToolTip.Tip="−11 LUFS — close to modern masters"/>
-                </StackPanel>
-                <!-- Crossfade: blend into the next track on auto-advance. Off = hard boundary. -->
-                <TextBlock Classes="tweak-label" Text="Crossfade"
-                           ToolTip.Tip="Blend into the next track on auto-advance. Off = hard boundary."/>
-                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                    <Button Classes="tweak-radio" Content="Off"
-                            Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=0}"
-                            Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="0"
-                            ToolTip.Tip="Hard track boundaries — no blend"/>
-                    <Button Classes="tweak-radio" Content="2s"
-                            Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
-                            Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="2"
-                            ToolTip.Tip="2-second blend"/>
-                    <Button Classes="tweak-radio" Content="4s"
-                            Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=4}"
-                            Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="4"
-                            ToolTip.Tip="4-second blend"/>
-                    <Button Classes="tweak-radio" Content="8s"
-                            Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=8}"
-                            Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="8"
-                            ToolTip.Tip="8-second blend"/>
-                </StackPanel>
-                <TextBlock Classes="tweak-label" Text="Threads"/>
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Classes="tweak-radio" Content="1"
-                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=1}"
-                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="1"/>
-                    <Button Classes="tweak-radio" Content="2"
-                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
-                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="2"/>
-                    <Button Classes="tweak-radio" Content="4"
-                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=4}"
-                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="4"/>
-                    <Button Classes="tweak-radio" Content="8"
-                            Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=8}"
-                            Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="8"/>
+                    <TextBlock Classes="tweak-section" Text="STAGE"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="tweak-label" Text="Vinyl spin" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding VinylSpinEnabled}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="tweak-label" Text="Waveform" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding WaveformEnabled}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
                 </StackPanel>
 
-                <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2"/>
+                <!-- ════════════ SOUND ════════════ -->
+                <StackPanel Spacing="14"
+                            IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Sound}">
+                    <!-- One-click bus presets — set the whole Sound chain at once. "Hard" = the validated
+                         correction for harsh hard techno / hardstyle (AutoTilt + high-shelf cut + soft
+                         limiter, measured on Chloe's library). "Neutral" = all flat/off. -->
+                    <StackPanel Classes="tweakgroup">
+                        <TextBlock Classes="tweak-label" Text="Preset"
+                                   ToolTip.Tip="One-click bus setups. Hard = tame the harsh top of hardcore / hardstyle (AutoTilt + High −3 dB) AND push it LOUD (Limiter Loud) so it holds up in a club/stream. Neutral = everything flat/off."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="tweak-radio" Content="Hard"
+                                    Command="{Binding ApplyHardPresetCommand}"
+                                    ToolTip.Tip="Hard set in one click: AutoTilt 0.65 + High −3 dB tame the hot 2–16 kHz, and Limiter Loud (+6 dB, −0.1 dBTP) pushes it loud/dense so it doesn't get out-loudened. Keeps the bass + genre character."/>
+                            <Button Classes="tweak-radio" Content="Neutral"
+                                    Command="{Binding ApplyNeutralPresetCommand}"
+                                    ToolTip.Tip="Reset the whole Sound chain to flat / off (bit-transparent)."/>
+                        </StackPanel>
+                    </StackPanel>
 
-                <!-- ── AUDIO: output device ─────────────────── -->
-                <TextBlock Classes="tweak-section" Text="AUDIO"/>
-                <TextBlock Classes="tweak-label" Text="Output device"/>
-                <!--
-                  ComboBox is bound to OutputDevices (ObservableCollection<AudioOutputDevice>).
-                  SelectedItem two-way binds to SelectedOutputDevice on the VM.
-                  The DataTemplate uses x:DataType="models:AudioOutputDevice" for compiled bindings.
-                  The "No devices" placeholder is shown when the list is empty (no BASS init yet
-                  or running headless — very unlikely in normal use).
-                -->
-                <ComboBox Classes="device-picker"
-                          ItemsSource="{Binding OutputDevices}"
-                          SelectedItem="{Binding SelectedOutputDevice}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:AudioOutputDevice">
-                            <TextBlock Text="{Binding Name}"
-                                       Foreground="#E6FFFFFF"
-                                       FontSize="12"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <!-- Hint shown when the list is empty (edge case — BASS not yet initialised).
-                     In normal use there is always at least one device; this label is a
-                     safety net. HasNoOutputDevices is a plain bool property on the VM. -->
-                <TextBlock FontSize="10" Foreground="#73FFFFFF"
-                           Text="No output devices found."
-                           IsVisible="{Binding HasNoOutputDevices}"
-                           Margin="0,2,0,0"/>
+                    <!-- Normalize -->
+                    <StackPanel Classes="tweakgroup">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ToolTip.Tip="Even out playback level (ReplayGain — non-destructive, clip-safe). On = added tracks are analyzed automatically.">
+                            <TextBlock Grid.Column="0" Classes="tweak-label" Text="Normalize loudness" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
+                                          IsChecked="{Binding PlaybackNormalization}"
+                                          OnContent="" OffContent=""/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                    IsVisible="{Binding PlaybackNormalization}">
+                            <Button Classes="tweak-radio" Content="Quiet"
+                                    Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Quiet}"
+                                    Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Quiet"
+                                    ToolTip.Tip="−19 LUFS — most headroom"/>
+                            <Button Classes="tweak-radio" Content="Normal"
+                                    Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Normal}"
+                                    Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Normal"
+                                    ToolTip.Tip="−14 LUFS — like Spotify/YouTube"/>
+                            <Button Classes="tweak-radio" Content="Loud"
+                                    Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Loud}"
+                                    Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Loud"
+                                    ToolTip.Tip="−11 LUFS — close to modern masters"/>
+                        </StackPanel>
+                    </StackPanel>
 
-                <!-- "About" removed — the app title in the title bar opens the About dialog. -->
+                    <!-- Crossfade -->
+                    <StackPanel Classes="tweakgroup">
+                        <TextBlock Classes="tweak-label" Text="Crossfade"
+                                   ToolTip.Tip="Blend into the next track on auto-advance. Off = hard boundary."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="tweak-radio" Content="Off"
+                                    Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=0}"
+                                    Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="0"
+                                    ToolTip.Tip="Hard track boundaries — no blend"/>
+                            <Button Classes="tweak-radio" Content="2s"
+                                    Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
+                                    Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="2"
+                                    ToolTip.Tip="2-second blend"/>
+                            <Button Classes="tweak-radio" Content="4s"
+                                    Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=4}"
+                                    Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="4"
+                                    ToolTip.Tip="4-second blend"/>
+                            <Button Classes="tweak-radio" Content="8s"
+                                    Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=8}"
+                                    Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="8"
+                                    ToolTip.Tip="8-second blend"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- EQ — vertical faders (DJ-mixer look) -->
+                    <StackPanel Classes="tweakgroup">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="tweak-label" Text="EQ" VerticalAlignment="Center"
+                                       ToolTip.Tip="3-band DJ EQ / isolator. Fader centre = flat, down = cut→kill, up = +6 dB. Crossovers 200 Hz / 4 kHz. Shapes playback and the stream."/>
+                            <Button Grid.Column="1" Classes="tweak-radio" Content="Flat"
+                                    Command="{Binding ResetEqualizerCommand}"
+                                    ToolTip.Tip="Reset all three bands to flat (bypass)"/>
+                        </Grid>
+                        <!-- Each fader column is a fixed width so the slider and its label share the
+                             same centre. Mouse-wheel over a fader nudges it (behaviors:SliderWheel). -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="30" Margin="0,4,0,0">
+                            <StackPanel Width="42" Spacing="6">
+                                <Slider Classes="eq" Orientation="Vertical" Height="104" Width="30"
+                                        HorizontalAlignment="Center" Value="{Binding EqHigh}"
+                                        behaviors:SliderWheel.Enabled="True"/>
+                                <TextBlock Classes="tweak-label" Text="High" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                            </StackPanel>
+                            <StackPanel Width="42" Spacing="6">
+                                <Slider Classes="eq" Orientation="Vertical" Height="104" Width="30"
+                                        HorizontalAlignment="Center" Value="{Binding EqMid}"
+                                        behaviors:SliderWheel.Enabled="True"/>
+                                <TextBlock Classes="tweak-label" Text="Mid" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                            </StackPanel>
+                            <StackPanel Width="42" Spacing="6">
+                                <Slider Classes="eq" Orientation="Vertical" Height="104" Width="30"
+                                        HorizontalAlignment="Center" Value="{Binding EqLow}"
+                                        behaviors:SliderWheel.Enabled="True"/>
+                                <TextBlock Classes="tweak-label" Text="Low" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- "Revive" rack — anti-flat enhancement for dull/lifeless tracks. Runs after the
+                         EQ. Every slider is neutral by default (true bypass): 0 = off.
+                         Mouse-wheel nudges (SliderWheel). -->
+                    <StackPanel Classes="tweakgroup">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Classes="tweak-label" Text="Revive" VerticalAlignment="Center"
+                                       ToolTip.Tip="Brings life back to flat / dull tracks: punch and an auto-balance tilt. All off by default. Shapes playback and the stream."/>
+                            <Button Grid.Column="1" Classes="tweak-radio" Content="Off"
+                                    Command="{Binding ResetReviveCommand}"
+                                    ToolTip.Tip="Reset all revive blocks to neutral (bypass)"/>
+                        </Grid>
+
+                        <!-- Transient punch. 0 = off, 1 = max attack lift. -->
+                        <Grid ColumnDefinitions="58,*" Margin="0,6,0,0">
+                            <TextBlock Classes="tweak-label" Text="Punch" FontSize="11" VerticalAlignment="Center"
+                                       ToolTip.Tip="Transient designer — boosts attacks (kick/snare snap) to bring punch back to brickwall masters, without making them louder."/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding TransientPunch}"
+                                    behaviors:SliderWheel.Enabled="True"/>
+                        </Grid>
+
+                        <!-- Adaptive spectral tilt (auto-master). 0 = off, 1 = full correction. -->
+                        <Grid ColumnDefinitions="58,*">
+                            <TextBlock Classes="tweak-label" Text="Auto-tilt" FontSize="11" VerticalAlignment="Center"
+                                       ToolTip.Tip="Gentle auto-master — slowly nudges each track's bass/treble balance toward an even target so dull or thin tracks sit better. Very subtle (a few dB max)."/>
+                            <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding AutoTiltStrength}"
+                                    behaviors:SliderWheel.Enabled="True"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Limiter / maximizer — LAST in the chain (final true-peak stage). -->
+                    <StackPanel Classes="tweakgroup">
+                        <TextBlock Classes="tweak-label" Text="Limiter / maximizer"
+                                   ToolTip.Tip="True-peak limiter on the output. Off = bypass. Soft = safety only (−1 dBTP). Club = +3 dB drive. Loud = +6 dB drive AND a hotter −0.1 dBTP ceiling. Applies to playback and the stream."/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="tweak-radio" Content="Off"
+                                    Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Off}"
+                                    Command="{Binding SetLimiterModeCommand}" CommandParameter="Off"
+                                    ToolTip.Tip="Bypassed — raw output, no limiting"/>
+                            <Button Classes="tweak-radio" Content="Soft"
+                                    Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Soft}"
+                                    Command="{Binding SetLimiterModeCommand}" CommandParameter="Soft"
+                                    ToolTip.Tip="−1 dBTP safety limiter, no drive — fully transparent"/>
+                            <Button Classes="tweak-radio" Content="Club"
+                                    Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Club}"
+                                    Command="{Binding SetLimiterModeCommand}" CommandParameter="Club"
+                                    ToolTip.Tip="−1 dBTP + 3 dB maximizer drive — louder, still clean"/>
+                            <Button Classes="tweak-radio" Content="Loud"
+                                    Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Loud}"
+                                    Command="{Binding SetLimiterModeCommand}" CommandParameter="Loud"
+                                    ToolTip.Tip="−0.1 dBTP ceiling + 6 dB maximizer drive — max club loudness"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ════════════ LIBRARY ════════════ -->
+                <StackPanel Spacing="10"
+                            IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Library}">
+                    <TextBlock Classes="tweak-section" Text="ANALYSIS"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="tweak-label" Text="Auto-analyze on add" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoAnalyze}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="tweak-label" Text="Auto-write tags on analyze" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoWriteOnAnalyze}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto"
+                          ToolTip.Tip="Writes Camelot + Energy into the comment tag (e.g. 8A - Energy 7). Existing text is kept.">
+                        <TextBlock Grid.Column="0" Classes="tweak-label" Text="DJ comment tag" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
+                                      IsChecked="{Binding WriteDjComment}"
+                                      OnContent="" OffContent=""/>
+                    </Grid>
+                    <StackPanel Classes="tweakgroup" Margin="0,4,0,0">
+                        <TextBlock Classes="tweak-label" Text="Analysis threads"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="tweak-radio" Content="1"
+                                    Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=1}"
+                                    Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="1"/>
+                            <Button Classes="tweak-radio" Content="2"
+                                    Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
+                                    Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="2"/>
+                            <Button Classes="tweak-radio" Content="4"
+                                    Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=4}"
+                                    Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="4"/>
+                            <Button Classes="tweak-radio" Content="8"
+                                    Classes.active="{Binding AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=8}"
+                                    Command="{Binding SetAnalysisThreadsCommand}" CommandParameter="8"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ════════════ AUDIO ════════════ -->
+                <StackPanel Spacing="6"
+                            IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Audio}">
+                    <TextBlock Classes="tweak-section" Text="OUTPUT DEVICE"/>
+                    <ComboBox Classes="device-picker"
+                              ItemsSource="{Binding OutputDevices}"
+                              SelectedItem="{Binding SelectedOutputDevice}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:AudioOutputDevice">
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="#E6FFFFFF"
+                                           FontSize="12"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                               Text="No output devices found."
+                               IsVisible="{Binding HasNoOutputDevices}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Bottom breathing room so the last control clears the transport bar the panel
+                     overlays (and a ComboBox popup has room). A scroll-extent spacer inside the
+                     StackPanel is always counted, unlike ScrollViewer padding. -->
+                <Border Height="32" Background="Transparent"/>
+
             </StackPanel>
         </ScrollViewer>
     </Border>

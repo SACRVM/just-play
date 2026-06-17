@@ -162,6 +162,12 @@
             <GradientStop Offset="0.5" Color="#5cd0ff"/>
             <GradientStop Offset="1" Color="#a8ff5c"/>
         </LinearGradientBrush>
+        <!-- Hardcore: cyan accent → crimson → red, over the near-black base -->
+        <LinearGradientBrush x:Key="SwatchHardcore" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Offset="0" Color="#22e6ff"/>
+            <GradientStop Offset="0.5" Color="#c8112a"/>
+            <GradientStop Offset="1" Color="#ff2233"/>
+        </LinearGradientBrush>
     </Application.Resources>
 
     <Application.Styles>
@@ -686,6 +692,51 @@
         </Style>
         <Style Selector="Button.ghost:pointerover">
             <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- ════ Underline tabs (SHARED) ════
+             Originally local to MaxView (the UP NEXT / Lyrics strip); promoted to App.axaml so the
+             Tweaks panel reuses the exact same look instead of reinventing it. Usage: a Button with
+             Classes="tab" (add "active", or bind Classes.active) whose Content is a Panel holding the
+             label (top) + a <Border Classes="tabline"/> (bottom). No frame, no hover fill — just an
+             accent-gradient underline that spans the text width, with a glow when active. -->
+        <Style Selector="Button.tab">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="2,8,14,0"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+        </Style>
+        <Style Selector="Button.tab /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.tab:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.tab:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.tab:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.tab.active">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Border.tabline">
+            <Setter Property="Height" Value="2"/>
+            <Setter Property="CornerRadius" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,-1"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.tab.active Border.tabline">
+            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
+            </Setter>
         </Style>
     </Application.Styles>
 </Application>

@@ -3,10 +3,11 @@
 The music player for DJs and music lovers — Windows / macOS / Linux.
 Drop tracks in, double-click to play. No library, no memory between sessions, no nag — just play.
 
-> 🎧 **v0.1.0 — early, but functional.** The headline analysis (BPM · Camelot key · energy)
-> works end-to-end and can write itself back into your file tags on consent. Windows is the
-> daily-driver target; macOS / Linux share the codebase but aren't validated yet. Pre-1.0, so
-> rough edges remain — but it plays, analyses, sorts and streams today.
+> **v0.3.0 — still pre-1.0, but daily-driver ready on Windows.**
+> Headline analysis (BPM · Camelot key · energy), a full output DSP bus, loudness normalisation,
+> crossfade, headless CLI, and an installer with auto-update all ship in this release.
+> macOS / Linux share the codebase but aren't validated yet. Expect rough edges; the core
+> functionality plays, analyses, sorts and streams today.
 
 ## Why another music player
 
@@ -33,29 +34,119 @@ The DJ tilt comes from analysis baked straight into the player:
 
 Serious DJ analysis, living *inside* the player — without the library overhead.
 
+## New in 0.3.0
+
+### Output bus DSP rack
+
+Every track — whether playing locally or streaming to Icecast — passes through a shared bus:
+
+- **3-band DJ EQ** (series RBJ shelves): boost or cut low / mid / high, with a deep-kill
+  per band. Non-destructive; bypass at neutral.
+- **AutoTilt** — a gentle auto-master that nudges the track's tonal balance toward a reference
+  ("golden") spectral curve. Think of it as a one-dial mastering assistant: at zero it does
+  nothing; dialled up it brings a harsh or dull mix closer to a target sound.
+- **Transient / Punch** — adds or softens attack to sharpen or smooth the groove feel.
+- **Mastering Limiter** — true-peak limiter to ITU-R BS.1770-4, ceiling −1 dBTP. Transparent
+  at normal levels; catches the occasional hot peak before it clips your output or your stream.
+
+**One-click presets:** *Neutral* (full bypass — flat signal path) and *Hard* (targets the
+harsh top-end of hard-techno / hardstyle toward the reference curve and pushes it loud via
+the limiter).
+
+### Spectral diagram
+
+```
+justplay spectrum <file>
+```
+
+Renders a before/after long-term spectrum (dry signal vs. bus-processed) overlaid against
+the reference target curve as a **PNG** — zero external dependencies beyond the CLI itself.
+Use it to see what the DSP rack is actually doing to a track, or to tune presets by eye.
+
+### Headless CLI — `justplay`
+
+```
+justplay scan      <dir>   — discover and index audio files
+justplay dedup     <dir>   — flag near-duplicate tracks by fingerprint
+justplay analyze   <dir>   — BPM / key / energy in bulk, no GUI needed
+justplay stats     <dir>   — library overview (BPM spread, key distribution, energy)
+justplay tag       <file>  — write analysis results back into file tags
+justplay promote   <dir>   — promote vibe tags to standard fields for DJ software
+justplay spectrum  <file>  — render before/after spectral PNG
+```
+
+The CLI is a thin shell over `JustPlay.Engine` — the same analysis code the GUI uses.
+
+### Loudness / ReplayGain
+
+EBU R128 LUFS measurement, written as ReplayGain 2.0 tags. **Playback normalisation**
+switchable per-session: *Quiet / Normal / Loud*. Clip-safe (true-peak aware), non-destructive
+(no file is reencoded).
+
+### Crossfade on auto-advance
+
+Equal-power crossfade when one track ends and the next begins. Duration: Off / 2 s / 4 s / 8 s.
+A "smart-lite" mode skips the crossfade when key or tempo distance between tracks is too large
+to blend gracefully.
+
+### Headphone Pre-Cue (PFL) — beta
+
+Audition the next track on a separate headphone output device while the main output (and any
+active stream) keeps playing uninterrupted. Cue / mix knob blends between the cue bus and main.
+
+> **Beta / experimental.** Audio routing correctness depends on OS device enumeration; needs
+> real-hardware validation across a wider range of interfaces before this leaves beta.
+
+### Hardcore theme + five live palettes
+
+A fifth theme: **Hardcore** (black / red accent / cyan highlight). The theme picker now offers
+Aurora · Sunset · Midnight · Neon · Hardcore — live palette swap, no restart.
+
+### Installer + in-app auto-update
+
+Inno Setup installer (per-user, no UAC prompt). In-app update check polls GitHub Releases;
+a one-click flow downloads and installs the new version silently and relaunches.
+
+### Playlist save / update · Like column · A|B|C column views
+
+Save and reload `.m3u` playlists. The track grid now supports A|B|C column-view lenses plus an
+optional **Like** column (POPM tag) so you can flag favourites without leaving the queue.
+
+---
+
 ## Status
 
-| Area                                                            | State                                          |
-| --------------------------------------------------------------- | ---------------------------------------------- |
-| Drop / play / pause / next / prev                               | ✅ works                                        |
-| Shuffle (bag-with-history) · repeat · consume mode              | ✅ works                                        |
-| Volume + position slider                                        | ✅ works                                        |
-| Metadata read **+ write** (TagLib#)                             | ✅ works                                        |
-| Mini / Max view layout                                          | ✅ shared transport cluster, skeu look          |
-| BPM detection                                                   | ✅ BASS_FX, async per track on add              |
-| Camelot key detection                                           | ✅ chromagram + EDMA profiles (+ optional ONNX) |
-| Energy score                                                    | ✅ spectral, 1–10                               |
-| Beat fingerprint + structure detection                          | ✅ feeds Harmonic Sort                           |
-| Harmonic Sort (mix sequencer)                                   | ✅ key + tempo + energy + groove                |
-| Tag persistence — write BPM/Key/Energy to file tags             | ✅ consent-gated, per-field, full undo           |
-| Like / favourite (POPM) · remove duplicates                     | ✅ works                                         |
-| Theme switch (Aurora / Sunset / Midnight / Neon)                | ✅ live palette swap                             |
+| Area                                                            | State                                            |
+| --------------------------------------------------------------- | ------------------------------------------------ |
+| Drop / play / pause / next / prev                               | ✅ works                                          |
+| Shuffle (bag-with-history) · repeat · consume mode              | ✅ works                                          |
+| Volume + position slider                                        | ✅ works                                          |
+| Metadata read **+ write** (TagLib#)                             | ✅ works                                          |
+| Mini / Max view layout                                          | ✅ shared transport cluster, skeu look            |
+| BPM detection                                                   | ✅ BASS_FX, async per track on add               |
+| Camelot key detection                                           | ✅ chromagram + EDMA profiles (+ optional ONNX)  |
+| Energy score                                                    | ✅ spectral, 1–10                                |
+| Beat fingerprint + structure detection                          | ✅ feeds Harmonic Sort                            |
+| Harmonic Sort (mix sequencer)                                   | ✅ key + tempo + energy + groove                 |
+| Tag persistence — write BPM/Key/Energy to file tags             | ✅ consent-gated, per-field, full undo            |
+| Like / favourite (POPM) · remove duplicates                     | ✅ works                                          |
+| Playlist save / update                                          | ✅ works                                          |
+| A|B|C column views + Like column                                | ✅ works                                          |
+| Loudness analysis (EBU R128) + ReplayGain tags                  | ✅ written on analysis, readable by any player   |
+| Playback normalisation (Quiet / Normal / Loud)                  | ✅ clip-safe, non-destructive                    |
+| Crossfade on auto-advance (Off / 2 / 4 / 8 s)                  | ✅ equal-power, smart-lite skip                  |
+| Output bus DSP rack (EQ · AutoTilt · Punch · Limiter)          | ✅ shapes local playback + Icecast stream         |
+| Hard / Neutral one-click DSP presets                            | ✅ works                                          |
+| Spectral diagram CLI (`justplay spectrum`)                      | ✅ dry-vs-processed PNG, zero extra deps         |
+| Headless CLI (`justplay` scan/dedup/analyze/stats/tag/promote)  | ✅ works                                          |
+| Theme switch (Aurora / Sunset / Midnight / Neon / Hardcore)     | ✅ live palette swap                              |
 | Waveform header                                                 | ✅ FFT-driven 4-band scaleY + beat-pulse         |
 | Vinyl spin animation                                            | ✅ spins around its centre, layered shadows      |
 | Output device picker                                            | ✅ per-device routing                            |
 | Live Icecast broadcast (stream your set)                        | ✅ BASSmix + BASSenc, multi-server profiles      |
+| Installer + in-app auto-update                                  | ✅ Inno Setup (per-user) + GitHub Releases       |
 | About dialog + version                                          | ✅ themed, build-stamped                         |
-| Installer + auto-update                                         | 🟡 in progress (Inno Setup + GitHub Releases)   |
+| Headphone Pre-Cue / PFL                                         | 🟡 beta — needs hardware validation             |
 | macOS / Linux builds                                            | ❌ target, not validated yet                    |
 
 ## Stack
@@ -71,16 +162,18 @@ Serious DJ analysis, living *inside* the player — without the library overhead
   no reflection, trim/AOT-friendly
 - **Microsoft.Extensions.DependencyInjection** — composition root in `Program.cs`
 
-The codebase is **strict-layered** so the analysis / playback / metadata libraries stay
+The codebase is **strict-layered** so the analysis / playback / metadata / DSP libraries stay
 testable without any UI dependency:
 
 ```
 JustPlay.Core         — platform-agnostic: Track, Metadata, MusicalKey, abstractions
 JustPlay.Audio.Bass   — ManagedBass playback, BPM detection, Icecast broadcast
 JustPlay.Metadata     — TagLib# metadata reader + writer (consent-gated tag persistence)
-JustPlay.Analysis     — key (chromagram/EDMA), energy, beat fingerprint, structure, sequencer
+JustPlay.Analysis     — key (chromagram/EDMA), energy, beat fingerprint, structure,
+                        sequencer, DSP bus (EQ / AutoTilt / Punch / Limiter)
 JustPlay.ML           — optional ONNX "AI key" detector (falls back to DSP when absent)
-JustPlay.Engine       — headless analysis/tagging facade (for future CLI / MCP / agent use)
+JustPlay.Engine       — headless analysis/tagging facade
+JustPlay.Cli          — headless CLI (scan · dedup · analyze · stats · tag · promote · spectrum)
 JustPlay.App          — Avalonia shell: Views, ViewModels, Controls
 ```
 
@@ -98,6 +191,9 @@ You need the .NET 10 SDK installed (download from https://dotnet.microsoft.com/d
 
 # One-off run:
 dotnet run --project src/JustPlay.App
+
+# Headless CLI:
+dotnet run --project src/JustPlay.Cli -- spectrum path/to/track.mp3
 
 # Release publish (Windows self-contained single-file .exe, no .NET install needed
 # on the target machine, no C++ toolchain needed to build):
@@ -118,9 +214,11 @@ src/
   JustPlay.Core/         platform-agnostic models + abstractions
   JustPlay.Audio.Bass/   ManagedBass playback, BPM detection, Icecast broadcast
   JustPlay.Metadata/     TagLib#-backed metadata reader + writer
-  JustPlay.Analysis/     key / energy / beat-fingerprint / structure / harmonic sequencer
+  JustPlay.Analysis/     key / energy / beat-fingerprint / structure / harmonic sequencer /
+                         DSP bus (EQ, AutoTilt, Punch, Limiter)
   JustPlay.ML/           optional ONNX "AI key" detector
   JustPlay.Engine/       headless analysis/tagging facade
+  JustPlay.Cli/          headless CLI — thin shell over JustPlay.Engine
   JustPlay.App/          Avalonia shell — Views, ViewModels, Controls
 tests/                   xUnit test projects (Core, Analysis, Metadata, Engine)
 build/
@@ -131,16 +229,19 @@ build/
 
 ## Roadmap
 
-Roughly in priority order toward a shippable v0.1.0 and beyond:
+Roughly in priority order:
 
-1. **Installer + auto-update** — Inno Setup (per-user, no UAC), release artifacts on GitHub
-   Releases, in-app update check.
-2. **Landing page** — a small static site pointing at the latest release.
-3. **Validated macOS + Linux builds.**
-4. **Loudness / gain analysis** — EBU R128 → ReplayGain tags (a modern replacement for mp3gain-style normalisation).
-5. **Lyrics tab** — LRC parsing / online lookup (still deciding).
-6. **Headless engine** — CLI + MCP surface over `JustPlay.Engine` so agents can analyse,
-   tag and sort music libraries.
+1. **Validated macOS + Linux builds** — the codebase is cross-platform; they just need
+   real-hardware CI runs and any OS-specific device-picker wiring.
+2. **JUST STREAM** — a standalone streaming sister app sharing the Icecast / DSP bus
+   libraries. Killer feature: dynamic loudness maximisation for live DJ sets so streamers
+   don't have to gain-stage mid-mix.
+3. **MCP / agent surface** over `JustPlay.Engine` — so external agents and tools can
+   drive analysis, tagging and sorting without the GUI.
+4. **Harmonic Sort P2 — "what mixes next"** — surface a ranked list of compatible next
+   tracks from the queue, not just a global sort order.
+5. **User-savable DSP presets** — name, save and recall custom EQ / AutoTilt / Punch /
+   Limiter configurations beyond the built-in Hard / Neutral pair.
 
 ## License
 

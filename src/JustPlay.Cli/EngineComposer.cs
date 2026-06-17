@@ -36,6 +36,12 @@ internal sealed class EngineComposer : IDisposable
     /// the Engine facade's WriteTagsAsync does not expose the blob field.
     /// </summary>
     public IMetadataWriter       MetadataWriter  { get; }
+    /// <summary>
+    /// Direct access to the audio decoder for commands that need raw PCM samples
+    /// (e.g. <c>spectrum</c>) without going through the full analysis pipeline.
+    /// BASS is guaranteed to be initialised by the time this is accessible.
+    /// </summary>
+    public IAudioDecoder         Decoder         { get; }
 
     private EngineComposer(
         BassAudioDecoder decoder,
@@ -51,6 +57,7 @@ internal sealed class EngineComposer : IDisposable
         Engine           = engine;
         MetadataReader   = metadataReader;
         MetadataWriter   = metadataWriter;
+        Decoder          = decoder;
     }
 
     /// <summary>

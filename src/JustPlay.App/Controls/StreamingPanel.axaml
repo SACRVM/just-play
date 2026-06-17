@@ -363,6 +363,7 @@
                                     Command="{Binding SetSelectedServerFormatCommand}"
                                     CommandParameter="Mp3"/>
                             <Button Classes="fmt-radio" Content="Opus"
+                                    IsVisible="{Binding ShowExperimentalUi}"
                                     Classes.active="{Binding IsSelectedServerOpus}"
                                     Command="{Binding SetSelectedServerFormatCommand}"
                                     CommandParameter="Opus"/>

@@ -31,6 +31,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private readonly PlaybackController _controller;
     private readonly IAudioEngine _engine;
+    private readonly IPreListenEngine _preListen;
     private readonly IMetadataReader _metadata;
     private readonly IMetadataWriter _writer;
     private readonly ITrackAnalysisService _analysis;
@@ -42,6 +43,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IBroadcastService _broadcast;
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
+
+    // ── Pre-cue seek reconciliation (mirrors main engine's _pendingSeek/_pendingSeekTicks) ───────
+    private bool _suppressPreCueSeek;
+    private double? _pendingPreCueSeek;
+    private int _pendingPreCueSeekTicks;
 
     // User-seek reconciliation: when the user scrubs, the native engine takes a moment to
     // actually report the new position. Until it lands near the target, the timer must NOT
@@ -82,6 +88,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public MainWindowViewModel(
         PlaybackController controller,
         IAudioEngine engine,
+        IPreListenEngine preListen,
         IMetadataReader metadata,
         IMetadataWriter writer,
         ITrackAnalysisService analysis,
@@ -92,6 +99,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         _controller = controller;
         _engine = engine;
+        _preListen = preListen;
         _metadata = metadata;
         _writer = writer;
         _analysis = analysis;
@@ -124,6 +132,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _controller.NormalizationEnabled = s.PlaybackNormalization;
         _controller.TargetLufs = LevelToLufs(s.NormalizationLevel);
         _crossfadeSeconds = s.CrossfadeSeconds;
+        _limiterMode = s.LimiterMode;
+        ApplyLimiterToEngine();   // engine exists at construction; this is silent (no persist)
+        _eqLow = s.EqLowGain; _eqMid = s.EqMidGain; _eqHigh = s.EqHighGain;
+        ApplyEqualizerToEngine();
+        _transientPunch = s.TransientPunch;
+        _autoTiltStrength = s.AutoTiltStrength;
+        ApplyReviveToEngine();
         _analysisThreads = s.AnalysisThreads;
 
         // Seed column views from persisted settings (before _settingsHydrated — mirroring the tweak seed block).
@@ -143,17 +158,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         // SelectedOutputDevice assignment doesn't trigger a premature PersistSettings.
         PopulateOutputDevices(s.OutputDeviceName);
 
+        // ── Pre-listen (PFL): seed volume + headphone device list ────────────
+        // Seeded before _settingsHydrated so the initial assignments don't echo to disk.
+        _preCueVolume = s.PreCueVolume;
+        PopulateHeadphoneDevices(s.HeadphoneDeviceName);
+
         _settingsHydrated = true;
 
         _controller.StateChanged += OnEngineStateChanged;
         _controller.TrackEnded += OnTrackEnded;
+        _preListen.StateChanged += OnPreCueStateChanged;
+        _preListen.PlaybackEnded += OnPreCueEnded;
+        PreCueTracks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoPreCueTracks));
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
     }
 
-    public ObservableCollection<TrackViewModel> Tracks { get; } = [];
+    public BulkObservableCollection<TrackViewModel> Tracks { get; } = [];
 
     /// <summary>The rows currently selected in the queue (multi-select). Kept in sync from the
     /// view's ListBox SelectionChanged; the tag-write / re-analyze / remove actions operate on it.</summary>
@@ -257,6 +280,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool ShowGain     => ActiveSet.Contains("gain");
     public bool ShowLufs     => ActiveSet.Contains("lufs");
     public bool ShowDuration => ActiveSet.Contains("duration");
+    public bool ShowLike     => ActiveSet.Contains("like");
 
     partial void OnActiveColumnViewChanged(string value)
     {
@@ -276,6 +300,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowGain));
         OnPropertyChanged(nameof(ShowLufs));
         OnPropertyChanged(nameof(ShowDuration));
+        OnPropertyChanged(nameof(ShowLike));
     }
 
     /// <summary>Switch to a named column view. CommandParameter is "A", "B", or "C".</summary>
@@ -307,6 +332,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public string GainSortGlyph => Glyph("Gain");
     public string LufsSortGlyph => Glyph("Lufs");
     public string DurationSortGlyph => Glyph("Duration");
+    public string LikeSortGlyph => Glyph("Like");
 
     partial void OnSortColumnChanged(string? value) => RaiseSortHeaders();
     partial void OnSortDescendingChanged(bool value) => RaiseSortHeaders();
@@ -321,6 +347,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(GainSortGlyph));
         OnPropertyChanged(nameof(LufsSortGlyph));
         OnPropertyChanged(nameof(DurationSortGlyph));
+        OnPropertyChanged(nameof(LikeSortGlyph));
     }
 
     /// <summary>Sort the queue by a column (toggles asc/desc when the same column is clicked again).
@@ -368,6 +395,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     "Gain"     => Nullable.Compare(a.ReplayGainDb, b.ReplayGainDb),
                     "Lufs"     => Nullable.Compare(a.LoudnessLufs, b.LoudnessLufs),
                     "Duration" => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
+                    "Like"     => a.IsFavorite.CompareTo(b.IsFavorite),
                     _          => 0,
                 };
                 return d ? -c : c;
@@ -528,6 +556,26 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // Set true once we've fired the crossfade for the current track, so the 200ms tick fires it once.
     private bool _crossfadeArmed;
 
+    // Master true-peak limiter / maximizer on the output bus: "Off"/"Soft"/"Club"/"Loud".
+    // Off by default. Maps to (enabled, driveDb) via ApplyLimiterToEngine; ceiling fixed at −1 dBTP.
+    [ObservableProperty] private string _limiterMode = "Off";
+
+    // 3-band DJ EQ band gains (LINEAR): 1.0 = unity/flat, 0.0 = kill, 2.0 = +6 dB. The Tweaks sliders
+    // bind here (range 0..2, centre detent at 1). All-flat → the engine bypasses the EQ DSP.
+    [ObservableProperty] private double _eqLow  = 1.0;
+    [ObservableProperty] private double _eqMid  = 1.0;
+    [ObservableProperty] private double _eqHigh = 1.0;
+
+    // "Revive" rack — anti-flat enhancement on the output bus. All neutral by default (each block
+    // bypasses at its zero value, 0 = off). Sliders bind here; each shares its own apply path
+    // (engine + persist) like the EQ bands.
+    [ObservableProperty] private double _transientPunch  = 0.0;   // 0..1
+    [ObservableProperty] private double _autoTiltStrength = 0.0;  // 0..1
+
+    // Which Tweaks tab is showing: "Look" / "Sound" / "Library" / "Audio". Transient UI state,
+    // deliberately NOT persisted — it just drives which group of controls is visible in the panel.
+    [ObservableProperty] private string _tweaksTab = "Sound";
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AnalysisThreadsText))]
     private int _analysisThreads = 4;
@@ -649,6 +697,122 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PersistSettings();
     }
 
+    partial void OnLimiterModeChanged(string value)
+    {
+        // Apply to the engine immediately (heard live — the DSP swaps without dropping audio),
+        // then persist after hydration.
+        ApplyLimiterToEngine();
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    /// <summary>Map the Tweaks limiter mode to (enabled, driveDb) and push it to the engine's master
+    /// bus. Ceiling is fixed at −1 dBTP inside the engine; only the maximizer drive varies.
+    /// Off=bypass, Soft=0 dB (safety only), Club=+3 dB, Loud=+6 dB.</summary>
+    private void ApplyLimiterToEngine()
+    {
+        // (enabled, driveDb, ceilingDbTp). Soft/Club stay broadcast-safe at −1 dBTP; Loud both pushes
+        // +6 dB drive AND lifts the ceiling to −0.1 dBTP to wring out the last bit of level.
+        var (enabled, driveDb, ceilingDbTp) = LimiterMode switch
+        {
+            "Soft" => (true, 0.0, -1.0),
+            "Club" => (true, 3.0, -1.0),
+            "Loud" => (true, 6.0, -0.1),
+            _      => (false, 0.0, -1.0),   // "Off" / unknown → bypass
+        };
+        _engine.SetLimiter(enabled, driveDb, ceilingDbTp);
+    }
+
+    /// <summary>Set the limiter mode from the Tweaks segmented control ("Off"/"Soft"/"Club"/"Loud").</summary>
+    [RelayCommand]
+    private void SetLimiterMode(string which) => LimiterMode = which;
+
+    // EQ band sliders → engine + persist. Each band shares one apply path; persist is guarded by
+    // hydration so the constructor seed doesn't echo to disk.
+    partial void OnEqLowChanged(double value)  => OnEqChanged();
+    partial void OnEqMidChanged(double value)  => OnEqChanged();
+    partial void OnEqHighChanged(double value) => OnEqChanged();
+
+    private void OnEqChanged()
+    {
+        ApplyEqualizerToEngine();   // live; flat → DSP bypassed
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    /// <summary>Push the three EQ band gains (linear) to the engine bus. Flat (all 1.0) bypasses.</summary>
+    private void ApplyEqualizerToEngine() => _engine.SetEqualizer(EqLow, EqMid, EqHigh);
+
+    /// <summary>Reset all three EQ bands to unity (flat).</summary>
+    [RelayCommand]
+    private void ResetEqualizer()
+    {
+        EqLow = 1.0; EqMid = 1.0; EqHigh = 1.0;
+    }
+
+    // ── "Revive" rack sliders → engine + persist. Each neutral value bypasses its DSP. ──────────
+    partial void OnTransientPunchChanged(double value)   { _engine.SetTransientDesigner(value); PersistIfHydrated(); }
+    partial void OnAutoTiltStrengthChanged(double value) { _engine.SetAdaptiveTilt(value);     PersistIfHydrated(); }
+
+    /// <summary>Push the revive blocks to the engine (used once at construction; each is a no-op /
+    /// true bypass at its neutral value).</summary>
+    private void ApplyReviveToEngine()
+    {
+        _engine.SetTransientDesigner(TransientPunch);
+        _engine.SetAdaptiveTilt(AutoTiltStrength);
+    }
+
+    /// <summary>Reset the whole revive rack to neutral (everything off).</summary>
+    [RelayCommand]
+    private void ResetRevive()
+    {
+        TransientPunch = 0.0; AutoTiltStrength = 0.0;
+    }
+
+    /// <summary>
+    /// "Hard" one-click bus preset — the validated correction for structurally-bright hard genres
+    /// (hard techno / hardstyle). Measured 2026-06-17 across 35 of Chloe's tracks: both genres sit
+    /// ~+5–7 dB over the reference curve in 2–5 kHz and 8–16 kHz, and the brightness is baked into the
+    /// master (static), so the lever is a static high-shelf cut + golden-curve AutoTilt. This preset
+    /// (tilt 0.65, High −3 dB shelf) pulled Fatigue ~−2.3 dB / Air ~−4.5 dB toward target on the brightest
+    /// tracks while keeping the bass + genre character. [[hard-dance-headphone-mode]]
+    ///
+    /// <para>Limiter = <b>Loud</b> on purpose: a hard set has to be LOUD/dense to hold up against other
+    /// loud sources (club/stream) — "Soft" (0 dB drive) leaves it quiet and you get out-loudened. The
+    /// EQ-high cut + AutoTilt tame the harshness so the loud limiter doesn't turn that into fatigue.
+    /// (Chloe, 2026-06-17: "Limiter soft bei hard killt dich jeder.")</para>
+    /// Each assignment flows through the normal apply+persist path, so the engine + settings follow.
+    /// </summary>
+    [RelayCommand]
+    private void ApplyHardPreset()
+    {
+        EqLow = 1.0; EqMid = 1.0; EqHigh = 0.72;   // ~ −3 dB high shelf
+        AutoTiltStrength = 0.65;
+        TransientPunch = 0.0;
+        LimiterMode   = "Loud";                    // hard = loud; Soft would lose the loudness war
+    }
+
+    /// <summary>"Neutral" one-click preset — reset the whole bus DSP chain to flat/off (bit-transparent).
+    /// Leaves loudness-normalization and crossfade alone (those aren't tone shaping).</summary>
+    [RelayCommand]
+    private void ApplyNeutralPreset()
+    {
+        EqLow = 1.0; EqMid = 1.0; EqHigh = 1.0;
+        AutoTiltStrength = 0.0; TransientPunch = 0.0;
+        LimiterMode   = "Off";
+    }
+
+    /// <summary>Persist only once settings are hydrated (so constructor seeds don't echo to disk).</summary>
+    private void PersistIfHydrated()
+    {
+        if (!_settingsHydrated) return;
+        PersistSettings();
+    }
+
+    /// <summary>Switch the visible Tweaks tab ("Look"/"Sound"/"Library"/"Audio").</summary>
+    [RelayCommand]
+    private void SetTweaksTab(string which) => TweaksTab = which;
+
     /// <summary>Set the normalization level from the Tweaks segmented control ("Quiet"/"Normal"/"Loud").</summary>
     [RelayCommand]
     private void SetNormalizationLevel(string which) => NormalizationLevel = which;
@@ -696,6 +860,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PlaybackNormalization = PlaybackNormalization,
         NormalizationLevel    = NormalizationLevel,
         CrossfadeSeconds      = CrossfadeSeconds,
+        LimiterMode           = LimiterMode,
+        EqLowGain             = EqLow,
+        EqMidGain             = EqMid,
+        EqHighGain            = EqHigh,
+        TransientPunch        = TransientPunch,
+        AutoTiltStrength      = AutoTiltStrength,
         AnalysisThreads    = AnalysisThreads,
         UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
         // Auto-update prefs have no Tweaks UI — preserve so a tweak save never resets them
@@ -712,6 +882,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ColumnViewB      = [.. _viewB],
         ColumnViewC      = [.. _viewC],
         ActiveColumnView = ActiveColumnView,
+        // Pre-listen (PFL) headphone device and volume.
+        HeadphoneDeviceName = SelectedHeadphoneDevice?.Name,
+        PreCueVolume        = PreCueVolume,
     });
 
     public string PositionText => Format(PositionSeconds);
@@ -979,6 +1152,234 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _engine.SetOutputDevice(match.Index);
     }
 
+    // ── Pre-listen (PFL) headphone device selection ───────────────────────────
+    // Mirrors the output device pattern. The pre-listen engine does NOT auto-select the
+    // system default (that would put cue audio on the speakers). If no saved device name
+    // matches, HeadphoneDevices is populated but nothing is selected (null) and the PRE-CUE
+    // panel shows a "choose a headphone device" hint. The user selects explicitly.
+
+    /// <summary>Audio output devices available for headphone cue monitoring, populated at startup.</summary>
+    public ObservableCollection<AudioOutputDevice> HeadphoneDevices { get; } = [];
+
+    /// <summary>True when the list is empty — drives the "no devices found" hint in the PRE-CUE panel.</summary>
+    public bool HasNoHeadphoneDevices => HeadphoneDevices.Count == 0;
+
+    /// <summary>True when no headphone device is selected — drives the "choose a device" hint.</summary>
+    public bool HeadphoneDeviceNotSelected => SelectedHeadphoneDevice is null;
+
+    /// <summary>The currently selected headphone device, or null when none is configured.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HeadphoneDeviceNotSelected))]
+    private AudioOutputDevice? _selectedHeadphoneDevice;
+
+    partial void OnSelectedHeadphoneDeviceChanged(AudioOutputDevice? value)
+    {
+        if (!_settingsHydrated) return;
+        _preListen.OutputDevice = value?.Index ?? -1;
+        PersistSettings();
+    }
+
+    private void PopulateHeadphoneDevices(string? savedName)
+    {
+        // Enumerate from the pre-listen engine (same underlying BASS call as main engine, but returns
+        // all enabled devices — the user picks which one is their headphones).
+        var devices = _preListen.GetOutputDevices();
+        foreach (var d in devices)
+            HeadphoneDevices.Add(d);
+
+        if (HeadphoneDevices.Count == 0 || savedName is null) return;
+
+        // Only auto-select when we have a saved name — never auto-select the default device
+        // because that would route cue audio to the speakers without the user asking.
+        var match = HeadphoneDevices.FirstOrDefault(d => d.Name == savedName);
+        if (match is null) return;
+
+        SelectedHeadphoneDevice = match;
+        // Apply at startup (guarded by !_settingsHydrated in On…Changed, so explicit call here).
+        _preListen.OutputDevice = match.Index;
+    }
+
+    // ── Pre-listen transport state ────────────────────────────────────────────────
+    // PreCueTracks: the audition list. Each entry is a standard TrackViewModel with pre-cue
+    // callbacks injected (PlayInPreCueCallback / AddPreCueToMainQueueCallback / DiscardFromPreCueCallback).
+    // PreCueCurrent: the track currently loaded in the cue engine.
+
+    /// <summary>The audition list for pre-listening. Tracks are added via "Add files…" and removed
+    /// via the "✕" discard button or automatically when added to the main queue.</summary>
+    public ObservableCollection<TrackViewModel> PreCueTracks { get; } = [];
+
+    /// <summary>True when there are no tracks in the audition list — drives the empty-list hint
+    /// visibility. Raises PropertyChanged via the PreCueTracks.CollectionChanged subscription in
+    /// the constructor (see wire-up near _preListen.StateChanged).</summary>
+    public bool HasNoPreCueTracks => PreCueTracks.Count == 0;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreCueIsPlaying))]
+    [NotifyPropertyChangedFor(nameof(PreCuePositionText))]
+    [NotifyPropertyChangedFor(nameof(PreCueDurationText))]
+    private TrackViewModel? _preCueCurrent;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreCuePositionText))]
+    private double _preCuePositionSeconds;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreCueDurationText))]
+    private double _preCueDurationSeconds;
+
+    /// <summary>Cue/PFL volume (0..1), persisted across sessions so headphone level is remembered.</summary>
+    [ObservableProperty]
+    private double _preCueVolume = 0.8;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreCueIsPlaying))]
+    private PlaybackState _preCueState = PlaybackState.Stopped;
+
+    /// <summary>True while the cue engine is playing — drives the play/pause icon in the PRE-CUE panel.</summary>
+    public bool PreCueIsPlaying => PreCueState == PlaybackState.Playing;
+
+    public string PreCuePositionText => Format(PreCuePositionSeconds);
+    public string PreCueDurationText => Format(PreCueDurationSeconds);
+
+    partial void OnPreCueVolumeChanged(double value)
+    {
+        _preListen.Volume = value;
+        PersistIfHydrated();
+    }
+
+    partial void OnPreCuePositionSecondsChanged(double value)
+    {
+        if (_suppressPreCueSeek) return;
+        _pendingPreCueSeek = value;
+        _pendingPreCueSeekTicks = 0;
+        _preListen.Position = TimeSpan.FromSeconds(value);
+    }
+
+    private void OnPreCueStateChanged(object? sender, PlaybackState state)
+        => Dispatcher.UIThread.Post(() => PreCueState = state);
+
+    private void OnPreCueEnded(object? sender, EventArgs e)
+        => Dispatcher.UIThread.Post(() =>
+        {
+            // v1: just stop — no auto-advance in the cue list.
+            PreCueState = PlaybackState.Stopped;
+        });
+
+    // ── Right-column tab ("UP NEXT" | "PRE-CUE") ─────────────────────────────
+    // Transient — not persisted; each session starts on the queue tab.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsQueueTab))]
+    [NotifyPropertyChangedFor(nameof(IsPreCueTab))]
+    [NotifyPropertyChangedFor(nameof(ShowQueueHeader))]
+    private string _rightColumnTab = "Queue";
+
+    public bool IsQueueTab  => RightColumnTab == "Queue";
+    public bool IsPreCueTab => RightColumnTab == "PreCue";
+
+    /// <summary>Show the column header row only when the queue tab is active AND there are tracks.
+    /// When the PRE-CUE tab is showing, the queue header would be misleading.</summary>
+    public bool ShowQueueHeader => HasTracks && IsQueueTab;
+
+    [RelayCommand]
+    private void SetRightColumnTab(string which) => RightColumnTab = which;
+
+    // ── Pre-cue commands ───────────────────────────────────────────────────────
+
+    /// <summary>Start playing a track in the headphone cue engine. Called when the user taps the
+    /// play button on a pre-cue list row, or when the row's PlayInPreCueCommand fires.</summary>
+    private void PlayPreCueInternal(TrackViewModel track)
+    {
+        if (SelectedHeadphoneDevice is null) return; // no device → ignore
+        _preListen.Stop();
+        _preListen.Load(track.Model.FilePath);
+        _preListen.Volume = PreCueVolume;
+        _preListen.Play();
+        PreCueCurrent = track;
+    }
+
+    /// <summary>Pause or resume cue playback.</summary>
+    [RelayCommand]
+    private void TogglePreCuePause()
+    {
+        if (_preListen.State == PlaybackState.Playing) _preListen.Pause();
+        else if (_preListen.State == PlaybackState.Paused) _preListen.Play();
+    }
+
+    /// <summary>Stop cue playback and rewind.</summary>
+    [RelayCommand]
+    private void StopPreCue() => _preListen.Stop();
+
+    /// <summary>Append a pre-cue track to the MAIN queue without removing it from the audition list.
+    /// The user can add multiple times or discard separately.</summary>
+    private void AppendPreCueToMainQueueInternal(TrackViewModel track)
+    {
+        var tvm = new TrackViewModel(new Track(track.Model.FilePath))
+        {
+            AddOrder = _addSeq++,
+            ToggleFavoriteCallback = ToggleFavoriteForTrack,
+            NormalizationTargetDb = LevelToLufs(NormalizationLevel),
+        };
+        Tracks.Add(tvm);
+        RaiseTrackListChanged();
+        MarkPlaylistEdited();
+        // Load metadata async so the queue row shows title/artist/duration without blocking.
+        _ = Task.Run(() =>
+        {
+            tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+            Dispatcher.UIThread.Post(() => { tvm.Refresh(); OnPropertyChanged(nameof(TotalDurationText)); });
+        });
+    }
+
+    private void DiscardFromPreCueInternal(TrackViewModel track)
+    {
+        // If this track is the one currently loaded in the cue engine, stop it first.
+        if (ReferenceEquals(PreCueCurrent, track))
+        {
+            _preListen.Unload();
+            PreCueCurrent = null;
+        }
+        PreCueTracks.Remove(track);
+    }
+
+    /// <summary>Add file paths to the pre-cue audition list (called from code-behind after the picker).</summary>
+    public async Task AddPreCuePathsAsync(IEnumerable<string> paths)
+    {
+        var files = new List<string>();
+        foreach (var p in paths)
+        {
+            if (Directory.Exists(p))
+                files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories));
+            else if (File.Exists(p))
+                files.Add(p);
+        }
+
+        var audioFiles = files.Where(IsAudio).OrderBy(f => f, NaturalComparer.Instance);
+
+        // Create TrackViewModels with the pre-cue callbacks wired in.
+        var added = new List<TrackViewModel>();
+        foreach (var f in audioFiles)
+        {
+            var tvm = new TrackViewModel(new Track(f));
+            tvm.PlayInPreCueCallback        = PlayPreCueInternal;
+            tvm.AddPreCueToMainQueueCallback = AppendPreCueToMainQueueInternal;
+            tvm.DiscardFromPreCueCallback    = DiscardFromPreCueInternal;
+            PreCueTracks.Add(tvm);
+            added.Add(tvm);
+        }
+
+        if (added.Count == 0) return;
+
+        // Load metadata async so titles/artists appear without blocking the UI.
+        await Task.Run(() =>
+        {
+            foreach (var tvm in added)
+            {
+                tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+                Dispatcher.UIThread.Post(tvm.Refresh);
+            }
+        });
+    }
+
     /// <summary>The profile currently open in the editor, or null when none is selected.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSelectedServerMp3))]
@@ -1049,6 +1450,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public bool IsSelectedServerMp3 => SelectedStreamServer?.Format == StreamFormat.Mp3;
     public bool IsSelectedServerOpus => SelectedStreamServer?.Format == StreamFormat.Opus;
+
+    /// <summary>Whether in-progress / not-yet-working UI is shown — the headphone Pre-Cue tab and the
+    /// Opus stream format. True only in DEBUG builds, so RELEASE installers ship without the dead UI.
+    /// See <see cref="AppInfo.Experimental"/>.</summary>
+    public bool ShowExperimentalUi => AppInfo.Experimental;
 
     /// <summary>
     /// Replace the currently selected profile (immutable record swap) in the collection,
@@ -1191,6 +1597,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(TotalDurationText));
         OnPropertyChanged(nameof(BpmRangeText));
         OnPropertyChanged(nameof(ShowBpmRange));
+        OnPropertyChanged(nameof(ShowQueueHeader));
         // Harmonic Sort's CanExecute depends on the queue having ≥ 2 tracks.
         HarmonicSortCommand.NotifyCanExecuteChanged();
         // If the queue is now empty and a playlist was loaded, break the reference —
@@ -1568,13 +1975,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// and does not stop playback of a removed current track (the engine holds its own reference).</summary>
     public void RemoveSelected()
     {
-        var targets = SelectedTracks.ToList();
-        if (targets.Count == 0) return;
-        foreach (var tvm in targets)
-        {
-            Tracks.Remove(tvm);
-            _shuffleHistory.Remove(tvm);
-        }
+        if (SelectedTracks.Count == 0) return;
+        // Snapshot the selection as a set, then remove in ONE pass + a single Reset notification.
+        // The old per-item Tracks.Remove loop was O(n²) (each Remove is an O(n) search) AND re-rendered
+        // the bound queue list once per row — Ctrl+A → Delete on a 10-hour queue took seconds.
+        var removeSet = new HashSet<TrackViewModel>(SelectedTracks);
+        Tracks.RemoveRange(removeSet);
+        _shuffleHistory.RemoveAll(removeSet.Contains);
         if (_shufflePos >= _shuffleHistory.Count) _shufflePos = _shuffleHistory.Count - 1;
         SelectedTracks.Clear();
         RaiseTrackListChanged();
@@ -1758,7 +2165,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         if (dupes.Count == 0) return;
-        foreach (var d in dupes) Tracks.Remove(d);
+        Tracks.RemoveRange(dupes);                 // one Reset, not N per-item removes
+        _shuffleHistory.RemoveAll(dupes.Contains);
+        if (_shufflePos >= _shuffleHistory.Count) _shufflePos = _shuffleHistory.Count - 1;
         RaiseTrackListChanged();
         MarkPlaylistEdited();
     }
@@ -2210,6 +2619,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(DurationText));
 
         MaybeStartCrossfade(pos, DurationSeconds);
+
+        // ── Pre-cue position polling (same 200 ms tick) ────────────────────
+        // Mirrors the main engine's seek-hold pattern so the slider doesn't snap back
+        // to a stale position immediately after the user scrubs.
+        var cuePos = _preListen.Position.TotalSeconds;
+        if (_pendingPreCueSeek is { } cueTarget)
+        {
+            if (Math.Abs(cuePos - cueTarget) <= 0.75 || ++_pendingPreCueSeekTicks >= 5)
+                _pendingPreCueSeek = null;
+        }
+        else
+        {
+            _suppressPreCueSeek = true;
+            PreCuePositionSeconds = cuePos;
+            _suppressPreCueSeek = false;
+            OnPropertyChanged(nameof(PreCuePositionText));
+        }
+        PreCueDurationSeconds = _preListen.Duration.TotalSeconds;
+        OnPropertyChanged(nameof(PreCueDurationText));
     }
 
     private void MaybeStartCrossfade(double posSeconds, double durationSeconds)
@@ -2281,6 +2709,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _controller.StateChanged -= OnEngineStateChanged;
         _controller.TrackEnded -= OnTrackEnded;
         _broadcast.StateChanged -= OnBroadcastServiceStateChanged;
+        _preListen.StateChanged -= OnPreCueStateChanged;
+        _preListen.PlaybackEnded -= OnPreCueEnded;
+        _preListen.Dispose();
         _controller.Dispose();
     }
 }

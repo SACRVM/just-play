@@ -2,6 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:controls="using:JustPlay.App.Controls"
+             xmlns:behaviors="using:JustPlay.App.Behaviors"
+             xmlns:models="using:JustPlay.Core.Models"
              x:Class="JustPlay.App.Views.MaxView"
              x:DataType="vm:MainWindowViewModel">
 
@@ -86,58 +88,59 @@
                     Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
         </Style>
 
-        <!-- Tabs: NO frame, NO hover background, underline as a Border INSIDE the Content so it
-             only spans the text width (not the full button width incl. padding). -->
-        <Style Selector="Button.tab">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <!-- Taller tab + no bottom padding so the underline (bottom-aligned in the
-                 Panel) lands on the strip's bottom hairline, not under the text.
-                 VerticalContentAlignment=Stretch lets the Panel fill the full height
-                 so its bottom-aligned child reaches the button's bottom edge. -->
-            <Setter Property="Padding" Value="2,8,14,0"/>
-            <Setter Property="MinHeight" Value="36"/>
-            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
+        <!-- Like-column heart: dim by default, accent + glow when the track is favorited. -->
+        <Style Selector="TextBlock.likecell">
+            <Setter Property="Foreground" Value="#33FFFFFF"/>
         </Style>
-        <Style Selector="Button.tab /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
+        <Style Selector="TextBlock.likecell.active">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
         </Style>
-        <Style Selector="Button.tab:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.tab.active">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <!-- Underline: bottom-aligned to the tab, nudged down 1px so it straddles the
-             strip's bottom hairline (design app.jsx:735 `bottom: -1`). Width = text
-             width (the Panel content area, inset by the button padding). -->
-        <Style Selector="Border.tabline">
-            <Setter Property="Height" Value="2"/>
-            <Setter Property="CornerRadius" Value="1"/>
-            <Setter Property="Margin" Value="0,0,0,-1"/>
+
+        <!-- The underline-tab styles (Button.tab / Border.tabline) moved to App.axaml so the Tweaks
+             panel can reuse them. The UP NEXT strip below still uses them unchanged (now global). -->
+
+        <!--
+          PRE-CUE headphone device ComboBox — dark-frosted look matching TweaksPanel's device-picker.
+          Class is "precue-device-picker" to keep it scoped here rather than polluting the global namespace.
+          Copied from TweaksPanel.axaml (ComboBox.device-picker) — keep in sync if the Tweaks style changes.
+        -->
+        <Style Selector="ComboBox.precue-device-picker">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,4"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="PlaceholderForeground" Value="#73FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.precue-device-picker:pointerover /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.precue-device-picker:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.precue-device-picker /template/ Popup Border">
+            <Setter Property="Background" Value="#F01a1828"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ComboBox.precue-device-picker ComboBoxItem">
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="8,5"/>
             <Setter Property="Background" Value="Transparent"/>
         </Style>
-        <!-- Active: cyan→pink gradient + accent glow (design `boxShadow: 0 0 8px accentB`).
-             DropShadowEffect.Color takes a DynamicResource fine (cf. the brand halo),
-             so the glow tracks the live theme. -->
-        <Style Selector="Button.tab.active Border.tabline">
-            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
-            <Setter Property="Effect">
-                <!-- Design `boxShadow: 0 0 8px accentB` at full alpha — bumped blur +
-                     opacity so the underline reads as a clear glow (DropShadowEffect's
-                     gaussian blur is softer than CSS box-shadow at the same radius). -->
-                <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
-            </Setter>
+        <Style Selector="ComboBox.precue-device-picker ComboBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.precue-device-picker ComboBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.precue-device-picker ComboBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF"/>
         </Style>
 
         <!--
@@ -644,19 +647,19 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Tab strip: UP NEXT / LYRICS — the active underline (Border.tabline) is
+                    <!-- Tab strip: UP NEXT | PRE-CUE — the active underline (Border.tabline) is
                          bottom-aligned inside each tab's Panel so it sits on the strip's bottom
-                         hairline, mid-way between the tab text and the queue table below
-                         (design app.jsx:733). Underline width = text width (Panel content area). -->
+                         hairline. The active tab has Classes.active which the App.axaml tab style
+                         uses to render the underline. PRE-CUE tab switches to the audition list. -->
                     <Border DockPanel.Dock="Top" Margin="0,18,0,8"
                             BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
                         <DockPanel>
                             <!-- Column-view switch: A | B | C — three user-customisable column sets.
                                  Right-click the container to toggle individual columns for the active view.
-                                 Hidden until there are tracks. -->
+                                 Hidden until there are tracks AND the queue tab is active. -->
                             <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,0,6"
                                     Background="#14FFFFFF" CornerRadius="8" Padding="2" Height="24"
-                                    IsVisible="{Binding HasTracks}">
+                                    IsVisible="{Binding ShowQueueHeader}">
                                 <Border.ContextFlyout>
                                     <MenuFlyout>
                                         <MenuItem Header="GENRE"          ToggleType="CheckBox"
@@ -680,6 +683,9 @@
                                         <MenuItem Header="DURATION"       ToggleType="CheckBox"
                                                   IsChecked="{Binding ShowDuration, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
+                                        <MenuItem Header="Like (♥)"       ToggleType="CheckBox"
+                                                  IsChecked="{Binding ShowLike, Mode=OneWay}"
+                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
                                     </MenuFlyout>
                                 </Border.ContextFlyout>
                                 <!-- Flush segmented control: outer corners rounded, middle joint square. -->
@@ -718,9 +724,19 @@
                             </Border>
 
                             <StackPanel Orientation="Horizontal" Spacing="0">
-                                <Button Classes="tab active">
+                                <Button Classes="tab" Classes.active="{Binding IsQueueTab}"
+                                        Command="{Binding SetRightColumnTabCommand}" CommandParameter="Queue">
                                     <Panel>
                                         <TextBlock Text="UP NEXT" FontSize="12" FontWeight="Bold" LetterSpacing="2"
+                                                   VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab" Classes.active="{Binding IsPreCueTab}"
+                                        IsVisible="{Binding ShowExperimentalUi}"
+                                        Command="{Binding SetRightColumnTabCommand}" CommandParameter="PreCue">
+                                    <Panel>
+                                        <TextBlock Text="PRE-CUE" FontSize="12" FontWeight="Bold" LetterSpacing="2"
                                                    VerticalAlignment="Top"/>
                                         <Border Classes="tabline"/>
                                     </Panel>
@@ -730,11 +746,12 @@
                     </Border>
 
                     <!-- Queue header row + hairline divider. No bottom margin so the list sits
-                         flush under the header (content scrolls right up to the hairline). -->
+                         flush under the header (content scrolls right up to the hairline).
+                         Hidden when the PRE-CUE tab is active (ShowQueueHeader = HasTracks AND IsQueueTab). -->
                     <Border DockPanel.Dock="Top"
                             BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1"
                             Padding="0,0,0,6" Margin="0,2,0,0"
-                            IsVisible="{Binding HasTracks}">
+                            IsVisible="{Binding ShowQueueHeader}">
                         <!--
                           DockPanel layout (NOT a Grid/SharedSizeGroup — that reserved width for
                           hidden columns and broke the * title). # docks left (28), the toggleable
@@ -803,6 +820,13 @@
                                         <TextBlock Classes="colhead sortarrow" Text="{Binding DurationSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
+                                <Border Width="34" Background="Transparent" Tag="Like" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowLike}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="♥"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding LikeSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
 
                             <!-- UP NEXT / loaded-playlist name — fills the remaining middle (last child). -->
@@ -829,9 +853,9 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Queue list. -->
+                    <!-- Queue list / PRE-CUE panel — the two tabs share this host. -->
                     <Panel Name="RightPanelHost">
-                        <Panel Name="QueuePanel">
+                        <Panel Name="QueuePanel" IsVisible="{Binding IsQueueTab}">
                             <!--
                               Soft edge fade: the list content fades to transparent over a few px at
                               the TOP and BOTTOM (revealing the Aurora background) instead of a hard
@@ -1001,6 +1025,11 @@
                                                                FontSize="12" Foreground="#B3FFFFFF"
                                                                TextAlignment="Right" VerticalAlignment="Center"
                                                                IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowDuration}"/>
+                                                    <!-- LIKE — heart: accent when favorited, dim otherwise (via likecell.active) -->
+                                                    <TextBlock Width="34" Tag="Like" Text="♥" Classes="likecell"
+                                                               Classes.active="{Binding IsFavorite}"
+                                                               FontSize="13" TextAlignment="Center" VerticalAlignment="Center"
+                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowLike}"/>
                                                 </StackPanel>
 
                                                 <!-- Title + artist — fills the remaining middle (last child). -->
@@ -1027,6 +1056,169 @@
                                            HorizontalAlignment="Center" Foreground="#59FFFFFF" LetterSpacing="1"/>
                             </StackPanel>
                         </Panel>
+
+                        <!-- ═══════════════════════════════════════════════════════════════════
+                             PRE-CUE PANEL — the audition list + compact cue transport.
+                             Visible only when IsPreCueTab. Shares the right-column panel host
+                             with the queue list. Theming: DynamicResource accent brushes.
+
+                             STRUCTURAL ISOLATION: cue audio routes through IPreListenEngine
+                             (BassPreListenEngine) on a separate BASS device. There is NO
+                             connection from this engine to the main engine or the Icecast
+                             encoder. The panel merely provides UI; the isolation is
+                             in the architecture (see BassPreListenEngine.cs).
+                             ═══════════════════════════════════════════════════════════════════ -->
+                        <DockPanel Name="PreCuePanel" IsVisible="{Binding IsPreCueTab}" LastChildFill="True">
+
+                            <!-- Bottom control strip: transport + volume + device + add-files -->
+                            <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
+
+                                <!-- Compact cue transport: position slider + time labels -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                    <TextBlock Grid.Column="0" Text="{Binding PreCuePositionText}"
+                                               FontSize="11" Foreground="#73FFFFFF" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="{Binding PreCueDurationSeconds}"
+                                            Value="{Binding PreCuePositionSeconds}"
+                                            behaviors:SliderWheel.Enabled="True"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding PreCueDurationText}"
+                                               FontSize="11" Foreground="#73FFFFFF" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                </Grid>
+
+                                <!-- Play/pause + stop buttons (two buttons, IsVisible-toggled — no converter needed) -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                    <!-- "Play" shown when NOT playing -->
+                                    <Button Classes="iconbtn" Command="{Binding TogglePreCuePauseCommand}"
+                                            IsVisible="{Binding !PreCueIsPlaying}"
+                                            ToolTip.Tip="Play cue">
+                                        <TextBlock Text="▶" FontSize="15"/>
+                                    </Button>
+                                    <!-- "Pause" shown while playing -->
+                                    <Button Classes="iconbtn" Command="{Binding TogglePreCuePauseCommand}"
+                                            IsVisible="{Binding PreCueIsPlaying}"
+                                            ToolTip.Tip="Pause cue">
+                                        <TextBlock Text="⏸" FontSize="15"/>
+                                    </Button>
+                                    <Button Classes="iconbtn" Command="{Binding StopPreCueCommand}"
+                                            ToolTip.Tip="Stop cue and rewind">
+                                        <TextBlock Text="■" FontSize="13"/>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Cue volume slider -->
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="CUE" FontSize="10" FontWeight="Bold"
+                                               LetterSpacing="1" Foreground="#73FFFFFF"
+                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                                            Value="{Binding PreCueVolume}"
+                                            behaviors:SliderWheel.Enabled="True"/>
+                                </Grid>
+
+                                <!-- "Add files…" button + headphone device ComboBox -->
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <Button Grid.Column="0" Classes="cap" Click="OnAddPreCueFilesClicked"
+                                            Margin="0,0,8,0" ToolTip.Tip="Add audio files to the audition list"
+                                            Padding="10,4" Height="26">
+                                        <TextBlock Text="Add files…" FontSize="11"/>
+                                    </Button>
+                                    <!-- Dark-frosted headphone device ComboBox (styles defined in MaxView's local styles). -->
+                                    <ComboBox Grid.Column="1" Classes="precue-device-picker"
+                                              ItemsSource="{Binding HeadphoneDevices}"
+                                              SelectedItem="{Binding SelectedHeadphoneDevice}"
+                                              PlaceholderText="Headphone output…">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="models:AudioOutputDevice">
+                                                <TextBlock Text="{Binding Name}" FontSize="11"
+                                                           Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </Grid>
+
+                                <!-- "Choose a headphone device" hint — shown when no device is selected. -->
+                                <TextBlock IsVisible="{Binding HeadphoneDeviceNotSelected}"
+                                           Text="Choose a headphone output above to enable monitoring."
+                                           FontSize="10" Foreground="#59FFFFFF" TextWrapping="Wrap"
+                                           HorizontalAlignment="Center" TextAlignment="Center"/>
+
+                            </StackPanel>
+                            <!-- /bottom strip -->
+
+                            <!-- Pre-cue audition list (fills remaining space) -->
+                            <Border>
+                                <Border.OpacityMask>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Offset="0.0"   Color="Transparent"/>
+                                        <GradientStop Offset="0.018" Color="White"/>
+                                        <GradientStop Offset="0.982" Color="White"/>
+                                        <GradientStop Offset="1.0"   Color="Transparent"/>
+                                    </LinearGradientBrush>
+                                </Border.OpacityMask>
+                                <Panel>
+                                    <ListBox Name="PreCueList" ItemsSource="{Binding PreCueTracks}"
+                                             SelectionMode="Single" Background="Transparent"
+                                             BorderThickness="0" Padding="0"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:TrackViewModel">
+                                                <!-- Pre-cue row: track info + play / add-to-queue / discard -->
+                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+                                                      Margin="4,0,8,0" MinHeight="40">
+                                                    <!-- Play in cue engine -->
+                                                    <Button Grid.Column="0" Classes="iconbtn"
+                                                            Command="{Binding PlayInPreCueCommand}"
+                                                            ToolTip.Tip="Audition on headphones"
+                                                            Margin="0,0,4,0">
+                                                        <TextBlock Text="▶" FontSize="11"
+                                                                   Foreground="{DynamicResource AccentABrush}"/>
+                                                    </Button>
+                                                    <!-- Title + Artist -->
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
+                                                                   Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding Artist}" FontSize="10"
+                                                                   Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    <!-- Duration -->
+                                                    <TextBlock Grid.Column="2" Text="{Binding DurationText}"
+                                                               FontSize="10" Foreground="#59FFFFFF"
+                                                               VerticalAlignment="Center" Margin="4,0"/>
+                                                    <!-- Add to main queue -->
+                                                    <Button Grid.Column="3" Classes="iconbtn"
+                                                            Command="{Binding AddPreCueToMainQueueCommand}"
+                                                            ToolTip.Tip="Add to main queue"
+                                                            Margin="0,0,2,0">
+                                                        <TextBlock Text="+" FontSize="15" FontWeight="Bold"
+                                                                   Foreground="{DynamicResource AccentBBrush}"/>
+                                                    </Button>
+                                                    <!-- Discard from audition list -->
+                                                    <Button Grid.Column="4" Classes="iconbtn"
+                                                            Command="{Binding DiscardFromPreCueCommand}"
+                                                            ToolTip.Tip="Remove from audition list">
+                                                        <TextBlock Text="x" FontSize="11" Foreground="#73FFFFFF"/>
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+
+                                    <!-- Empty audition-list hint (shown when PreCueTracks is empty) -->
+                                    <StackPanel IsVisible="{Binding HasNoPreCueTracks}"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                        <TextBlock Text="(  )" FontSize="32" HorizontalAlignment="Center"
+                                                   Foreground="#33FFFFFF" FontWeight="Light"/>
+                                        <TextBlock Text="No tracks to audition" FontSize="14" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" Foreground="#A6FFFFFF"/>
+                                        <TextBlock Text="Use &quot;Add files…&quot; to load tracks for headphone preview"
+                                                   FontSize="11" HorizontalAlignment="Center"
+                                                   Foreground="#59FFFFFF" TextWrapping="Wrap" TextAlignment="Center"/>
+                                    </StackPanel>
+                                </Panel>
+                            </Border>
+
+                        </DockPanel>
+                        <!-- /PreCuePanel -->
+
                     </Panel>
                 </DockPanel>
             </Grid>

@@ -3,351 +3,929 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JustPlay — the music player for DJs and music lovers</title>
+<meta name="description" content="Drop tracks in, double-click to play. Automatic Camelot key, BPM &amp; energy detection, harmonic sort, live DSP rack, tag writing and Icecast streaming — free, no library, no nag. v0.3.0.">
+<meta name="theme-color" content="#060310">
 
-<title>JustPlay — DJ music player with automatic key, BPM &amp; energy detection</title>
-<meta name="description" content="JustPlay is a free, stateless DJ music player for Windows. Drop tracks in and it detects Camelot key, BPM and energy, sorts your set harmonically, writes the analysis into your tags, and streams live to Icecast — the analysis a DJ needs, built right into the player.">
-<meta name="theme-color" content="#120a26">
-
-<!-- Open Graph / social -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="JustPlay — the music player for DJs and music lovers">
-<meta property="og:description" content="Drop tracks in, double-click to play. Automatic Camelot key, BPM &amp; energy detection, harmonic sort, tag writing and live streaming — free, no library, no nag.">
+<meta property="og:description" content="Drop tracks in, double-click to play. Camelot key, BPM, energy, harmonic sort, DSP rack — the analysis DJs need, built right into the player.">
 <meta property="og:url" content="https://chloe-dream.github.io/just-play/">
 <meta name="twitter:card" content="summary_large_image">
 
-<!-- Brand-mark favicon (the Aurora play chip), inline so there's no extra request. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236ce0ff'/%3E%3Cstop offset='1' stop-color='%23ff5fae'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cpath d='M40 32 L40 68 L70 50 Z' fill='white'/%3E%3C/svg%3E">
+<!-- Inline SVG favicon — cyan↔pink Aurora play chip -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e8ff'/%3E%3Cstop offset='1' stop-color='%23ff2ab8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cpath d='M36 28 L36 72 L76 50 Z' fill='white'/%3E%3C/svg%3E">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 
 <style>
-  :root{
-    --bg-from:#3a1d6b; --bg-via:#251347; --bg-to:#120a26;
-    --cyan:#6ce0ff; --pink:#ff5fae; --purple:#8a5fff;
-    --text:#ffffff; --muted:rgba(255,255,255,.66); --dim:rgba(255,255,255,.45);
-    --hair:rgba(255,255,255,.10); --card:rgba(255,255,255,.045);
-    --maxw:1080px;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{
-    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    color:var(--text); line-height:1.6;
-    background:var(--bg-to);
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
-  }
-  /* Aurora background: deep diagonal base + cyan/pink/purple blooms, fixed. */
-  .aurora{
-    position:fixed; inset:0; z-index:-1;
-    background:
-      radial-gradient(60% 55% at 72% 18%, rgba(140,105,255,.42), transparent 70%),
-      radial-gradient(55% 50% at 12% 82%, rgba(138,95,255,.40), transparent 70%),
-      radial-gradient(45% 45% at 88% 88%, rgba(255,95,174,.20), transparent 70%),
-      linear-gradient(135deg, var(--bg-from) 0%, var(--bg-via) 50%, var(--bg-to) 100%);
-  }
-  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+/* ── Design tokens ─────────────────────────────────────── */
+:root {
+  --void:       #060310;
+  --deep:       #0c0620;
+  --surface:    #130a2a;
+  --cyan:       #00e8ff;
+  --cyan-dim:   #6ce0ff;
+  --cyan-glow:  rgba(0,232,255,.32);
+  --pink:       #ff2ab8;
+  --pink-glow:  rgba(255,42,184,.32);
+  --red:        #ff2244;
+  --red-glow:   rgba(255,34,68,.38);
+  --purple:     #7040ff;
+  --white:      #f0eaff;
+  --muted:      rgba(240,234,255,.62);
+  --dim:        rgba(240,234,255,.38);
+  --glass:      rgba(255,255,255,.04);
+  --glass-hi:   rgba(255,255,255,.07);
+  --border:     rgba(255,255,255,.08);
+  --border-hi:  rgba(255,255,255,.16);
+  --maxw:       1080px;
+  --font-d:     'Syne', system-ui, sans-serif;
+  --font-m:     'DM Mono', 'Fira Code', 'Consolas', monospace;
+}
 
-  /* ── Hero ── */
-  header{padding:88px 0 64px; text-align:center}
-  .chip{
-    width:104px;height:104px;border-radius:26px;margin:0 auto 28px;
-    display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--cyan),var(--pink));
-    box-shadow:0 18px 50px rgba(255,95,174,.45), 0 0 0 1px rgba(255,255,255,.12) inset;
-  }
-  .chip svg{width:54%;height:54%;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
-  h1{
-    font-size:clamp(48px,9vw,86px); font-weight:800; letter-spacing:-.03em; line-height:1.14;
-    background:linear-gradient(100deg,var(--cyan) 0%,#fff 50%,var(--pink) 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    padding-bottom:.06em; margin-bottom:12px;
-  }
-  .tagline{font-size:clamp(22px,3vw,30px); color:#fff; font-weight:700; max-width:640px; margin:0 auto 12px; letter-spacing:-.015em}
-  .tagline .hl-c{color:var(--cyan)}
-  .tagline .hl-p{color:var(--pink)}
-  .lead{font-size:16.5px; color:var(--muted); max-width:560px; margin:0 auto 22px}
-  .sub{color:var(--dim); font-size:14px; letter-spacing:.04em; margin-bottom:36px}
-  .sub b{color:var(--muted);font-weight:600}
+/* ── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-d);
+  background: var(--void);
+  color: var(--white);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+img { display: block; width: 100%; height: auto; }
+a { color: inherit; text-decoration: none; }
 
-  .btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-  .btn{
-    display:inline-flex;align-items:center;gap:9px;
-    padding:14px 26px;border-radius:12px;font-weight:600;font-size:15px;
-    text-decoration:none;transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
-  }
-  .btn svg{width:18px;height:18px}
-  .btn-primary{
-    color:#1a0f2e;background:linear-gradient(135deg,var(--cyan),var(--pink));
-    box-shadow:0 0 34px rgba(255,95,174,.45), 0 4px 14px rgba(255,95,174,.28);
-  }
-  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 48px rgba(255,95,174,.62), 0 6px 18px rgba(255,95,174,.38)}
-  .btn-ghost{
-    color:var(--text);background:rgba(255,255,255,.06);border:1px solid var(--hair);
-    backdrop-filter:blur(8px);
-  }
-  .btn-ghost:hover{background:rgba(255,255,255,.11);transform:translateY(-2px)}
+/* ── Aurora background — animated plasma blobs ─────────── */
+.aurora-bg {
+  position: fixed; inset: 0; z-index: -1; overflow: hidden;
+  background: radial-gradient(ellipse 80% 60% at 50% 50%, #0f0528 0%, var(--void) 100%);
+}
+.aurora-blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(90px); pointer-events: none;
+}
+.aurora-blob.b1 {
+  width: 75vw; height: 65vh; top: -25%; left: 38%;
+  background: rgba(0,232,255,.17);
+  animation: blob1 85s ease-in-out infinite alternate;
+}
+.aurora-blob.b2 {
+  width: 65vw; height: 60vh; bottom: -15%; left: -20%;
+  background: rgba(112,64,255,.28);
+  animation: blob2 105s ease-in-out infinite alternate;
+}
+.aurora-blob.b3 {
+  width: 50vw; height: 50vh; bottom: -10%; right: -15%;
+  background: rgba(255,42,184,.16);
+  animation: blob3 72s ease-in-out infinite alternate;
+}
+@keyframes blob1 {
+  0%   { transform: translate(0,0) scale(1); }
+  33%  { transform: translate(-12%,8%) scale(1.12); }
+  66%  { transform: translate(8%,-6%) scale(.92); }
+  100% { transform: translate(-6%,14%) scale(1.06); }
+}
+@keyframes blob2 {
+  0%   { transform: translate(0,0) scale(1); }
+  33%  { transform: translate(10%,-7%) scale(1.18); }
+  66%  { transform: translate(-4%,6%) scale(.94); }
+  100% { transform: translate(14%,-9%) scale(1.1); }
+}
+@keyframes blob3 {
+  0%   { transform: translate(0,0) scale(1); }
+  50%  { transform: translate(-9%,-7%) scale(1.22); }
+  100% { transform: translate(6%,6%) scale(.88); }
+}
 
-  /* ── Screenshot gallery ── */
-  .shots{max-width:980px;margin:0 auto}
-  .shot{margin:0;border-radius:16px;overflow:hidden;border:1px solid var(--hair);background:var(--card);
-    box-shadow:0 26px 70px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04) inset;transition:transform .2s ease}
-  .shot:hover{transform:translateY(-3px)}
-  .shot img{display:block;width:100%;height:auto;cursor:zoom-in}
-  .shot figcaption{padding:11px 16px;font-size:12.5px;color:var(--muted);
-    background:rgba(255,255,255,.025);border-top:1px solid var(--hair)}
-  .shot.feature{margin-bottom:18px}
+/* ── Layout ────────────────────────────────────────────── */
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+.section { padding: 80px 0; }
 
-  /* Lightbox — click a shot to zoom in */
-  .lightbox{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:30px;cursor:zoom-out;
-    background:rgba(6,3,14,.9);backdrop-filter:blur(10px)}
-  .lightbox.open{display:grid}
-  .lightbox img{max-width:min(1240px,95vw);max-height:82vh;width:auto;height:auto;border-radius:12px;
-    border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 90px rgba(0,0,0,.65)}
-  .lightbox p{position:absolute;bottom:20px;left:0;right:0;text-align:center;color:var(--muted);font-size:14px;padding:0 24px}
-  /* Portrait mini-player on the left, the two landscape panels stacked on the right —
-     the tall shot's height roughly matches the two stacked, so the row stays balanced. */
-  .shot-split{display:grid;grid-template-columns:0.82fr 1.18fr;gap:18px;align-items:start}
-  .shot-stack{display:grid;gap:18px}
-  @media (max-width:680px){ .shot-split{grid-template-columns:1fr} }
+/* ── Typography helpers ────────────────────────────────── */
+.eyebrow {
+  font-family: var(--font-m);
+  font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--cyan); margin-bottom: 12px;
+}
+.section-title {
+  font-size: clamp(28px, 4.2vw, 44px);
+  font-weight: 800; letter-spacing: -.035em; line-height: 1.08;
+  margin-bottom: 48px;
+}
+.grad {
+  background: linear-gradient(100deg, var(--cyan) 0%, #fff 55%, var(--pink) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
 
-  /* ── Features ── */
-  section{padding:42px 0}
-  .eyebrow{text-align:center;color:#b9a5ff;font-weight:700;letter-spacing:.16em;font-size:18px;text-transform:uppercase;margin-bottom:14px}
-  h2{text-align:center;font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.02em;margin-bottom:46px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:18px}
-  .card{
-    background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:24px;
-    backdrop-filter:blur(10px);transition:transform .18s ease,border-color .18s ease,background .18s ease;
-  }
-  .card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.2);background:rgba(255,255,255,.07)}
-  .ico{
-    width:42px;height:42px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;
-    background:linear-gradient(135deg,rgba(108,224,255,.18),rgba(255,95,174,.18));
-    border:1px solid var(--hair);
-  }
-  .ico svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .card h3{font-size:17px;font-weight:650;margin-bottom:7px}
-  .card p{color:var(--muted);font-size:14.5px}
+/* ── Nav ───────────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,3,16,.75);
+}
+.nav-inner {
+  max-width: var(--maxw); margin: 0 auto; padding: 0 24px;
+  height: 60px; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand {
+  font-size: 20px; font-weight: 800; letter-spacing: -.04em;
+  background: linear-gradient(90deg, var(--cyan), #e0d8ff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.nav-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px;
+  font-family: var(--font-d); font-size: 13px; font-weight: 700;
+  background: linear-gradient(135deg, var(--cyan), #40c8ff);
+  color: var(--void);
+  transition: opacity .15s, transform .15s;
+}
+.nav-cta:hover { opacity: .88; transform: translateY(-1px); }
+.nav-cta svg { width: 14px; height: 14px; }
 
-  /* ── Checklist: what it does / what it deliberately doesn't ── */
-  .checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px;max-width:900px;margin:0 auto}
-  .checks .col{background:var(--card);border:1px solid var(--hair);border-radius:16px;padding:22px 26px 26px;backdrop-filter:blur(10px)}
-  .checks .col-head{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
-  .checks .do-head{color:var(--cyan)}
-  .checks .dont-head{color:var(--pink)}
-  .checks ul{list-style:none}
-  .checks li{position:relative;padding:9px 0 9px 30px;color:var(--muted);font-size:15.5px;border-top:1px solid rgba(255,255,255,.05)}
-  .checks li:first-child{border-top:none}
-  .checks li::before{position:absolute;left:0;top:9px;font-weight:800;font-size:14px}
-  .checks .do li::before{content:"✓";color:var(--cyan)}
-  .checks .dont li::before{content:"✕";color:var(--pink)}
+/* ── Hero ──────────────────────────────────────────────── */
+.hero {
+  min-height: 92vh;
+  display: flex; flex-direction: column; justify-content: center;
+  text-align: center; padding: 100px 0 0;
+  position: relative; overflow: hidden;
+}
 
-  /* ── Manifesto ── */
-  .manifesto{max-width:760px;margin:0 auto;text-align:center}
-  .manifesto p:not(.eyebrow){color:var(--muted);font-size:18px;margin-bottom:20px}
-  .manifesto .hl{color:#fff;font-weight:600}
-  .manifesto .big{font-size:clamp(20px,2.6vw,26px);color:#fff;font-weight:600;line-height:1.45;margin-top:34px;letter-spacing:-.01em}
-  /* ── Creed: the philosophy punchline, set apart as a statement ── */
-  .creed{text-align:center;margin:52px auto 8px;max-width:860px}
-  .creed-rule{display:block;width:56px;height:3px;margin:0 auto 28px;border-radius:3px;
-    background:linear-gradient(90deg,var(--cyan),var(--pink));box-shadow:0 0 18px rgba(255,95,174,.5)}
-  .creed p{
-    font-size:clamp(30px,5.2vw,54px);font-weight:800;font-style:italic;letter-spacing:-.02em;line-height:1.2;
-    background:linear-gradient(100deg,var(--cyan),#fff,var(--pink));
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    padding-bottom:.08em;
-  }
+.hero-chip {
+  width: 80px; height: 80px; border-radius: 22px;
+  margin: 0 auto 30px;
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--pink) 100%);
+  display: grid; place-items: center;
+  box-shadow: 0 0 48px var(--cyan-glow), 0 20px 40px rgba(0,0,0,.5),
+              inset 0 0 0 1px rgba(255,255,255,.18);
+  animation: chip-pulse 4s ease-in-out infinite;
+}
+@keyframes chip-pulse {
+  0%,100% { box-shadow: 0 0 48px var(--cyan-glow), 0 20px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.18); }
+  50%      { box-shadow: 0 0 80px rgba(0,232,255,.48), 0 0 140px rgba(0,232,255,.18), 0 20px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+}
+.hero-chip svg { width: 44%; height: 44%; }
 
-  /* ── Footer ── */
-  footer{border-top:1px solid var(--hair);margin-top:48px;padding:40px 0 56px;text-align:center;color:var(--dim);font-size:13px}
-  footer .sign{
-    font-size:clamp(19px,2.5vw,26px);font-weight:800;font-style:italic;letter-spacing:-.015em;margin-bottom:24px;
-    background:linear-gradient(100deg,var(--cyan),#fff,var(--pink));
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-  }
-  footer a{color:var(--muted);text-decoration:none;border-bottom:1px solid transparent}
-  footer a:hover{border-bottom-color:var(--muted)}
-  .note{max-width:680px;margin:16px auto 0;font-size:12px;color:var(--dim);line-height:1.5}
+/* Version badge row */
+.hero-badges {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-bottom: 18px;
+  font-family: var(--font-m); font-size: 11px;
+  color: var(--muted); letter-spacing: .08em;
+  flex-wrap: wrap; justify-content: center;
+}
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+  font-family: var(--font-m);
+}
+.badge-v   { background: rgba(0,232,255,.14); color: var(--cyan);  border: 1px solid rgba(0,232,255,.28); }
+.badge-hc  { background: rgba(255,34,68,.14);  color: var(--red);   border: 1px solid rgba(255,34,68,.3); }
+
+/* Wordmark */
+.hero-wordmark {
+  font-size: clamp(68px, 15vw, 138px);
+  font-weight: 800; letter-spacing: -.055em; line-height: .92;
+  background: linear-gradient(110deg, var(--cyan) 0%, #ffffff 42%, var(--pink) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  padding-bottom: .07em; margin-bottom: 22px;
+}
+
+.hero-tagline {
+  font-size: clamp(18px, 2.8vw, 26px); font-weight: 600;
+  color: var(--white); letter-spacing: -.02em; margin-bottom: 10px; opacity: .92;
+}
+.hero-lead {
+  font-size: 15.5px; color: var(--muted); max-width: 500px;
+  margin: 0 auto 10px; font-weight: 400;
+}
+.hero-meta {
+  font-family: var(--font-m); font-size: 11.5px;
+  color: var(--dim); letter-spacing: .06em; margin-bottom: 38px;
+}
+.hero-meta b { color: var(--muted); font-weight: 500; }
+
+/* CTAs */
+.hero-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 14px 28px; border-radius: 12px;
+  font-family: var(--font-d); font-weight: 700; font-size: 15px; letter-spacing: -.01em;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.btn-download {
+  background: linear-gradient(135deg, var(--cyan) 0%, #48ccff 55%, #9060ff 100%);
+  color: var(--void);
+  box-shadow: 0 0 38px var(--cyan-glow), 0 6px 20px rgba(0,0,0,.4);
+  animation: dl-pulse 3.2s ease-in-out infinite;
+}
+@keyframes dl-pulse {
+  0%,100% { box-shadow: 0 0 38px var(--cyan-glow), 0 6px 20px rgba(0,0,0,.4); }
+  50%      { box-shadow: 0 0 70px rgba(0,232,255,.52), 0 0 120px rgba(0,232,255,.2), 0 6px 20px rgba(0,0,0,.4); }
+}
+.btn-download:hover { transform: translateY(-3px); filter: brightness(1.1); }
+
+.btn-ghost {
+  background: var(--glass-hi); border: 1px solid var(--border);
+  color: var(--white); backdrop-filter: blur(8px);
+}
+.btn-ghost:hover { transform: translateY(-2px); background: rgba(255,255,255,.1); border-color: var(--border-hi); }
+
+/* ── Spectrum SVG ──────────────────────────────────────── */
+.hero-spectrum {
+  display: block; margin: 52px auto 0;
+  max-width: 840px; width: 100%;
+  opacity: .5;
+}
+.eq-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: eq-breathe 3s ease-in-out infinite alternate;
+}
+@keyframes eq-breathe {
+  0%   { transform: scaleY(1);   opacity: .85; }
+  100% { transform: scaleY(.5);  opacity: .45; }
+}
+/* stagger per 4-group */
+.eq-bar:nth-child(4n+1) { animation-duration: 2.2s; animation-delay:  0.0s; }
+.eq-bar:nth-child(4n+2) { animation-duration: 3.5s; animation-delay: -0.9s; }
+.eq-bar:nth-child(4n+3) { animation-duration: 2.8s; animation-delay: -1.7s; }
+.eq-bar:nth-child(4n)   { animation-duration: 4.0s; animation-delay: -2.5s; }
+
+/* ── Screenshots ───────────────────────────────────────── */
+.shot-featured { margin-bottom: 16px; }
+.shots-row {
+  display: grid; grid-template-columns: 0.82fr 1.18fr;
+  gap: 16px; align-items: start;
+}
+.shots-stack { display: grid; gap: 16px; }
+.shot-frame {
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--border); background: var(--glass);
+  box-shadow: 0 24px 64px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.04);
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+.shot-frame:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 32px 80px rgba(0,0,0,.65), 0 0 40px rgba(0,232,255,.07),
+              inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.shot-frame img { cursor: zoom-in; }
+.shot-cap {
+  padding: 10px 14px; font-size: 11.5px; color: var(--muted);
+  font-family: var(--font-m);
+  background: rgba(0,0,0,.25); border-top: 1px solid var(--border);
+}
+@media (max-width: 680px) { .shots-row { grid-template-columns: 1fr; } }
+
+/* ── Feature cards ─────────────────────────────────────── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+  gap: 14px;
+}
+.feat-card {
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 16px; padding: 22px 20px 22px 22px;
+  backdrop-filter: blur(12px);
+  position: relative; overflow: hidden;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+/* top glint */
+.feat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 10%, rgba(255,255,255,.13) 50%, transparent 90%);
+}
+.feat-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-hi); background: var(--glass-hi);
+}
+
+/* left accent bar */
+.ab {
+  position: absolute; top: 18px; left: 0;
+  width: 3px; height: 34px; border-radius: 0 2px 2px 0;
+}
+.ab-cyan   { background: var(--cyan);   box-shadow: 0 0 14px var(--cyan-glow); }
+.ab-purple { background: var(--purple); box-shadow: 0 0 14px rgba(112,64,255,.4); }
+.ab-pink   { background: var(--pink);   box-shadow: 0 0 14px var(--pink-glow); }
+.ab-red    { background: var(--red);    box-shadow: 0 0 14px var(--red-glow); }
+.ab-grad   {
+  background: linear-gradient(180deg, var(--cyan), var(--pink));
+  box-shadow: 0 0 14px var(--cyan-glow);
+}
+
+.feat-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center;
+  margin: 0 0 14px 8px;
+  background: rgba(255,255,255,.06); border: 1px solid var(--border);
+}
+.feat-icon svg {
+  width: 20px; height: 20px;
+  stroke: var(--white); fill: none;
+  stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.feat-card h3 {
+  font-size: 15.5px; font-weight: 700; letter-spacing: -.02em;
+  margin: 0 0 6px 8px;
+}
+.feat-card p {
+  font-size: 13.5px; color: var(--muted); line-height: 1.56; margin-left: 8px;
+}
+.feat-new {
+  position: absolute; top: 14px; right: 14px;
+  font-family: var(--font-m); font-size: 9px; font-weight: 500;
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px;
+  background: rgba(255,34,68,.16); color: var(--red); border: 1px solid rgba(255,34,68,.28);
+}
+
+/* ── DSP Rack ──────────────────────────────────────────── */
+.rack-shell {
+  background: rgba(6,3,16,.65); border: 1px solid var(--border);
+  border-radius: 20px; padding: 32px 28px;
+  backdrop-filter: blur(18px); position: relative; overflow: hidden;
+}
+.rack-shell::before {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(135deg, rgba(0,232,255,.04) 0%, transparent 50%, rgba(255,34,68,.04) 100%);
+}
+.rack-chain {
+  display: flex; align-items: center;
+  overflow-x: auto; padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.rack-chain::-webkit-scrollbar { height: 4px; }
+.rack-chain::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.rack-unit {
+  flex: 0 0 auto; width: 136px;
+  background: var(--glass-hi); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 12px;
+  text-align: center;
+  transition: border-color .2s, background .2s;
+}
+.rack-unit:hover { border-color: var(--border-hi); background: rgba(255,255,255,.09); }
+.rack-unit.u-cyan   { border-top: 2px solid var(--cyan); }
+.rack-unit.u-purple { border-top: 2px solid var(--purple); }
+.rack-unit.u-pink   { border-top: 2px solid var(--pink); }
+.rack-unit.u-red    { border-top: 2px solid var(--red); }
+.ru-label {
+  font-family: var(--font-m); font-size: 9px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 7px;
+}
+.ru-name {
+  font-size: 14px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 4px;
+}
+.rack-unit.u-cyan   .ru-name { color: var(--cyan); }
+.rack-unit.u-purple .ru-name { color: #a080ff; }
+.rack-unit.u-pink   .ru-name { color: var(--pink); }
+.rack-unit.u-red    .ru-name { color: var(--red); }
+.ru-desc {
+  font-family: var(--font-m); font-size: 10px; color: var(--dim); line-height: 1.4;
+}
+.rack-arrow {
+  flex: 0 0 auto; width: 36px;
+  display: flex; align-items: center; justify-content: center; color: var(--dim);
+}
+.rack-arrow svg { width: 18px; height: 18px; }
+.rack-out {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 12px;
+}
+.rack-out-icon {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan), var(--pink));
+  display: grid; place-items: center;
+  box-shadow: 0 0 22px var(--cyan-glow);
+}
+.rack-out-icon svg {
+  width: 18px; height: 18px;
+  stroke: var(--void); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+}
+.rack-out-label {
+  font-family: var(--font-m); font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dim); text-align: center;
+}
+.rack-note {
+  margin-top: 22px; font-size: 13.5px; color: var(--muted); line-height: 1.65;
+}
+.rack-note b { color: var(--white); font-weight: 600; }
+
+/* ── Philosophy checklist ──────────────────────────────── */
+.phil-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+@media (max-width: 640px) { .phil-grid { grid-template-columns: 1fr; } }
+.check-col {
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 16px; padding: 22px 24px 26px; backdrop-filter: blur(10px);
+}
+.check-col-head {
+  font-family: var(--font-m); font-size: 10px; font-weight: 500;
+  letter-spacing: .18em; text-transform: uppercase; margin-bottom: 16px;
+}
+.check-col-head.c { color: var(--cyan); }
+.check-col-head.p { color: var(--pink); }
+.check-list { list-style: none; }
+.check-list li {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 0; color: var(--muted); font-size: 14px;
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+.check-list li:first-child { border-top: none; }
+.mark { flex-shrink: 0; font-family: var(--font-m); font-size: 13px; font-weight: 700; margin-top: 2px; }
+.check-list.do   .mark { color: var(--cyan); }
+.check-list.dont .mark { color: var(--pink); }
+
+/* ── Creed ─────────────────────────────────────────────── */
+.creed-section { text-align: center; padding: 80px 0 64px; }
+.creed-rule {
+  display: block; width: 48px; height: 2px;
+  margin: 0 auto 32px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--pink));
+  box-shadow: 0 0 18px var(--cyan-glow);
+}
+.creed-text {
+  font-size: clamp(32px, 6vw, 64px);
+  font-weight: 800; letter-spacing: -.04em; line-height: 1.08; font-style: italic;
+  background: linear-gradient(110deg, var(--cyan) 0%, #ffffff 50%, var(--pink) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  padding-bottom: .08em;
+}
+.creed-sub {
+  margin-top: 18px; font-size: 15px; color: var(--muted);
+  max-width: 480px; margin-left: auto; margin-right: auto; margin-top: 18px;
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 0 60px; text-align: center;
+}
+.footer-brand {
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 800; font-style: italic; letter-spacing: -.04em;
+  background: linear-gradient(110deg, var(--cyan), #fff, var(--pink));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  margin-bottom: 18px;
+}
+.footer-plats {
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 18px;
+}
+.plat {
+  font-family: var(--font-m); font-size: 11px;
+  padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim);
+}
+.plat.on { border-color: rgba(0,232,255,.3); color: var(--cyan-dim); }
+.footer-links {
+  display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+  font-size: 14px; color: var(--muted); margin-bottom: 20px;
+}
+.footer-links a { color: var(--muted); transition: color .15s; }
+.footer-links a:hover { color: var(--white); }
+.sep { color: var(--dim); }
+.footer-note {
+  max-width: 660px; margin: 0 auto;
+  font-family: var(--font-m); font-size: 11px; color: var(--dim); line-height: 1.65;
+}
+.footer-note a { color: var(--dim); border-bottom: 1px solid rgba(240,234,255,.14); }
+.footer-note a:hover { color: var(--muted); }
+
+/* ── Lightbox ──────────────────────────────────────────── */
+.lb {
+  position: fixed; inset: 0; z-index: 100;
+  display: none; place-items: center;
+  background: rgba(3,1,10,.93); backdrop-filter: blur(18px);
+  padding: 32px; cursor: zoom-out;
+}
+.lb.open { display: grid; }
+.lb img {
+  max-width: min(1280px, 94vw); max-height: 85vh;
+  width: auto; height: auto; border-radius: 10px;
+  border: 1px solid var(--border); box-shadow: 0 40px 100px rgba(0,0,0,.7);
+}
+.lb-cap {
+  position: absolute; bottom: 22px; left: 0; right: 0;
+  text-align: center; font-family: var(--font-m);
+  font-size: 12px; color: var(--muted); padding: 0 24px;
+}
+
+/* ── Responsive tweaks ─────────────────────────────────── */
+@media (max-width: 760px) {
+  .section { padding: 56px 0; }
+  .hero { min-height: 80vh; padding: 80px 0 0; }
+  .rack-chain { padding-bottom: 14px; }
+}
+@media (max-width: 480px) {
+  .btn { padding: 13px 20px; font-size: 14px; }
+}
+
+/* ── reduce-motion: kill animations ───────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob, .hero-chip, .btn-download, .eq-bar { animation: none; }
+}
 </style>
 </head>
 <body>
-<div class="aurora"></div>
+<div class="aurora-bg" aria-hidden="true">
+  <div class="aurora-blob b1"></div>
+  <div class="aurora-blob b2"></div>
+  <div class="aurora-blob b3"></div>
+</div>
 
-<div class="wrap">
+<!-- ── Sticky nav ──────────────────────────────────────── -->
+<nav class="nav" role="navigation" aria-label="Site navigation">
+  <div class="nav-inner">
+    <span class="nav-brand">JustPlay</span>
+    <a class="nav-cta" href="https://github.com/chloe-dream/just-play/releases/latest">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      Download v0.3.0
+    </a>
+  </div>
+</nav>
 
-  <header>
-    <div class="chip">
-      <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 20 L24 80 L82 50 Z" fill="#fff"/></svg>
+<!-- ── Hero ────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="wrap">
+
+    <div class="hero-chip" aria-hidden="true">
+      <svg viewBox="0 0 100 100" fill="white"><path d="M36 28 L36 72 L76 50 Z"/></svg>
     </div>
-    <h1>JustPlay</h1>
-    <p class="tagline">Press play <span class="hl-c">today</span>. Plan your set <span class="hl-p">tonight</span>.</p>
-    <p class="lead">Your everyday music player — and your first-choice tool to prepare your next DJ gig.</p>
-    <p class="sub"><b>Free</b> &nbsp;·&nbsp; Windows &nbsp;·&nbsp; no library, no sign-in, no nag</p>
-    <div class="btns">
-      <a class="btn btn-primary" href="https://github.com/chloe-dream/just-play/releases/latest">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-        Download for Windows
+
+    <div class="hero-badges">
+      <span class="badge badge-v">v0.3.0</span>
+      <span>die volle schönheit</span>
+      <span class="badge badge-hc">Hardcore</span>
+    </div>
+
+    <h1 class="hero-wordmark">JustPlay</h1>
+
+    <p class="hero-tagline">The music player for DJs and music lovers.</p>
+    <p class="hero-lead">Drop tracks in, double-click to play — no library, no sign-in, no nag. The analysis a DJ needs. The beauty everyone deserves.</p>
+    <p class="hero-meta"><b>Free</b> &nbsp;·&nbsp; Windows &nbsp;·&nbsp; MIT &nbsp;·&nbsp; no data leaves your machine</p>
+
+    <div class="hero-btns">
+      <a class="btn btn-download" href="https://github.com/chloe-dream/just-play/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Download for Windows · v0.3.0
       </a>
       <a class="btn btn-ghost" href="https://github.com/chloe-dream/just-play">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z"/></svg>
         View on GitHub
       </a>
     </div>
-  </header>
 
-  <section>
-    <p class="eyebrow">The look</p>
-    <h2>Built to be looked at</h2>
-    <div class="shots">
-      <figure class="shot feature">
-        <img src="assets/max-view.png" alt="JustPlay main view"
-             data-cap="Main view — the full queue with Camelot key, BPM, energy and cover art, plus the now-playing vinyl.">
-        <figcaption>Main view — your queue with Camelot key, BPM &amp; energy</figcaption>
+    <!-- Frozen spectrum — 24 bars, gradient left=red/pink → right=cyan/mint -->
+    <!-- x = 8 + N*35, width=14, viewBox 0 0 840 110, y = 110-height (bottom-aligned) -->
+    <svg class="hero-spectrum" viewBox="0 0 840 110" preserveAspectRatio="xMidYMax meet"
+         aria-hidden="true" role="presentation">
+      <defs>
+        <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#ff2244"/>
+          <stop offset="22%"  stop-color="#ff2ab8"/>
+          <stop offset="48%"  stop-color="#7040ff"/>
+          <stop offset="76%"  stop-color="#00e8ff"/>
+          <stop offset="100%" stop-color="#00ffcc"/>
+        </linearGradient>
+        <!-- fade bars toward bottom for depth -->
+        <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="white" stop-opacity="1"/>
+          <stop offset="100%" stop-color="white" stop-opacity="0.15"/>
+        </linearGradient>
+        <mask id="fm">
+          <rect x="0" y="0" width="840" height="110" fill="url(#fade)"/>
+        </mask>
+      </defs>
+      <g fill="url(#sg)" mask="url(#fm)">
+        <!-- heights: 62 75 86 94 88 70 55 42 50 58 44 34 30 36 44 52 65 74 68 78 70 58 46 35 -->
+        <rect class="eq-bar" x="8"   y="48" width="14" height="62" rx="3"/>
+        <rect class="eq-bar" x="43"  y="35" width="14" height="75" rx="3"/>
+        <rect class="eq-bar" x="78"  y="24" width="14" height="86" rx="3"/>
+        <rect class="eq-bar" x="113" y="16" width="14" height="94" rx="3"/>
+        <rect class="eq-bar" x="148" y="22" width="14" height="88" rx="3"/>
+        <rect class="eq-bar" x="183" y="40" width="14" height="70" rx="3"/>
+        <rect class="eq-bar" x="218" y="55" width="14" height="55" rx="3"/>
+        <rect class="eq-bar" x="253" y="68" width="14" height="42" rx="3"/>
+        <rect class="eq-bar" x="288" y="60" width="14" height="50" rx="3"/>
+        <rect class="eq-bar" x="323" y="52" width="14" height="58" rx="3"/>
+        <rect class="eq-bar" x="358" y="66" width="14" height="44" rx="3"/>
+        <rect class="eq-bar" x="393" y="76" width="14" height="34" rx="3"/>
+        <rect class="eq-bar" x="428" y="80" width="14" height="30" rx="3"/>
+        <rect class="eq-bar" x="463" y="74" width="14" height="36" rx="3"/>
+        <rect class="eq-bar" x="498" y="66" width="14" height="44" rx="3"/>
+        <rect class="eq-bar" x="533" y="58" width="14" height="52" rx="3"/>
+        <rect class="eq-bar" x="568" y="45" width="14" height="65" rx="3"/>
+        <rect class="eq-bar" x="603" y="36" width="14" height="74" rx="3"/>
+        <rect class="eq-bar" x="638" y="42" width="14" height="68" rx="3"/>
+        <rect class="eq-bar" x="673" y="32" width="14" height="78" rx="3"/>
+        <rect class="eq-bar" x="708" y="40" width="14" height="70" rx="3"/>
+        <rect class="eq-bar" x="743" y="52" width="14" height="58" rx="3"/>
+        <rect class="eq-bar" x="778" y="64" width="14" height="46" rx="3"/>
+        <rect class="eq-bar" x="813" y="75" width="14" height="35" rx="3"/>
+      </g>
+    </svg>
+
+  </div>
+</section>
+
+<!-- ── Screenshots ─────────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">The look</p>
+  <h2 class="section-title">Built to be <span class="grad">looked at</span></h2>
+
+  <!-- Featured: main view full width -->
+  <figure class="shot-frame shot-featured">
+    <img src="assets/max-view.png"
+         alt="JustPlay main view — queue with Camelot key, BPM, energy and cover art"
+         data-cap="Main view — your queue with Camelot key, BPM &amp; energy columns, cover art, and the now-playing vinyl.">
+    <p class="shot-cap">Main view — queue with Camelot key, BPM &amp; energy</p>
+  </figure>
+
+  <!-- Row: mini (portrait, tall) | streaming + tweaks (stacked) -->
+  <div class="shots-row">
+    <figure class="shot-frame">
+      <img src="assets/mini.png"
+           alt="JustPlay mini player — compact now-playing with vinyl and transport"
+           data-cap="Mini player — compact now-playing view with vinyl, cover art and transport controls.">
+      <p class="shot-cap">Mini player</p>
+    </figure>
+    <div class="shots-stack">
+      <figure class="shot-frame">
+        <img src="assets/streaming.png"
+             alt="JustPlay live streaming panel — Icecast broadcast"
+             data-cap="Live streaming — broadcast your set to an Icecast server, multiple profiles, MP3 or Opus.">
+        <p class="shot-cap">Live Icecast streaming</p>
       </figure>
-      <div class="shot-split">
-        <figure class="shot">
-          <img src="assets/mini.png" alt="JustPlay mini player"
-               data-cap="Mini player — the compact now-playing view, vinyl and transport in a small window.">
-          <figcaption>Mini player</figcaption>
-        </figure>
-        <div class="shot-stack">
-          <figure class="shot">
-            <img src="assets/streaming.png" alt="JustPlay streaming panel"
-                 data-cap="Live streaming — broadcast your set to an Icecast server, with multiple server profiles and MP3 / Opus.">
-            <figcaption>Live streaming to Icecast</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="assets/tweaks.png" alt="JustPlay tweaks and about"
-                 data-cap="Themes, tweaks &amp; about — four palettes, stage toggles, analysis options and the About panel.">
-            <figcaption>Themes, tweaks &amp; about</figcaption>
-          </figure>
+      <figure class="shot-frame">
+        <img src="assets/tweaks.png"
+             alt="JustPlay themes, tweaks and about — five palettes including Hardcore"
+             data-cap="Themes, tweaks &amp; about — five palettes including the new Hardcore theme, stage toggles and analysis settings.">
+        <p class="shot-cap">Themes &amp; tweaks · Hardcore included</p>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ────────────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">What it does</p>
+  <h2 class="section-title">The analysis <span class="grad">a DJ needs</span><br>baked right in</h2>
+
+  <div class="features-grid">
+
+    <div class="feat-card">
+      <div class="ab ab-cyan"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="3"/><path d="M10 17V5l10-2v12"/><circle cx="17" cy="15" r="3"/></svg>
+      </div>
+      <h3>Camelot Key Detection</h3>
+      <p>Musical key in Camelot notation — our own on-device chromagram engine, trained in-house. Runs fully offline, no cloud, no GPU. Mix in key, or let Harmonic Sort arrange it for you.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-purple"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 12h3l2-7 4 14 3-9 2 2h4"/></svg>
+      </div>
+      <h3>BPM &amp; Energy</h3>
+      <p>Tempo and a 1–10 energy score detected on add, so you can order your set by feel and intensity at a glance — for DJs planning a gig or music lovers curating a mood.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-grad"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/><path d="M3 8V3h5"/><path d="M21 16v5h-5"/></svg>
+      </div>
+      <h3>Harmonic Sort</h3>
+      <p>Drop your tracks in and JustPlay sequences them into a flowing set — key compatibility, BPM, energy and groove all considered. A head start on any DJ set, or a playlist that simply flows.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-cyan"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M20.6 8.6 12 17.2l-3.8-3.8"/><path d="M3 7l4-4 4 4"/><path d="M7 3v12"/></svg>
+      </div>
+      <h3>Tag Your Files</h3>
+      <p>Detected key, BPM and energy can be saved into each file's metadata — so the analysis travels with the track and every other app can read it. Only when you ask. Every change undoable.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-purple"></div>
+      <span class="feat-new">New · v0.3.0</span>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><polyline points="2,20 6,10 10,16 14,6 18,12 22,4"/></svg>
+      </div>
+      <h3>Spectral Diagram</h3>
+      <p>See your track's tonal balance against a reference curve — before and after the DSP rack. Hear the difference. Watch it move.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-pink"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+      </div>
+      <h3>Loudness Normalization</h3>
+      <p>ReplayGain / EBU R128 normalization keeps your queue consistent across tracks — clip-safe, non-destructive. Three modes: Quiet, Normal, Loud.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-cyan"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M5 16a7 7 0 0 1 0-8M19 8a7 7 0 0 1 0 8"/><path d="M2 19a11 11 0 0 1 0-14M22 5a11 11 0 0 1 0 14"/><circle cx="12" cy="12" r="2"/></svg>
+      </div>
+      <h3>Live Icecast Streaming</h3>
+      <p>Broadcast your set to an Icecast server with a one-glance on-air indicator. Multiple server profiles, MP3 or Opus, crossfade between tracks — share your sound.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-red"></div>
+      <span class="feat-new">New · v0.3.0</span>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+      </div>
+      <h3>Five Themes · Pre-Cue</h3>
+      <p>Aurora, Noir, Dusk, Sunrise — and the new Hardcore: all-black with red + cyan. Plus a headphone pre-cue window to audition your next track while the room keeps playing.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-grad"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+      </div>
+      <h3>Drop &amp; Play</h3>
+      <p>No library, no scan, no account. Drag files in, double-click, go. Close it and nothing is left behind — the file tags are the memory. That's the whole philosophy.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── DSP Rack ─────────────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">New in v0.3.0</p>
+  <h2 class="section-title">The <span class="grad">DSP rack</span><br>shapes your sound</h2>
+
+  <div class="rack-shell">
+    <div class="rack-chain">
+
+      <div class="rack-unit u-cyan">
+        <div class="ru-label">input</div>
+        <div class="ru-name">3-Band EQ</div>
+        <div class="ru-desc">Low / Mid / High<br>shelving filters</div>
+      </div>
+
+      <div class="rack-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </div>
+
+      <div class="rack-unit u-purple">
+        <div class="ru-label">revive</div>
+        <div class="ru-name">AutoTilt</div>
+        <div class="ru-desc">Adaptive tonal<br>balance correction</div>
+      </div>
+
+      <div class="rack-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </div>
+
+      <div class="rack-unit u-purple">
+        <div class="ru-label">revive</div>
+        <div class="ru-name">Punch</div>
+        <div class="ru-desc">Transient designer<br>for kick/snare punch</div>
+      </div>
+
+      <div class="rack-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </div>
+
+      <div class="rack-unit u-red">
+        <div class="ru-label">output</div>
+        <div class="ru-name">Limiter</div>
+        <div class="ru-desc">BS.1770 true-peak<br>clip-safe ceiling</div>
+      </div>
+
+      <div class="rack-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+      </div>
+
+      <div class="rack-out">
+        <div class="rack-out-icon">
+          <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" stroke="var(--void)" stroke-width="2" fill="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="var(--void)" stroke-width="2"/></svg>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <p class="eyebrow">What it does</p>
-    <h2>The analysis — not just for DJs — baked right in</h2>
-    <div class="grid">
-
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><circle cx="7" cy="17" r="3"/><path d="M10 17V5l10-2v12"/><circle cx="17" cy="15" r="3"/></svg></div>
-        <h3>Camelot key detection</h3>
-        <p>The musical key in Camelot notation — read by our own AI model, trained in-house and running fully offline on your machine. No cloud, no GPU. Mix in key, or let JustPlay arrange a smooth-flowing playlist for you.</p>
-      </div>
-
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h3l2-7 4 14 3-9 2 2h4"/></svg></div>
-        <h3>BPM &amp; energy</h3>
-        <p>Tempo and a 1–10 energy score detected on add, so you can order a set by feel and intensity at a glance.</p>
-      </div>
-
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/><path d="M3 8V3h5"/><path d="M21 16v5h-5"/></svg></div>
-        <h3>Harmonic Sort</h3>
-        <p>Drop your tracks in and JustPlay sorts them into a set that flows — key, tempo, energy and groove all lined up so each song melts into the next. Sorted to please your ear, or a head start on your next epic DJ set.</p>
-      </div>
-
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M20.6 8.6 12 17.2l-3.8-3.8"/><path d="M3 7l4-4 4 4"/><path d="M7 3v12"/></svg></div>
-        <h3>It tags your music for you</h3>
-        <p>The detected key, BPM and energy can be saved straight into each file — so the analysis travels with the track and any other app can read it. Only when you choose to, and every change is undoable.</p>
-      </div>
-
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M5 16a7 7 0 0 1 0-8M19 8a7 7 0 0 1 0 8"/><path d="M2 19a11 11 0 0 1 0-14M22 5a11 11 0 0 1 0 14"/><circle cx="12" cy="12" r="2"/></svg></div>
-        <h3>Live streaming</h3>
-        <p>Broadcast your set straight to an Icecast server — multiple server profiles, MP3 or Opus, with a one-glance on-air indicator.</p>
-      </div>
-
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
-        <h3>Drop &amp; play</h3>
-        <p>No library to manage, no scan, no account. Drop files in, double-click, go. Close it and the queue is empty again — just play.</p>
+        <div class="rack-out-label">Speakers<br>&amp; stream</div>
       </div>
 
     </div>
-  </section>
 
-  <section>
-    <p class="eyebrow">The checklist</p>
-    <h2>What it does — and what it never will</h2>
-    <div class="checks">
-      <div class="col">
-        <p class="col-head do-head">What you get</p>
-        <ul class="do">
-          <li>Camelot key detection — by our own on-device AI</li>
-          <li>BPM and a 1–10 energy score</li>
-          <li>Harmonic sorting — for your ear or your next set</li>
-          <li>Analysis written into your files, only if you ask</li>
-          <li>Live Icecast streaming</li>
-          <li>Four themes, frameless and glossy</li>
-          <li>Instant drop &amp; play</li>
-        </ul>
-      </div>
-      <div class="col">
-        <p class="col-head dont-head">What you'll never get</p>
-        <ul class="dont">
-          <li>A library to scan or manage</li>
-          <li>Your files touched without your say-so</li>
-          <li>An account or a sign-in</li>
-          <li>Tracking, ads or phoning home</li>
-          <li>Cloud AI or a GPU requirement</li>
-          <li>Nagging or upsells</li>
-          <li>Anything left behind between sessions</li>
-        </ul>
-      </div>
+    <p class="rack-note">
+      <b>One rack — two destinations.</b> Every module shapes your playback and your live Icecast stream simultaneously. All modules bypass at neutral so the signal is bit-perfect when nothing is engaged. The <b>Hardcore preset</b> engages the full chain for maximum controlled loudness — no distortion, no fatigue. Built for hard dance, schranz, and everything that needs to hit the back of the room.
+    </p>
+  </div>
+</section>
+
+<!-- ── Philosophy ──────────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">The philosophy</p>
+  <h2 class="section-title">What you get — <span class="grad">and what you won't</span></h2>
+
+  <div class="phil-grid">
+    <div class="check-col">
+      <p class="check-col-head c">What you get</p>
+      <ul class="check-list do">
+        <li><span class="mark">✓</span>Camelot key — our own on-device chromagram</li>
+        <li><span class="mark">✓</span>BPM and a 1–10 energy score</li>
+        <li><span class="mark">✓</span>Harmonic sort — key + BPM + groove combined</li>
+        <li><span class="mark">✓</span>Analysis written into your files, if you ask</li>
+        <li><span class="mark">✓</span>Full DSP rack — EQ, AutoTilt, Punch, Limiter</li>
+        <li><span class="mark">✓</span>Live Icecast streaming</li>
+        <li><span class="mark">✓</span>Five themes, including Hardcore</li>
+        <li><span class="mark">✓</span>Instant drop &amp; play, no install ceremony</li>
+      </ul>
     </div>
-  </section>
+    <div class="check-col">
+      <p class="check-col-head p">What you'll never get</p>
+      <ul class="check-list dont">
+        <li><span class="mark">✕</span>A library to scan or manage</li>
+        <li><span class="mark">✕</span>Your files touched without your say-so</li>
+        <li><span class="mark">✕</span>An account or a sign-in</li>
+        <li><span class="mark">✕</span>Tracking, ads, or anything phoning home</li>
+        <li><span class="mark">✕</span>Cloud AI or a GPU requirement</li>
+        <li><span class="mark">✕</span>Nagging or upsells</li>
+        <li><span class="mark">✕</span>Anything left behind between sessions</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
-  <section>
-    <div class="manifesto">
-      <p class="eyebrow">The idea</p>
-      <p>Most music players insist on scanning your folders, managing your whole library, and quietly telling you how to listen. But <span class="hl">enjoying your music should be the priority</span> — not the housekeeping.</p>
-      <p>JustPlay does exactly one thing: it plays your music. Everything else is yours. How you keep your collection, whether a track was just downloaded, whether you want a soundtrack for your day or to share your favourites with the world in a live radio stream — all of it is up to you.</p>
-      <p>Music is wonderful, and it deserves a player worthy of it — one that makes the experience beautiful, not just functional.</p>
-      <p class="big">You are the conductor and the master of your music.<br>JustPlay simply plays it — as stylishly as it possibly can.</p>
+<!-- ── Creed ────────────────────────────────────────────── -->
+<section class="creed-section wrap">
+  <span class="creed-rule"></span>
+  <p class="creed-text">You listen with your eyes.</p>
+  <p class="creed-sub">Music is wonderful. It deserves a player worthy of it — beautiful, honest, and out of the way.</p>
+</section>
+
+<!-- ── Footer ──────────────────────────────────────────── -->
+<footer>
+  <div class="wrap">
+    <p class="footer-brand">Loved by ears. Trusted by decks.</p>
+
+    <div class="footer-plats">
+      <span class="plat on">Windows · available now</span>
+      <span class="plat">macOS · planned</span>
+      <span class="plat">Linux · planned</span>
     </div>
 
-    <div class="creed">
-      <span class="creed-rule"></span>
-      <p>You listen with your eyes.</p>
+    <div class="footer-links">
+      <a href="https://github.com/chloe-dream/just-play/releases/latest">Download v0.3.0</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/chloe-dream/just-play">Source on GitHub</a>
+      <span class="sep">·</span>
+      <span>Made by <a href="https://github.com/chloe-dream">Chloe Dream</a></span>
     </div>
-  </section>
 
-  <footer>
-    <p class="sign">Loved by ears, trusted by decks.</p>
-    <p>Made by <a href="https://github.com/chloe-dream">Chloe Dream</a> &nbsp;·&nbsp; <a href="https://github.com/chloe-dream/just-play">Source on GitHub</a></p>
-    <p class="note">JustPlay is MIT-licensed. It bundles BASS audio libraries from un4seen.com, free for personal / non-commercial use — see the repository for licence details. Windows build is self-contained; no .NET install required.</p>
-  </footer>
+    <p class="footer-note">
+      JustPlay is <a href="https://github.com/chloe-dream/just-play/blob/main/LICENSE">MIT-licensed</a>.
+      It bundles BASS audio libraries from <a href="https://www.un4seen.com/" rel="noopener noreferrer">un4seen.com</a>,
+      free for personal / non-commercial use — see the repository for licence details.
+      Windows build is self-contained; no .NET install required.
+      macOS &amp; Linux share the codebase and are planned for a future release.
+    </p>
+  </div>
+</footer>
 
+<!-- ── Lightbox ─────────────────────────────────────────── -->
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Screenshot zoom">
+  <img id="lb-img" src="" alt="">
+  <p class="lb-cap" id="lb-cap"></p>
 </div>
 
-<!-- Lightbox: click any screenshot to zoom; click anywhere or press Esc to close. -->
-<div class="lightbox" id="lightbox">
-  <img id="lightbox-img" src="" alt="">
-  <p id="lightbox-cap"></p>
-</div>
 <script>
-  (function () {
-    var lb = document.getElementById('lightbox');
-    var img = document.getElementById('lightbox-img');
-    var cap = document.getElementById('lightbox-cap');
-    document.querySelectorAll('.shot img').forEach(function (el) {
-      el.addEventListener('click', function () {
-        img.src = el.src;
-        cap.textContent = el.getAttribute('data-cap') || el.alt || '';
-        lb.classList.add('open');
-      });
+(function () {
+  var lb  = document.getElementById('lb');
+  var img = document.getElementById('lb-img');
+  var cap = document.getElementById('lb-cap');
+  document.querySelectorAll('.shot-frame img').forEach(function (el) {
+    el.addEventListener('click', function () {
+      img.src = el.src; img.alt = el.alt;
+      cap.textContent = el.getAttribute('data-cap') || '';
+      lb.classList.add('open');
     });
-    function close() { lb.classList.remove('open'); img.src = ''; }
-    lb.addEventListener('click', close);
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
-  })();
+  });
+  function close() { lb.classList.remove('open'); img.src = ''; }
+  lb.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+}());
 </script>
 </body>
 </html>
