@@ -5,7 +5,7 @@ Drop tracks in, double-click to play. No library, no memory between sessions, no
 
 > **v0.3.0 — still pre-1.0, but daily-driver ready on Windows.**
 > Headline analysis (BPM · Camelot key · energy), a full output DSP bus, loudness normalisation,
-> crossfade, headless CLI, and an installer with auto-update all ship in this release.
+> crossfade, and an installer with auto-update all ship in this release.
 > macOS / Linux share the codebase but aren't validated yet. Expect rough edges; the core
 > functionality plays, analyses, sorts and streams today.
 
@@ -52,19 +52,6 @@ Every track — whether playing locally or streaming to Icecast — passes throu
 **One-click presets:** *Neutral* (full bypass — flat signal path) and *Hard* (targets the
 harsh top-end of hard-techno / hardstyle toward the reference curve and pushes it loud via
 the limiter).
-
-### Headless CLI — `justplay`
-
-```
-justplay scan      <dir>   — discover and index audio files
-justplay dedup     <dir>   — flag near-duplicate tracks by fingerprint
-justplay analyze   <dir>   — BPM / key / energy in bulk, no GUI needed
-justplay stats     <dir>   — library overview (BPM spread, key distribution, energy)
-justplay tag       <file>  — write analysis results back into file tags
-justplay promote   <dir>   — promote vibe tags to standard fields for DJ software
-```
-
-The CLI is a thin shell over `JustPlay.Engine` — the same analysis code the GUI uses.
 
 ### Loudness / ReplayGain
 
@@ -118,7 +105,6 @@ optional **Like** column (POPM tag) so you can flag favourites without leaving t
 | Crossfade on auto-advance (Off / 2 / 4 / 8 s)                  | ✅ equal-power, smart-lite skip                  |
 | Output bus DSP rack (EQ · AutoTilt · Punch · Limiter)          | ✅ shapes local playback + Icecast stream         |
 | Hard / Neutral one-click DSP presets                            | ✅ works                                          |
-| Headless CLI (`justplay` scan/dedup/analyze/stats/tag/promote)  | ✅ works                                          |
 | Theme switch (Aurora / Sunset / Midnight / Neon / Hardcore)     | ✅ live palette swap                              |
 | Waveform header                                                 | ✅ FFT-driven 4-band scaleY + beat-pulse         |
 | Vinyl spin animation                                            | ✅ spins around its centre, layered shadows      |
@@ -151,8 +137,7 @@ JustPlay.Metadata     — TagLib# metadata reader + writer (consent-gated tag pe
 JustPlay.Analysis     — key (chromagram/EDMA), energy, beat fingerprint, structure,
                         sequencer, DSP bus (EQ / AutoTilt / Punch / Limiter)
 JustPlay.ML           — optional ONNX "AI key" detector (falls back to DSP when absent)
-JustPlay.Engine       — headless analysis/tagging facade
-JustPlay.Cli          — headless CLI (scan · dedup · analyze · stats · tag · promote)
+JustPlay.Engine       — analysis / tagging facade (shared library)
 JustPlay.App          — Avalonia shell: Views, ViewModels, Controls
 ```
 
@@ -170,9 +155,6 @@ You need the .NET 10 SDK installed (download from https://dotnet.microsoft.com/d
 
 # One-off run:
 dotnet run --project src/JustPlay.App
-
-# Headless CLI:
-dotnet run --project src/JustPlay.Cli -- analyze path/to/library
 
 # Release publish (Windows self-contained single-file .exe, no .NET install needed
 # on the target machine, no C++ toolchain needed to build):
@@ -196,8 +178,7 @@ src/
   JustPlay.Analysis/     key / energy / beat-fingerprint / structure / harmonic sequencer /
                          DSP bus (EQ, AutoTilt, Punch, Limiter)
   JustPlay.ML/           optional ONNX "AI key" detector
-  JustPlay.Engine/       headless analysis/tagging facade
-  JustPlay.Cli/          headless CLI — thin shell over JustPlay.Engine
+  JustPlay.Engine/       analysis / tagging facade (shared library)
   JustPlay.App/          Avalonia shell — Views, ViewModels, Controls
 tests/                   xUnit test projects (Core, Analysis, Metadata, Engine)
 build/
