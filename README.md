@@ -89,14 +89,6 @@ Equal-power crossfade when one track ends and the next begins. Duration: Off / 2
 A "smart-lite" mode skips the crossfade when key or tempo distance between tracks is too large
 to blend gracefully.
 
-### Headphone Pre-Cue (PFL) — beta
-
-Audition the next track on a separate headphone output device while the main output (and any
-active stream) keeps playing uninterrupted. Cue / mix knob blends between the cue bus and main.
-
-> **Beta / experimental.** Audio routing correctness depends on OS device enumeration; needs
-> real-hardware validation across a wider range of interfaces before this leaves beta.
-
 ### Hardcore theme + five live palettes
 
 A fifth theme: **Hardcore** (black / red accent / cyan highlight). The theme picker now offers
@@ -146,7 +138,6 @@ optional **Like** column (POPM tag) so you can flag favourites without leaving t
 | Live Icecast broadcast (stream your set)                        | ✅ BASSmix + BASSenc, multi-server profiles      |
 | Installer + in-app auto-update                                  | ✅ Inno Setup (per-user) + GitHub Releases       |
 | About dialog + version                                          | ✅ themed, build-stamped                         |
-| Headphone Pre-Cue / PFL                                         | 🟡 beta — needs hardware validation             |
 | macOS / Linux builds                                            | ❌ target, not validated yet                    |
 
 ## Stack
