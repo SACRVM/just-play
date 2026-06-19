@@ -281,9 +281,12 @@ public sealed class BassAudioEngine : IAudioEngine
         set
         {
             if (_source == 0) return;
-            // Seek on the decode source; the mixer will pick up from the new position.
+            // Seek on the decode source. PositionFlags.MixerReset (BASS_POS_MIXER_RESET) flushes the
+            // mixer's buffer of audio already pulled from the OLD position — without it the mixer keeps
+            // playing up to ~0.5s of stale buffered audio after a seek, which feels sluggish/laggy
+            // (especially noticeable scrubbing FLAC). With the flush the new position is heard at once.
             var bytes = ManagedBass.Bass.ChannelSeconds2Bytes(_source, value.TotalSeconds);
-            ManagedBass.Bass.ChannelSetPosition(_source, bytes);
+            ManagedBass.Bass.ChannelSetPosition(_source, bytes, PositionFlags.Bytes | PositionFlags.MixerReset);
         }
     }
 

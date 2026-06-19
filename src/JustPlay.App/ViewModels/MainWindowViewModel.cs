@@ -927,7 +927,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public string? LoadedPlaylistName => LoadedPlaylistPath is null ? null : Path.GetFileNameWithoutExtension(LoadedPlaylistPath);
     public bool HasLoadedPlaylist => LoadedPlaylistPath is not null;
-    public string QueueTitle => LoadedPlaylistName ?? "UP NEXT";
+    // Header always reads "UP NEXT" — the loaded-playlist NAME would overflow the column header on
+    // long names, so it lives ONLY in the "…" menu (LoadedPlaylistName). The dirty dot + count stay.
+    public string QueueTitle => "UP NEXT";
 
     /// <summary>Tempo span of the whole set — min–max BPM across every track with a known BPM
     /// (analysed or tagged). Empty unless at least TWO tracks have a BPM (none or only one → no
@@ -2319,15 +2321,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Add audio files to the queue (file-association / "Add to JustPlay"). When
-    /// <paramref name="play"/> is set (the "open" verb) AND nothing is playing yet, the first
-    /// newly-added track starts — so a double-clicked song just plays, while an already-running set
-    /// is never interrupted. The "Add to JustPlay" verb passes play=false (append only).</summary>
+    /// <paramref name="play"/> is set (the "open" verb — e.g. double-clicking a file in Explorer),
+    /// the first newly-added track starts playing IMMEDIATELY, like every other player — even if a
+    /// set is already playing (opening a file means "play this"). The "Add to JustPlay" verb and
+    /// drag-drop pass play=false (append only, never interrupt).</summary>
     public async Task OpenFilesAsync(IReadOnlyList<string> paths, bool play)
     {
         var before = Tracks.Count;
         await AddPathsAsync(paths);
-        if (play && _controller.CurrentTrack is null && Tracks.Count > before)
-            PlayTrack(Tracks[before]);   // first track we just added
+        if (play && Tracks.Count > before)
+            PlayTrack(Tracks[before]);   // auto-play the opened file (double-click → it just plays)
     }
 
     /// <summary>Load an M3U/M3U8 playlist, REPLACING the whole queue with its tracks — a playlist is

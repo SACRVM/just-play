@@ -91,7 +91,7 @@ internal static class UpdateInstaller
     public static void LaunchAndExit(string installerPath, string installDir)
     {
         // Installed exe name comes from installer/justplay.iss (#define AppExe).
-        var exe = Path.Combine(installDir, "JustPlay.App.exe");
+        var exe = Path.Combine(installDir, "JustPlay.exe");
         var pid = Environment.ProcessId;
 
         // PowerShell over a .bat: Wait-Process is a clean "wait for our exit" primitive and

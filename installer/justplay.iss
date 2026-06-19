@@ -15,7 +15,7 @@
 
 #define AppName "JustPlay"
 #define AppPublisher "Chloe Dream"
-#define AppExe "JustPlay.App.exe"
+#define AppExe "JustPlay.exe"
 
 [Setup]
 ; AppId must stay STABLE across versions so upgrades replace in place (never change it).
