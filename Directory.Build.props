@@ -9,7 +9,7 @@
     nearest Directory.Build.props). Test projects inherit it too — harmless.
   -->
   <PropertyGroup>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <Product>JustPlay</Product>
     <Authors>Chloe Dream</Authors>
     <Company>Chloe Dream</Company>
