@@ -62,12 +62,38 @@ public static class DjCommentBuilder
     /// Strip a JustPlay-generated prefix (if any) from the front of a comment string and
     /// return the remainder (the user's own text). Returns the input unchanged if no prefix
     /// is present; returns an empty string if the entire comment was our segment.
+    ///
+    /// Two legacy prefix shapes are removed:
+    ///   1. the machine-readable <c>JP|E7|K8A|bpm140|gc.57|…</c> vibe blob that an early
+    ///      CLI batch ("tag write") prepended to comments — NOT human-facing, so it is
+    ///      stripped and the comment rebuilt clean (the vibe data lives in the JUSTPLAY
+    ///      blob + index, never in the comment);
+    ///   2. the MIK-style <c>8A - Energy 7</c> segment this builder writes.
+    /// Both are removed (JP first, then MIK) so a re-write is fully idempotent regardless
+    /// of which writer touched the file last.
     /// </summary>
     public static string Strip(string? comment)
     {
         if (string.IsNullOrEmpty(comment)) return "";
+        comment = StripJpBlob(comment);
+        if (string.IsNullOrEmpty(comment)) return "";
         var m = PrefixPattern.Match(comment);
         return m.Success ? comment[m.Length..].TrimStart() : comment;
+    }
+
+    /// <summary>
+    /// Strip a legacy <c>JP|…</c> vibe blob from the front of a string and return the
+    /// remainder (user text after the <c>" | "</c> separator). Returns the input unchanged
+    /// when there is no JP prefix; returns "" when the whole string was the blob.
+    /// The blob's own field separator is a bare <c>|</c>; user text is joined with <c>" | "</c>
+    /// (spaces), so the first <c>" | "</c> marks the end of our block.
+    /// </summary>
+    private static string StripJpBlob(string comment)
+    {
+        if (comment != "JP" && !comment.StartsWith("JP|", System.StringComparison.Ordinal))
+            return comment;
+        var sep = comment.IndexOf(" | ", System.StringComparison.Ordinal);
+        return sep >= 0 ? comment[(sep + 3)..] : "";
     }
 
     /// <summary>Build only the DJ-segment token (no user text), or null when there is nothing

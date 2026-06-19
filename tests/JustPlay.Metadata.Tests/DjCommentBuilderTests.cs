@@ -171,4 +171,53 @@ public class DjCommentBuilderTests
         var result = DjCommentBuilder.Strip("Energy 7");
         Assert.Equal("", result);
     }
+
+    // ── Strip: legacy JP vibe blob (the cryptic "Romane" we're cleaning up) ───
+
+    [Fact]
+    public void Strip_JpBlobOnly_ReturnsEmpty()
+    {
+        var result = DjCommentBuilder.Strip("JP|E7|K8A|bpm140|gc.57|gr.14|pu.18|hy.02|dk.55|hx.41");
+        Assert.Equal("", result);
+    }
+
+    [Fact]
+    public void Strip_JpBlobWithUserText_ReturnsUserTextOnly()
+    {
+        var result = DjCommentBuilder.Strip("JP|E7|K8A|bpm140|gc.57 | banger");
+        Assert.Equal("banger", result);
+    }
+
+    [Fact]
+    public void Strip_BareJpPrefix_ReturnsEmpty()
+    {
+        var result = DjCommentBuilder.Strip("JP");
+        Assert.Equal("", result);
+    }
+
+    [Fact]
+    public void Strip_NonJpStartingComment_ReturnsOriginal()
+    {
+        // A user comment that merely starts with the letters "JP" (no pipe) must NOT be touched.
+        var result = DjCommentBuilder.Strip("JPlayed this at Awakenings");
+        Assert.Equal("JPlayed this at Awakenings", result);
+    }
+
+    // ── Build: rebuild a clean MIK comment from a file polluted with the JP blob ──
+
+    [Fact]
+    public void Build_OverJpBlob_ProducesCleanMikComment()
+    {
+        var polluted = "JP|E7|K8A|bpm140|gc.57|gr.14|pu.18|hy.02|dk.55|hx.41";
+        var result = DjCommentBuilder.Build(AMinor, 7, polluted);
+        Assert.Equal("8A - Energy 7", result);
+    }
+
+    [Fact]
+    public void Build_OverJpBlobWithUserText_KeepsUserText()
+    {
+        var polluted = "JP|E7|K8A|bpm140|gc.57 | banger";
+        var result = DjCommentBuilder.Build(AMinor, 7, polluted);
+        Assert.Equal("8A - Energy 7 | banger", result);
+    }
 }

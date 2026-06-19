@@ -1,6 +1,7 @@
 using JustPlay.Cli.Index;
 using JustPlay.Cli.Tags;
 using JustPlay.Engine.Dtos;
+using JustPlay.Metadata;
 
 namespace JustPlay.Cli.Commands;
 
@@ -13,10 +14,11 @@ namespace JustPlay.Cli.Commands;
 ///   <item><b>BPM</b> → standard tempo tag (rounded integer).</item>
 ///   <item><b>Key</b> → standard key tag (e.g. "Am", via Camelot conversion in the engine).</item>
 ///   <item><b>Energy</b> → <c>TXXX:ENERGY</c> custom tag (1–10).</item>
-///   <item><b>Comment</b> → JP vibe string prepended to the existing comment (idempotent):
-///     <c>JP|E{n}|K{c}|bpm{b}|gc.{NN}|gr.{NN}|pu.{NN}|hy.{NN}|dk.{NN}|hx.{NN} | {user text}</c></item>
-///   <item><b>Grouping</b> → pure JP vibe string in the Content Group tag (ID3v2 TIT1 / FLAC GROUPING),
-///     where DJ software (Traktor, Rekordbox) often surfaces a searchable Grouping column.</item>
+///   <item><b>Comment</b> → clean Mixed-In-Key-style <c>8A - Energy 7</c> prepended to the
+///     existing comment, preserving user text (idempotent — any prior JP/MIK prefix is stripped).</item>
+///   <item><b>Grouping</b> → any legacy JP vibe blob is stripped (the remainder, e.g. catalog
+///     codes, is kept). The machine-readable vibe data is NOT written to human-facing tags —
+///     it lives in the JUSTPLAY blob (written by <c>promote</c>) + the sidecar index.</item>
 /// </list>
 /// </para>
 ///
@@ -89,31 +91,31 @@ internal static class TagWriteCommand
                 continue;
             }
 
-            // Build the vibe tag string.
-            var vibeTag = VibeTagEncoder.Encode(
-                energy:         entry.Energy,
-                camelot:        entry.KeyCamelot,
-                bpm:            entry.Bpm,
-                gridConfidence: entry.GridConfidence,
-                bassGroove:     entry.BassGroove,
-                bassPunch:      entry.BassPunch,
-                hypnotic:       entry.Hypnotic,
-                dark:           entry.Dark,
-                harshness:      entry.Harshness);
-
-            // For the Comment: read the existing comment first so user text is preserved.
-            string? existingComment = null;
+            // Read the existing comment + grouping first so user text is preserved and any
+            // legacy JP blob is stripped (idempotent re-write).
+            string? existingComment = null, existingGrouping = null;
             try
             {
                 var meta = composer.MetadataReader.Read(entry.FilePath);
-                existingComment = meta.Comment;
+                existingComment  = meta.Comment;
+                existingGrouping = meta.Grouping;
             }
             catch
             {
                 // Tag read failure: we'll just overwrite without preserving user text.
             }
 
-            var newComment = VibeTagEncoder.BuildComment(vibeTag, existingComment);
+            // Comment: clean Mixed-In-Key style "8A - Energy 7" (NOT the machine blob).
+            // Build() strips any prior JP/MIK prefix and keeps trailing user text; when neither
+            // key nor energy is known it returns null → fall back to stripping only.
+            var key = JustPlay.Core.Models.MusicalKey.TryParse(entry.KeyCamelot);
+            var newComment = DjCommentBuilder.Build(key, entry.Energy, existingComment)
+                             ?? VibeTagEncoder.StripJpPrefix(existingComment);
+
+            // Grouping: never write the vibe blob here anymore — strip any legacy JP block and
+            // keep the remainder (catalog/label codes etc.). The full vibe data lives in the
+            // JUSTPLAY blob (written by `promote`) + the sidecar index, never in human-facing tags.
+            var newGrouping = VibeTagEncoder.StripJpPrefix(existingGrouping);
 
             // Build the write request. BPM/Energy are written as standard tags;
             // Key is written via Camelot (engine parses it to MusicalKey internally).
@@ -123,7 +125,7 @@ internal static class TagWriteCommand
                 Key      = entry.KeyCamelot,
                 Energy   = entry.Energy,
                 Comment  = newComment,
-                Grouping = noGrouping ? null : vibeTag,   // --no-grouping preserves catalog/label codes
+                Grouping = newGrouping,
             };
 
             if (apply)
@@ -152,7 +154,7 @@ internal static class TagWriteCommand
 
                 Console.WriteLine($"  [ ok ]  {Path.GetFileName(entry.FilePath)}");
                 Console.WriteLine($"          comment : {newComment}");
-                Console.WriteLine($"          grouping: {vibeTag}");
+                Console.WriteLine($"          grouping: {(string.IsNullOrEmpty(newGrouping) ? "(cleared)" : newGrouping)}");
             }
             else
             {
@@ -163,7 +165,7 @@ internal static class TagWriteCommand
                 Console.WriteLine($"  [plan]  {Path.GetFileName(entry.FilePath)}");
                 Console.WriteLine($"          bpm={bpmStr}  key={keyStr}  energy={energyStr}");
                 Console.WriteLine($"          comment : {newComment}");
-                Console.WriteLine($"          grouping: {vibeTag}");
+                Console.WriteLine($"          grouping: {(string.IsNullOrEmpty(newGrouping) ? "(cleared)" : newGrouping)}");
             }
 
             processed++;

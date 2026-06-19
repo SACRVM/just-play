@@ -110,19 +110,44 @@ static int RunPromote(string[] args)
 // ── Tag ──────────────────────────────────────────────────────────────────────
 static int RunTag(string[] args)
 {
-    if (args.Length == 0 || !args[0].Equals("write", StringComparison.OrdinalIgnoreCase))
-        return Fail("Unknown 'tag' sub-command. Usage: justplay tag write --index <path> [--root <dir>] [--apply]");
+    if (args.Length == 0)
+        return Fail("Unknown 'tag' sub-command. Usage: justplay tag write … | tag clean …");
 
-    var rest      = args[1..];
-    var indexPath = ParseStringFlag(rest, "--index");
-    if (indexPath is null)
-        return Fail("tag write requires --index <path>.");
+    var sub  = args[0].ToLowerInvariant();
+    var rest = args[1..];
 
-    var root       = ParseStringFlag(rest, "--root");
-    var apply      = ParseBoolFlag(rest, "--apply");
-    var noGrouping = ParseBoolFlag(rest, "--no-grouping");
+    switch (sub)
+    {
+        case "write":
+        {
+            var indexPath = ParseStringFlag(rest, "--index");
+            if (indexPath is null)
+                return Fail("tag write requires --index <path>.");
 
-    return TagWriteCommand.Run(indexPath, root, apply, noGrouping);
+            var root       = ParseStringFlag(rest, "--root");
+            var apply      = ParseBoolFlag(rest, "--apply");
+            var noGrouping = ParseBoolFlag(rest, "--no-grouping");
+
+            return TagWriteCommand.Run(indexPath, root, apply, noGrouping);
+        }
+
+        case "clean":
+        {
+            var root      = ParseStringFlag(rest, "--root");
+            var playlist  = ParseStringFlag(rest, "--playlist");
+            var apply     = ParseBoolFlag(rest, "--apply");
+            var backupDir = ParseStringFlag(rest, "--backup-dir");
+
+            if (playlist is not null)
+                return CleanCommentsCommand.RunPlaylist(playlist, apply, backupDir);
+            if (root is not null)
+                return CleanCommentsCommand.RunRoot(root, apply, backupDir);
+            return Fail("tag clean requires --root <dir> or --playlist <m3u>.");
+        }
+
+        default:
+            return Fail("Unknown 'tag' sub-command. Usage: justplay tag write … | tag clean …");
+    }
 }
 
 // ── Spectrum ─────────────────────────────────────────────────────────────────
@@ -217,15 +242,28 @@ static void PrintHelp()
           tag write --index <path> [--root <dir>] [--apply]
               Phase 2 — batch-write analysis tags from the sidecar index into each
               audio file. Writes: BPM (standard tempo tag), Key (standard key tag),
-              Energy (TXXX:ENERGY), Comment (JP vibe prefix + preserved user text),
-              Grouping (TIT1/GROUPING — pure JP vibe string for DJ software columns).
+              Energy (TXXX:ENERGY), and a clean Mixed-In-Key-style Comment ("8A - Energy 7",
+              user text preserved). The machine-readable vibe data is NOT written to the
+              Comment/Grouping anymore — it lives in the JUSTPLAY blob (promote) + the index.
 
               Default: DRY-RUN — prints every planned change without touching files.
               --root <dir>    Only process files whose path starts with <dir>.
               --apply         Commit the writes (required to actually modify files).
 
-              JP vibe format: JP|E{energy}|K{camelot}|bpm{N}|gc.NN|gr.NN|pu.NN|hy.NN|dk.NN|hx.NN
-              (See src/JustPlay.Cli/Tags/VibeTagEncoder.cs for the full parsing spec.)
+          tag clean (--root <dir> | --playlist <m3u>) [--apply] [--backup-dir <dir>]
+              One-shot cleanup: replace the cryptic legacy "JP|E7|K8A|bpm140|gc.57|…" vibe
+              blob in the Comment with the clean "8A - Energy 7" form, and strip the blob from
+              Grouping. Uses each file's own tags (no index needed): Key/Energy come from the
+              standard tags, falling back to the JUSTPLAY blob.
+              No data loss: the vibe data stays in the JUSTPLAY blob + the index. Idempotent.
+
+              --root <dir>        Clean every audio file under <dir> (recursive).
+              --playlist <m3u>    Clean ONLY the tracks in a playlist (paths resolved against
+                                  the .m3u's folder) — e.g. re-tag exactly one set.
+              Default: DRY-RUN — prints sample before/after changes without touching files.
+              --apply             Commit the writes.
+              --backup-dir        Directory for the comment-clean-backup.json undo file
+                                  (default: the root dir / the playlist's folder).
 
         EXAMPLES
 
@@ -236,6 +274,8 @@ static void PrintHelp()
           justplay stats --index C:\tmp\sets.index.json --json C:\tmp\stats.json
           justplay tag write --index C:\tmp\sets.index.json
           justplay tag write --index C:\tmp\sets.index.json --root \\nas\music\SETS\Techno --apply
+          justplay tag clean --playlist \\nas\music\SETS\2026-06-19_MINDFUCK.m3u
+          justplay tag clean --root \\nas\music\GENRES --apply
 
           promote --index <v9-index> --root <genres-root> [--apply] [--backup-dir <dir>]
               N15: Make JustPlay's v9 analysis the authoritative truth in every file under
