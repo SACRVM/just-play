@@ -1766,17 +1766,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         DoWrite(tvm, write);
     }
 
-    /// <summary>The single point that touches the file. If the track is currently playing, BASS
-    /// holds its file open, so we pause (release the handle) → write → resume at the same spot.
-    /// Writes, then re-reads the tags so the row reflects the new values + decisions (the bold/dot
-    /// conflict clears). Robust: a write failure logs and leaves the row untouched (the flag stays,
-    /// honestly signalling nothing was written), never crashes the app. Returns whether it stuck.</summary>
+    /// <summary>The single point that touches the file. For a track that ISN'T playing the write runs
+    /// immediately; for the CURRENTLY-PLAYING track it is DEFERRED by the controller (BASS holds the
+    /// file open) and runs the instant the track stops being current — a track change — or on app exit.
+    /// Playback is never interrupted. The deferred action re-reads the tags so the row reflects the new
+    /// values + decisions once it lands. Robust: a write failure logs, never crashes the app.</summary>
     private bool DoWrite(TrackViewModel tvm, TagWrite write)
     {
-        // Snapshot the pre-write tag state for Undo BEFORE touching the file; only committed below
-        // if the write actually succeeds.
+        // Record undo BEFORE the write. Since the playing track's write is deferred, we can't gate undo
+        // on a synchronous success any more — capture upfront. Restore writes the captured pre-state
+        // back, which is a harmless no-op if a deferred write ultimately failed.
         var snapshot = _capturingUndo ? SnapshotOf(tvm) : null;
-        var ok = false;
+        if (snapshot is not null)
+            lock (_undoBatch) _undoBatch.Add((tvm, snapshot));
 
         _controller.WithFileReleased(tvm.Model, () =>
         {
@@ -1785,7 +1787,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _writer.Write(tvm.Model.FilePath, write);
                 tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
                 Dispatcher.UIThread.Post(tvm.Refresh);
-                ok = true;
             }
             catch (Exception ex)
             {
@@ -1793,9 +1794,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         });
 
-        if (ok && snapshot is not null)
-            lock (_undoBatch) _undoBatch.Add((tvm, snapshot));
-        return ok;
+        return true;   // optimistic: the write runs now (other track) or is queued for the playing track
     }
 
     /// <summary>Run a user write action as one undoable batch: clears the prior undo set, lets the
@@ -2713,7 +2712,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <para>200 ms is long enough for the human ear to perceive a smooth fade (no click), short
     /// enough that quit never feels laggy. The engine clamps the value to 50–500 ms.</para>
     /// </summary>
-    public Task FadeBeforeQuitAsync() => _engine.FadeOutAsync(200);
+    public async Task FadeBeforeQuitAsync()
+    {
+        await _engine.FadeOutAsync(200);    // graceful fade to silence first (avoids the hard-stop click)
+        _controller.FlushPendingWrites();   // then release the handle + land any deferred tag writes
+    }
 
     public void Dispose()
     {

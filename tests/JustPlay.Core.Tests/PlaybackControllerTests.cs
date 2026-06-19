@@ -256,11 +256,37 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 12. WithFileReleased — current track: unloads, runs action, reloads
+    // 12. WithFileReleased — current track: DEFERS the write, never unloads
+    //     (playback must not be interrupted to write tags)
     // =========================================================================
 
     [Fact]
-    public void WithFileReleased_CurrentTrack_UnloadsAndReloads()
+    public void WithFileReleased_CurrentTrack_Defers_DoesNotUnloadOrRunYet()
+    {
+        var engine = new FakeAudioEngine();
+        var ctrl   = new PlaybackController(engine);
+
+        var track = new Track("C:\\current.mp3");
+        ctrl.Play(track);
+
+        var unloadsBefore = engine.UnloadCount;
+        var loadsBefore   = engine.LoadCount;
+        var actionRan = false;
+        ctrl.WithFileReleased(track, () => actionRan = true);
+
+        Assert.False(actionRan);                          // deferred — does NOT run while playing
+        Assert.Equal(unloadsBefore, engine.UnloadCount);  // playing track is never unloaded
+        Assert.Equal(loadsBefore, engine.LoadCount);      // and never reloaded
+        Assert.Equal(PlaybackState.Playing, engine.State);// still playing
+    }
+
+    // =========================================================================
+    // 13. A deferred write runs the moment the track stops being current
+    //     (a track change frees the file handle).
+    // =========================================================================
+
+    [Fact]
+    public void DeferredWrite_RunsOnNextTrackChange()
     {
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine);
@@ -269,22 +295,42 @@ public class PlaybackControllerTests
         ctrl.Play(track);
 
         var actionRan = false;
-        ctrl.WithFileReleased(track, () =>
-        {
-            Assert.Equal(1, engine.UnloadCount);   // already unloaded when action runs
-            actionRan = true;
-        });
+        ctrl.WithFileReleased(track, () => actionRan = true);
+        Assert.False(actionRan);                  // still deferred
 
-        Assert.True(actionRan);
-        Assert.Equal(2, engine.LoadCount);    // initial Load + reload after action
+        ctrl.Play(new Track("C:\\next.mp3"));      // track change frees the old handle
+        Assert.True(actionRan);                    // → the deferred write now runs
     }
 
     // =========================================================================
-    // 13. WithFileReleased — if action throws, file is still reloaded (finally)
+    // 13b. A track still fading out after a crossfade is NOT flushed yet (its handle
+    //      lingers); the write lands on the following track change.
     // =========================================================================
 
     [Fact]
-    public void WithFileReleased_ActionThrows_FileStillReloaded()
+    public void DeferredWrite_NotFlushedForStillFadingTrack_ThenFlushesOnNextChange()
+    {
+        var engine = new FakeAudioEngine();
+        var ctrl   = new PlaybackController(engine);
+
+        var a = new Track("C:\\a.mp3");
+        ctrl.Play(a);
+        var ran = false;
+        ctrl.WithFileReleased(a, () => ran = true);
+
+        ctrl.CrossfadeTo(new Track("C:\\b.mp3"), fadeMs: 4000);  // a is now the fading outgoing deck
+        Assert.False(ran);                                        // not flushed while a fades
+
+        ctrl.Play(new Track("C:\\c.mp3"));                        // a is long gone now
+        Assert.True(ran);                                         // → flushed
+    }
+
+    // =========================================================================
+    // 13c. FlushPendingWrites (app exit) lands a deferred write and releases the handle.
+    // =========================================================================
+
+    [Fact]
+    public void FlushPendingWrites_RunsDeferred_AndUnloads()
     {
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine);
@@ -292,11 +338,14 @@ public class PlaybackControllerTests
         var track = new Track("C:\\current.mp3");
         ctrl.Play(track);
 
-        Assert.Throws<InvalidOperationException>(() =>
-            ctrl.WithFileReleased(track, () => throw new InvalidOperationException("test")));
+        var actionRan = false;
+        ctrl.WithFileReleased(track, () => actionRan = true);
 
-        // Even though the action threw, the controller must reload the track.
-        Assert.Equal(2, engine.LoadCount);
+        var unloadsBefore = engine.UnloadCount;
+        ctrl.FlushPendingWrites();
+
+        Assert.True(actionRan);                              // pending write landed
+        Assert.Equal(unloadsBefore + 1, engine.UnloadCount);// handle released first
     }
 
     // =========================================================================

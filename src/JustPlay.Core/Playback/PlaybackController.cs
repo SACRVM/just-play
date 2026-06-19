@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 
@@ -11,6 +13,14 @@ namespace JustPlay.Core.Playback;
 public sealed class PlaybackController : IDisposable
 {
     private readonly IAudioEngine _engine;
+
+    // Tag writes requested for the CURRENTLY-PLAYING track are deferred here instead of unloading
+    // the track to free its file handle (the old approach interrupted playback and could trip the
+    // end-of-track handling into advancing the queue). They run the moment the track is no longer
+    // current (a track change frees the handle — see FlushDeferredWrites) or on app exit
+    // (FlushPendingWrites). Guarded by a lock: writes can be queued from a background analysis thread.
+    private readonly object _deferLock = new();
+    private readonly List<(Track track, System.Action action)> _deferred = new();
 
     public PlaybackController(IAudioEngine engine)
     {
@@ -66,10 +76,11 @@ public sealed class PlaybackController : IDisposable
     {
         ArgumentNullException.ThrowIfNull(track);
         CurrentTrack = track;
-        _engine.Load(track.FilePath);
+        _engine.Load(track.FilePath);   // frees the previous source (+ any crossfade tail) → handles released
         _engine.NormalizationGainDb = ComputeGainDb(track);   // applied to the freshly-loaded source
         _engine.Play();
         CurrentTrackChanged?.Invoke(this, track);
+        FlushDeferredWrites();          // the track we just left is freed → land its pending tag writes
     }
 
     /// <summary>
@@ -83,9 +94,13 @@ public sealed class PlaybackController : IDisposable
     public void CrossfadeTo(Track next, int fadeMs)
     {
         ArgumentNullException.ThrowIfNull(next);
+        var leaving = CurrentTrack;     // becomes the outgoing deck — its file handle lingers during the fade
         CurrentTrack = next;
         _engine.CrossfadeTo(next.FilePath, ComputeGainDb(next), fadeMs);
         CurrentTrackChanged?.Invoke(this, next);
+        // Flush deferred writes for any track that's free now — but NOT for `leaving`, whose handle is
+        // still open while it fades out; its pending write lands on the next track change (or on exit).
+        FlushDeferredWrites(alsoExclude: leaving);
     }
 
     /// <summary>Re-apply normalization to the CURRENT track — call after toggling
@@ -126,38 +141,71 @@ public sealed class PlaybackController : IDisposable
     public void Stop() => _engine.Stop();
 
     /// <summary>
-    /// Run <paramref name="whileReleased"/> with <paramref name="track"/>'s file handle
-    /// released, then reload and restore the prior playhead + play/pause state. Used by the
-    /// tag writer: BASS keeps the file open while it's the current track, so a write would
-    /// fail with a sharing violation — this briefly unloads (pause), runs the write, and
-    /// resumes from the same spot. If <paramref name="track"/> isn't the current track there
-    /// is no handle to release, so the action just runs directly.
+    /// Run a file-mutating action (a tag write) for <paramref name="track"/> with its file handle
+    /// free. If the track isn't the one currently loaded, BASS isn't holding it open, so the action
+    /// runs immediately. If it IS the playing track, the action is DEFERRED — playback continues
+    /// untouched and the write runs the moment the track stops being current (a track change frees
+    /// the handle, see <see cref="FlushDeferredWrites"/>) or on app exit (<see cref="FlushPendingWrites"/>).
+    /// <para>
+    /// This replaced an earlier unload→write→reload approach that briefly interrupted playback and,
+    /// during a bulk analyse, tripped the end-of-track handling into jumping the queue to the first song.
+    /// </para>
     /// </summary>
     public void WithFileReleased(Track track, Action whileReleased)
     {
         ArgumentNullException.ThrowIfNull(track);
         ArgumentNullException.ThrowIfNull(whileReleased);
 
+        // Not the loaded track → no open handle → just write now (may run on a background thread).
         if (!ReferenceEquals(CurrentTrack, track))
         {
             whileReleased();
             return;
         }
 
-        var pos = _engine.Position;
-        var wasPlaying = _engine.State == PlaybackState.Playing;
-        _engine.Unload();
-        try
+        // The currently-playing track: defer; never unload it. Thread-safe (bulk analyse queues
+        // these from background threads).
+        lock (_deferLock) _deferred.Add((track, whileReleased));
+    }
+
+    /// <summary>Run deferred writes for every track whose file handle is now free (i.e. not the
+    /// current track, and not <paramref name="alsoExclude"/> — used to skip a track that is still
+    /// fading out after a crossfade). Each action is exception-safe on its own.</summary>
+    private void FlushDeferredWrites(Track? alsoExclude = null)
+    {
+        (Track track, System.Action action)[] ready;
+        lock (_deferLock)
         {
-            whileReleased();
+            ready = _deferred
+                .Where(d => !ReferenceEquals(d.track, CurrentTrack)
+                         && (alsoExclude is null || !ReferenceEquals(d.track, alsoExclude)))
+                .ToArray();
+            foreach (var d in ready) _deferred.Remove(d);
         }
-        finally
+        foreach (var d in ready) d.action();
+    }
+
+    /// <summary>
+    /// Land EVERY pending deferred write, releasing the current track's file handle first. Call once
+    /// on app shutdown (after the graceful fade) so a tag write requested for the playing track still
+    /// reaches disk — the "write it when the song stops, and on quit" requirement. Best-effort: a
+    /// failing write is swallowed (we're tearing down) rather than blocking exit.
+    /// </summary>
+    public void FlushPendingWrites()
+    {
+        try { _engine.Unload(); } catch { /* already unloaded / disposed — fine */ }
+
+        (Track track, System.Action action)[] all;
+        lock (_deferLock) { all = _deferred.ToArray(); _deferred.Clear(); }
+        foreach (var d in all)
         {
-            _engine.Load(track.FilePath);
-            _engine.Position = pos;
-            if (wasPlaying) _engine.Play();
+            try { d.action(); } catch { /* best-effort on shutdown */ }
         }
     }
 
-    public void Dispose() => _engine.Dispose();
+    public void Dispose()
+    {
+        FlushPendingWrites();   // belt-and-braces: land anything still pending if Dispose is the exit path
+        _engine.Dispose();
+    }
 }
