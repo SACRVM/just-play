@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Techno × Metal — Source Crate</title>
+<style>
+  :root{
+    --bg:#0b0c10; --bg2:#121319; --card:#15161d; --line:#26272f;
+    --txt:#e8e8ec; --dim:#9a9aa6; --red:#ff3b54; --cyan:#34e1d4; --gold:#ffc24a;
+    --free:#2fd47a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0b0c10,#101119 60%,#0b0c10);
+       color:var(--txt);font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       padding:0 0 80px}
+  header{padding:28px 22px 14px;border-bottom:1px solid var(--line);
+         position:sticky;top:0;background:rgba(11,12,16,.92);backdrop-filter:blur(8px);z-index:5}
+  h1{margin:0 0 4px;font-size:22px;letter-spacing:.3px}
+  h1 .x{color:var(--red)}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:12px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button.f{background:var(--card);color:var(--txt);border:1px solid var(--line);
+           border-radius:20px;padding:6px 14px;cursor:pointer;font-size:13px}
+  button.f.active{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+  button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line);
+               border-radius:20px;padding:6px 14px;cursor:pointer;font-size:12px}
+  .wrap{max-width:920px;margin:0 auto;padding:0 22px}
+  section{margin:26px 0 0}
+  .sh{display:flex;align-items:baseline;gap:10px;margin:0 0 4px}
+  .sh h2{font-size:17px;margin:0}
+  .sh .cnt{color:var(--dim);font-size:12px}
+  .note{color:var(--dim);font-size:12.5px;margin:2px 0 12px}
+  .warn{color:var(--gold)}
+  .item{display:flex;gap:12px;align-items:flex-start;background:var(--card);
+        border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0}
+  .item.done{opacity:.45}
+  .item.done .name{text-decoration:line-through}
+  .item input[type=checkbox]{width:20px;height:20px;margin-top:2px;accent-color:var(--free);cursor:pointer;flex:0 0 auto}
+  .body{flex:1;min-width:0}
+  .name{font-weight:600;font-size:15px}
+  .name a{color:var(--txt);text-decoration:none;border-bottom:1px solid transparent}
+  .name a:hover{border-bottom-color:var(--cyan);color:#fff}
+  .meta{margin:5px 0 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .b{font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+  .b.free{background:rgba(47,212,122,.14);border-color:var(--free);color:var(--free);font-weight:700}
+  .b.price{color:var(--gold);border-color:#4a4326}
+  .b.flac{color:var(--cyan);border-color:#1e4a47}
+  .b.mp3{color:var(--dim)}
+  .b.mix{color:#cda6ff;border-color:#3a2e52}
+  .desc{color:var(--dim);font-size:12.5px;margin-top:5px}
+  .tip{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--cyan);
+       border-radius:8px;padding:10px 14px;margin:10px 0;font-size:12.5px;color:var(--dim)}
+  .tip b{color:var(--txt)}
+  footer{max-width:920px;margin:30px auto 0;padding:0 22px;color:var(--dim);font-size:12px}
+  a.lnk{color:var(--cyan);text-decoration:none}
+  a.lnk:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0">
+    <h1>TECHNO <span class="x">×</span> METAL — Source Crate</h1>
+    <div class="sub">Verifizierte Links (jeder Eintrag von den Agenten an einer echten URL geprüft). Häkchen = persistiert lokal. Mittelklick öffnet im neuen Tab.</div>
+    <div class="bar">
+      <button class="f active" data-filter="all">Alles</button>
+      <button class="f" data-filter="free">🆓 Nur gratis</button>
+      <button class="f" data-filter="flac">FLAC / lossless</button>
+      <span id="prog" style="margin-left:auto;color:var(--dim);font-size:12px"></span>
+      <button class="ghost" id="reset">Häkchen zurücksetzen</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============ FREE LOSSLESS ============ -->
+<section data-tags="free flac">
+  <div class="sh"><h2>🆓 Alles gratis — Lossless (Name-your-price, FLAC)</h2><span class="cnt">~193 Tracks für €0</span></div>
+  <div class="note">Bei Bandcamp <b>0 eingeben</b> = legaler Gratis-Download (so vom Label gewollt). Einfach durchklicken und ziehen. Ein paar Euro reinwerfen ist nett, wenn dir was gefällt.</div>
+
+  <div class="item" data-tags="free flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://artoffactrecords.bandcamp.com/album/artoffact-records-2025-sampler" target="_blank" rel="noopener">Artoffact Records 2025 Sampler</a></div>
+      <div class="meta"><span class="b free">FREE / NYP</span><span class="b flac">FLAC 24-bit</span><span class="b">40 Tracks</span></div>
+      <div class="desc">Front Line Assembly, Test Dept, Portion Control & ~36 mehr. Post-Industrial / Dark Electro — Crossover-Futter.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="free flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://crunchpod.bandcamp.com/album/xxv-free-industrial-idm-rhythmic-noise-techno-alternative-compilation-crunch-257" target="_blank" rel="noopener">Crunch Pod — XXV (CRUNCH 257)</a></div>
+      <div class="meta"><span class="b free">FREE / NYP</span><span class="b flac">FLAC 24-bit</span><span class="b">67 Tracks</span></div>
+      <div class="desc">25-Jahre-Comp: IDM / Electro / Techno / Power Electronics / Rhythmic Noise / Death Industrial. Riesig & experimentell.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="free flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://remissionentertainment.bandcamp.com/album/2024-label-compilation" target="_blank" rel="noopener">Re:Mission Entertainment — 2024 Label Compilation</a></div>
+      <div class="meta"><span class="b free">FREE / NYP</span><span class="b flac">FLAC 24-bit</span><span class="b">24 Tracks</span></div>
+      <div class="desc">„Industrial metal riffs" + Aggrotech + Dark Electro — direkt im Ziel.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="free flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://dsbp.bandcamp.com/album/dsbp-records-sampler-2024" target="_blank" rel="noopener">DSBP Records — Sampler 2024</a></div>
+      <div class="meta"><span class="b free">FREE / NYP</span><span class="b flac">FLAC</span><span class="b">24 Tracks</span></div>
+      <div class="desc">„Promo gift for fans and DJs". Aggrotech / EBM / Electro-Industrial. Rauer — vor dem Set anhören.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="free flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://crunchpod.bandcamp.com/album/other-voices-free-goth-post-punk-darkwave-industrial-compilation-crunch-275" target="_blank" rel="noopener">Crunch Pod — Other Voices (CRUNCH 275)</a></div>
+      <div class="meta"><span class="b free">FREE / NYP</span><span class="b flac">FLAC 24-bit</span><span class="b">20 Tracks</span></div>
+      <div class="desc">Goth / Post-Punk / Darkwave / Industrial — eher für Set-Textur & dunkle Momente.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="free flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://coldtransmissionmusic.bandcamp.com/album/selected-works-2024" target="_blank" rel="noopener">Cold Transmission — Selected Works 2024</a></div>
+      <div class="meta"><span class="b free">FREE / NYP</span><span class="b flac">FLAC 16-bit</span><span class="b">18 Tracks</span></div>
+      <div class="desc">Darkwave / Cold Wave / Dark Electro — adjazent, stark für Stimmung.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHEAP LOSSLESS COMPS ============ -->
+<section data-tags="flac">
+  <div class="sh"><h2>💿 Lossless für'n Appel &amp; Ei — Comps unter €5</h2><span class="cnt">je 42 Tracks</span></div>
+  <div class="note">Maximale Tracks pro Euro. Beide zusammen = <b>84 Tracks für ~$5</b> in FLAC.</div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://dsbp.bandcamp.com/album/international-ebm-day-24225" target="_blank" rel="noopener">DSBP — International EBM Day 24.2.25</a></div>
+      <div class="meta"><span class="b price">~$2.42</span><span class="b flac">FLAC</span><span class="b">42 Tracks</span></div>
+      <div class="desc">Orange Sector, Ionic Vision, Pre-Emptive Strike 0.1 &amp; 35+ mehr. EBM/Aggrotech-Fundament.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://dsbp.bandcamp.com/album/ebm-day-24224" target="_blank" rel="noopener">DSBP — EBM Day 24.2.24</a></div>
+      <div class="meta"><span class="b price">~$2.42</span><span class="b flac">FLAC 24-bit</span><span class="b">42 Tracks</span></div>
+      <div class="desc">Vorjahres-Edition, gleicher Preis. „Old &amp; new school EBM, beyond the norm."</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TECHNOMETAL ============ -->
+<section data-tags="flac">
+  <div class="sh"><h2>🎸 TechnoMetal-Highlights — echte Gitarren über 4/4</h2><span class="cnt">der Volltreffer</span></div>
+  <div class="note"><b>HEX Recordings (Barcelona)</b> ist praktisch das <b>einzige</b> dedizierte „TechnoMetal"-Label — legal, lossless, mixbar, ~€2. Genau dein Niche.</div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://hexbarcelona.bandcamp.com/album/firestarter" target="_blank" rel="noopener">HEX — Firestarter</a></div>
+      <div class="meta"><span class="b price">€2</span><span class="b flac">FLAC</span><span class="b mix">4/4 · 150 BPM</span></div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://hexbarcelona.bandcamp.com/album/this-is-technometal-remixes-vol-1" target="_blank" rel="noopener">HEX — This Is TechnoMetal: Remixes Vol.1</a></div>
+      <div class="meta"><span class="b price">€6</span><span class="b flac">FLAC</span><span class="b mix">4/4 · 148–160</span><span class="b">3 Tracks</span></div>
+      <div class="desc">Remix-Paket — mixbarer als der 110-BPM-Original-Cut.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://www.beatport.com/release/this-is-technometal-2023-vol-1/4366245" target="_blank" rel="noopener">V/A — This Is Technometal 2023 Vol.1 (Comp)</a></div>
+      <div class="meta"><span class="b price">Beatport</span><span class="b flac">WAV/AIFF</span><span class="b">13 Tracks</span></div>
+      <div class="desc">NIEM, Crystal Geometry, Dstm, xk21… bester Einstieg in die Bandbreite der Szene.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://sonaxxrecords.bandcamp.com/album/cyberpunkers-quantum-quake" target="_blank" rel="noopener">Cyberpunkers — Quantum Quake</a></div>
+      <div class="meta"><span class="b price">€1.99</span><span class="b flac">FLAC 24-bit</span><span class="b mix">4/4 · 156 BPM</span></div>
+      <div class="desc">Punk/Schranz-Kante, aggressive Distortion. Voll mixbar.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://error666.bandcamp.com/track/metal-head" target="_blank" rel="noopener">ERRØR666 — Metal Head</a></div>
+      <div class="meta"><span class="b price">€1</span><span class="b flac">FLAC</span><span class="b mix">4/4</span></div>
+      <div class="desc">Hard Techno/Terrorcore — Metal-Ästhetik, aber elektronische Riffs (keine echte Gitarre).</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://hexbarcelona.bandcamp.com" target="_blank" rel="noopener">HEX Recordings — Label-Seite (folgen!)</a></div>
+      <div class="meta"><span class="b flac">FLAC</span><span class="b">Katalog</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 155-165 ELECTRO->INDUSTRIAL ============ -->
+<section data-tags="flac">
+  <div class="sh"><h2>⚡ 155–165 BPM — Electro→Industrial Techno (Metal-Kante)</h2><span class="cnt">dein Set-Kern</span></div>
+  <div class="note">BPM <b>pro Track verifiziert</b> (Beatport/Bandcamp). Bandcamp-FLAC zuerst. Goldgruben-Labels: <b>Kursed System</b> (Lisbon, „Hard Industrial Techno", BPM steht im Track) &amp; <b>OUTWORLD</b> (KlangKuenstlers Schranz-Imprint). Da Beatport-Seiten teils blockten, kamen ein paar BPMs aus Such-Metadaten — vor dem finalen Pick einmal gegenhören.</div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://kursedsystem.bandcamp.com/track/fokus-fabrik" target="_blank" rel="noopener">FOKUS — Fabrik</a></div>
+      <div class="meta"><span class="b mix">155 BPM</span><span class="b price">€1.80</span><span class="b flac">FLAC 24-bit</span></div>
+      <div class="desc">Kursed System. Seite sagt wörtlich „Hard Industrial Techno – 155 BPM". Verzerrte Kicks, metallisch.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://kursedsystem.bandcamp.com/track/d-m-lish-time-is-near" target="_blank" rel="noopener">D.MØLISH — Time Is Near</a></div>
+      <div class="meta"><span class="b mix">160 BPM</span><span class="b price">€2</span><span class="b flac">FLAC 24-bit</span></div>
+      <div class="desc">Kursed System (Feb 2025). Hard Industrial Techno, BPM auf der Seite bestätigt.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://kursedsystem.bandcamp.com/track/xmxkx-falling-vocals-by-ragasa" target="_blank" rel="noopener">XMXKX — Falling (feat. Ragasa)</a></div>
+      <div class="meta"><span class="b mix">155 BPM</span><span class="b price">€1.80</span><span class="b flac">FLAC 24-bit</span></div>
+      <div class="desc">Kursed System. Hard Industrial Techno mit Vocal-Textur.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://agonyrec.bandcamp.com/album/schranz-will-never-die" target="_blank" rel="noopener">Marco Leckbert — Schranz Will Never Die</a></div>
+      <div class="meta"><span class="b mix">158 BPM</span><span class="b price">£1.49</span><span class="b flac">FLAC</span></div>
+      <div class="desc">AGONY Records. „Industrial power, relentless rhythm" — charted Beatportal Best of 2024.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://elements18.bandcamp.com/album/bodies" target="_blank" rel="noopener">Rebekah &amp; CANCEL — Bodies</a></div>
+      <div class="meta"><span class="b mix">155 BPM</span><span class="b price">£2</span><span class="b flac">FLAC</span></div>
+      <div class="desc">Elements. Aus „mutual love for industrial sounds" — Hard Techno mit echtem Industrial-Charakter.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://perctrax.bandcamp.com/album/fire-in-negative-million-remix" target="_blank" rel="noopener">Perc — Fire In Negative (Million Remix)</a></div>
+      <div class="meta"><span class="b mix">162 BPM ⚠</span><span class="b price">£1.50</span><span class="b flac">FLAC</span></div>
+      <div class="desc">Perc Trax — UK-Industrial-Institution. Seite sagt „a breathtaking 162 bpm" (oberes Ende deiner Range).</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://perctrax.bandcamp.com/track/rotopod" target="_blank" rel="noopener">Perc &amp; Million — Rotopod</a></div>
+      <div class="meta"><span class="b mix">160 BPM</span><span class="b price">£1.25</span><span class="b flac">FLAC</span></div>
+      <div class="desc">Perc Trax. Mechanisch, treibend. (BPM aus Such-Metadaten — kurz gegenhören.)</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://recklessrec1.bandcamp.com/album/rcklss017-number-one" target="_blank" rel="noopener">Fantasm — Number One (EP)</a></div>
+      <div class="meta"><span class="b mix">158 BPM</span><span class="b price">€6 / 4 Tracks</span><span class="b flac">FLAC 24-bit</span></div>
+      <div class="desc">Reckless Records. Hard-Rave/Industrial-Rave — Energie + BPM top; Textur etwas weniger „war-machine".</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://hexbarcelona.bandcamp.com/album/this-is-technometal-remixes-vol-1" target="_blank" rel="noopener">HEX — This Is Technometal (RUBIØ Extended Remix)</a></div>
+      <div class="meta"><span class="b mix">160 BPM</span><span class="b price">€9 / EP</span><span class="b flac">FLAC</span></div>
+      <div class="desc">HEX Recordings — die härteste/schnellste Version des TechnoMetal-Flaggschiffs (echte Metal-Ästhetik).</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://www.beatport.com/label/outworld/74725" target="_blank" rel="noopener">OUTWORLD (Label) — TRIPTYKH · KlangKuenstler · KX CHR</a></div>
+      <div class="meta"><span class="b mix">155–162 BPM</span><span class="b price">Beatport ~$1.49</span><span class="b">WAV/AIFF</span></div>
+      <div class="desc"><b>TRIPTYKH</b> = metal-purester Pick (roher Schranz, keine Vocals): „These Sounds Fall Into My Mind" (162), „Unholy" (155). <b>KlangKuenstler</b> „Untergang"/„In Ketten Gelegt" (155). <b>KX CHR</b> „Hard Drill" (155). Nur Beatport.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://dsrdigital.bandcamp.com/" target="_blank" rel="noopener">Hardtrax &amp; David Temessi — Schranzerkampfwagen (HardtraX Dark Rmx)</a></div>
+      <div class="meta"><span class="b mix">155 BPM</span><span class="b flac">FLAC (DSR Digital)</span></div>
+      <div class="desc">„Schranz Battle Tank" — War-Machine-Textur pur. DSR Digital (Budapest), Schranz/Industrial.</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <b>⚠ Grenz-BPM (vor Set-Einbau gegenhören):</b> OGUZ — „Quiero Mas" (165) · HANSTROEM — „Schranzt" (160, Beatport, Hardcore-getaggt) · Stoltenhoff-Tracks (160, eher Festival-Hard-Techno-Textur als metallisch).
+    <br><b>Labels zum Folgen:</b>
+    <a class="lnk" href="https://kursedsystem.bandcamp.com" target="_blank" rel="noopener">Kursed System</a> ·
+    <a class="lnk" href="https://www.beatport.com/label/outworld/74725" target="_blank" rel="noopener">OUTWORLD</a> ·
+    <a class="lnk" href="https://perctrax.bandcamp.com" target="_blank" rel="noopener">Perc Trax</a> ·
+    <a class="lnk" href="https://agonyrec.bandcamp.com" target="_blank" rel="noopener">AGONY</a> ·
+    <a class="lnk" href="https://dsrdigital.bandcamp.com" target="_blank" rel="noopener">DSR Digital</a> ·
+    <a class="lnk" href="https://sonaxxrecords.bandcamp.com" target="_blank" rel="noopener">Sonaxx</a> ·
+    <a class="lnk" href="https://elements18.bandcamp.com" target="_blank" rel="noopener">Elements</a>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://wickedwaves.bandcamp.com/album/industrial-techno-vol-22-wicked-waves-recordings" target="_blank" rel="noopener">V/A — Wicked Waves: Industrial Techno Vol.22</a></div>
+      <div class="meta"><span class="b price">€7 / 8 Tracks</span><span class="b flac">FLAC</span><span class="b mix">~150–160</span></div>
+      <div class="desc">Tim Wermacht, The Underproject, 2CROW… Comp-BPM nicht gelistet → Preview filtern. Low-risk Lossless-Comp.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://sonaxxrecords.bandcamp.com/album/best-of-hard-techno-vol-6-including-25-tracks" target="_blank" rel="noopener">V/A — Sonaxx: Best Of Hard Techno Vol.6</a></div>
+      <div class="meta"><span class="b price">€16.99 / 25 Tracks</span><span class="b flac">FLAC</span></div>
+      <div class="desc">Bester Track-Preis (€0,68). Breitere BPM-Spanne (140–165) → Preview auf 155–165 filtern.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SUPPORT ============ -->
+<section data-tags="flac">
+  <div class="sh"><h2>🏆 Support-würdig — die 2–3 Vollpreis-Käufe</h2><span class="cnt">an Bandcamp Friday kaufen</span></div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://handsofficial.bandcamp.com/album/forms-of-hands-23" target="_blank" rel="noopener">HANDS — Forms of Hands 23</a></div>
+      <div class="meta"><span class="b price">€8.90</span><span class="b flac">FLAC</span><span class="b">14 Tracks</span></div>
+      <div class="desc">Industrial / Rhythm'n'Noise / Techno-Spine. Esplendor Geométrico, Sonar — eines der angesehensten Labels weltweit.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://wargasm.bandcamp.com/album/venom" target="_blank" rel="noopener">WARGASM (UK) — Discography Bundle</a></div>
+      <div class="meta"><span class="b price">~€15</span><span class="b flac">FLAC 24-bit</span><span class="b">~50 Tracks (4 Releases)</span></div>
+      <div class="desc">Nennen sich selbst „rave metal" — der beste verifizierte Metal-Techno-Crossover-Act. (Layer-/Curveball-Material, nicht reines 4/4.)</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://youwillloveeachother.bandcamp.com/album/death-magic" target="_blank" rel="noopener">HEALTH — Death Magic</a></div>
+      <div class="meta"><span class="b price">~€8</span><span class="b flac">FLAC</span><span class="b">12 Tracks</span></div>
+      <div class="desc">Noise-Rock × Club-Elektronik. Timbrale Kontrast-Würze für ein experimentelles Set.</div>
+    </div>
+  </div>
+
+  <div class="item" data-tags="flac">
+    <input type="checkbox">
+    <div class="body">
+      <div class="name"><a href="https://combichrist.bandcamp.com/album/cmbcrst" target="_blank" rel="noopener">Combichrist — CMBCRST</a></div>
+      <div class="meta"><span class="b price">€14</span><span class="b flac">FLAC 24-bit</span><span class="b">23 Tracks</span></div>
+      <div class="desc">Am gitarrenlastigsten — Industrial Metal. Nur wenn das Set Richtung Metal kippt.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DIG / BROWSE ============ -->
+<section data-tags="free">
+  <div class="sh"><h2>🔎 Selber graben — Browse-Seiten</h2></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://bandcamp.com/discover/ebm-techno" target="_blank" rel="noopener">Bandcamp Discover — „ebm-techno"</a></div></div></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://bandcamp.com/tag/industrial-techno" target="_blank" rel="noopener">Bandcamp Tag — „industrial-techno"</a></div></div></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://bandcamp.com/tag/ebm" target="_blank" rel="noopener">Bandcamp Tag — „ebm"</a></div></div></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://hardwax.com/" target="_blank" rel="noopener">Hardwax — kuratierter Industrial/Techno-Store (Berlin)</a></div></div></div>
+</section>
+
+<!-- ============ TOOLS ============ -->
+<section data-tags="free">
+  <div class="sh"><h2>🛠 Tools — Stems &amp; Stream</h2></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://github.com/Anjok07/ultimatevocalremovergui" target="_blank" rel="noopener">UVR5 — Ultimate Vocal Remover</a></div><div class="meta"><span class="b free">GRATIS</span><span class="b">Stem-Trennung</span></div><div class="desc">Offline, Apple-Silicon-GPU. Modell HTDemucs FT für saubere Metal-Acapellas/Riffs.</div></div></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://github.com/ExistentialAudio/BlackHole" target="_blank" rel="noopener">BlackHole — Loopback (Mac)</a></div><div class="meta"><span class="b free">GRATIS</span><span class="b">verlustfreie Capture</span></div><div class="desc">Traktor → BlackHole → Encoder → Icecast, für den Lossless-Stream-Test.</div></div></div>
+  <div class="item" data-tags="free"><input type="checkbox"><div class="body"><div class="name"><a href="https://lalal.ai" target="_blank" rel="noopener">LALAL.AI — Gitarren-Stem</a></div><div class="meta"><span class="b price">~€10 Pack</span><span class="b">10 Min gratis</span></div><div class="desc">Einziges Web-Tool mit dediziertem Gitarren-Stem — sauberere Riffs als UVR auf dichten Mixes.</div></div></div>
+</section>
+
+<footer>
+  <p><b>Budget-Plan (~€34 → 40+ verwendbare Lossless-Tracks):</b><br>
+  Schritt 1: 4 Gratis-FLAC-Comps ziehen (≈155 Tracks) → auf ~20–25 eindampfen.
+  Schritt 2: DSBP EBM Day (~€2,20, +10).
+  Schritt 3: HANDS Forms of Hands 23 (€8,90, Prestige-Industrial).
+  Schritt 4: 2 Acts voll supporten — WARGASM (~€15) + HEALTH (~€8).
+  Rest fürs Set: HEX/Cyberpunkers-Highlights à ~€2.</p>
+  <p><b>Bandcamp Friday 2026</b> (Label kriegt 100 %, gleicher Preis für dich): 7. Aug · 4. Sep · 2. Okt · 6. Nov · 4. Dez — Vollpreis-Käufe an diesen Tagen.</p>
+  <p style="color:#56565f">Alle Links von Sonnet-Recherche-Agenten an echten URLs verifiziert · Stand Juni 2026 · für JustPlay / Umbrella</p>
+</footer>
+</div>
+
+<script>
+  const KEY = 'tm-crate-v1';
+  const items = [...document.querySelectorAll('.item')];
+  // give each item a stable id from its link href
+  items.forEach(it=>{ const a=it.querySelector('a'); it.dataset.id = a?a.href:Math.random(); });
+  let state = {};
+  try{ state = JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){ state={}; }
+
+  function apply(){
+    let done=0, freeTotal=0, freeDone=0;
+    items.forEach(it=>{
+      const cb=it.querySelector('input'), id=it.dataset.id;
+      const isFree = it.dataset.tags.includes('free');
+      cb.checked = !!state[id];
+      it.classList.toggle('done', cb.checked);
+      if(cb.checked) done++;
+      if(isFree){ freeTotal++; if(cb.checked) freeDone++; }
+    });
+    document.getElementById('prog').textContent =
+      `${done}/${items.length} abgehakt · gratis: ${freeDone}/${freeTotal}`;
+  }
+  items.forEach(it=>{
+    it.querySelector('input').addEventListener('change',e=>{
+      state[it.dataset.id]=e.target.checked;
+      localStorage.setItem(KEY,JSON.stringify(state));
+      apply();
+    });
+  });
+  document.getElementById('reset').addEventListener('click',()=>{
+    state={}; localStorage.removeItem(KEY); apply();
+  });
+
+  // filters
+  document.querySelectorAll('button.f').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('button.f').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const f=b.dataset.filter;
+      items.forEach(it=>{
+        const show = f==='all' || it.dataset.tags.includes(f);
+        it.style.display = show?'':'none';
+      });
+      document.querySelectorAll('section').forEach(s=>{
+        const any=[...s.querySelectorAll('.item')].some(it=>it.style.display!=='none');
+        const hasItems = s.querySelector('.item');
+        s.style.display = (!hasItems || any)?'':'none';
+      });
+    });
+  });
+  apply();
+</script>
+</body>
+</html>

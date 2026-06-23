@@ -1,0 +1,2 @@
+# Node deps for the Essentia oracle — never commit (huge, reinstall via `npm install`).
+node_modules/
