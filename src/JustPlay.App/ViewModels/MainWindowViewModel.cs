@@ -153,6 +153,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (s.SelectedStreamServerId is { } selectedId)
             _selectedStreamServer = StreamServers.FirstOrDefault(p => p.Id == selectedId);
 
+        // Seed Sound presets from persisted settings (before _settingsHydrated so the adds don't echo
+        // to disk). On a fresh install (never seeded) prepend the two built-in starting points Hard +
+        // Neutral as ORDINARY, fully editable/deletable presets — seeded exactly once
+        // (SoundPresetsSeeded), so deleting them does NOT bring them back. HasSoundPresets stays in
+        // sync as the collection changes.
+        var seedDefaults = !s.SoundPresetsSeeded;
+        if (seedDefaults)
+        {
+            SoundPresets.Add(DspPreset.Hard);
+            SoundPresets.Add(DspPreset.Neutral);
+        }
+        foreach (var p in s.SoundPresets)
+            SoundPresets.Add(p);
+        SoundPresets.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSoundPresets));
+
         // ── Output device: populate list, select saved device (or default) ────
         // Enumerate devices BEFORE setting _settingsHydrated so the initial
         // SelectedOutputDevice assignment doesn't trigger a premature PersistSettings.
@@ -164,6 +179,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         PopulateHeadphoneDevices(s.HeadphoneDeviceName);
 
         _settingsHydrated = true;
+
+        // Persist the one-time built-in seed now that the whole VM is hydrated (so the write captures
+        // complete state). Flips SoundPresetsSeeded true so the defaults are never re-seeded.
+        if (seedDefaults) PersistSettings();
 
         _controller.StateChanged += OnEngineStateChanged;
         _controller.TrackEnded += OnTrackEnded;
@@ -572,6 +591,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty] private double _transientPunch  = 0.0;   // 0..1
     [ObservableProperty] private double _autoTiltStrength = 0.0;  // 0..1
 
+    // User-saved Sound-tab bus presets (name + the six tone fields). Additive on top of the
+    // built-in Hard / Neutral one-click presets. Seeded from settings in the constructor and
+    // round-tripped through PersistSettings. Bound by the TweaksPanel "Preset" row.
+    /// <summary>User-saved Sound presets. Bound to the Tweaks Sound-tab preset row.</summary>
+    public ObservableCollection<DspPreset> SoundPresets { get; } = [];
+
+    /// <summary>True when at least one user preset exists — drives the "Saved" sub-label visibility.</summary>
+    public bool HasSoundPresets => SoundPresets.Count > 0;
+
     // Which Tweaks tab is showing: "Look" / "Sound" / "Library" / "Audio". Transient UI state,
     // deliberately NOT persisted — it just drives which group of controls is visible in the panel.
     [ObservableProperty] private string _tweaksTab = "Sound";
@@ -769,37 +797,128 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         TransientPunch = 0.0; AutoTiltStrength = 0.0;
     }
 
-    /// <summary>
-    /// "Hard" one-click bus preset — the validated correction for structurally-bright hard genres
-    /// (hard techno / hardstyle). Measured 2026-06-17 across 35 of Chloe's tracks: both genres sit
-    /// ~+5–7 dB over the reference curve in 2–5 kHz and 8–16 kHz, and the brightness is baked into the
-    /// master (static), so the lever is a static high-shelf cut + golden-curve AutoTilt. This preset
-    /// (tilt 0.65, High −3 dB shelf) pulled Fatigue ~−2.3 dB / Air ~−4.5 dB toward target on the brightest
-    /// tracks while keeping the bass + genre character. [[hard-dance-headphone-mode]]
-    ///
-    /// <para>Limiter = <b>Loud</b> on purpose: a hard set has to be LOUD/dense to hold up against other
-    /// loud sources (club/stream) — "Soft" (0 dB drive) leaves it quiet and you get out-loudened. The
-    /// EQ-high cut + AutoTilt tame the harshness so the loud limiter doesn't turn that into fatigue.
-    /// (Chloe, 2026-06-17: "Limiter soft bei hard killt dich jeder.")</para>
-    /// Each assignment flows through the normal apply+persist path, so the engine + settings follow.
-    /// </summary>
+    // Hard / Neutral are no longer hardcoded one-click commands — they are seeded into the user's
+    // editable preset list (DspPreset.Hard / DspPreset.Neutral, seeded once on a fresh install) and
+    // applied via ApplyPreset like any saved preset. See the constructor's seedDefaults block.
+
+    // ── User-saved Sound presets (additive to the built-in Hard / Neutral) ──────────────────────
+    //
+    // Save  — snapshot the CURRENT six Sound-tab bus fields under a user-chosen name (InputDialog).
+    // Apply — push a saved preset's fields back onto the bus exactly like ApplyHardPreset does, by
+    //         assigning the [ObservableProperty] setters: each On…Changed partial pushes the value
+    //         to the engine (SetEqualizer / SetAdaptiveTilt / SetTransientDesigner / SetLimiter) AND
+    //         persists. No separate engine/persist call here — the property path is the single source.
+    // Delete — drop a saved preset and persist.
+
+    /// <summary>Capture the current Sound-tab bus state, prompt for a name, and save it as a user
+    /// preset. A name that matches an existing preset (case-insensitive) overwrites it (rename-as-save
+    /// = update). Built-ins (Hard/Neutral) are unaffected. Cancel / empty name = no-op.</summary>
     [RelayCommand]
-    private void ApplyHardPreset()
+    private async Task SavePreset()
     {
-        EqLow = 1.0; EqMid = 1.0; EqHigh = 0.72;   // ~ −3 dB high shelf
-        AutoTiltStrength = 0.65;
-        TransientPunch = 0.0;
-        LimiterMode   = "Loud";                    // hard = loud; Soft would lose the loudness war
+        // The ViewModel has no Window handle; resolve the live main window the same way ErrorReporter
+        // does. If there's no owner (shouldn't happen with the panel open) we can't prompt → bail.
+        var owner = (Avalonia.Application.Current?.ApplicationLifetime
+            as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return;
+
+        var name = await Views.InputDialog.AskAsync(owner, "Name this Sound preset", DefaultPresetName());
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var preset = new DspPreset
+        {
+            Name             = name,
+            EqLowGain        = EqLow,
+            EqMidGain        = EqMid,
+            EqHighGain       = EqHigh,
+            AutoTiltStrength = AutoTiltStrength,
+            TransientPunch   = TransientPunch,
+            LimiterMode      = LimiterMode,
+        };
+
+        // Overwrite a same-named preset in place (update); otherwise append.
+        var existingIdx = -1;
+        for (var i = 0; i < SoundPresets.Count; i++)
+            if (string.Equals(SoundPresets[i].Name, name, StringComparison.OrdinalIgnoreCase)) { existingIdx = i; break; }
+
+        if (existingIdx >= 0) SoundPresets[existingIdx] = preset;
+        else                  SoundPresets.Add(preset);
+
+        PersistIfHydrated();
     }
 
-    /// <summary>"Neutral" one-click preset — reset the whole bus DSP chain to flat/off (bit-transparent).
-    /// Leaves loudness-normalization and crossfade alone (those aren't tone shaping).</summary>
+    /// <summary>Apply a saved Sound preset to the bus. Mirrors ApplyHardPreset/ApplyNeutralPreset:
+    /// assigns the six observable bus properties, so each On…Changed partial pushes to the engine
+    /// (SetEqualizer / SetAdaptiveTilt / SetTransientDesigner / SetLimiter) AND persists.</summary>
     [RelayCommand]
-    private void ApplyNeutralPreset()
+    private void ApplyPreset(DspPreset? preset)
     {
-        EqLow = 1.0; EqMid = 1.0; EqHigh = 1.0;
-        AutoTiltStrength = 0.0; TransientPunch = 0.0;
-        LimiterMode   = "Off";
+        if (preset is null) return;
+        EqLow = preset.EqLowGain; EqMid = preset.EqMidGain; EqHigh = preset.EqHighGain;
+        AutoTiltStrength = preset.AutoTiltStrength;
+        TransientPunch   = preset.TransientPunch;
+        LimiterMode      = preset.LimiterMode;
+    }
+
+    /// <summary>Delete a saved Sound preset and persist. Built-ins are not in this list, so they're
+    /// never affected.</summary>
+    [RelayCommand]
+    private void DeletePreset(DspPreset? preset)
+    {
+        if (preset is null) return;
+        if (SoundPresets.Remove(preset)) PersistIfHydrated();
+    }
+
+    /// <summary>Rename a saved preset in place (right-click → "Rename…"). Prompts for a new name
+    /// (prefilled), keeps the DSP values + list position. Cancel / empty / unchanged = no-op. Reuses
+    /// the same InputDialog as the "+" Save, so no new dialog infra is needed.</summary>
+    [RelayCommand]
+    private async Task RenamePreset(DspPreset? preset)
+    {
+        if (preset is null) return;
+        var idx = SoundPresets.IndexOf(preset);
+        if (idx < 0) return;
+
+        var owner = (Avalonia.Application.Current?.ApplicationLifetime
+            as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return;
+
+        var name = await Views.InputDialog.AskAsync(owner, "Rename preset", preset.Name);
+        if (string.IsNullOrWhiteSpace(name) || name == preset.Name) return;
+
+        SoundPresets[idx] = preset with { Name = name };
+        PersistIfHydrated();
+    }
+
+    /// <summary>Overwrite a saved preset's stored values with the CURRENT bus state, keeping its name
+    /// and position (right-click → "Replace with current"). No prompt — the name is reused. No-op if gone.</summary>
+    [RelayCommand]
+    private void ReplacePreset(DspPreset? preset)
+    {
+        if (preset is null) return;
+        var idx = SoundPresets.IndexOf(preset);
+        if (idx < 0) return;
+        SoundPresets[idx] = new DspPreset
+        {
+            Name             = preset.Name,
+            EqLowGain        = EqLow,
+            EqMidGain        = EqMid,
+            EqHighGain       = EqHigh,
+            AutoTiltStrength = AutoTiltStrength,
+            TransientPunch   = TransientPunch,
+            LimiterMode      = LimiterMode,
+        };
+        PersistIfHydrated();
+    }
+
+    /// <summary>A sensible default name for a new preset: "Preset N" where N avoids a collision.</summary>
+    private string DefaultPresetName()
+    {
+        var n = SoundPresets.Count + 1;
+        string candidate;
+        do { candidate = $"Preset {n++}"; }
+        while (SoundPresets.Any(p => string.Equals(p.Name, candidate, StringComparison.OrdinalIgnoreCase)));
+        return candidate;
     }
 
     /// <summary>Persist only once settings are hydrated (so constructor seeds don't echo to disk).</summary>
@@ -866,8 +985,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         EqHighGain            = EqHigh,
         TransientPunch        = TransientPunch,
         AutoTiltStrength      = AutoTiltStrength,
+        // Sound presets — persist the full list so they survive restart, and record that the built-in
+        // defaults were seeded (always true once the VM is constructed) so they're never re-seeded.
+        SoundPresets          = [.. SoundPresets],
+        SoundPresetsSeeded    = true,
         AnalysisThreads    = AnalysisThreads,
-        UseAiKeyDetection  = _settings.Current.UseAiKeyDetection, // preserve (no UI yet)
         // Auto-update prefs have no Tweaks UI — preserve so a tweak save never resets them
         // (the update flow writes IgnoredUpdateVersion; a wipe here would un-ignore it).
         CheckForUpdates      = _settings.Current.CheckForUpdates,

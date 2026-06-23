@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net.Http;
 using Avalonia;
 using JustPlay.Analysis;
-using JustPlay.App.KeyDetection;
 using JustPlay.App.Settings;
 using JustPlay.App.Theming;
 using JustPlay.App.ViewModels;
@@ -180,11 +179,13 @@ sealed class Program
         var services = new ServiceCollection();
 
         // Backends — swapped here (and only here) when going cross-platform.
-        // S2: BassAudioEngine is registered as BOTH IAudioEngine and the concrete type
-        // so that BassBroadcastService can inject it directly (to read OutputChannel).
-        // The same singleton instance backs both registrations.
+        // S2: BassAudioEngine is registered as IAudioEngine AND as IBassMixerSource so that
+        // BassBroadcastService can read the mixer's OutputChannel without a concrete dependency
+        // (the same seam lets JUST STREAM swap in BassInputCaptureEngine). One singleton instance
+        // backs all three registrations.
         services.AddSingleton<BassAudioEngine>();
         services.AddSingleton<IAudioEngine>(sp => sp.GetRequiredService<BassAudioEngine>());
+        services.AddSingleton<IBassMixerSource>(sp => sp.GetRequiredService<BassAudioEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
         // Pre-listen (PFL) cue engine — structurally isolated from the main engine (separate
@@ -197,16 +198,17 @@ sealed class Program
         // out to all registered detectors. Singletons so the BASS_FX side has
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
-        // Key detection: the shipped IKeyDetector is a router that prefers the trained "AI key"
-        // model (MlKeyDetector, ONNX, MIREX ~0.75) when the user enables it AND the model+runtime
-        // loaded, otherwise the always-available DSP template (HpcpKeyDetector, ~0.71). Both
-        // analyse at 44.1 kHz (TrackAnalysisService.KeySampleRate). See RoutingKeyDetector.
+        // Key detection: ONE canonical detector for the whole product — the app AND the headless
+        // CLI both use BestKeyDetector, so a track keyed by the console shows the SAME key in the UI
+        // (the fix for the key-conflict-dot root cause). Always the best method: the trained ML model
+        // (MlKeyDetector, ONNX, MIREX ~0.75) when the model+runtime loaded, else the always-available
+        // DSP template (HpcpKeyDetector, ~0.71). No user toggle — best method, always. Both analyse at
+        // 44.1 kHz (TrackAnalysisService.KeySampleRate). See JustPlay.ML.BestKeyDetector.
         services.AddSingleton<HpcpKeyDetector>();
         services.AddSingleton<MlKeyDetector>();
-        services.AddSingleton<IKeyDetector>(sp => new RoutingKeyDetector(
+        services.AddSingleton<IKeyDetector>(sp => new BestKeyDetector(
             sp.GetRequiredService<MlKeyDetector>(),
-            sp.GetRequiredService<HpcpKeyDetector>(),
-            sp.GetRequiredService<ISettingsService>()));
+            sp.GetRequiredService<HpcpKeyDetector>()));
         services.AddSingleton<IEnergyDetector, SpectralEnergyDetector>();
         services.AddSingleton<ILoudnessDetector, Bs1770LoudnessDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();

@@ -192,25 +192,35 @@
              Styled against the Avalonia 12.0.3 Slider template: PART_DecreaseButton paints the rail
              from the bottom (low values) up to the thumb via its Background TemplateBinding, so the
              accent fill shows the level; PART_IncreaseButton is the faint groove above. -->
+        <!-- EQ-specific GEOMETRY only (range 0..2 = kill/flat/+6 dB; column width). The LOOK is the
+             shared "fader" class below — EQ sliders carry Classes="eq fader". -->
         <Style Selector="Slider.eq">
             <Setter Property="Minimum" Value="0"/>
             <Setter Property="Maximum" Value="2"/>
             <Setter Property="Width" Value="30"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
         </Style>
-        <Style Selector="Slider.eq:vertical /template/ RepeatButton#PART_DecreaseButton">
-            <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
-        </Style>
-        <Style Selector="Slider.eq:vertical /template/ RepeatButton#PART_IncreaseButton">
-            <Setter Property="Background" Value="#1FFFFFFF"/>
-        </Style>
-        <Style Selector="Slider.eq /template/ Thumb">
+
+        <!-- Shared FADER look — ONE base for BOTH the EQ faders (vertical) and the Revive sliders
+             (horizontal); the only difference between them is orientation, so these cover both.
+             A WHITE thumb (theme-independent — NOT the OS SystemAccent the bare Fluent slider picks
+             up, which rendered RED on Chloe's Midnight theme), an AccentA value-fill, and a faint
+             groove past the thumb. PART_DecreaseButton paints the filled side (bottom→thumb when
+             vertical, left→thumb when horizontal); PART_IncreaseButton is the groove. No orientation
+             qualifier — only the active template's parts exist, and selectors no-op if a part is absent. -->
+        <Style Selector="Slider.fader /template/ Thumb">
             <Setter Property="Background" Value="White"/>
             <Setter Property="Width" Value="16"/>
             <Setter Property="Height" Value="16"/>
             <Setter Property="Effect">
                 <DropShadowEffect Color="Black" BlurRadius="4" OffsetX="0" OffsetY="1" Opacity="0.4"/>
             </Setter>
+        </Style>
+        <Style Selector="Slider.fader /template/ RepeatButton#PART_DecreaseButton">
+            <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <Style Selector="Slider.fader /template/ RepeatButton#PART_IncreaseButton">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
         </Style>
 
         <!-- Tabs reuse the SHARED underline-tab style (Button.tab / Border.tabline) now in App.axaml
@@ -368,18 +378,61 @@
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Sound}">
                     <!-- One-click bus presets — set the whole Sound chain at once. "Hard" = the validated
                          correction for harsh hard techno / hardstyle (AutoTilt + high-shelf cut + soft
-                         limiter, measured on Chloe's library). "Neutral" = all flat/off. -->
+                         limiter, measured on Chloe's library). "Neutral" = all flat/off.
+                         Below the built-ins: the user's own saved presets (additive) + a "Save current…"
+                         affordance. Saved presets capture the six Sound fields and re-apply with one click. -->
                     <StackPanel Classes="tweakgroup">
-                        <TextBlock Classes="tweak-label" Text="Preset"
-                                   ToolTip.Tip="One-click bus setups. Hard = tame the harsh top of hardcore / hardstyle (AutoTilt + High −3 dB) AND push it LOUD (Limiter Loud) so it holds up in a club/stream. Neutral = everything flat/off."/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Classes="tweak-radio" Content="Hard"
-                                    Command="{Binding ApplyHardPresetCommand}"
-                                    ToolTip.Tip="Hard set in one click: AutoTilt 0.65 + High −3 dB tame the hot 2–16 kHz, and Limiter Loud (+6 dB, −0.1 dBTP) pushes it loud/dense so it doesn't get out-loudened. Keeps the bass + genre character."/>
-                            <Button Classes="tweak-radio" Content="Neutral"
-                                    Command="{Binding ApplyNeutralPresetCommand}"
-                                    ToolTip.Tip="Reset the whole Sound chain to flat / off (bit-transparent)."/>
-                        </StackPanel>
+                        <TextBlock Classes="tweak-label" Text="Preset" VerticalAlignment="Center"
+                                   ToolTip.Tip="One-click bus setups. Hard = tame the harsh top of hardcore / hardstyle (AutoTilt + High −3 dB) AND push it LOUD (Limiter Loud) so it holds up in a club/stream. Neutral = everything flat/off. Right-click a saved preset to replace or delete it; + saves the current settings under a name."/>
+
+                        <!-- One row that flows together: every preset (the seeded built-ins Hard/Neutral
+                             AND the user's own — all ordinary, editable entries), then the "+" (save current
+                             as a new named preset) directly after them. Single WrapPanel so "+" sits right
+                             behind the last preset and wraps with them. -->
+                        <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+                            <!-- All presets. Click a chip to apply; RIGHT-CLICK for Replace / Delete.
+                                 The apply Button binds back to the VM via $parent[UserControl] (item DataContext
+                                 is a DspPreset). The ContextMenu lives in a popup OUTSIDE the UserControl's tree,
+                                 so its items reach the VM through PlacementTarget.Tag (= the VM, stashed on the
+                                 chip Border) and the clicked preset through PlacementTarget.DataContext. -->
+                            <ItemsControl ItemsSource="{Binding SoundPresets}" IsVisible="{Binding HasSoundPresets}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:CompileBindings="False">
+                                        <Border Background="#0FFFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1"
+                                                CornerRadius="8" Margin="0,0,8,8">
+                                            <Border.ContextMenu>
+                                                <!-- Click handlers (code-behind), NOT Command bindings: a ContextMenu lives
+                                                     in a popup OUTSIDE the control's tree, so RelativeSource/PlacementTarget
+                                                     command bindings resolve null → the items render permanently DISABLED.
+                                                     The handler reads the preset from the item DataContext and the VM from
+                                                     the panel. Same proven pattern as MaxView's stream context menu. -->
+                                                <ContextMenu>
+                                                    <MenuItem Header="Replace with current" Click="OnPresetReplace"/>
+                                                    <MenuItem Header="Rename…" Click="OnPresetRename"/>
+                                                    <MenuItem Header="Delete" Click="OnPresetDelete"/>
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <Button Classes="ghost" Padding="12,5" FontSize="12" FontWeight="SemiBold"
+                                                    Foreground="#E6FFFFFF"
+                                                    Content="{Binding Name}"
+                                                    Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip.Tip="Apply this preset · right-click to replace / delete"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Save the CURRENT Sound state as a NEW named preset (prompts for a name). -->
+                            <Button Classes="tweak-radio" Content="+" Margin="0,0,8,8"
+                                    Command="{Binding SavePresetCommand}"
+                                    ToolTip.Tip="Save the current EQ + Revive + Limiter settings as a new named preset."/>
+                        </WrapPanel>
                     </StackPanel>
 
                     <!-- Normalize -->
@@ -445,19 +498,19 @@
                              same centre. Mouse-wheel over a fader nudges it (behaviors:SliderWheel). -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="30" Margin="0,4,0,0">
                             <StackPanel Width="42" Spacing="6">
-                                <Slider Classes="eq" Orientation="Vertical" Height="104" Width="30"
+                                <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
                                         HorizontalAlignment="Center" Value="{Binding EqHigh}"
                                         behaviors:SliderWheel.Enabled="True"/>
                                 <TextBlock Classes="tweak-label" Text="High" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Width="42" Spacing="6">
-                                <Slider Classes="eq" Orientation="Vertical" Height="104" Width="30"
+                                <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
                                         HorizontalAlignment="Center" Value="{Binding EqMid}"
                                         behaviors:SliderWheel.Enabled="True"/>
                                 <TextBlock Classes="tweak-label" Text="Mid" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Width="42" Spacing="6">
-                                <Slider Classes="eq" Orientation="Vertical" Height="104" Width="30"
+                                <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
                                         HorizontalAlignment="Center" Value="{Binding EqLow}"
                                         behaviors:SliderWheel.Enabled="True"/>
                                 <TextBlock Classes="tweak-label" Text="Low" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
@@ -481,7 +534,7 @@
                         <Grid ColumnDefinitions="58,*" Margin="0,6,0,0">
                             <TextBlock Classes="tweak-label" Text="Punch" FontSize="11" VerticalAlignment="Center"
                                        ToolTip.Tip="Transient designer — boosts attacks (kick/snare snap) to bring punch back to brickwall masters, without making them louder."/>
-                            <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding TransientPunch}"
+                            <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding TransientPunch}"
                                     behaviors:SliderWheel.Enabled="True"/>
                         </Grid>
 
@@ -489,14 +542,14 @@
                         <Grid ColumnDefinitions="58,*">
                             <TextBlock Classes="tweak-label" Text="Auto-tilt" FontSize="11" VerticalAlignment="Center"
                                        ToolTip.Tip="Gentle auto-master — slowly nudges each track's bass/treble balance toward an even target so dull or thin tracks sit better. Very subtle (a few dB max)."/>
-                            <Slider Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding AutoTiltStrength}"
+                            <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding AutoTiltStrength}"
                                     behaviors:SliderWheel.Enabled="True"/>
                         </Grid>
                     </StackPanel>
 
                     <!-- Limiter / maximizer — LAST in the chain (final true-peak stage). -->
                     <StackPanel Classes="tweakgroup">
-                        <TextBlock Classes="tweak-label" Text="Limiter / maximizer"
+                        <TextBlock Classes="tweak-label" Text="Limiter / Maximizer"
                                    ToolTip.Tip="True-peak limiter on the output. Off = bypass. Soft = safety only (−1 dBTP). Club = +3 dB drive. Loud = +6 dB drive AND a hotter −0.1 dBTP ceiling. Applies to playback and the stream."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Classes="tweak-radio" Content="Off"

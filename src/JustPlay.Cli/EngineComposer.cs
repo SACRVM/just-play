@@ -3,6 +3,7 @@ using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
 using JustPlay.Engine;
 using JustPlay.Metadata;
+using JustPlay.ML;
 
 namespace JustPlay.Cli;
 
@@ -11,9 +12,11 @@ namespace JustPlay.Cli;
 ///
 /// <para>
 /// Mirrors the wiring in <c>JustPlay.App.Program.ConfigureServices</c> but skips
-/// Avalonia, ISettingsService, and all UI-only services.  The HPCP key detector is
-/// used directly (no ML fallback — MlKeyDetector requires the ONNX runtime DLL which
-/// may not be present in a headless environment).
+/// Avalonia, ISettingsService, and all UI-only services. Key detection uses the SAME
+/// <see cref="BestKeyDetector"/> as the app (ML model when available, else DSP) — so a
+/// track keyed by the CLI shows the identical key in the UI (no key-conflict dots from a
+/// CLI/app detector mismatch). It falls back to DSP automatically if the ONNX runtime/model
+/// is absent in a headless environment.
 /// </para>
 ///
 /// <para>
@@ -81,7 +84,8 @@ internal sealed class EngineComposer : IDisposable
 
         var decoder     = new BassAudioDecoder();
         var bpm         = new BassBpmDetector();
-        var key         = new HpcpKeyDetector();
+        // Same canonical detector as the app: ML model when available, else DSP template.
+        var key         = new BestKeyDetector();
         var energy      = new SpectralEnergyDetector();
         var loudness    = new Bs1770LoudnessDetector();
         var reader      = new TagLibMetadataReader();

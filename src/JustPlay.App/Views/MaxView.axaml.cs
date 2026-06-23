@@ -23,6 +23,19 @@ public partial class MaxView : UserControl
         InitializeComponent();
         // Drag the frameless window by clicking the chrome bar.
         this.FindControl<Border>("ChromeBar")?.AddHandler(PointerPressedEvent, OnChromePressed, RoutingStrategies.Tunnel);
+
+        // Queue key handling MUST be registered with handledEventsToo:true. Avalonia's ListBoxItem
+        // marks Key.Enter (and Key.Space) as Handled during the bubble pass BEFORE a plain XAML
+        // KeyDown handler runs — ListBoxItem.OnKeyDown → SelectingItemsControl.UpdateSelectionFromEvent,
+        // and ItemSelectionEventTriggers.ShouldTriggerSelection returns true for Space/Enter and sets
+        // e.Handled = true (verified against Avalonia 12.0.3 source). A normal (handledEventsToo:false)
+        // handler — which is what KeyDown="..." in XAML installs — therefore never sees Enter, so the
+        // highlighted row's PlayTrack was silently swallowed. Registering here with handledEventsToo:true
+        // lets OnTrackListKeyDown observe the already-handled Enter and start the track. The XAML
+        // KeyDown attribute is removed so this is the SOLE registration (no double-fire on unhandled
+        // keys like Delete / type-ahead).
+        this.FindControl<ListBox>("TrackList")?.AddHandler(
+            InputElement.KeyDownEvent, OnTrackListKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
     }
 
     private void OnChromePressed(object? sender, PointerPressedEventArgs e)

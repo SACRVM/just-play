@@ -878,7 +878,6 @@
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      DoubleTapped="OnTrackDoubleTapped"
                                      SelectionChanged="OnSelectionChanged"
-                                     KeyDown="OnTrackListKeyDown"
                                      ContextRequested="OnListContextRequested">
                                 <!--
                                   One shared context menu (DataContext = MainWindowViewModel via the

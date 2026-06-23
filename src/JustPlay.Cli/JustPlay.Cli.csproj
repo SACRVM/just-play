@@ -5,7 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>justplay</AssemblyName>
+    <!-- Ship as "JustPlayCLI.exe" — instantly clear it's the command-line companion to
+         JustPlay.exe (the GUI app). Both ship in the same installer. -->
+    <AssemblyName>JustPlayCLI</AssemblyName>
     <!-- Reflection-free / trim-AOT-safe: same philosophy as JustPlay.App. -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- Disable Avalonia; this is a headless console app. -->
@@ -26,6 +28,9 @@
     <ProjectReference Include="..\JustPlay.Audio.Bass\JustPlay.Audio.Bass.csproj" />
     <!-- Analysis stack (platform-agnostic detectors — key, energy, loudness) -->
     <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+    <!-- ML adapter (ONNX) — so the CLI uses the SAME BestKeyDetector (ML key model) as the app.
+         Brings keymodel.onnx + the ONNX runtime into the CLI output so console keys == UI keys. -->
+    <ProjectReference Include="..\JustPlay.ML\JustPlay.ML.csproj" />
     <!-- Tag reading for near-dedup + artist/title -->
     <ProjectReference Include="..\JustPlay.Metadata\JustPlay.Metadata.csproj" />
   </ItemGroup>
@@ -34,6 +39,11 @@
     <!-- Copy native BASS DLLs alongside the CLI exe so ManagedBass finds them. -->
     <None Include="..\JustPlay.Audio.Bass\native\win-x64\*.dll">
       <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Ship the how-to next to the exe (dev output + installer drop). .howto.txt = the
+         "howto" signal AND a .txt so it opens on double-click everywhere. -->
+    <None Include="JustPlayCLI.howto.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

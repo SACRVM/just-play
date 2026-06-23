@@ -25,13 +25,6 @@ public sealed record UserSettings
     public bool WaveformEnabled { get; init; } = true;
 
     /// <summary>
-    /// Use the trained "AI key" model (ONNX, MIREX ~0.75) when it's available, instead of the
-    /// DSP template detector (~0.71). Falls back to DSP automatically if the model/runtime
-    /// aren't present, so turning this off just forces the lightweight path.
-    /// </summary>
-    public bool UseAiKeyDetection { get; init; } = true;
-
-    /// <summary>
     /// Run BPM/key/energy analysis automatically when tracks are added. Off by default — JustPlay
     /// is "just play": dropping a track plays it instantly; analysis is an explicit choice (right-
     /// click → Analyze) so adding a big folder never pegs the CPU unasked.
@@ -112,6 +105,20 @@ public sealed record UserSettings
     public double TransientPunch  { get; init; } = 0.0;
     /// <inheritdoc cref="TransientPunch"/>
     public double AutoTiltStrength { get; init; } = 0.0;
+
+    /// <summary>
+    /// User-saved Sound-tab bus presets (name + the six tone fields above). Additive on top of the
+    /// built-in Hard / Neutral presets — the user saves the current bus state under a name, recalls
+    /// it with one click, and deletes it. Empty by default. Forward-compatible: an old settings.json
+    /// without this field deserializes to an empty list (no migration needed). [[own-limiter-no-vst]]
+    /// </summary>
+    public List<DspPreset> SoundPresets { get; init; } = [];
+
+    /// <summary>True once the built-in Hard / Neutral starting points have been seeded into
+    /// <see cref="SoundPresets"/> (done exactly once on a fresh install). Persisted so deleting both
+    /// built-ins does NOT bring them back on the next launch. Defaults to false → a pre-U5 settings.json
+    /// seeds the two defaults on first load, then flips this true.</summary>
+    public bool SoundPresetsSeeded { get; init; }
 
     // ── Audio output device ───────────────────────────────────────────────────────────
 
