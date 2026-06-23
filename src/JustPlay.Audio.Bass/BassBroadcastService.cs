@@ -50,7 +50,10 @@ namespace JustPlay.Audio.Bass;
 /// </summary>
 public sealed class BassBroadcastService : IBroadcastService
 {
-    private readonly BassAudioEngine _engine;
+    // The mixer source whose post-DSP output we encode. In JustPlay this is the playback
+    // engine (BassAudioEngine); in JUST STREAM it is the input-capture engine
+    // (BassInputCaptureEngine). We only ever read its OutputChannel — fully decoupled.
+    private readonly IBassMixerSource _source;
 
     // Encoder handle returned by BASS_Encode_MP3_Start. Zero when not active.
     private int _encoder;
@@ -92,9 +95,9 @@ public sealed class BassBroadcastService : IBroadcastService
     // (CallbackOnCollectedDelegate risk — same pattern as BassAudioEngine._endSync.)
     private EncodeNotifyProcedure? _notifyProc;
 
-    public BassBroadcastService(BassAudioEngine engine)
+    public BassBroadcastService(IBassMixerSource source)
     {
-        _engine = engine;
+        _source = source;
     }
 
     public BroadcastState State => _state;
@@ -119,12 +122,13 @@ public sealed class BassBroadcastService : IBroadcastService
         _lastError = null;
         SetState(BroadcastState.Connecting);
 
-        var mixer = _engine.OutputChannel;
+        var mixer = _source.OutputChannel;
         if (mixer == 0)
         {
-            // Engine hasn't loaded a track yet — the mixer is created lazily on first Load.
-            // This is a rare edge case; surface it as an error.
-            _lastError = "Load a track before connecting (audio engine not ready yet).";
+            // The mixer is created lazily by the source (first Load for playback, or capture
+            // start for JUST STREAM). Connecting before there is any audio is a rare edge case;
+            // surface it as an error.
+            _lastError = "No audio source yet — start playback (JustPlay) or capture (JUST STREAM) before connecting.";
             SetState(BroadcastState.Error);
             Console.WriteLine("[Broadcast] " + _lastError);
             return Task.CompletedTask;

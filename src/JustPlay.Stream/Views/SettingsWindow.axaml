@@ -1,0 +1,142 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JustPlay.Stream.ViewModels"
+        xmlns:models="using:JustPlay.Core.Models"
+        x:Class="JustPlay.Stream.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="JUST STREAM — Settings"
+        Width="740" Height="500"
+        MinWidth="700" MinHeight="460"
+        Background="{StaticResource BgLinear}">
+
+    <!-- Wide-not-tall settings, Aurora glass to match the main console (blueprint §3a).
+         Audio/Stream/DSP all live on the main UI now → settings is just Server + Advanced. -->
+    <Grid>
+        <Border Background="{StaticResource BgGlowA}" IsHitTestVisible="False"/>
+        <Border Background="{StaticResource BgGlowB}" IsHitTestVisible="False"/>
+
+        <Grid Margin="16" RowDefinitions="Auto,*">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="2,0,0,12">
+                <TextBlock Classes="brand" Text="SETTINGS" VerticalAlignment="Center"/>
+                <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="2,0"/>
+                <TextBlock Classes="label" Text="JUST STREAM" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Shared underline tabs (App.axaml Button.tab / Border.tabline) — NOT a raw TabControl.
+                 Same look as JustPlay's tweaks tabs: string state + IsVisible panels. -->
+            <Grid Grid.Row="1" RowDefinitions="Auto,*">
+                <Border Grid.Row="0" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Classes="tab"
+                                Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
+                                Command="{Binding SetSettingsTabCommand}" CommandParameter="Server">
+                            <Panel>
+                                <TextBlock Text="Server" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                <Border Classes="tabline"/>
+                            </Panel>
+                        </Button>
+                        <Button Classes="tab"
+                                Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}"
+                                Command="{Binding SetSettingsTabCommand}" CommandParameter="Advanced">
+                            <Panel>
+                                <TextBlock Text="Advanced" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                <Border Classes="tabline"/>
+                            </Panel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ SERVER ═══ -->
+                <Grid Grid.Row="1"
+                      IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
+                      ColumnDefinitions="210,*" Margin="0,12,0,0">
+                        <!-- list + CRUD -->
+                        <Border Grid.Column="0" Classes="card" Margin="0,0,10,0" Padding="10">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Bottom" Background="#16000000" CornerRadius="9" Padding="3"
+                                        BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" Margin="0,8,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                                        <Button Classes="seg" Content="+ ADD" Command="{Binding AddServerCommand}"/>
+                                        <Button Classes="seg" Content="DUP" Command="{Binding DuplicateServerCommand}"/>
+                                        <Button Classes="seg" Content="DEL" Command="{Binding RemoveServerCommand}"/>
+                                    </StackPanel>
+                                </Border>
+                                <ListBox ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                                         Background="Transparent" BorderThickness="0">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:StreamServerProfile">
+                                            <TextBlock Text="{Binding Name}" Padding="2,4"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- edit form -->
+                        <Border Grid.Column="1" Classes="card"
+                                IsEnabled="{Binding Editing, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <ScrollViewer>
+                                <!-- x:CompileBindings=False: Editing.Port (int→TextBox.Text) and the enum/int
+                                     ComboBox.SelectedItem binds need runtime coercion. -->
+                                <Grid x:CompileBindings="False" ColumnDefinitions="96,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                      VerticalAlignment="Top">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="NAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Editing.Name}" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="HOST" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding Editing.Host}" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="PORT" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding Editing.Port}" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="MOUNT" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="3" Grid.Column="1" Text="{Binding Editing.Mount}" PlaceholderText="/live.mp3" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="USERNAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="4" Grid.Column="1" Text="{Binding Editing.Username}" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="PASSWORD" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="5" Grid.Column="1" Text="{Binding Editing.Password}" PasswordChar="•" Margin="0,0,0,8"/>
+
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="CODEC" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <Grid Grid.Row="6" Grid.Column="1" ColumnDefinitions="*,*" Margin="0,0,0,8">
+                                        <ComboBox Grid.Column="0" ItemsSource="{Binding Formats}" SelectedItem="{Binding Editing.Format}"
+                                                  HorizontalAlignment="Stretch" Margin="0,0,4,0"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding Bitrates}" SelectedItem="{Binding Editing.BitrateKbps}"
+                                                  HorizontalAlignment="Stretch" Margin="4,0,0,0"/>
+                                    </Grid>
+
+                                    <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="PROTOCOL" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <ComboBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Protocols}" SelectedItem="{Binding Editing.Protocol}"
+                                              HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
+
+                                    <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="TLS / SSL" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <ToggleSwitch Grid.Row="8" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent=""/>
+                                </Grid>
+                            </ScrollViewer>
+                        </Border>
+                </Grid>
+
+                <!-- ═══ ADVANCED ═══ -->
+                <Border Grid.Row="1"
+                        IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}"
+                        Classes="card" Margin="0,12,0,0" VerticalAlignment="Top">
+                        <StackPanel Spacing="14">
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="label" Text="AUTO-RECONNECT"/>
+                                <TextBlock Classes="value" Text="Planned — exponential backoff on dropped connections."
+                                           Foreground="{StaticResource MutedBrush}" FontWeight="Normal"/>
+                            </StackPanel>
+                            <Border Background="{StaticResource HairlineBrush}" Height="1"/>
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="label" Text="SETTINGS &amp; LOG FOLDER"/>
+                                <TextBlock Classes="mono" FontSize="12" Text="%LOCALAPPDATA%\JustStream"
+                                           Foreground="{StaticResource MutedBrush}"/>
+                            </StackPanel>
+                            <Border Background="{StaticResource HairlineBrush}" Height="1"/>
+                            <StackPanel Spacing="3">
+                                <TextBlock Classes="label" Text="ABOUT"/>
+                                <TextBlock Classes="value" Text="JUST STREAM — broadcast console (JustPlay family)"
+                                           Foreground="{StaticResource MutedBrush}" FontWeight="Normal"/>
+                            </StackPanel>
+                        </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

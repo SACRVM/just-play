@@ -8,6 +8,7 @@
     <Project Path="src/JustPlay.Engine/JustPlay.Engine.csproj" />
     <Project Path="src/JustPlay.Metadata/JustPlay.Metadata.csproj" />
     <Project Path="src/JustPlay.ML/JustPlay.ML.csproj" />
+    <Project Path="src/JustPlay.Stream/JustPlay.Stream.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JustPlay.Analysis.Tests/JustPlay.Analysis.Tests.csproj" />

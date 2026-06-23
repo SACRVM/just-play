@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- Ships as "JustStream.exe" — sibling product to JustPlay. RootNamespace stays
+         JustPlay.Stream so x:Class / clr-namespace references resolve. -->
+    <AssemblyName>JustStream</AssemblyName>
+    <AssemblyTitle>JUST STREAM</AssemblyTitle>
+    <Product>JUST STREAM</Product>
+    <Company>Chloe Dream</Company>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+  </ItemGroup>
+
+  <!-- Reuses the shared, platform-agnostic Core + the BASS adapter (capture engine + broadcast
+       service + bus DSP rack). No reference to JustPlay.App — JUST STREAM is its own front end
+       (shared look & feel, NOT shared panels — just-stream-blueprint.md §3a). The native BASS DLLs
+       (bass/bassmix/bassenc/bassenc_mp3) flow in transitively from JustPlay.Audio.Bass. -->
+  <ItemGroup>
+    <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+    <ProjectReference Include="..\JustPlay.Audio.Bass\JustPlay.Audio.Bass.csproj" />
+    <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+  </ItemGroup>
+</Project>

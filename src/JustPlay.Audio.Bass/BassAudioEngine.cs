@@ -32,7 +32,7 @@ namespace JustPlay.Audio.Bass;
 ///   BassFlags.MixerChanBuffer  — enables accurate position tracking for mixer sources
 ///   BassFlags.MixerChanPause   — pauses a source within the mixer without stopping it
 /// </summary>
-public sealed class BassAudioEngine : IAudioEngine
+public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
 {
     // ── Mixer (persistent output, process lifetime once created) ─────────
     // Created on first Load; never freed until Dispose. The Icecast encoder
@@ -144,7 +144,7 @@ public sealed class BassAudioEngine : IAudioEngine
     // ── Internal output handle exposed to BassBroadcastService ───────────
     // The broadcast service (same assembly) reads this to attach the LAME encoder.
     // Zero until the first Load() call. After that it is valid for the process lifetime.
-    internal int OutputChannel => _mixer;
+    public int OutputChannel => _mixer;
 
     // ── IAudioEngine: output device selection ─────────────────────────────
 
