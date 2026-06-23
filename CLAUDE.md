@@ -32,6 +32,45 @@ If you need a platform service in Core, add it as an interface in
 project. **Never** reference `Avalonia.*` from anywhere outside
 `JustPlay.App`.
 
+## JUST suite UI philosophy — JUST PLAY is THE reference (do not re-litigate)
+
+Every JUST app (JUST PLAY, JUST STREAM, and any future one) MUST share one look &
+feel. **JUST PLAY is the canonical implementation — copy its patterns; do not
+re-invent or iterate the UI from scratch per app.** The brand is J.U.S.T. = "Just
+Useful Sound Tools" (see the brand notes); each app is part of that suite.
+
+Non-negotiable rules (all proven in JUST PLAY — cite these files when building a new app's UI):
+
+1. **Frameless, rounded, modern windows — NO classic Windows title bar.**
+   `WindowDecorations="None"` + a rounded card Border (`CornerRadius` ~14) + a drop
+   shadow blooming into a transparent margin. Drag via the chrome bar, custom caption
+   buttons. Reference: `Views/MainWindow.axaml`, `Controls/WindowChrome.cs`,
+   `Controls/WindowControls.axaml.cs`, and the chrome bar in `Views/MaxView.axaml`
+   (`OnChromePressed` drag).
+
+2. **App icon = the active THEME gradient + one simple glyph**, and it **REPAINTS on
+   theme switch.** JUST PLAY's glyph is the play triangle; JUST STREAM's is the radio
+   tower ("Funkturm" — the same mark that manages the radio station in JUST PLAY, see
+   `Controls/StreamingPanel.axaml`). Pick one simple glyph per app on the theme
+   gradient chip. Reference: `Theming/ThemedWindowIcon.cs` (re-rendered on
+   `IThemeService.ThemeChanged`, wired in `App.axaml.cs`), `Theming/AvaloniaThemeService.cs`.
+
+3. **About opens from the brand mark, top-LEFT of the chrome bar** (not a menu, not a
+   classic Help/About). The About dialog is itself a frameless rounded themed card with
+   the gradient brand chip + glyph, and it carries the "Part of J.U.S.T. — Just Useful
+   Sound Tools" line. Reference: `Views/MaxView.axaml` brand button → `OnAboutClick`,
+   and `Views/AboutWindow.axaml`.
+
+4. **Everything is hand-drawn / themed — no stock OS chrome, no default control skins
+   left bare.** Controls follow the active palette via `DynamicResource` keys
+   (`BgLinear`/`BgGlowA/B`, `AccentGradient`, `TitleGradient`, `MutedBrush`, …) so they
+   track live theme switches with zero extra wiring. Reference: `App.axaml` styles,
+   `Controls/Vinyl.axaml`, the `DynamicResource` usage throughout `AboutWindow.axaml`.
+
+When building JUST STREAM (or any new app) UI: start by mirroring these files, swap the
+glyph, reuse the same `DynamicResource` theme keys and `App.axaml` style patterns. The
+goal is zero UI re-iteration — it should look like a JUST PLAY sibling on first run.
+
 ## Avalonia conventions in this repo
 
 ### Bindings inside reusable controls — use `$parent`, not `DataContext = this`

@@ -210,7 +210,8 @@ static double ParseDoubleFlag(string[] args, string flag, double defaultValue)
 static void PrintHelp()
 {
     Console.WriteLine("""
-        Just Sort — JustPlay library analysis CLI
+        J.U.S.T. — Just Useful Sound Tools
+        JustPlayCLI — headless library tools (analyze · tag · sort)
 
         COMMANDS
 

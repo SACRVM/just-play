@@ -83,6 +83,11 @@
 
                 <Border Height="1" Background="{DynamicResource HairlineBrush}" Margin="0,20"/>
 
+                <!-- Suite brand: J.U.S.T. = "Just Useful Sound Tools" (see brand memory). -->
+                <TextBlock Text="Part of J.U.S.T. — Just Useful Sound Tools" FontSize="11"
+                           Foreground="{DynamicResource MutedBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
                 <TextBlock Text="by Chloe Dream" FontSize="12"
                            Foreground="{DynamicResource MutedBrush}"
                            HorizontalAlignment="Center"/>

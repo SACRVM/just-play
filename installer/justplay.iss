@@ -3,7 +3,9 @@
 ; Per-user install (no UAC / admin): drops the self-contained single-file app plus its
 ; native sidecars (Avalonia Skia/HarfBuzz + BASS / BASS_FX / BASSmix / BASSenc) into
 ; %LOCALAPPDATA%\Programs\JustPlay, adds Start-menu (+ optional desktop) shortcuts, and
-; registers a clean uninstaller.
+; registers a clean uninstaller. The headless JustPlayCLI.exe ships in the SAME folder
+; (it shares the app's runtime, BASS natives, ONNX runtime and keymodel.onnx — one copy
+; each; for agent/power-user library tagging+sorting). JUST STREAM will join the same dir.
 ;
 ; Build it via build\publish-installer.ps1 (publishes the app, then runs ISCC with the
 ; version from Directory.Build.props). AppVersion can be overridden on the command line:
@@ -64,9 +66,10 @@ Name: "assoc_aiff"; Description: ".aiff / .aif"; GroupDescription: "Open these i
 Name: "assoc_m3u";  Description: ".m3u8 / .m3u playlists (opening one loads the whole set)"; GroupDescription: "Open these in JustPlay on double-click:"
 
 [Files]
-; The entire self-contained publish drop, shipped verbatim: JustPlay.App.exe plus the
-; Avalonia (libSkiaSharp / av_libglesv2 / libHarfBuzzSharp) and BASS native sidecars.
-; build\publish-win-x64.ps1 produces this folder.
+; The entire self-contained suite drop, shipped verbatim into one folder: JustPlay.exe +
+; JustPlayCLI.exe (+ JustPlayCLI.howto.txt) sharing ONE copy of the .NET runtime, the
+; Avalonia natives (libSkiaSharp / av_libglesv2 / libHarfBuzzSharp), the BASS natives, the
+; ONNX runtime and keymodel.onnx. build\publish-win-x64.ps1 produces this folder.
 Source: "..\publish\win-x64\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Registry]

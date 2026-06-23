@@ -3,6 +3,8 @@
 The music player for DJs and music lovers — Windows / macOS / Linux.
 Drop tracks in, double-click to play. No library, no memory between sessions, no nag — just play.
 
+*Part of **J.U.S.T.** — Just Useful Sound Tools.*
+
 > **v0.3.0 — still pre-1.0, but daily-driver ready on Windows.**
 > Headline analysis (BPM · Camelot key · energy), a full output DSP bus, loudness normalisation,
 > crossfade, and an installer with auto-update all ship in this release.

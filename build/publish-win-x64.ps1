@@ -1,41 +1,57 @@
-# Publishes JustPlay as a self-contained, single-file .exe for Windows x64.
+# Publishes the JustPlay SUITE — the app + the headless JustPlayCLI tool — into ONE
+# shared folder for Windows x64. (JUST STREAM will join the same folder later.)
 #
-# - Self-contained: the .NET runtime is bundled IN — the target machine needs no
+# Why one flat folder (not single-file, not subfolders): the exes SHARE their DLLs —
+# one copy of the .NET runtime, the BASS natives, the ONNX runtime, and keymodel.onnx
+# (the ML key model) serves all of them. A single-file exe hides its managed DLLs
+# INSIDE the exe, so it can't share; and a cli\ subfolder would duplicate the ~11 MB
+# ONNX runtime + the model. So: self-contained, multi-file, everything side by side.
+#
+# - Self-contained: the .NET runtime ships in the folder — target machine needs no
 #   .NET install.
-# - Single-file: all managed assemblies fold into one JustPlay.App.exe.
 # - Needs NO C++ build tools (that was only NativeAOT). Just the .NET SDK.
 #
 # Output: <repo>\publish\win-x64\  (wiped clean each run for a deterministic drop)
-#   JustPlay.App.exe  + native sidecars that can't live inside the bundle
-#   (IncludeNativeLibrariesForSelfExtract defaults to false):
-#     libSkiaSharp / av_libglesv2 / libHarfBuzzSharp  (Avalonia renderer)
-#     bass.dll + bass_fx.dll                          (audio)
-#   No .NET DLLs, no .pdb shipped.
+#   JustPlay.exe       — the GUI app
+#   JustPlayCLI.exe    — the headless library tool (same analysis engine as the app)
+#   JustPlayCLI.howto.txt
+#   shared, single copy: the .NET runtime DLLs, the Avalonia natives
+#   (libSkiaSharp / av_libglesv2 / libHarfBuzzSharp), the BASS natives
+#   (bass / bass_fx / bassmix / bassenc), the ONNX runtime, and keymodel.onnx.
+#   No .pdb shipped. The installer (justplay.iss) ships this whole folder verbatim.
 
 $ErrorActionPreference = "Stop"
-$root = Split-Path -Parent $PSScriptRoot
-$proj = Join-Path $root "src\JustPlay.App"
-$out  = Join-Path $root "publish\win-x64"
+$root    = Split-Path -Parent $PSScriptRoot
+$proj    = Join-Path $root "src\JustPlay.App"
+$cliProj = Join-Path $root "src\JustPlay.Cli"
+$out     = Join-Path $root "publish\win-x64"
 
 # Always start from an empty folder — incremental publishes into a dirty dir
 # leave stale files and confuse the file/size picture.
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 
+# 1. The GUI app — self-contained, multi-file (so its DLLs are shareable), into $out.
 dotnet publish $proj -c Release -r win-x64 --self-contained -o $out `
-    -p:PublishSingleFile=true `
-    -p:EnableCompressionInSingleFile=true `
     -p:DebugType=none `
     -p:DebugSymbols=false
-if ($LASTEXITCODE -ne 0) { throw "publish failed ($LASTEXITCODE)" }
+if ($LASTEXITCODE -ne 0) { throw "app publish failed ($LASTEXITCODE)" }
+
+# 2. The headless CLI — into the SAME folder. Shared framework + native files just
+#    overwrite the app's identical copies; only JustPlayCLI.exe / .dll / its deps.json
+#    + keymodel.onnx + the howto are net-new. One ONNX runtime, one model, shared BASS.
+dotnet publish $cliProj -c Release -r win-x64 --self-contained -o $out `
+    -p:DebugType=none `
+    -p:DebugSymbols=false
+if ($LASTEXITCODE -ne 0) { throw "CLI publish failed ($LASTEXITCODE)" }
 
 # Drop debug symbols that third-party native NuGets (SkiaSharp/HarfBuzz) drag in —
 # ~100 MB of .pdb that have no place in a release drop.
-Get-ChildItem $out -Filter *.pdb -ErrorAction SilentlyContinue | Remove-Item -Force
+Get-ChildItem $out -Filter *.pdb -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 
 $files = Get-ChildItem $out -File
 $total = ($files | Measure-Object Length -Sum).Sum
 Write-Host ""
 Write-Host ("Shipped to $out") -ForegroundColor Green
 Write-Host ("{0} files, {1:N1} MB total" -f $files.Count, ($total / 1MB))
-$files | Sort-Object Length -Descending |
+$files | Sort-Object Length -Descending | Select-Object -First 15 |
     Format-Table Name, @{N='MB'; E={ [math]::Round($_.Length / 1MB, 2) }} -AutoSize | Out-String | Write-Host

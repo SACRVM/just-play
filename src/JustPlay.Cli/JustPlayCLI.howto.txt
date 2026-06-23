@@ -1,0 +1,113 @@
+===============================================================================
+ J.U.S.T. — Just Useful Sound Tools
+ JustPlayCLI.exe — the headless companion to JustPlay
+===============================================================================
+
+WHAT THIS IS
+------------
+JustPlayCLI.exe is the command-line tool that ships next to JustPlay.exe (the
+app). It runs the EXACT SAME analysis engine as the app — same BPM, musical key
+(incl. the trained ML key model), energy, loudness and beat fingerprint. So a key
+written by the CLI is identical to the one the app shows. There is no separate,
+weaker "console algorithm".
+
+It exists so you can analyse, tag, de-duplicate and sort a whole music library
+in bulk — ideally by pointing an AI coding agent (e.g. Claude Code) at it. The
+output is plain JSON, so an agent can read results and decide what to do next.
+
+It is HEADLESS: no window, no audio output. It only reads your files (and only
+WRITES tags when you explicitly pass --apply).
+
+
+QUICK START
+-----------
+Open a terminal (PowerShell) in the folder that contains JustPlayCLI.exe, then:
+
+  JustPlayCLI --help                      show all commands
+  JustPlayCLI scan  "D:\Music"  --json scan.json
+  JustPlayCLI analyze "D:\Music" --index lib.json
+  JustPlayCLI stats --index lib.json
+
+Paths with spaces MUST be quoted. Network paths work (e.g. "\\nas\music").
+
+
+THE COMMANDS
+------------
+  scan    <root> [--json out.json]
+          List every audio file under <root> (recursive). Fast, no decoding.
+
+  dedup   <root> [--json out.json]
+          Find near-duplicate tracks (same song, different file). Read-only.
+
+  analyze <root> --index lib.json [--threads N] [--limit N]
+          The heavy one: decode + full DSP (BPM, key, energy, loudness, beat
+          fingerprint) for every file, written to the sidecar INDEX file
+          (lib.json). Resumable: re-running skips files already in the index.
+          --threads defaults to all cores; --limit caps how many files this run.
+          This is the ONLY command that does real DSP — it is CPU-heavy and can
+          take hours on a big library. Everything else reads the index.
+
+  stats   --index lib.json [--json out.json]
+          Summarise an analysed library: BPM / key / energy distributions, etc.
+
+  tag write --index lib.json [--root <dir>] [--apply] [--no-grouping]
+          Write the analysed BPM / key / energy (+ vibe codes) INTO the audio
+          files' tags. WITHOUT --apply it is a DRY RUN (shows what would change,
+          writes nothing). --no-grouping preserves any existing label/catalog
+          code in the Grouping field.
+
+  promote --index lib.json --root <dir> [--apply] [--no-grouping]
+          [--backup-dir <dir>]
+          Make the analysis the AUTHORITATIVE truth in every file: writes the
+          standard tags AND the embedded JUSTPLAY blob with decisions = Applied,
+          so the app shows zero key-conflict dots. DRY RUN unless --apply. Writes
+          an original-tags backup to --backup-dir first.
+
+  spectrum <audiofile> [--out plot.png] [--eq-low x --eq-mid x --eq-high x]
+          [--tilt x] [--punch x] [--limiter off|soft|club|loud]
+          Offline DSP-tuning tool: renders the track's tonal balance (dry / wet /
+          target) to a PNG so you can SEE what the Sound-tab processing does.
+
+
+SAFETY (read this before any bulk write)
+----------------------------------------
+* Writes are OPT-IN. "tag write" and "promote" do a DRY RUN unless you add
+  --apply. Always dry-run first and read the output.
+* "analyze" never touches your audio files — it only writes the index JSON.
+* "promote" backs up original tags before writing. Keep the backup.
+* Tag writes are done on non-playing files only (safe, in-place).
+* Known quirk: "analyze" may exit with code 255 after it finishes — a harmless
+  BASS native-teardown crash AFTER the data + JSON are already saved. The data
+  is valid; don't treat 255 as failure.
+
+
+TYPICAL AGENT WORKFLOW
+----------------------
+A good "tag + sort my library" run, in order:
+
+  1. JustPlayCLI dedup   "\\nas\music" --json dupes.json      (review, remove dupes)
+  2. JustPlayCLI analyze "\\nas\music" --index lib.json       (the long step)
+  3. JustPlayCLI stats   --index lib.json --json stats.json   (sanity-check spread)
+  4. JustPlayCLI tag write --index lib.json --no-grouping     (DRY RUN — review)
+  5. JustPlayCLI tag write --index lib.json --no-grouping --apply
+  6. JustPlayCLI promote --index lib.json --root "\\nas\music" --backup-dir bak  (dry)
+  7. JustPlayCLI promote --index lib.json --root "\\nas\music" --backup-dir bak --apply
+
+Hand an agent this file plus the goal ("analyse and tag this folder, dry-run
+every write and show me before applying") and it can drive the whole thing.
+
+
+PLAYLISTS / TRAKTOR / MAC  (important if you generate .m3u)
+----------------------------------------------------------
+If a workflow produces playlists for a Mac / Traktor setup, they MUST use
+RELATIVE paths with FORWARD SLASHES ("/"), plain .m3u, UTF-8. Absolute or
+back-slash paths will not resolve on a Mac deck.
+
+
+NOTES
+-----
+* Self-contained: needs no separate .NET install.
+* Same folder ships native BASS, the ONNX runtime, and keymodel.onnx (the ML key
+  model) — keep them next to the exe so the best key detector is used.
+* This tool is for power users / agents. The everyday app is JustPlay.exe.
+===============================================================================
