@@ -1,0 +1,145 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JustPlay.UI.Theming.JustStyles">
+    <!--
+      ════════════════════════════════════════════════════════════════════════
+      J.U.S.T. SUITE — SHARED CONTROL STYLES (chrome, tabs, cursor, text)
+      ════════════════════════════════════════════════════════════════════════
+      The look that EVERY JUST app shares, written once. JUST PLAY is the
+      reference; these are lifted verbatim from its App.axaml. App-specific control
+      styles (the player transport, broadcast meters, dialog buttons, …) stay in
+      each app's own App.axaml and layer AFTER this include, so an app can still
+      add or extend (e.g. JUST PLAY's Button.cap.streaming / .update).
+
+      Consumes the shared palette (JustPalette) via DynamicResource — merge that
+      dictionary into Application.Resources alongside this StyleInclude.
+    -->
+
+    <!--
+      Global text styling:
+      • ClipToBounds=False: descenders (y, g, p, J, Y…) sometimes get cut by tight
+        bounding boxes. Letting TextBlock render past its own bounds is the cheap fix.
+      • DropShadowEffect: a soft 1-px black drop under every TextBlock — keeps glyphs
+        legible against the aurora background and gives the UI a "lifted" feel. Kept
+        small (blur 2, opacity .45) to stay cheap even on dense lists.
+    -->
+    <Style Selector="TextBlock">
+        <Setter Property="ClipToBounds" Value="False"/>
+        <Setter Property="Effect">
+            <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+        </Setter>
+    </Style>
+
+    <!--
+      Hand cursor on everything clickable — web-style affordance. Covers the control
+      types that represent a click action; clickable TextBlocks set Cursor="Hand"
+      inline where they live.
+    -->
+    <Style Selector="Button">
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="ToggleSwitch">
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="ToggleButton">
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="ComboBox">
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="MenuItem">
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <!--
+      Frameless-window CHROME — square 36×36 caption buttons (pair with the shared
+      WindowControls), transparent until hovered, dark grey on hover, Close goes red.
+      Path icons inside Content scale via the button's Foreground so hover brightens
+      the glyph too.
+    -->
+    <Style Selector="Button.cap">
+        <Setter Property="Width" Value="36"/>
+        <Setter Property="Height" Value="36"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#B3FFFFFF"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.cap:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#1FFFFFFF"/>
+    </Style>
+    <Style Selector="Button.cap:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.cap:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="#33FFFFFF"/>
+    </Style>
+    <!--
+      The close button sits in the TOP-RIGHT corner. Without this corner radius its
+      hover/pressed background paints a square red that sticks out past the card's
+      rounded top-right corner (CornerRadius=14 on the card Border). Matching the
+      top-right radius keeps the hover red flush inside the rounded window edge.
+    -->
+    <Style Selector="Button.cap.close">
+        <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
+    <Style Selector="Button.cap.close:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#E81123"/>
+        <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
+    <Style Selector="Button.cap.close:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.cap.close:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="#A21020"/>
+        <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
+
+    <!-- ════ Underline tabs (SHARED) ════
+         A Button with Classes="tab" (add "active", or bind Classes.active) whose Content is
+         a Panel holding the label (top) + a <Border Classes="tabline"/> (bottom). No frame,
+         no hover fill — just an accent-gradient underline that spans the text width, with a
+         glow when active. Used by JUST PLAY (UP NEXT / Lyrics, Tweaks panel) and JUST STREAM
+         (settings) so the two products look like one family. -->
+    <Style Selector="Button.tab">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="Padding" Value="2,8,14,0"/>
+        <Setter Property="MinHeight" Value="36"/>
+        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        <Setter Property="Foreground" Value="#73FFFFFF"/>
+    </Style>
+    <Style Selector="Button.tab /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tab:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tab:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tab:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.tab.active">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Border.tabline">
+        <Setter Property="Height" Value="2"/>
+        <Setter Property="CornerRadius" Value="1"/>
+        <Setter Property="Margin" Value="0,0,0,-1"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Bottom"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tab.active Border.tabline">
+        <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        <Setter Property="Effect">
+            <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
+        </Setter>
+    </Style>
+</Styles>

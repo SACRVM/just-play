@@ -1,0 +1,161 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    x:Class="JustPlay.UI.Theming.JustPalette">
+    <!--
+      ════════════════════════════════════════════════════════════════════════
+      J.U.S.T. SUITE — CANONICAL THEME PALETTE (the single source of truth)
+      ════════════════════════════════════════════════════════════════════════
+      Every JUST app (JUST PLAY, JUST STREAM, future ones) merges THIS dictionary
+      so the design tokens are written ONCE, never re-invented per app. JUST PLAY
+      is the reference — these values are its proven palette, lifted verbatim. Any
+      app-specific resources (converters, broadcast meters, …) stay local to that
+      app; only the shared theme language lives here.
+
+      THE nine theme Colors below are the only ones AvaloniaThemeService overwrites
+      at runtime (Aurora → Sunset/Midnight/Neon/Hardcore). IMPORTANT: every consumer
+      references these through {DynamicResource …}, NOT {StaticResource …}. Static
+      captures the value once at XAML-load and never updates — the classic "theme
+      switch works on next start but not live" bug. DynamicResource subscribes to
+      key changes and re-renders. (Brush resources composed with DynamicResource
+      stops mutate in place, so holding the brush is enough — but new XAML should
+      still prefer DynamicResource on the keys for clarity and correctness.)
+    -->
+    <Color x:Key="BgFrom">#3a1d6b</Color>
+    <Color x:Key="BgVia">#251347</Color>
+    <Color x:Key="BgTo">#120a26</Color>
+
+    <Color x:Key="AccentA">#6ce0ff</Color>   <!-- cyan  -->
+    <Color x:Key="AccentB">#ff5fae</Color>   <!-- pink  -->
+    <Color x:Key="AccentC">#8a5fff</Color>   <!-- purple -->
+    <Color x:Key="Glow">#8C8C69FF</Color>    <!-- rgba(140,105,255, 0.55) -->
+
+    <!-- Bottom-bar gradient pair from the design's `bottomBarFrom/To` — declared
+         so future UI consumers can DynamicResource them. -->
+    <Color x:Key="BottomBarFrom">#8a4fe0</Color>
+    <Color x:Key="BottomBarTo">#5fa0ff</Color>
+
+    <!-- Pre-alphaised variants of the accent Colors. CSS in the design specifies
+         these per-theme as e.g. `${accentC}22` (= accentC at alpha 0x22 / 13.3%) —
+         the same Color with a different alpha byte. Avalonia's BoxShadow string
+         grammar AND its LinearGradientBrush stops want the alpha baked into the
+         Color value, so each alpha variant is its own key; AvaloniaThemeService
+         recomputes them from each theme's AccentB / AccentC at apply-time. Defaults
+         below are Aurora. -->
+
+    <!-- AccentB (warm — pink in Aurora) -->
+    <Color x:Key="AccentBGlow">#99ff5fae</Color>       <!-- α .60 — play halo idle -->
+    <Color x:Key="AccentBGlowStrong">#CCff5fae</Color> <!-- α .80 — play halo hover -->
+    <Color x:Key="AccentBSolid">#FFff5fae</Color>      <!-- α 1.0 — active-row edge halo -->
+    <Color x:Key="AccentBRow">#10ff5fae</Color>        <!-- α .063 — selected row gradient stop (design) -->
+    <Color x:Key="AccentBRowHover">#1Aff5fae</Color>   <!-- α .10  — selected+hover row gradient stop -->
+
+    <!-- AccentC (tertiary — purple in Aurora) -->
+    <Color x:Key="AccentCRow">#228a5fff</Color>        <!-- α .133 — selected row gradient stop (design) -->
+    <Color x:Key="AccentCRowHover">#338a5fff</Color>   <!-- α .20  — selected+hover row gradient stop -->
+
+    <!-- Extra glow alphas. SkeuSlider thumb glow tracks the design's progress-bar
+         `0 0 10px ${theme.accentB}88` (~53%). Sleeve aura and window haze are our
+         Aurora-style extensions, theme-driven so every palette gets matching tints. -->
+    <Color x:Key="AccentBHalfGlow">#80ff5fae</Color>   <!-- α .50  — slider thumb halo -->
+    <Color x:Key="AccentCSoftAura">#408a5fff</Color>   <!-- α .25  — sleeve outer aura -->
+    <Color x:Key="AccentCWindowGlow">#2A8a5fff</Color> <!-- α .16  — window outer haze -->
+
+    <!-- DERIVED BRUSHES — composed from the Colors above via DynamicResource, so a
+         single Color swap by AvaloniaThemeService propagates into every brush that
+         references it without rebuilding brushes here. -->
+    <SolidColorBrush x:Key="AccentABrush" Color="{DynamicResource AccentA}"/>
+    <SolidColorBrush x:Key="AccentBBrush" Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="AccentCBrush" Color="{DynamicResource AccentC}"/>
+
+    <!-- Cyan → Pink gradient used on progress, primary button, gradient text -->
+    <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
+        <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
+    </LinearGradientBrush>
+
+    <!-- Cyan → White → Pink — for gradient track-title / wordmark text -->
+    <LinearGradientBrush x:Key="TitleGradient" StartPoint="0%,0%" EndPoint="100%,0%">
+        <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
+        <GradientStop Offset="0.5" Color="White"/>
+        <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
+    </LinearGradientBrush>
+
+    <!-- Window background: linear base + two radial blooms layered on top -->
+    <LinearGradientBrush x:Key="BgLinear" StartPoint="10%,0%" EndPoint="90%,100%">
+        <GradientStop Offset="0" Color="{DynamicResource BgFrom}"/>
+        <GradientStop Offset="0.5" Color="{DynamicResource BgVia}"/>
+        <GradientStop Offset="1" Color="{DynamicResource BgTo}"/>
+    </LinearGradientBrush>
+    <RadialGradientBrush x:Key="BgGlowA" Center="70%,20%" GradientOrigin="70%,20%" RadiusX="55%" RadiusY="55%">
+        <GradientStop Offset="0" Color="{DynamicResource Glow}"/>
+        <GradientStop Offset="1" Color="#00000000"/>
+    </RadialGradientBrush>
+    <RadialGradientBrush x:Key="BgGlowB" Center="10%,80%" GradientOrigin="10%,80%" RadiusX="55%" RadiusY="55%">
+        <GradientStop Offset="0" Color="{DynamicResource AccentC}"/>
+        <GradientStop Offset="1" Color="#00000000"/>
+    </RadialGradientBrush>
+
+    <!-- Text ramp -->
+    <SolidColorBrush x:Key="TextBrush" Color="White"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#A6FFFFFF"/>        <!-- white .65 -->
+    <SolidColorBrush x:Key="MutedDimBrush" Color="#73FFFFFF"/>     <!-- white .45 -->
+    <SolidColorBrush x:Key="MutedFaintBrush" Color="#40FFFFFF"/>   <!-- white .25 -->
+    <SolidColorBrush x:Key="HairlineBrush" Color="#14FFFFFF"/>     <!-- white .08 -->
+
+    <!--
+      ToggleSwitch overrides — FluentTheme's defaults bind ToggleSwitchFillOn et al.
+      to SystemAccentColor, which picks up whatever accent the user set in Windows
+      (red on some configs). Pin these to the theme palette: AccentB (warm) for the ON
+      track, AccentC for pressed. These flow through {DynamicResource AccentB} live and
+      follow the active theme as it switches.
+    -->
+    <!-- ON state — track background -->
+    <SolidColorBrush x:Key="ToggleSwitchFillOn"            Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed"     Color="{DynamicResource AccentC}"/>
+    <SolidColorBrush x:Key="ToggleSwitchFillOnDisabled"    Color="#40FFFFFF"/>
+
+    <!-- ON state — track stroke (border) -->
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOn"            Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed"     Color="{DynamicResource AccentC}"/>
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnDisabled"    Color="#40FFFFFF"/>
+
+    <!-- ON state — knob (the round handle). White reads cleanly on every theme's warm
+         accent; the dark Fluent default leaves it nearly invisible. -->
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOn"            Color="White"/>
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White"/>
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed"     Color="#F0FFFFFF"/>
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled"    Color="#80FFFFFF"/>
+
+    <!--
+      Per-theme palette previews — the swatches in the tweaks panel's palette radio.
+      Values come straight from the design's THEMES (+ Hardcore, a JustPlay original).
+    -->
+    <LinearGradientBrush x:Key="SwatchAurora" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#6ce0ff"/>
+        <GradientStop Offset="0.5" Color="#8a5fff"/>
+        <GradientStop Offset="1" Color="#ff5fae"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SwatchSunset" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#ffd166"/>
+        <GradientStop Offset="0.5" Color="#ff9966"/>
+        <GradientStop Offset="1" Color="#ff6f91"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SwatchMidnight" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#7ad7ff"/>
+        <GradientStop Offset="0.5" Color="#2a7bff"/>
+        <GradientStop Offset="1" Color="#7c5cff"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="SwatchNeon" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#5cffd4"/>
+        <GradientStop Offset="0.5" Color="#5cd0ff"/>
+        <GradientStop Offset="1" Color="#a8ff5c"/>
+    </LinearGradientBrush>
+    <!-- Hardcore: cyan accent → crimson → red, over the near-black base -->
+    <LinearGradientBrush x:Key="SwatchHardcore" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#22e6ff"/>
+        <GradientStop Offset="0.5" Color="#c8112a"/>
+        <GradientStop Offset="1" Color="#ff2233"/>
+    </LinearGradientBrush>
+</ResourceDictionary>

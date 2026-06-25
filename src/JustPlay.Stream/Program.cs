@@ -5,6 +5,7 @@ using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
 using JustPlay.Stream.Settings;
 using JustPlay.Stream.ViewModels;
+using JustPlay.UI.Theming;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace JustPlay.Stream;
@@ -55,6 +56,10 @@ internal sealed class Program
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
 
         services.AddSingleton<JsonStreamSettingsService>();
+
+        // Shared J.U.S.T. live-theme engine (JustPlay.UI) — same palettes as JUST PLAY, applied at
+        // startup so the design system + brand icon track the active theme (and can switch live).
+        services.AddSingleton<IThemeService, AvaloniaThemeService>();
 
         services.AddSingleton<StreamViewModel>();
         services.AddTransient<SettingsViewModel>();

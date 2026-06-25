@@ -2,106 +2,18 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="JustPlay.App.App"
              xmlns:conv="using:JustPlay.App.Converters"
+             xmlns:theming="using:JustPlay.UI.Theming"
              RequestedThemeVariant="Dark">
 
     <Application.Resources>
-        <!--
-          THEME PALETTE — these nine Colors are the only ones the AvaloniaThemeService
-          overwrites at runtime. The starting values are the Aurora theme; the service
-          replaces them with Sunset/Midnight/Neon by writing to Application.Resources.
-
-          IMPORTANT: every consumer below uses {DynamicResource …} on these Colors,
-          NOT {StaticResource …}. StaticResource captures the value once at XAML-load
-          and never updates — the classic "theme switch works on next app start but
-          not live" bug. DynamicResource subscribes to key changes and re-renders.
-
-          The Glow alpha (0x8C ≈ 0.55) was missing in the previous Aurora resource
-          (#8C69FF rendered fully opaque). Restored from the design's
-          rgba(140,105,255, 0.55).
-        -->
-        <Color x:Key="BgFrom">#3a1d6b</Color>
-        <Color x:Key="BgVia">#251347</Color>
-        <Color x:Key="BgTo">#120a26</Color>
-
-        <Color x:Key="AccentA">#6ce0ff</Color>   <!-- cyan  -->
-        <Color x:Key="AccentB">#ff5fae</Color>   <!-- pink  -->
-        <Color x:Key="AccentC">#8a5fff</Color>   <!-- purple -->
-        <Color x:Key="Glow">#8C8C69FF</Color>    <!-- rgba(140,105,255, 0.55) -->
-
-        <!-- Bottom-bar gradient pair from the design's `bottomBarFrom/To` — declared
-             so future UI consumers can DynamicResource them; nothing in the current
-             tree paints with them yet. -->
-        <Color x:Key="BottomBarFrom">#8a4fe0</Color>
-        <Color x:Key="BottomBarTo">#5fa0ff</Color>
-
-        <!-- Pre-alphaised variants of the accent Colors. CSS in the design specifies
-             these per-theme as e.g. `${accentC}22` (= accentC at alpha 0x22 / 13.3%) —
-             the same Color but with a different alpha byte. Avalonia's BoxShadow string
-             grammar AND its LinearGradientBrush gradient stops want the alpha baked into
-             the Color value, so we declare each alpha variant as its own key and let
-             AvaloniaThemeService recompute them from each theme's AccentB / AccentC at
-             apply-time. Defaults below are Aurora. -->
-
-        <!-- AccentB (warm — pink in Aurora) -->
-        <Color x:Key="AccentBGlow">#99ff5fae</Color>       <!-- α .60 — play halo idle -->
-        <Color x:Key="AccentBGlowStrong">#CCff5fae</Color> <!-- α .80 — play halo hover -->
-        <Color x:Key="AccentBSolid">#FFff5fae</Color>      <!-- α 1.0 — active-row edge halo -->
-        <Color x:Key="AccentBRow">#10ff5fae</Color>        <!-- α .063 — selected row gradient stop (design) -->
-        <Color x:Key="AccentBRowHover">#1Aff5fae</Color>   <!-- α .10  — selected+hover row gradient stop -->
-
-        <!-- AccentC (tertiary — purple in Aurora) -->
-        <Color x:Key="AccentCRow">#228a5fff</Color>        <!-- α .133 — selected row gradient stop (design) -->
-        <Color x:Key="AccentCRowHover">#338a5fff</Color>   <!-- α .20  — selected+hover row gradient stop -->
-
-        <!-- Extra glow alphas. SkeuSlider thumb glow tracks the design's
-             progress-bar `0 0 10px ${theme.accentB}88` (~53%). Sleeve aura and
-             window haze are our Aurora-style extensions, now theme-driven so
-             Sunset/Midnight/Neon get matching room-light tints. -->
-        <Color x:Key="AccentBHalfGlow">#80ff5fae</Color>   <!-- α .50  — slider thumb halo -->
-        <Color x:Key="AccentCSoftAura">#408a5fff</Color>   <!-- α .25  — sleeve outer aura -->
-        <Color x:Key="AccentCWindowGlow">#2A8a5fff</Color> <!-- α .16  — window outer haze -->
-
-        <!-- DERIVED BRUSHES — composed from the Colors above via DynamicResource,
-             so a single Color swap by AvaloniaThemeService propagates into every
-             brush that references it without us having to rebuild brushes here. -->
-        <SolidColorBrush x:Key="AccentABrush" Color="{DynamicResource AccentA}"/>
-        <SolidColorBrush x:Key="AccentBBrush" Color="{DynamicResource AccentB}"/>
-        <SolidColorBrush x:Key="AccentCBrush" Color="{DynamicResource AccentC}"/>
-
-        <!-- Cyan → Pink gradient used on progress, primary button, gradient text -->
-        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
-            <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
-            <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
-        </LinearGradientBrush>
-
-        <!-- Cyan → White → Pink — for gradient track-title text -->
-        <LinearGradientBrush x:Key="TitleGradient" StartPoint="0%,0%" EndPoint="100%,0%">
-            <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
-            <GradientStop Offset="0.5" Color="White"/>
-            <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
-        </LinearGradientBrush>
-
-        <!-- Window background: linear base + two radial blooms layered on top -->
-        <LinearGradientBrush x:Key="BgLinear" StartPoint="10%,0%" EndPoint="90%,100%">
-            <GradientStop Offset="0" Color="{DynamicResource BgFrom}"/>
-            <GradientStop Offset="0.5" Color="{DynamicResource BgVia}"/>
-            <GradientStop Offset="1" Color="{DynamicResource BgTo}"/>
-        </LinearGradientBrush>
-        <RadialGradientBrush x:Key="BgGlowA" Center="70%,20%" GradientOrigin="70%,20%" RadiusX="55%" RadiusY="55%">
-            <GradientStop Offset="0" Color="{DynamicResource Glow}"/>
-            <GradientStop Offset="1" Color="#00000000"/>
-        </RadialGradientBrush>
-        <RadialGradientBrush x:Key="BgGlowB" Center="10%,80%" GradientOrigin="10%,80%" RadiusX="55%" RadiusY="55%">
-            <GradientStop Offset="0" Color="{DynamicResource AccentC}"/>
-            <GradientStop Offset="1" Color="#00000000"/>
-        </RadialGradientBrush>
-
-        <!-- Text -->
-        <SolidColorBrush x:Key="TextBrush" Color="White"/>
-        <SolidColorBrush x:Key="MutedBrush" Color="#A6FFFFFF"/>        <!-- white .65 -->
-        <SolidColorBrush x:Key="MutedDimBrush" Color="#73FFFFFF"/>     <!-- white .45 -->
-        <SolidColorBrush x:Key="MutedFaintBrush" Color="#40FFFFFF"/>   <!-- white .25 -->
-        <SolidColorBrush x:Key="HairlineBrush" Color="#14FFFFFF"/>     <!-- white .08 -->
+        <ResourceDictionary>
+            <!-- Shared J.U.S.T. theme palette — colours, derived brushes, text ramp, ToggleSwitch
+                 overrides, palette swatches. Single source of truth in JustPlay.UI (JustPalette);
+                 only app-specific converters stay inline below. AvaloniaThemeService overwrites the
+                 theme Colour keys at runtime to switch palettes live. -->
+            <ResourceDictionary.MergedDictionaries>
+                <theming:JustPalette/>
+            </ResourceDictionary.MergedDictionaries>
 
         <conv:CamelotToBrushConverter x:Key="CamelotToBrush"/>
         <conv:CamelotBorderBrushConverter x:Key="CamelotBorder"/>
@@ -110,109 +22,16 @@
         <conv:StringEqualsConverter x:Key="StringEquals"/>
         <conv:ConflictWeightConverter x:Key="ConflictWeight"/>
         <conv:ConflictForegroundConverter x:Key="ConflictForeground"/>
-
-        <!--
-          ToggleSwitch overrides — FluentTheme's defaults bind ToggleSwitchFillOn et al.
-          to SystemAccentColor, which on most Windows installs picks up whatever accent
-          the user set in Settings (red on some configs — the bug Chloe spotted). Pin
-          these to our theme palette: AccentB (warm) for the ON track, AccentC for the
-          pressed variant. AvaloniaThemeService doesn't have to touch these — they go
-          through {DynamicResource AccentB} live and follow the active theme as it switches.
-        -->
-        <!-- ON state — track background -->
-        <SolidColorBrush x:Key="ToggleSwitchFillOn"            Color="{DynamicResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed"     Color="{DynamicResource AccentC}"/>
-        <SolidColorBrush x:Key="ToggleSwitchFillOnDisabled"    Color="#40FFFFFF"/>
-
-        <!-- ON state — track stroke (border) -->
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOn"            Color="{DynamicResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed"     Color="{DynamicResource AccentC}"/>
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOnDisabled"    Color="#40FFFFFF"/>
-
-        <!-- ON state — knob (the round handle). White reads cleanly on every theme's
-             warm accent; dark Fluent default leaves it nearly invisible. -->
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOn"            Color="White"/>
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White"/>
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed"     Color="#F0FFFFFF"/>
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled"    Color="#80FFFFFF"/>
-
-        <!--
-          Per-theme palette previews used as the swatches in the tweaks panel's palette
-          radio (no theme swap wired yet — values come straight from the design's THEMES).
-        -->
-        <LinearGradientBrush x:Key="SwatchAurora" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Offset="0" Color="#6ce0ff"/>
-            <GradientStop Offset="0.5" Color="#8a5fff"/>
-            <GradientStop Offset="1" Color="#ff5fae"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SwatchSunset" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Offset="0" Color="#ffd166"/>
-            <GradientStop Offset="0.5" Color="#ff9966"/>
-            <GradientStop Offset="1" Color="#ff6f91"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SwatchMidnight" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Offset="0" Color="#7ad7ff"/>
-            <GradientStop Offset="0.5" Color="#2a7bff"/>
-            <GradientStop Offset="1" Color="#7c5cff"/>
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SwatchNeon" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Offset="0" Color="#5cffd4"/>
-            <GradientStop Offset="0.5" Color="#5cd0ff"/>
-            <GradientStop Offset="1" Color="#a8ff5c"/>
-        </LinearGradientBrush>
-        <!-- Hardcore: cyan accent → crimson → red, over the near-black base -->
-        <LinearGradientBrush x:Key="SwatchHardcore" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Offset="0" Color="#22e6ff"/>
-            <GradientStop Offset="0.5" Color="#c8112a"/>
-            <GradientStop Offset="1" Color="#ff2233"/>
-        </LinearGradientBrush>
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme/>
+        <!-- Shared J.U.S.T. chrome/tab/cursor/text styles (JustPlay.UI). App-specific styles
+             below layer after this and may extend these classes (e.g. Button.cap.streaming). -->
+        <theming:JustStyles/>
 
-        <!--
-          Global text styling:
-          • ClipToBounds=False: descenders (y, g, p, J, Y…) sometimes get cut by tight bounding
-            boxes. Letting TextBlock render past its own bounds is the cheap fix.
-          • DropShadowEffect: a soft 1-px black drop under every TextBlock. Keeps glyphs legible
-            against the aurora background, gives the whole UI a "lifted" feel. Kept small
-            (blur=2, opacity=0.4) to stay cheap to render even on dense lists.
-        -->
-        <Style Selector="TextBlock">
-            <Setter Property="ClipToBounds" Value="False"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
-            </Setter>
-        </Style>
 
-        <!--
-          Caption buttons à la ../firepit-ai: square 36×36, transparent until hovered,
-          dark grey on hover, Close goes red. Path icons inside Content scale via the
-          button's Foreground so hover automatically brightens the glyph too.
-        -->
-        <Style Selector="Button.cap">
-            <Setter Property="Width" Value="36"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#B3FFFFFF"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.cap:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1FFFFFFF"/>
-        </Style>
-        <Style Selector="Button.cap:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.cap:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#33FFFFFF"/>
-        </Style>
         <!--
           "Live" state for the streaming/broadcast cap button: when connected or
           connecting the radio-tower glyph lights up in the theme accent (its Stroke
@@ -302,47 +121,6 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <!--
-          Hand cursor on everything clickable — web-style affordance the user asked for. Covers the
-          control types that represent a click action; clickable TextBlocks (sort headers, etc.)
-          already set Cursor="Hand" inline where they live.
-        -->
-        <Style Selector="Button">
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="ToggleSwitch">
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="ToggleButton">
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="ComboBox">
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="MenuItem">
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <!--
-          The close button sits in the TOP-RIGHT corner of the window. Without this corner
-          radius its hover/pressed background paints a square red — which sticks out past
-          the card's rounded top-right corner (CornerRadius=14 on the Card Border). Giving
-          the button the same top-right radius keeps the hover red flush inside the rounded
-          window edge instead of clipping into a notch.
-        -->
-        <Style Selector="Button.cap.close">
-            <Setter Property="CornerRadius" Value="0,14,0,0"/>
-        </Style>
-        <Style Selector="Button.cap.close:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E81123"/>
-            <Setter Property="CornerRadius" Value="0,14,0,0"/>
-        </Style>
-        <Style Selector="Button.cap.close:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.cap.close:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#A21020"/>
-            <Setter Property="CornerRadius" Value="0,14,0,0"/>
-        </Style>
 
         <!--
           Shared dialog button — pill, dark translucent, hover lift. Used by the frameless dialog
@@ -694,49 +472,5 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
-        <!-- ════ Underline tabs (SHARED) ════
-             Originally local to MaxView (the UP NEXT / Lyrics strip); promoted to App.axaml so the
-             Tweaks panel reuses the exact same look instead of reinventing it. Usage: a Button with
-             Classes="tab" (add "active", or bind Classes.active) whose Content is a Panel holding the
-             label (top) + a <Border Classes="tabline"/> (bottom). No frame, no hover fill — just an
-             accent-gradient underline that spans the text width, with a glow when active. -->
-        <Style Selector="Button.tab">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="2,8,14,0"/>
-            <Setter Property="MinHeight" Value="36"/>
-            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-        </Style>
-        <Style Selector="Button.tab /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.tab.active">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Border.tabline">
-            <Setter Property="Height" Value="2"/>
-            <Setter Property="CornerRadius" Value="1"/>
-            <Setter Property="Margin" Value="0,0,0,-1"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="VerticalAlignment" Value="Bottom"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab.active Border.tabline">
-            <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
-            </Setter>
-        </Style>
     </Application.Styles>
 </Application>

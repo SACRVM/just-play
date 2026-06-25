@@ -1,66 +1,31 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="JustPlay.Stream.App"
+             xmlns:theming="using:JustPlay.UI.Theming"
              RequestedThemeVariant="Dark">
 
     <!--
-      JUST STREAM design system — the Aurora language ported from JustPlay.App/App.axaml
-      (verbatim token values, cited) so the two products are unmistakably one family.
-      v1 is a single fixed Aurora theme (no live theme-switch), so these are StaticResource.
+      JUST STREAM design system — now built on the SHARED J.U.S.T. palette + styles from
+      JustPlay.UI (merged below), so the two products are one family and switch themes LIVE
+      together (AvaloniaThemeService, registered in Program.cs). The theme brushes mutate in
+      place, so existing StaticResource brush references still follow the active theme; only
+      raw-Color references need {DynamicResource} (see the Funkturm glow in MainWindow).
       The broadcast SIGNATURE is the ON-AIR band (Border.onair / .live) — a tally light that
       genuinely glows green on air. Everything else stays quiet and disciplined around it.
     -->
     <Application.Resources>
-        <!-- Palette (JustPlay App.axaml lines 22-29) -->
-        <Color x:Key="BgFrom">#3a1d6b</Color>
-        <Color x:Key="BgVia">#251347</Color>
-        <Color x:Key="BgTo">#120a26</Color>
-        <Color x:Key="AccentA">#6ce0ff</Color>   <!-- cyan  -->
-        <Color x:Key="AccentB">#ff5fae</Color>   <!-- pink  -->
-        <Color x:Key="AccentC">#8a5fff</Color>   <!-- purple -->
-        <Color x:Key="Glow">#8C8C69FF</Color>    <!-- rgba(140,105,255,.55) -->
-        <Color x:Key="OnAir">#36e07a</Color>     <!-- broadcast green -->
+        <ResourceDictionary>
+            <!-- Shared J.U.S.T. theme palette (JustPlay.UI) — same colours, brushes, text ramp,
+                 ToggleSwitch overrides and swatches as JUST PLAY, so the two products are one
+                 family AND switch themes live. Broadcast-specific resources (ON-AIR green, card,
+                 meters) stay inline below. -->
+            <ResourceDictionary.MergedDictionaries>
+                <theming:JustPalette/>
+            </ResourceDictionary.MergedDictionaries>
 
-        <!-- Derived accent brushes -->
-        <SolidColorBrush x:Key="AccentABrush" Color="{StaticResource AccentA}"/>
-        <SolidColorBrush x:Key="AccentBBrush" Color="{StaticResource AccentB}"/>
-        <SolidColorBrush x:Key="AccentCBrush" Color="{StaticResource AccentC}"/>
+        <Color x:Key="OnAir">#36e07a</Color>     <!-- broadcast green -->
         <SolidColorBrush x:Key="OnAirBrush" Color="{StaticResource OnAir}"/>
         <SolidColorBrush x:Key="OfflineBrush" Color="#6a5f8c"/>
-
-        <!-- Text ramp (JustPlay lines 100-104) -->
-        <SolidColorBrush x:Key="TextBrush" Color="White"/>
-        <SolidColorBrush x:Key="MutedBrush" Color="#A6FFFFFF"/>
-        <SolidColorBrush x:Key="MutedDimBrush" Color="#73FFFFFF"/>
-        <SolidColorBrush x:Key="MutedFaintBrush" Color="#40FFFFFF"/>
-        <SolidColorBrush x:Key="HairlineBrush" Color="#16FFFFFF"/>
-
-        <!-- Cyan→pink accent gradient (progress, CTA, title underline) -->
-        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,0%">
-            <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
-            <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
-        </LinearGradientBrush>
-        <!-- Cyan→white→pink for the gradient wordmark -->
-        <LinearGradientBrush x:Key="TitleGradient" StartPoint="0%,0%" EndPoint="100%,0%">
-            <GradientStop Offset="0" Color="{StaticResource AccentA}"/>
-            <GradientStop Offset="0.5" Color="White"/>
-            <GradientStop Offset="1" Color="{StaticResource AccentB}"/>
-        </LinearGradientBrush>
-
-        <!-- Layered window background: linear base + two radial blooms (JustPlay lines 85-97) -->
-        <LinearGradientBrush x:Key="BgLinear" StartPoint="10%,0%" EndPoint="90%,100%">
-            <GradientStop Offset="0" Color="{StaticResource BgFrom}"/>
-            <GradientStop Offset="0.5" Color="{StaticResource BgVia}"/>
-            <GradientStop Offset="1" Color="{StaticResource BgTo}"/>
-        </LinearGradientBrush>
-        <RadialGradientBrush x:Key="BgGlowA" Center="72%,18%" GradientOrigin="72%,18%" RadiusX="60%" RadiusY="60%">
-            <GradientStop Offset="0" Color="{StaticResource Glow}"/>
-            <GradientStop Offset="1" Color="#00000000"/>
-        </RadialGradientBrush>
-        <RadialGradientBrush x:Key="BgGlowB" Center="8%,88%" GradientOrigin="8%,88%" RadiusX="55%" RadiusY="55%">
-            <GradientStop Offset="0" Color="{StaticResource AccentC}"/>
-            <GradientStop Offset="1" Color="#00000000"/>
-        </RadialGradientBrush>
 
         <!-- Frosted card surface: faint vertical glass gradient (not a flat translucent box) -->
         <LinearGradientBrush x:Key="CardGradient" StartPoint="0%,0%" EndPoint="0%,100%">
@@ -76,30 +41,15 @@
             <GradientStop Offset="1" Color="#ff5f6d"/>
         </LinearGradientBrush>
         <SolidColorBrush x:Key="MeterTrackBrush" Color="#33000000"/>
-
-        <!-- ToggleSwitch theming (JustPlay lines 122-139) — pin to accent, not SystemAccentColor -->
-        <SolidColorBrush x:Key="ToggleSwitchFillOn"            Color="{StaticResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{StaticResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed"     Color="{StaticResource AccentC}"/>
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOn"            Color="{StaticResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{StaticResource AccentB}"/>
-        <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed"     Color="{StaticResource AccentC}"/>
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOn"            Color="White"/>
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White"/>
-        <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed"     Color="#F0FFFFFF"/>
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme/>
+        <!-- Shared J.U.S.T. chrome/tab/cursor/text styles (JustPlay.UI). Broadcast-specific
+             styles below layer after this include. -->
+        <theming:JustStyles/>
 
-        <!-- Soft drop shadow under all text — legibility on the aurora bg + "lifted" feel (JustPlay) -->
-        <Style Selector="TextBlock">
-            <Setter Property="ClipToBounds" Value="False"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
-            </Setter>
-        </Style>
 
         <!-- Type roles -->
         <Style Selector="TextBlock.brand">
@@ -350,46 +300,6 @@
             <Setter Property="Margin" Value="0,2"/>
         </Style>
 
-        <!-- ═══ Frameless-window CHROME (ported from JustPlay.App/App.axaml lines 191-345) ═══
-             Square 36×36 caption buttons, transparent until hovered, Close goes red and keeps
-             the card's rounded top-right corner so the red never clips past the window edge. -->
-        <Style Selector="Button.cap">
-            <Setter Property="Width" Value="36"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#B3FFFFFF"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.cap /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.cap:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1FFFFFFF"/>
-        </Style>
-        <Style Selector="Button.cap:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.cap:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#33FFFFFF"/>
-        </Style>
-        <Style Selector="Button.cap.close">
-            <Setter Property="CornerRadius" Value="0,14,0,0"/>
-        </Style>
-        <Style Selector="Button.cap.close:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E81123"/>
-            <Setter Property="CornerRadius" Value="0,14,0,0"/>
-        </Style>
-        <Style Selector="Button.cap.close:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.cap.close:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#A21020"/>
-            <Setter Property="CornerRadius" Value="0,14,0,0"/>
-        </Style>
 
         <!-- Brand/About mark button in the chrome bar (top-left) — transparent, subtle hover. -->
         <Style Selector="Button.brandbtn">
@@ -406,50 +316,6 @@
             <Setter Property="Background" Value="#14FFFFFF"/>
         </Style>
 
-        <!-- ═══ SHARED underline tabs — ported VERBATIM from JustPlay.App/App.axaml (Button.tab /
-             Border.tabline, lines 703-740). Settings reuses these instead of a raw TabControl so the
-             two products look like one family. Each tab = a Button.tab wrapping a Panel of a label
-             (top) + <Border Classes="tabline"/> (bottom): no frame, just an accent-gradient underline
-             that glows when active. (StaticResource here — JUST STREAM is a single fixed theme.) -->
-        <Style Selector="Button.tab">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="Padding" Value="2,8,14,0"/>
-            <Setter Property="MinHeight" Value="36"/>
-            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.tab /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.tab.active">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Border.tabline">
-            <Setter Property="Height" Value="2"/>
-            <Setter Property="CornerRadius" Value="1"/>
-            <Setter Property="Margin" Value="0,0,0,-1"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="VerticalAlignment" Value="Bottom"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tab.active Border.tabline">
-            <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="{StaticResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
-            </Setter>
-        </Style>
 
         <!-- Hi-fi broadcast meter: a TALL variant of ProgressBar.meter for the prominent OUTPUT LEVEL
              display (the small 9px default still serves any inline use). -->
