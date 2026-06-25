@@ -342,6 +342,70 @@
             <Setter Property="Margin" Value="6,4"/>
         </Style>
 
+        <!-- Hairline divider between de-boxed sections (no card frames — JUST PLAY pattern,
+             see CLAUDE.md JUST suite UI philosophy: thin separators, not nested containers). -->
+        <Style Selector="Border.sep">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="{StaticResource HairlineBrush}"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+
+        <!-- ═══ Frameless-window CHROME (ported from JustPlay.App/App.axaml lines 191-345) ═══
+             Square 36×36 caption buttons, transparent until hovered, Close goes red and keeps
+             the card's rounded top-right corner so the red never clips past the window edge. -->
+        <Style Selector="Button.cap">
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.cap /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.cap:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.cap:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.cap:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="Button.cap.close">
+            <Setter Property="CornerRadius" Value="0,14,0,0"/>
+        </Style>
+        <Style Selector="Button.cap.close:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123"/>
+            <Setter Property="CornerRadius" Value="0,14,0,0"/>
+        </Style>
+        <Style Selector="Button.cap.close:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.cap.close:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#A21020"/>
+            <Setter Property="CornerRadius" Value="0,14,0,0"/>
+        </Style>
+
+        <!-- Brand/About mark button in the chrome bar (top-left) — transparent, subtle hover. -->
+        <Style Selector="Button.brandbtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.brandbtn /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.brandbtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+
         <!-- ═══ SHARED underline tabs — ported VERBATIM from JustPlay.App/App.axaml (Button.tab /
              Border.tabline, lines 703-740). Settings reuses these instead of a raw TabControl so the
              two products look like one family. Each tab = a Button.tab wrapping a Panel of a label

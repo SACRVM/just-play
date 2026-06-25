@@ -11,6 +11,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using JustPlay.App.Controls;
+using JustPlay.UI.Controls;
 using JustPlay.App.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 

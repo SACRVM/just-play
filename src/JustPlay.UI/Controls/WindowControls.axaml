@@ -1,13 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="JustPlay.App.Controls.WindowControls">
+             x:Class="JustPlay.UI.Controls.WindowControls">
 
     <!--
-      Windows caption buttons (minimize / maximize / close) — shared by both
-      chrome bars (MaxView + MiniView), was duplicated markup + duplicated Click
-      handlers. Close goes red on hover via the Button.cap.close style (App.axaml).
-      Handlers live in the code-behind and resolve the Window via TopLevel, so the
-      control is drop-in anywhere inside the window.
+      Shared JUST-suite caption buttons (minimize / maximize / close). Resolves the
+      hosting Window via TopLevel and drives a custom maximize through IFramelessWindow,
+      so it drops into any app's chrome bar with no wiring. Styling comes from the host
+      app's Button.cap / Button.cap.close styles (part of the shared design system).
     -->
     <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
         <Button Classes="cap" Click="OnMinimizeClick" ToolTip.Tip="Minimize">

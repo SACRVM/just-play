@@ -4,7 +4,7 @@ using System.Net.Http;
 using Avalonia;
 using JustPlay.Analysis;
 using JustPlay.App.Settings;
-using JustPlay.App.Theming;
+using JustPlay.UI.Theming;
 using JustPlay.App.ViewModels;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;

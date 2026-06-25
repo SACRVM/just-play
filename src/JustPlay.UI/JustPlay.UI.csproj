@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    JustPlay.UI — the SHARED UI library for the J.U.S.T. suite. Every JUST app
+    (JUST PLAY, JUST STREAM, future ones) consumes this so the chrome, controls,
+    themed icon, About dialog and design system are written ONCE, never re-invented
+    per app (see CLAUDE.md "JUST suite UI philosophy"). Platform UI layer: references
+    Core (Theme/IThemeService) only — no BASS, no app-specific code.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+  </ItemGroup>
+</Project>

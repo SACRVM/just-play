@@ -31,12 +31,14 @@
   </ItemGroup>
 
   <!-- Reuses the shared, platform-agnostic Core + the BASS adapter (capture engine + broadcast
-       service + bus DSP rack). No reference to JustPlay.App — JUST STREAM is its own front end
-       (shared look & feel, NOT shared panels — just-stream-blueprint.md §3a). The native BASS DLLs
+       service + bus DSP rack) + JustPlay.UI (the shared suite UI lib: chrome, caption buttons,
+       themed icon, theme engine). No reference to JustPlay.App — JUST STREAM is its own front end;
+       genuinely shared UI lives in JustPlay.UI, NOT copied from the player. The native BASS DLLs
        (bass/bassmix/bassenc/bassenc_mp3) flow in transitively from JustPlay.Audio.Bass. -->
   <ItemGroup>
     <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
     <ProjectReference Include="..\JustPlay.Audio.Bass\JustPlay.Audio.Bass.csproj" />
     <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+    <ProjectReference Include="..\JustPlay.UI\JustPlay.UI.csproj" />
   </ItemGroup>
 </Project>

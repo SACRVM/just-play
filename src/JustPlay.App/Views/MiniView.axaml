@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:controls="using:JustPlay.App.Controls"
+             xmlns:ui="using:JustPlay.UI.Controls"
              x:Class="JustPlay.App.Views.MiniView"
              x:DataType="vm:MainWindowViewModel">
 
@@ -55,8 +56,8 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- Windows window controls — shared control (Controls/WindowControls). -->
-                    <controls:WindowControls Grid.Column="3"/>
+                    <!-- Windows window controls — shared control (JustPlay.UI/Controls/WindowControls). -->
+                    <ui:WindowControls Grid.Column="3"/>
                 </Grid>
             </Border>
 

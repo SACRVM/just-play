@@ -4,27 +4,25 @@ using Avalonia.Media;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Theming;
 
-namespace JustPlay.App.Theming;
+namespace JustPlay.UI.Theming;
 
 /// <summary>
-/// Applies a <see cref="Theme"/> to the running Avalonia application by
-/// overwriting the Color resources declared in <c>App.axaml</c>.
+/// Applies a <see cref="Theme"/> to the running Avalonia application by overwriting the
+/// Color resources declared in the merged design-system dictionary. Shared by every JUST
+/// suite app (lived in JustPlay.App before the JustPlay.UI extraction).
 ///
 /// How the swap actually reaches the UI
 /// -------------------------------------
-/// All theme-coloured XAML in this codebase references the palette through
-/// <c>{DynamicResource AccentA}</c>, NOT <c>{StaticResource AccentA}</c>.
-/// Avalonia's DynamicResource is "live": when a key in the resource
-/// dictionary changes, every element bound to it re-renders automatically.
-/// StaticResource captures the value at XAML-load and never updates — that's
-/// the trap that makes theme-switch frameworks "look like they worked the
-/// first time you tried" but stay broken on the rest of the app.
+/// All theme-coloured XAML references the palette through <c>{DynamicResource AccentA}</c>,
+/// NOT <c>{StaticResource AccentA}</c>. Avalonia's DynamicResource is "live": when a key in
+/// the resource dictionary changes, every element bound to it re-renders automatically.
+/// StaticResource captures the value at XAML-load and never updates — that's the trap that
+/// makes theme-switch frameworks "look like they worked the first time" but stay broken on
+/// the rest of the app.
 ///
-/// Brushes that are composed from multiple theme colours
-/// (e.g. <c>BgLinear</c>, <c>AccentGradient</c>) are declared in
-/// <c>App.axaml</c> with DynamicResource colour stops — so updating the
-/// underlying Color keys is enough; we don't need to also rebuild the
-/// brushes themselves here.
+/// Brushes composed from multiple theme colours (e.g. <c>BgLinear</c>, <c>AccentGradient</c>)
+/// are declared with DynamicResource colour stops — so updating the underlying Color keys is
+/// enough; we don't rebuild the brushes themselves here.
 /// </summary>
 public sealed class AvaloniaThemeService : IThemeService
 {
@@ -42,19 +40,9 @@ public sealed class AvaloniaThemeService : IThemeService
 
         var sameName = string.Equals(_current.Name, theme.Name, StringComparison.OrdinalIgnoreCase);
 
-        // Resources are written EVERY call, even on the no-op same-theme path.
-        // Reason: cold-start with the default theme would otherwise skip
-        // resource publication entirely and the keys that don't have
-        // hard-coded XAML defaults (PlayHaloIdle/PlayHaloHover) would never
-        // exist — the play button would render without a halo until the user
-        // toggled themes and came back. Cheaper to always publish than to
-        // sentinel-track first-run.
+        // Resources are written EVERY call, even on the no-op same-theme path, so cold-start
+        // publishes keys that don't have hard-coded XAML defaults (PlayHaloIdle/Hover).
 
-        // The seven theme-driven Color resources declared in App.axaml. Keys
-        // here must match the x:Key values in App.axaml.Application.Resources
-        // exactly — Avalonia is silent when a Set lands on a key nothing
-        // reads from, so a typo here just looks like "the theme doesn't
-        // change" with no warning.
         app.Resources["BgFrom"]        = Color.Parse(theme.BgFrom);
         app.Resources["BgVia"]         = Color.Parse(theme.BgVia);
         app.Resources["BgTo"]          = Color.Parse(theme.BgTo);
@@ -62,17 +50,9 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["AccentB"]       = Color.Parse(theme.AccentB);
         app.Resources["AccentC"]       = Color.Parse(theme.AccentC);
         app.Resources["Glow"]          = Color.Parse(theme.Glow);
-        // Bottom-bar gradient colours — declared in App.axaml so future UI
-        // that wants them can DynamicResource them, even though nothing in
-        // the current tree consumes them yet.
         app.Resources["BottomBarFrom"] = Color.Parse(theme.BottomBarFrom);
         app.Resources["BottomBarTo"]   = Color.Parse(theme.BottomBarTo);
 
-        // Pre-alphaised AccentB / AccentC variants. CSS gradients in the design
-        // express these as `${accent}22` / `${accent}10` — same colour, different
-        // alpha byte. Avalonia's BoxShadow string and LinearGradientBrush stops
-        // can't compose alpha onto a DynamicResource Color, so we publish each
-        // alpha variant as its own key.
         var accentA = Color.Parse(theme.AccentA);
         var accentB = Color.Parse(theme.AccentB);
         var accentC = Color.Parse(theme.AccentC);
@@ -85,35 +65,28 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["AccentBGlow"]       = glowIdle;
         app.Resources["AccentBGlowStrong"] = glowStrong;
         app.Resources["AccentBSolid"]      = accentB;
-        app.Resources["AccentBRow"]        = WithAlpha(accentB, 0x10);   // .063 — design's selected-row pink stop
-        app.Resources["AccentBRowHover"]   = WithAlpha(accentB, 0x1A);   // .10  — selected+hover pink stop
+        app.Resources["AccentBRow"]        = WithAlpha(accentB, 0x10);
+        app.Resources["AccentBRowHover"]   = WithAlpha(accentB, 0x1A);
 
         // AccentC-derived
-        app.Resources["AccentCRow"]        = WithAlpha(accentC, 0x22);   // .133 — design's selected-row purple stop
-        app.Resources["AccentCRowHover"]   = WithAlpha(accentC, 0x33);   // .20  — selected+hover purple stop
+        app.Resources["AccentCRow"]        = WithAlpha(accentC, 0x22);
+        app.Resources["AccentCRowHover"]   = WithAlpha(accentC, 0x33);
 
         // Extra glow alphas used by multi-layer BoxShadows further down.
-        var sliderGlow = WithAlpha(accentB, 0x80);   // SkeuSlider thumb halo (legacy key)
-        var thumbGlow  = WithAlpha(accentB, 0xAA);   // SkeuSlider thumb halo — design `accentBaa`
-        var fillGlowB  = WithAlpha(accentB, 0x88);   // SkeuSlider fill glow — design `accentB88`
-        var fillGlowA  = WithAlpha(accentA, 0x55);   // SkeuSlider fill glow — design `accentA55`
-        var sleeveAura = WithAlpha(accentC, 0x40);   // Vinyl sleeve outer aura
-        var windowHaze = WithAlpha(accentC, 0x2A);   // Main window outer glow
+        var sliderGlow = WithAlpha(accentB, 0x80);
+        var thumbGlow  = WithAlpha(accentB, 0xAA);
+        var fillGlowB  = WithAlpha(accentB, 0x88);
+        var fillGlowA  = WithAlpha(accentA, 0x55);
+        var sleeveAura = WithAlpha(accentC, 0x40);
+        var windowHaze = WithAlpha(accentC, 0x2A);
         app.Resources["AccentBHalfGlow"]   = sliderGlow;
         app.Resources["AccentCSoftAura"]   = sleeveAura;
         app.Resources["AccentCWindowGlow"] = windowHaze;
 
-        // BoxShadows objects emitted whole rather than declared in XAML — Avalonia 12's
-        // XAML compiler trips on `<BoxShadow Color="{DynamicResource …}"/>` (AVLN2000:
-        // ResolveContentPropertyTransformer Index out of range). The BoxShadowsTransition
-        // between idle/hover variants still animates because it operates on the value
-        // as a whole, not on the colour inside it.
-
         static Color Black(byte a) => Color.FromArgb(a, 0x00, 0x00, 0x00);
         static Color White(byte a) => Color.FromArgb(a, 0xFF, 0xFF, 0xFF);
 
-        // Play-button halo (Button.primary Border#Halo). Direct port of the
-        // design's pink halo, now warm-accent-driven so every theme glows.
+        // Play-button halo (Button.primary Border#Halo).
         app.Resources["PlayHaloIdle"]  = new BoxShadows(new BoxShadow {
             OffsetX = 0, OffsetY = 0, Blur = 30, Spread = 0, Color = glowIdle,
         });
@@ -121,16 +94,12 @@ public sealed class AvaloniaThemeService : IThemeService
             OffsetX = 0, OffsetY = 0, Blur = 40, Spread = 0, Color = glowStrong,
         });
 
-        // Active-row left-edge accent bar halo. Direct port of the design's
-        // `boxShadow: 0 0 6px ${theme.accentB}` (app.jsx:170).
+        // Active-row left-edge accent bar halo.
         app.Resources["ActiveRowEdgeHalo"] = new BoxShadows(new BoxShadow {
             OffsetX = 0, OffsetY = 0, Blur = 6, Spread = 0, Color = accentB,
         });
 
         // Sleeve outer card shadow — drop + outer ring + soft accent aura.
-        // First two layers from the design (deep black drop, 1-px white edge);
-        // the third is our Aurora-style extension, now theme-driven so
-        // Sunset/Midnight/Neon get their own room-light tint.
         app.Resources["SleeveOuter"] = new BoxShadows(
             new BoxShadow { OffsetX = 0, OffsetY = 30, Blur = 60, Spread = -8, Color = Black(0xBF) },
             new BoxShadow[] {
@@ -146,9 +115,7 @@ public sealed class AvaloniaThemeService : IThemeService
                 new BoxShadow { OffsetX = 0, OffsetY = 16, Blur = 40, Spread = -18, Color = windowHaze },
             });
 
-        // SkeuSlider thumbs — same five-layer skeu (inset highlight, inset bottom shade,
-        // drop, hairline outline, accent halo). Halo now uses the design's stronger
-        // `accentBaa` and a wider blur (design progress thumb: 0 0 12px accentBaa).
+        // SkeuSlider thumbs — five-layer skeu (inset highlight, inset bottom shade, drop, hairline, halo).
         BoxShadows MakeSliderShadow(double insetBlur, double dropBlur, double haloBlur) =>
             new BoxShadows(
                 new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = 1,  Blur = 1,         Spread = 0, Color = White(0xB3) },
@@ -161,10 +128,7 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["SkeuSliderProgressThumbShadow"] = MakeSliderShadow(3, 4, 12);
         app.Resources["SkeuSliderChromeThumbShadow"]   = MakeSliderShadow(2, 3, 10);
 
-        // SkeuSlider filled portion — inset bevel + OUTER accent glow so the coloured
-        // progress emits light (design progress fill, player.jsx:509: inset highlight/
-        // shade + 0 0 10 accentB88 + 0 0 16 accentA55; volume fill, :579: inset
-        // highlight + 0 0 6 accentB88). This was missing entirely before.
+        // SkeuSlider filled portion — inset bevel + OUTER accent glow.
         app.Resources["SkeuSliderProgressFillGlow"] = new BoxShadows(
             new BoxShadow { IsInset = true, OffsetX = 0, OffsetY = 1, Blur = 0, Spread = 0, Color = White(0x80) },
             new BoxShadow[] {
@@ -178,9 +142,6 @@ public sealed class AvaloniaThemeService : IThemeService
                 new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 6, Spread = 0, Color = fillGlowB },
             });
 
-        // Only fire ThemeChanged and update _current on a REAL theme switch —
-        // initial cold-start writes still call this method to publish the
-        // colour keys, but they shouldn't be reported as a transition.
         if (sameName) return;
         _current = theme;
         ThemeChanged?.Invoke(this, theme);

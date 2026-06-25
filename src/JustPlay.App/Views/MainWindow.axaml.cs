@@ -8,10 +8,11 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using JustPlay.App.ViewModels;
+using JustPlay.UI;
 
 namespace JustPlay.App.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IFramelessWindow
 {
     // Window dimensions include the 20/22-px margin around the inner card so the drop
     // shadow has room to bloom outside the rounded corners. Visible card is 1280×820 / 640×660.

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using JustPlay.App.Controls;
+using JustPlay.UI.Controls;
 using JustPlay.App.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 

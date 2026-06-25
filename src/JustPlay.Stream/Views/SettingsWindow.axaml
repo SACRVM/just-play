@@ -5,54 +5,89 @@
         x:Class="JustPlay.Stream.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="JUST STREAM — Settings"
-        Width="740" Height="500"
-        MinWidth="700" MinHeight="460"
-        Background="{StaticResource BgLinear}">
+        Width="784" Height="544"
+        CanResize="False"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None"
+        WindowStartupLocation="CenterOwner">
 
-    <!-- Wide-not-tall settings, Aurora glass to match the main console (blueprint §3a).
-         Audio/Stream/DSP all live on the main UI now → settings is just Server + Advanced. -->
-    <Grid>
-        <Border Background="{StaticResource BgGlowA}" IsHitTestVisible="False"/>
-        <Border Background="{StaticResource BgGlowB}" IsHitTestVisible="False"/>
+    <!-- Frameless rounded dialog — same shell as the main console + JUST PLAY (no classic title bar). -->
+    <Panel>
+        <Border CornerRadius="14" ClipToBounds="False"
+                Margin="20,20,20,22"
+                Background="#40000000"
+                BoxShadow="0 18 50 -12 #B0000000">
+            <Panel>
+                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
 
-        <Grid Margin="16" RowDefinitions="Auto,*">
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="2,0,0,12">
-                <TextBlock Classes="brand" Text="SETTINGS" VerticalAlignment="Center"/>
-                <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="2,0"/>
-                <TextBlock Classes="label" Text="JUST STREAM" VerticalAlignment="Center"/>
-            </StackPanel>
+                <DockPanel LastChildFill="True">
 
-            <!-- Shared underline tabs (App.axaml Button.tab / Border.tabline) — NOT a raw TabControl.
-                 Same look as JustPlay's tweaks tabs: string state + IsVisible panels. -->
-            <Grid Grid.Row="1" RowDefinitions="Auto,*">
-                <Border Grid.Row="0" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
-                    <StackPanel Orientation="Horizontal" Spacing="2">
-                        <Button Classes="tab"
-                                Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
-                                Command="{Binding SetSettingsTabCommand}" CommandParameter="Server">
-                            <Panel>
-                                <TextBlock Text="Server" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
-                                <Border Classes="tabline"/>
-                            </Panel>
-                        </Button>
-                        <Button Classes="tab"
-                                Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}"
-                                Command="{Binding SetSettingsTabCommand}" CommandParameter="Advanced">
-                            <Panel>
-                                <TextBlock Text="Advanced" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
-                                <Border Classes="tabline"/>
-                            </Panel>
-                        </Button>
-                    </StackPanel>
-                </Border>
+                    <!-- ─── CHROME / TITLE BAR (frameless; brand left, close right) ── -->
+                    <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
+                            Background="Transparent" PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                        Margin="14,0,0,0" VerticalAlignment="Center">
+                                <Border Width="18" Height="18" CornerRadius="5"
+                                        Background="{StaticResource AccentGradient}">
+                                    <Path Stretch="Uniform" Width="11" Height="11"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="White" StrokeThickness="1.8"
+                                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                          Data="M4.9 16.1 C1 12.2 1 5.8 4.9 1.9
+                                                M7.8 4.7 a6.14 6.14 0 0 0 -.8 7.5
+                                                M10 9 A2 2 0 1 0 14 9 A2 2 0 1 0 10 9
+                                                M16.2 4.8 c2 2 2.26 5.11 .8 7.47
+                                                M19.1 1.9 a9.96 9.96 0 0 1 0 14.1
+                                                M9.5 18 h5
+                                                M8 22 l4 -11 l4 11"/>
+                                </Border>
+                                <TextBlock Classes="brand" Text="SETTINGS" VerticalAlignment="Center"/>
+                                <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="2,0"/>
+                                <TextBlock Classes="label" Text="JUST STREAM" VerticalAlignment="Center"/>
+                            </StackPanel>
 
-                <!-- ═══ SERVER ═══ -->
-                <Grid Grid.Row="1"
-                      IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
-                      ColumnDefinitions="210,*" Margin="0,12,0,0">
-                        <!-- list + CRUD -->
-                        <Border Grid.Column="0" Classes="card" Margin="0,0,10,0" Padding="10">
-                            <DockPanel>
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close">
+                                <Path Stretch="None" Width="10" Height="10"
+                                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
+                                      Data="M 0,0 L 10,10 M 10,0 L 0,10"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- ─── BODY ── -->
+                    <Grid Margin="18,4,18,16" RowDefinitions="Auto,*">
+
+                        <!-- Shared underline tabs (App.axaml Button.tab / Border.tabline) -->
+                        <Border Grid.Row="0" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Button Classes="tab"
+                                        Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
+                                        Command="{Binding SetSettingsTabCommand}" CommandParameter="Server">
+                                    <Panel>
+                                        <TextBlock Text="Server" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab"
+                                        Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}"
+                                        Command="{Binding SetSettingsTabCommand}" CommandParameter="Advanced">
+                                    <Panel>
+                                        <TextBlock Text="Advanced" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- ═══ SERVER — de-boxed: list · vertical hairline · form ═══ -->
+                        <Grid Grid.Row="1"
+                              IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
+                              ColumnDefinitions="210,1,*" Margin="0,14,0,0">
+                            <DockPanel Grid.Column="0" Margin="0,0,16,0">
                                 <Border DockPanel.Dock="Bottom" Background="#16000000" CornerRadius="9" Padding="3"
                                         BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" Margin="0,8,0,0">
                                     <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
@@ -70,14 +105,12 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                             </DockPanel>
-                        </Border>
 
-                        <!-- edit form -->
-                        <Border Grid.Column="1" Classes="card"
-                                IsEnabled="{Binding Editing, Converter={x:Static ObjectConverters.IsNotNull}}">
-                            <ScrollViewer>
-                                <!-- x:CompileBindings=False: Editing.Port (int→TextBox.Text) and the enum/int
-                                     ComboBox.SelectedItem binds need runtime coercion. -->
+                            <Border Grid.Column="1" Background="{StaticResource HairlineBrush}" Width="1" Margin="0,2"/>
+
+                            <ScrollViewer Grid.Column="2" Margin="16,0,0,0"
+                                          IsEnabled="{Binding Editing, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <!-- x:CompileBindings=False: Editing.Port (int→TextBox.Text) + enum/int ComboBox needs coercion. -->
                                 <Grid x:CompileBindings="False" ColumnDefinitions="96,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                       VerticalAlignment="Top">
                                     <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="NAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
@@ -109,34 +142,32 @@
                                     <ToggleSwitch Grid.Row="8" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent=""/>
                                 </Grid>
                             </ScrollViewer>
-                        </Border>
-                </Grid>
+                        </Grid>
 
-                <!-- ═══ ADVANCED ═══ -->
-                <Border Grid.Row="1"
-                        IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}"
-                        Classes="card" Margin="0,12,0,0" VerticalAlignment="Top">
-                        <StackPanel Spacing="14">
+                        <!-- ═══ ADVANCED — de-boxed, hairline-separated rows ═══ -->
+                        <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"
+                                    IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}">
                             <StackPanel Spacing="3">
                                 <TextBlock Classes="label" Text="AUTO-RECONNECT"/>
                                 <TextBlock Classes="value" Text="Planned — exponential backoff on dropped connections."
                                            Foreground="{StaticResource MutedBrush}" FontWeight="Normal"/>
                             </StackPanel>
-                            <Border Background="{StaticResource HairlineBrush}" Height="1"/>
+                            <Border Classes="sep"/>
                             <StackPanel Spacing="3">
                                 <TextBlock Classes="label" Text="SETTINGS &amp; LOG FOLDER"/>
                                 <TextBlock Classes="mono" FontSize="12" Text="%LOCALAPPDATA%\JustStream"
                                            Foreground="{StaticResource MutedBrush}"/>
                             </StackPanel>
-                            <Border Background="{StaticResource HairlineBrush}" Height="1"/>
+                            <Border Classes="sep"/>
                             <StackPanel Spacing="3">
                                 <TextBlock Classes="label" Text="ABOUT"/>
-                                <TextBlock Classes="value" Text="JUST STREAM — broadcast console (JustPlay family)"
+                                <TextBlock Classes="value" Text="JUST STREAM — broadcast console (part of J.U.S.T. — Just Useful Sound Tools)"
                                            Foreground="{StaticResource MutedBrush}" FontWeight="Normal"/>
                             </StackPanel>
                         </StackPanel>
-                </Border>
-            </Grid>
-        </Grid>
-    </Grid>
+                    </Grid>
+                </DockPanel>
+            </Panel>
+        </Border>
+    </Panel>
 </Window>

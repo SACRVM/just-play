@@ -1,13 +1,13 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using JustPlay.App.Views;
 
-namespace JustPlay.App.Controls;
+namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// Minimize / maximize / close caption buttons, shared by both chrome bars.
-/// Resolves the hosting <see cref="Window"/> via <see cref="TopLevel"/> so it can
-/// be dropped into either view without wiring.
+/// Minimize / maximize / close caption buttons, shared by every JUST suite window.
+/// Resolves the hosting <see cref="Window"/> via <see cref="TopLevel"/> and drives a
+/// custom maximize through <see cref="IFramelessWindow"/>, so it needs no reference to
+/// any app-specific Window type.
 /// </summary>
 public partial class WindowControls : UserControl
 {
@@ -24,10 +24,10 @@ public partial class WindowControls : UserControl
 
     private void OnMaximizeClick(object? sender, RoutedEventArgs e)
     {
-        // The shell window does a custom maximize (work-area fill) because it's a borderless
-        // transparent window with no OS maximize; fall back to WindowState elsewhere.
-        if (Window is MainWindow mw)
-            mw.ToggleMaximize();
+        // Frameless windows do a custom work-area maximize (no OS maximize on a borderless
+        // transparent window); fall back to WindowState for anything that isn't one.
+        if (Window is IFramelessWindow fw)
+            fw.ToggleMaximize();
         else if (Window is { } w)
             w.WindowState = w.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }

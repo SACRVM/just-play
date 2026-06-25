@@ -2,280 +2,359 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:JustPlay.Stream.ViewModels"
         xmlns:models="using:JustPlay.Core.Models"
+        xmlns:ui="using:JustPlay.UI.Controls"
         x:Class="JustPlay.Stream.Views.MainWindow"
         x:DataType="vm:StreamViewModel"
         Title="JUST STREAM"
-        Width="940" Height="700"
-        MinWidth="880" MinHeight="600"
-        WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgLinear}">
+        Width="980" Height="744"
+        MinWidth="920" MinHeight="640"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None"
+        WindowStartupLocation="CenterScreen">
 
-    <!-- Compact landscape broadcast console — Aurora language (shared w/ JustPlay).
-         SIGNATURE = the ON-AIR band (glows green on air). blueprint §3a / §7.3. -->
-    <Grid>
-        <Border Background="{StaticResource BgGlowA}" IsHitTestVisible="False"/>
-        <Border Background="{StaticResource BgGlowB}" IsHitTestVisible="False"/>
+    <!-- Frameless rounded floating card — SAME shell as JUST PLAY (MainWindow.axaml): no classic
+         OS title bar, rounded card + drop shadow blooming into a transparent margin, custom caption
+         buttons, drag from the chrome bar. JUST STREAM is single-theme so the shadow is a literal
+         (JUST PLAY uses the theme-driven {DynamicResource WindowOuter}). -->
+    <Window.Styles>
+        <!-- Maximized: square off card (margin/corners/shadow) + the inner aurora rectangles. -->
+        <Style Selector="Border#RootCard.maximized">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
+        </Style>
+        <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
+            <Setter Property="RadiusX" Value="0"/>
+            <Setter Property="RadiusY" Value="0"/>
+        </Style>
+    </Window.Styles>
 
-        <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+    <Panel>
+        <Border Name="RootCard"
+                CornerRadius="14" ClipToBounds="False"
+                Margin="20,20,20,22"
+                Background="#40000000"
+                BoxShadow="0 18 50 -12 #B0000000">
+            <Panel>
+                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
 
-            <!-- ═══ TOP BAR ═══ -->
-            <Border Grid.Row="0" Classes="card" Padding="14,10" Margin="0,0,0,8">
                 <DockPanel LastChildFill="True">
-                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock Classes="brand" Text="JUST STREAM" VerticalAlignment="Center"/>
-                        <Border Background="{StaticResource HairlineBrush}" Width="1" Height="18" Margin="2,0"/>
-                        <TextBlock Classes="label" Text="BROADCAST CONSOLE" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <Button DockPanel.Dock="Right" Classes="ghost" Content="⚙" Click="OpenSettings"
-                            ToolTip.Tip="Settings" VerticalAlignment="Center"/>
-                    <ComboBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                              HorizontalAlignment="Stretch" Margin="16,0,12,0"
-                              PlaceholderText="Select server profile…">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:StreamServerProfile">
-                                <TextBlock Text="{Binding Name}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </DockPanel>
-            </Border>
 
-            <!-- ═══ SIGNATURE: ON-AIR band + CONNECT ═══ -->
-            <Border Grid.Row="1" Classes="onair" Classes.live="{Binding OnAir}" Margin="0,0,0,8">
-                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                    <Border Grid.Column="0" Classes="tally" Classes.live="{Binding OnAir}"
-                            VerticalAlignment="Center" Margin="2,0,14,0"/>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                        <TextBlock Text="{Binding StatusText}" FontSize="24" FontWeight="Bold"/>
-                        <TextBlock Classes="label" Text="STREAM STATUS"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding StreamTimeText}" Classes="mono" FontSize="22" FontWeight="SemiBold"
-                                   HorizontalAlignment="Right"/>
-                        <TextBlock Classes="label" Text="ON-AIR TIME" HorizontalAlignment="Right"/>
-                    </StackPanel>
-                    <Button Grid.Column="3" Classes="primary" Classes.live="{Binding IsConnected}"
-                            Content="{Binding ConnectLabel}" Command="{Binding ToggleConnectCommand}"
-                            MinWidth="150" VerticalAlignment="Center"/>
-                </Grid>
-            </Border>
+                    <!-- ─── CHROME / TITLE BAR (frameless; brand left, gear + caption buttons right) ── -->
+                    <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
+                            Background="Transparent" PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
 
-            <!-- ═══ OUTPUT LEVEL — prominent hi-fi broadcast meter ═══
-                 Tall gradient L/R bars + a dB ruler (ticks at −48/−36/−24/−12/0, which land on even
-                 quarters because the fill is dB-linear, LinearToDbFillConverter) + big mono dB readouts. -->
-            <Border Grid.Row="2" Classes="card" Padding="16,13" Margin="0,0,0,8">
-                <StackPanel Spacing="9">
-                    <DockPanel>
-                        <TextBlock Classes="label" Text="OUTPUT LEVEL" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                        <TextBlock Classes="label" Text="TRUE-PEAK · dBTP" DockPanel.Dock="Right"
-                                   Foreground="{StaticResource MutedFaintBrush}" VerticalAlignment="Center"/>
-                    </DockPanel>
-
-                    <!-- L -->
-                    <Grid ColumnDefinitions="14,*,66" VerticalAlignment="Center">
-                        <TextBlock Grid.Column="0" Text="L" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <ProgressBar Grid.Column="1" Classes="meter tall" Margin="4,0,12,0"
-                                     Value="{Binding LeftLevel, Converter={x:Static vm:LinearToDbFillConverter.Instance}}"/>
-                        <TextBlock Grid.Column="2" Text="{Binding LeftDb}" Classes="mono" FontSize="19" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <!-- R -->
-                    <Grid ColumnDefinitions="14,*,66" VerticalAlignment="Center">
-                        <TextBlock Grid.Column="0" Text="R" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <ProgressBar Grid.Column="1" Classes="meter tall" Margin="4,0,12,0"
-                                     Value="{Binding RightLevel, Converter={x:Static vm:LinearToDbFillConverter.Instance}}"/>
-                        <TextBlock Grid.Column="2" Text="{Binding RightDb}" Classes="mono" FontSize="19" FontWeight="SemiBold"
-                                   Foreground="{StaticResource TextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
-                    </Grid>
-
-                    <!-- dB ruler — aligned to the meter column (col 1, same 4,0,12,0 inset) -->
-                    <Grid ColumnDefinitions="14,*,66">
-                        <StackPanel Grid.Column="1" Margin="4,0,12,0" Spacing="2">
-                            <Grid ColumnDefinitions="*,*,*,*" Height="4">
-                                <Border Grid.Column="0" Classes="mtick" HorizontalAlignment="Left"/>
-                                <Border Grid.Column="0" Classes="mtick" HorizontalAlignment="Right"/>
-                                <Border Grid.Column="1" Classes="mtick" HorizontalAlignment="Right"/>
-                                <Border Grid.Column="2" Classes="mtick" HorizontalAlignment="Right"/>
-                                <Border Grid.Column="3" Classes="mtick" HorizontalAlignment="Right"/>
-                            </Grid>
-                            <Grid ColumnDefinitions="*,*,*,*">
-                                <TextBlock Grid.Column="0" Classes="mscale" Text="-48" HorizontalAlignment="Left"/>
-                                <TextBlock Grid.Column="0" Classes="mscale" Text="-36" HorizontalAlignment="Right"/>
-                                <TextBlock Grid.Column="1" Classes="mscale" Text="-24" HorizontalAlignment="Right"/>
-                                <TextBlock Grid.Column="2" Classes="mscale" Text="-12" HorizontalAlignment="Right"/>
-                                <TextBlock Grid.Column="3" Classes="mscale" Text="0" HorizontalAlignment="Right"/>
-                            </Grid>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- ═══ STREAM INFO + NOW PLAYING (left) · INPUT (right) ═══ -->
-            <Grid Grid.Row="3" ColumnDefinitions="*,*" Margin="0,0,0,8">
-                <Border Grid.Column="0" Classes="card" Margin="0,0,5,0">
-                    <StackPanel Spacing="12">
-                        <TextBlock Classes="label" Text="STREAM INFO"/>
-                        <UniformGrid Columns="3" Rows="2">
-                            <StackPanel Spacing="2" Margin="0,0,8,8">
-                                <TextBlock Classes="label" Text="LISTENERS"/>
-                                <TextBlock Classes="value" Text="{Binding ListenersText}"/>
+                            <!-- Brand mark (top-left) — the FUNKTURM (radio-tower) glyph on the theme
+                                 gradient chip, per the JUST suite UI philosophy (CLAUDE.md). -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                        Margin="14,0,0,0" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" CornerRadius="5"
+                                        Background="{StaticResource AccentGradient}">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="{StaticResource AccentB}" BlurRadius="8" OffsetX="0" OffsetY="0" Opacity="0.45"/>
+                                    </Border.Effect>
+                                    <!-- Lucide "radio-tower" (ISC) — the Funkturm mark. -->
+                                    <Path Stretch="Uniform" Width="12" Height="12"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="White" StrokeThickness="1.8"
+                                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                          Data="M4.9 16.1 C1 12.2 1 5.8 4.9 1.9
+                                                M7.8 4.7 a6.14 6.14 0 0 0 -.8 7.5
+                                                M10 9 A2 2 0 1 0 14 9 A2 2 0 1 0 10 9
+                                                M16.2 4.8 c2 2 2.26 5.11 .8 7.47
+                                                M19.1 1.9 a9.96 9.96 0 0 1 0 14.1
+                                                M9.5 18 h5
+                                                M8 22 l4 -11 l4 11">
+                                        <Path.Effect>
+                                            <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                        </Path.Effect>
+                                    </Path>
+                                </Border>
+                                <TextBlock Text="JUST STREAM" FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                                <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="4,0"/>
+                                <TextBlock Classes="label" Text="BROADCAST CONSOLE" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <StackPanel Spacing="2" Margin="0,0,8,8">
-                                <TextBlock Classes="label" Text="CODEC"/>
-                                <TextBlock Classes="value" Text="{Binding CodecText}"/>
-                            </StackPanel>
-                            <StackPanel Spacing="2" Margin="0,0,0,8">
-                                <TextBlock Classes="label" Text="BITRATE"/>
-                                <TextBlock Classes="value" Text="{Binding BitrateText}"/>
-                            </StackPanel>
-                            <StackPanel Spacing="2" Margin="0,0,8,0">
-                                <TextBlock Classes="label" Text="RATE"/>
-                                <TextBlock Classes="value" Text="{Binding SamplerateText}"/>
-                            </StackPanel>
-                            <StackPanel Spacing="2" Grid.ColumnSpan="2">
-                                <TextBlock Classes="label" Text="MOUNT"/>
-                                <TextBlock Classes="value" Text="{Binding MountText}" TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
-                        </UniformGrid>
-                        <Border Background="{StaticResource HairlineBrush}" Height="1"/>
-                        <StackPanel Spacing="6">
-                            <TextBlock Classes="label" Text="NOW PLAYING / STATION TITLE"/>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Grid.Column="0" Text="{Binding NowPlayingText}"
-                                         PlaceholderText="What's playing…" VerticalContentAlignment="Center"/>
-                                <Button Grid.Column="1" Classes="seg active" Content="SEND" Margin="8,0,0,0"
-                                        Command="{Binding SendTitleCommand}" Height="34"/>
-                            </Grid>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <ToggleSwitch IsChecked="{Binding SendSongInfo}" OnContent="" OffContent=""/>
-                                <TextBlock Classes="label" Text="BROADCAST SONG INFO" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
 
-                <Border Grid.Column="1" Classes="card" Margin="5,0,0,0">
-                    <StackPanel Spacing="10">
-                        <DockPanel>
-                            <TextBlock Classes="label" Text="INPUT SOURCE" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                            <Button Classes="seg" Content="↻" DockPanel.Dock="Right"
-                                    Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
-                        </DockPanel>
-                        <ComboBox ItemsSource="{Binding InputDevices}" SelectedItem="{Binding SelectedInputDevice}"
-                                  HorizontalAlignment="Stretch" PlaceholderText="Select input / loopback…">
+                            <!-- Settings gear (cap button, matches the caption buttons) -->
+                            <Button Grid.Column="2" Classes="cap" Click="OpenSettings" ToolTip.Tip="Settings">
+                                <Path Stretch="Uniform" Width="16" Height="16"
+                                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2"
+                                      StrokeJoin="Round" Fill="Transparent"
+                                      Data="M 7,0 L 9,0 L 9.5,2 L 11.5,2.5 L 13,1.3 L 14.7,3 L 13.5,4.5 L 14,6.5 L 16,7 L 16,9 L 14,9.5 L 13.5,11.5 L 14.7,13 L 13,14.7 L 11.5,13.5 L 9.5,14 L 9,16 L 7,16 L 6.5,14 L 4.5,13.5 L 3,14.7 L 1.3,13 L 2.5,11.5 L 2,9.5 L 0,9 L 0,7 L 2,6.5 L 2.5,4.5 L 1.3,3 L 3,1.3 L 4.5,2.5 L 6.5,2 Z M 8,5.5 A 2.5,2.5 0 1 0 8,10.5 A 2.5,2.5 0 1 0 8,5.5 Z"/>
+                            </Button>
+
+                            <!-- Caption buttons — shared suite control (JustPlay.UI/Controls/WindowControls) -->
+                            <ui:WindowControls Grid.Column="3"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- ─── BODY — de-boxed: sections sit directly on the aurora bg, divided by thin
+                         hairlines (Border.sep), NOT nested card containers. The ON-AIR band is the one
+                         framed element by design (the broadcast SIGNATURE). ── -->
+                    <Grid Margin="18,4,18,14"
+                          RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
+
+                        <!-- Server profile selector -->
+                        <ComboBox Grid.Row="0" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                                  HorizontalAlignment="Stretch" Margin="0,0,0,12"
+                                  PlaceholderText="Select server profile…">
                             <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:AudioInputDevice">
+                                <DataTemplate x:DataType="models:StreamServerProfile">
                                     <TextBlock Text="{Binding Name}"/>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
-                        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                            <TextBlock Grid.Column="0" Classes="label" Text="GAIN" VerticalAlignment="Center" Width="40"/>
-                            <Slider Grid.Column="1" Minimum="-24" Maximum="24" Value="{Binding InputGainDb}"/>
-                            <TextBlock Grid.Column="2" Classes="mono" FontSize="11" Width="48" TextAlignment="Right"
-                                       VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                                       Text="{Binding InputGainDb, Converter={x:Static vm:GainDbConverter.Instance}}"/>
+                        <!-- ═══ SIGNATURE: ON-AIR band + CONNECT (kept framed — glows green on air) ═══ -->
+                        <Border Grid.Row="1" Classes="onair" Classes.live="{Binding OnAir}" Margin="0,0,0,12">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                <Border Grid.Column="0" Classes="tally" Classes.live="{Binding OnAir}"
+                                        VerticalAlignment="Center" Margin="2,0,14,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding StatusText}" FontSize="24" FontWeight="Bold"/>
+                                    <TextBlock Classes="label" Text="STREAM STATUS"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding StreamTimeText}" Classes="mono" FontSize="22" FontWeight="SemiBold"
+                                               HorizontalAlignment="Right"/>
+                                    <TextBlock Classes="label" Text="ON-AIR TIME" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                                <Button Grid.Column="3" Classes="primary" Classes.live="{Binding IsConnected}"
+                                        Content="{Binding ConnectLabel}" Command="{Binding ToggleConnectCommand}"
+                                        MinWidth="150" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- ═══ OUTPUT LEVEL — hi-fi broadcast meter (de-boxed) ═══ -->
+                        <StackPanel Grid.Row="2" Spacing="9">
+                            <DockPanel>
+                                <TextBlock Classes="label" Text="OUTPUT LEVEL" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <TextBlock Classes="label" Text="TRUE-PEAK · dBTP" DockPanel.Dock="Right"
+                                           Foreground="{StaticResource MutedFaintBrush}" VerticalAlignment="Center"/>
+                            </DockPanel>
+
+                            <!-- L -->
+                            <Grid ColumnDefinitions="14,*,66" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0" Text="L" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <ProgressBar Grid.Column="1" Classes="meter tall" Margin="4,0,12,0"
+                                             Value="{Binding LeftLevel, Converter={x:Static vm:LinearToDbFillConverter.Instance}}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding LeftDb}" Classes="mono" FontSize="19" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- R -->
+                            <Grid ColumnDefinitions="14,*,66" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0" Text="R" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <ProgressBar Grid.Column="1" Classes="meter tall" Margin="4,0,12,0"
+                                             Value="{Binding RightLevel, Converter={x:Static vm:LinearToDbFillConverter.Instance}}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding RightDb}" Classes="mono" FontSize="19" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextBrush}" TextAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- dB ruler -->
+                            <Grid ColumnDefinitions="14,*,66">
+                                <StackPanel Grid.Column="1" Margin="4,0,12,0" Spacing="2">
+                                    <Grid ColumnDefinitions="*,*,*,*" Height="4">
+                                        <Border Grid.Column="0" Classes="mtick" HorizontalAlignment="Left"/>
+                                        <Border Grid.Column="0" Classes="mtick" HorizontalAlignment="Right"/>
+                                        <Border Grid.Column="1" Classes="mtick" HorizontalAlignment="Right"/>
+                                        <Border Grid.Column="2" Classes="mtick" HorizontalAlignment="Right"/>
+                                        <Border Grid.Column="3" Classes="mtick" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,*,*,*">
+                                        <TextBlock Grid.Column="0" Classes="mscale" Text="-48" HorizontalAlignment="Left"/>
+                                        <TextBlock Grid.Column="0" Classes="mscale" Text="-36" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="1" Classes="mscale" Text="-24" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="2" Classes="mscale" Text="-12" HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Column="3" Classes="mscale" Text="0" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+
+                        <Border Grid.Row="3" Classes="sep" Margin="0,12"/>
+
+                        <!-- ═══ STREAM INFO + NOW PLAYING (left) · INPUT (right) — de-boxed, vertical hairline ═══ -->
+                        <Grid Grid.Row="4" ColumnDefinitions="*,1,*">
+                            <StackPanel Grid.Column="0" Spacing="12" Margin="0,0,16,0">
+                                <TextBlock Classes="label" Text="STREAM INFO"/>
+                                <UniformGrid Columns="3" Rows="2">
+                                    <StackPanel Spacing="2" Margin="0,0,8,8">
+                                        <TextBlock Classes="label" Text="LISTENERS"/>
+                                        <TextBlock Classes="value" Text="{Binding ListenersText}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" Margin="0,0,8,8">
+                                        <TextBlock Classes="label" Text="CODEC"/>
+                                        <TextBlock Classes="value" Text="{Binding CodecText}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" Margin="0,0,0,8">
+                                        <TextBlock Classes="label" Text="BITRATE"/>
+                                        <TextBlock Classes="value" Text="{Binding BitrateText}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" Margin="0,0,8,0">
+                                        <TextBlock Classes="label" Text="RATE"/>
+                                        <TextBlock Classes="value" Text="{Binding SamplerateText}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2" Grid.ColumnSpan="2">
+                                        <TextBlock Classes="label" Text="MOUNT"/>
+                                        <TextBlock Classes="value" Text="{Binding MountText}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </UniformGrid>
+                                <Border Classes="sep"/>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="label" Text="NOW PLAYING / STATION TITLE"/>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBox Grid.Column="0" Text="{Binding NowPlayingText}"
+                                                 PlaceholderText="What's playing…" VerticalContentAlignment="Center"/>
+                                        <Button Grid.Column="1" Classes="seg active" Content="SEND" Margin="8,0,0,0"
+                                                Command="{Binding SendTitleCommand}" Height="34"/>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ToggleSwitch IsChecked="{Binding SendSongInfo}" OnContent="" OffContent=""/>
+                                        <TextBlock Classes="label" Text="BROADCAST SONG INFO" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Background="{StaticResource HairlineBrush}" Width="1" Margin="0,2"/>
+
+                            <StackPanel Grid.Column="2" Spacing="10" Margin="16,0,0,0">
+                                <DockPanel>
+                                    <TextBlock Classes="label" Text="INPUT SOURCE" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                    <Button Classes="seg" Content="↻" DockPanel.Dock="Right"
+                                            Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
+                                </DockPanel>
+                                <ComboBox ItemsSource="{Binding InputDevices}" SelectedItem="{Binding SelectedInputDevice}"
+                                          HorizontalAlignment="Stretch" PlaceholderText="Select input / loopback…">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:AudioInputDevice">
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                                    <TextBlock Grid.Column="0" Classes="label" Text="GAIN" VerticalAlignment="Center" Width="40"/>
+                                    <Slider Grid.Column="1" Minimum="-24" Maximum="24" Value="{Binding InputGainDb}"/>
+                                    <TextBlock Grid.Column="2" Classes="mono" FontSize="11" Width="48" TextAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                               Text="{Binding InputGainDb, Converter={x:Static vm:GainDbConverter.Instance}}"/>
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8"
+                                            ToolTip.Tip="Hear the processed stream on this PC's output. Does NOT affect the broadcast — off by default so you don't double your own audio.">
+                                    <ToggleSwitch IsChecked="{Binding MonitorOn}" OnContent="" OffContent=""/>
+                                    <TextBlock Classes="label" Text="MONITOR (LOCAL)" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Slider Width="130" Minimum="0" Maximum="1" Value="{Binding MonitorVolume}"
+                                            IsEnabled="{Binding MonitorOn}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
                         </Grid>
 
-                        <StackPanel Orientation="Horizontal" Spacing="8"
-                                    ToolTip.Tip="Hear the processed stream on this PC's output. Does NOT affect the broadcast — off by default so you don't double your own audio.">
-                            <ToggleSwitch IsChecked="{Binding MonitorOn}" OnContent="" OffContent=""/>
-                            <TextBlock Classes="label" Text="MONITOR (LOCAL)" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <Slider Width="130" Minimum="0" Maximum="1" Value="{Binding MonitorVolume}"
-                                    IsEnabled="{Binding MonitorOn}" VerticalAlignment="Center"/>
+                        <Border Grid.Row="5" Classes="sep" Margin="0,12"/>
+
+                        <!-- ═══ BROADCAST DSP — vertical faders + presets right (de-boxed) ═══ -->
+                        <StackPanel Grid.Row="6" Spacing="10">
+                            <DockPanel>
+                                <TextBlock Classes="label" Text="BROADCAST DSP" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                <Border DockPanel.Dock="Right" Background="#16000000" CornerRadius="9" Padding="3"
+                                        BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" HorizontalAlignment="Right">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <Button Classes="seg" Content="NORMAL" Command="{Binding ApplyNormalPresetCommand}"/>
+                                        <Button Classes="seg" Content="HARD" Command="{Binding ApplyHardPresetCommand}"
+                                                ToolTip.Tip="Brickwalled hard-dance: EQ High −3 dB, AutoTilt, Loud limiter"/>
+                                    </StackPanel>
+                                </Border>
+                            </DockPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                                <StackPanel Width="60" Spacing="4">
+                                    <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                               Text="{Binding EqLow, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
+                                    <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqLow}"/>
+                                    <TextBlock Classes="label" Text="LOW" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="60" Spacing="4">
+                                    <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                               Text="{Binding EqMid, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
+                                    <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqMid}"/>
+                                    <TextBlock Classes="label" Text="MID" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="60" Spacing="4">
+                                    <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                               Text="{Binding EqHigh, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
+                                    <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqHigh}"/>
+                                    <TextBlock Classes="label" Text="HIGH" HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <Border Classes="vdiv"/>
+
+                                <StackPanel Width="66" Spacing="4">
+                                    <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                               Text="{Binding AutoTilt, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
+                                    <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding AutoTilt}"/>
+                                    <TextBlock Classes="label" Text="AUTO-TILT" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Width="60" Spacing="4">
+                                    <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                               Text="{Binding Punch, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
+                                    <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding Punch}"/>
+                                    <TextBlock Classes="label" Text="PUNCH" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Border Classes="sep"/>
+
+                            <!-- LIMITER / MAXIMIZER — horizontal segmented row -->
+                            <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                                <TextBlock Classes="label" Text="LIMITER / MAXIMIZER" VerticalAlignment="Center"/>
+                                <Border Background="#16000000" CornerRadius="9" Padding="3"
+                                        BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" Spacing="2">
+                                        <Button Classes="seg" Content="OFF"  Command="{Binding SetLimiterDriveCommand}" CommandParameter="Off"
+                                                Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Off}"/>
+                                        <Button Classes="seg" Content="SOFT" Command="{Binding SetLimiterDriveCommand}" CommandParameter="Soft"
+                                                Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Soft}"/>
+                                        <Button Classes="seg" Content="CLUB" Command="{Binding SetLimiterDriveCommand}" CommandParameter="Club"
+                                                Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Club}"/>
+                                        <Button Classes="seg" Content="LOUD" Command="{Binding SetLimiterDriveCommand}" CommandParameter="Loud"
+                                                Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Loud}"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
 
-            <!-- ═══ BROADCAST DSP — vertical faders + presets right ═══ -->
-            <Border Grid.Row="4" Classes="card" Margin="0,0,0,8">
-                <StackPanel Spacing="10">
-                    <DockPanel>
-                        <TextBlock Classes="label" Text="BROADCAST DSP" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                        <Border DockPanel.Dock="Right" Background="#16000000" CornerRadius="9" Padding="3"
-                                BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" HorizontalAlignment="Right">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Button Classes="seg" Content="NORMAL" Command="{Binding ApplyNormalPresetCommand}"/>
-                                <Button Classes="seg" Content="HARD" Command="{Binding ApplyHardPresetCommand}"
-                                        ToolTip.Tip="Brickwalled hard-dance: EQ High −3 dB, AutoTilt, Loud limiter"/>
-                            </StackPanel>
-                        </Border>
-                    </DockPanel>
+                        <Border Grid.Row="7" Classes="sep" Margin="0,12,0,8"/>
 
-                    <!-- Fader bank (vertical), centered now the limiter no longer eats the right side -->
-                    <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
-                            <StackPanel Width="60" Spacing="4">
-                                <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                                           Text="{Binding EqLow, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqLow}"/>
-                                <TextBlock Classes="label" Text="LOW" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Width="60" Spacing="4">
-                                <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                                           Text="{Binding EqMid, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqMid}"/>
-                                <TextBlock Classes="label" Text="MID" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Width="60" Spacing="4">
-                                <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                                           Text="{Binding EqHigh, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqHigh}"/>
-                                <TextBlock Classes="label" Text="HIGH" HorizontalAlignment="Center"/>
-                            </StackPanel>
-
-                            <Border Classes="vdiv"/>
-
-                            <StackPanel Width="66" Spacing="4">
-                                <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                                           Text="{Binding AutoTilt, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding AutoTilt}"/>
-                                <TextBlock Classes="label" Text="AUTO-TILT" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                            <StackPanel Width="60" Spacing="4">
-                                <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                                           Text="{Binding Punch, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                <Slider Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding Punch}"/>
-                                <TextBlock Classes="label" Text="PUNCH" HorizontalAlignment="Center"/>
-                            </StackPanel>
-                    </StackPanel>
-
-                    <Border Background="{StaticResource HairlineBrush}" Height="1"/>
-
-                    <!-- LIMITER — horizontal segmented row, left-aligned. Was a 2×2 box jammed into the
-                         right corner; now it sits below the faders like JustPlay's limiter row. -->
-                    <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
-                        <TextBlock Classes="label" Text="LIMITER / MAXIMIZER" VerticalAlignment="Center"/>
-                        <Border Background="#16000000" CornerRadius="9" Padding="3"
-                                BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1">
-                            <StackPanel Orientation="Horizontal" Spacing="2">
-                                <Button Classes="seg" Content="OFF"  Command="{Binding SetLimiterDriveCommand}" CommandParameter="Off"
-                                        Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Off}"/>
-                                <Button Classes="seg" Content="SOFT" Command="{Binding SetLimiterDriveCommand}" CommandParameter="Soft"
-                                        Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Soft}"/>
-                                <Button Classes="seg" Content="CLUB" Command="{Binding SetLimiterDriveCommand}" CommandParameter="Club"
-                                        Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Club}"/>
-                                <Button Classes="seg" Content="LOUD" Command="{Binding SetLimiterDriveCommand}" CommandParameter="Loud"
-                                        Classes.active="{Binding LimiterDrive, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Loud}"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- ═══ ERROR LOG — always on ═══ -->
-            <Border Grid.Row="5" Classes="card" Padding="12,8">
-                <DockPanel>
-                    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Classes="label" Text="EVENT LOG" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" Classes="seg" Content="CLEAR" Command="{Binding ClearLogCommand}"/>
+                        <!-- ═══ EVENT LOG (de-boxed, fills remaining space) ═══ -->
+                        <DockPanel Grid.Row="8">
+                            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="label" Text="EVENT LOG" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Classes="seg" Content="CLEAR" Command="{Binding ClearLogCommand}"/>
+                            </Grid>
+                            <ListBox ItemsSource="{Binding LogEntries}" Background="Transparent" BorderThickness="0"
+                                     Margin="0,8,0,0" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+                        </DockPanel>
                     </Grid>
-                    <ListBox ItemsSource="{Binding LogEntries}" Background="Transparent" BorderThickness="0"
-                             Margin="0,8,0,0" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
                 </DockPanel>
-            </Border>
+            </Panel>
+        </Border>
+
+        <!-- Edge + corner resize grips in the transparent shadow ring (frameless window has no OS frame) -->
+        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+            <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"     PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="#01000000" Cursor="LeftSide"          Tag="West"      PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="#01000000" Cursor="RightSide"         Tag="East"      PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="2" Grid.Column="0" Background="#01000000" Cursor="BottomLeftCorner"  Tag="SouthWest" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="2" Grid.Column="1" Background="#01000000" Cursor="BottomSide"        Tag="South"     PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
+            <Border Grid.Row="2" Grid.Column="2" Background="#01000000" Cursor="BottomRightCorner" Tag="SouthEast" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
         </Grid>
-    </Grid>
+    </Panel>
 </Window>
