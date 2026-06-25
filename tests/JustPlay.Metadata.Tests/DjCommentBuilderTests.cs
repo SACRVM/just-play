@@ -220,4 +220,42 @@ public class DjCommentBuilderTests
         var result = DjCommentBuilder.Build(AMinor, 7, polluted);
         Assert.Equal("8A - Energy 7 | banger", result);
     }
+
+    // ── N21 AIFF edge case: some AIFF files had "{MIK segment} | {JP blob}" ──
+    // The early batch writer produced this form for AIFF files. After the MIK
+    // prefix is stripped, the JP blob should also be stripped from the tail.
+
+    [Fact]
+    public void Strip_MikPrefixThenJpBlob_BlobAlsoStripped()
+    {
+        // AIFF comment format: "{MIK segment} | {JP blob}"
+        var aiffComment = "6A - Energy 6 | JP|E6|K6A|bpm126|gc.55|gr.25|pu.22|hy.00|dk.77|hx.29";
+        var result = DjCommentBuilder.Strip(aiffComment);
+        // After stripping the MIK prefix and then the JP tail, nothing remains.
+        Assert.Equal("", result);
+    }
+
+    [Fact]
+    public void Build_OverAiffMikPlusBlobComment_ProducesCleanMikComment()
+    {
+        // AIFF comment format: "{MIK segment} | {JP blob}"
+        var aiffComment = "6A - Energy 6 | JP|E6|K6A|bpm126|gc.55|gr.25|pu.22|hy.00|dk.77|hx.29";
+        var result = DjCommentBuilder.Build(AMinor, 7, aiffComment);
+        // The result must NOT contain "JP|" — only the clean segment.
+        Assert.Equal("8A - Energy 7", result);
+        Assert.DoesNotContain("JP|", result);
+    }
+
+    [Fact]
+    public void Build_OverAiffMikPlusBlobWithUserText_KeepsUserText()
+    {
+        // AIFF comment format: "{MIK segment} | {JP blob} | {user text}"
+        // (hypothetical; the JP blob's " | " separator separates it from user text)
+        var aiffComment = "6A - Energy 6 | JP|E6|K6A|bpm126|gc.55 | my note";
+        var result = DjCommentBuilder.Build(AMinor, 7, aiffComment);
+        // Strip: remove "6A - Energy 6 | " → "JP|E6|K6A|bpm126|gc.55 | my note"
+        // Strip: remove JP blob → "my note"
+        // Build: "8A - Energy 7 | my note"
+        Assert.Equal("8A - Energy 7 | my note", result);
+    }
 }

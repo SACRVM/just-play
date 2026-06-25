@@ -75,10 +75,29 @@ public static class DjCommentBuilder
     public static string Strip(string? comment)
     {
         if (string.IsNullOrEmpty(comment)) return "";
-        comment = StripJpBlob(comment);
-        if (string.IsNullOrEmpty(comment)) return "";
-        var m = PrefixPattern.Match(comment);
-        return m.Success ? comment[m.Length..].TrimStart() : comment;
+
+        // N21: legacy comments accumulated our segments in arbitrary order and count —
+        // e.g. "{MIK} | {JP blob} | {MIK}" (Platinum-Notes "_pn" files) or
+        // "{JP blob} | {MIK}" or "{MIK} | {JP blob}" (AIFF). Strip the front of the
+        // string repeatedly, removing a leading JP| blob OR a leading MIK "8A - Energy 7"
+        // segment each pass, until a full pass removes nothing. The remainder is the
+        // file's genuine user text (in this library, normally empty). This collapses the
+        // doubled "8A - Energy 6 | 8A - Energy 6" case to "" so Build() emits ONE segment.
+        var s = comment;
+        while (true)
+        {
+            var before = s;
+
+            s = StripJpBlob(s);                  // remove a leading JP| blob (+ " | ")
+            var m = PrefixPattern.Match(s);      // remove a leading MIK "8A - Energy 7" (+ " | ")
+            if (m.Success && m.Length > 0)
+                s = s[m.Length..].TrimStart();
+
+            if (string.Equals(s, before, System.StringComparison.Ordinal)) break; // nothing stripped
+            if (string.IsNullOrEmpty(s)) return "";
+        }
+
+        return s;
     }
 
     /// <summary>

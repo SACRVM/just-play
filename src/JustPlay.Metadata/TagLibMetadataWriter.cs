@@ -36,7 +36,31 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             TagCustomFields.Set(file, "JUSTPLAY", AnalysisStateCodec.Serialize(state));
 
         if (write.Comment is { } comment)
-            tag.Comment = comment.Length == 0 ? null : comment;
+        {
+            var clean = comment.Length == 0 ? null : comment;
+
+            // N21 CLEAN SLATE: collapse the multiple COMM frames legacy taggers left
+            // (COMM::'' / COMM:'ID3v1 Comment' / blob frames in various languages) to
+            // exactly ONE clean frame. Two traps the earlier attempt hit:
+            //   1. the combined file.Tag.Comment setter ALSO writes the ID3v1 tag, which
+            //      TagLib# then renders back as a second COMM frame (desc="ID3v1 Comment")
+            //      — the source of the duplicate;
+            //   2. removing frames one-by-one is fragile; RemoveFrames(ident) clears all.
+            // So: wipe every COMM frame, write the comment DIRECTLY on the Id3v2 tag, and
+            // clear the ID3v1 comment so nothing re-mirrors. Result: a single COMM frame.
+            if (file.GetTag(TagLib.TagTypes.Id3v2, false) is TagLib.Id3v2.Tag id3ForComm)
+            {
+                id3ForComm.RemoveFrames("COMM");
+                id3ForComm.Comment = clean;
+                if (file.GetTag(TagLib.TagTypes.Id3v1, false) is TagLib.Id3v1.Tag id3v1)
+                    id3v1.Comment = null;
+            }
+            else
+            {
+                // Non-ID3 container (e.g. FLAC/Xiph) — single comment field, no dup issue.
+                tag.Comment = clean;
+            }
+        }
 
         if (write.Grouping is { } grouping)
             tag.Grouping = grouping.Length == 0 ? null : grouping;

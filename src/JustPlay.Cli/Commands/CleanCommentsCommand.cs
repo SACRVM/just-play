@@ -44,7 +44,7 @@ internal static class CleanCommentsCommand
     private const string BackupFileName = "comment-clean-backup.json";
 
     /// <summary>Clean every audio file under a directory tree (recursive).</summary>
-    public static int RunRoot(string root, bool apply, string? backupDir)
+    public static int RunRoot(string root, bool apply, string? backupDir, bool force = false)
     {
         root = Path.GetFullPath(root);
         if (!Directory.Exists(root))
@@ -55,12 +55,12 @@ internal static class CleanCommentsCommand
 
         Console.WriteLine($"[tag clean] Root : {root}");
         var files = AudioFiles.Enumerate(root).ToList();
-        return Clean(files, $"under root: {files.Count:N0}", backupDir ?? root, apply, backupDir);
+        return Clean(files, $"under root: {files.Count:N0}", backupDir ?? root, apply, backupDir, force);
     }
 
     /// <summary>Clean only the tracks referenced by an .m3u/.m3u8 playlist (paths resolved
     /// against the playlist's own folder). Use this to re-tag exactly one set.</summary>
-    public static int RunPlaylist(string playlistPath, bool apply, string? backupDir)
+    public static int RunPlaylist(string playlistPath, bool apply, string? backupDir, bool force = false)
     {
         playlistPath = Path.GetFullPath(playlistPath);
         if (!File.Exists(playlistPath))
@@ -78,7 +78,7 @@ internal static class CleanCommentsCommand
         }
 
         var defaultBackupDir = Path.GetDirectoryName(playlistPath) ?? ".";
-        return Clean(files, $"in playlist: {files.Count:N0}", defaultBackupDir, apply, backupDir);
+        return Clean(files, $"in playlist: {files.Count:N0}", defaultBackupDir, apply, backupDir, force);
     }
 
     private static int Clean(
@@ -86,9 +86,10 @@ internal static class CleanCommentsCommand
         string sourceLabel,
         string defaultBackupDir,
         bool apply,
-        string? backupDir)
+        string? backupDir,
+        bool force = false)
     {
-        Console.WriteLine($"[tag clean] Mode : {(apply ? "APPLY (files will be written)" : "DRY-RUN (no files touched)")}");
+        Console.WriteLine($"[tag clean] Mode : {(apply ? "APPLY (files will be written)" : "DRY-RUN (no files touched)")}{(force ? " [FORCE: rewrite even when the visible comment already looks clean — collapses hidden COMM frames]" : "")}");
         Console.WriteLine();
 
         Console.WriteLine($"[tag clean] Audio files {sourceLabel}");
@@ -144,7 +145,12 @@ internal static class CleanCommentsCommand
             var commentChanged  = !SameTag(meta.Comment, newComment);
             var groupingChanged = !SameTag(meta.Grouping, newGrouping);
 
-            if (!commentChanged && !groupingChanged)
+            // With --force we rewrite even when the visible comment already matches, so the
+            // writer's RemoveFrames+single-write collapses any HIDDEN second COMM frame that
+            // TagLib# never surfaced (it returns only the preferred frame). Only meaningful
+            // when there is a clean comment value to write.
+            var forceRewrite = force && newComment is not null;
+            if (!commentChanged && !groupingChanged && !forceRewrite)
             {
                 unchanged++;
                 continue;
@@ -176,7 +182,7 @@ internal static class CleanCommentsCommand
                 // "" = clear. BPM/Key/Energy/blob stay exactly as they are.
                 var request = new WriteTagsRequest
                 {
-                    Comment  = commentChanged  ? newComment  : null,
+                    Comment  = (commentChanged || forceRewrite) ? newComment  : null,
                     Grouping = groupingChanged ? newGrouping : null,
                 };
 

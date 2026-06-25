@@ -49,7 +49,11 @@ internal static class PromoteCommand
         string  root,
         bool    apply,
         bool    noGrouping,
-        string? backupDir)
+        string? backupDir,
+        // N21 CLEAN SLATE: when true, re-stamp TKEY/TBPM/ENERGY from blob even when
+        // decisions are already Applied. Needed because N15 left some TKEY values stale
+        // (applied the blob but did not fix TKEY for some files). --retag corrects those.
+        bool    retag = false)
     {
         indexPath = Path.GetFullPath(indexPath);
         root      = Path.GetFullPath(root);
@@ -68,6 +72,8 @@ internal static class PromoteCommand
         Console.WriteLine($"[promote] Index   : {indexPath}");
         Console.WriteLine($"[promote] Root    : {root}");
         Console.WriteLine($"[promote] Mode    : {(apply ? "APPLY (files will be written)" : "DRY-RUN (no files touched)")}");
+        if (retag)
+            Console.WriteLine($"[promote] --retag : ON (will re-stamp TKEY/TBPM/ENERGY even for Applied files)");
         Console.WriteLine();
 
         // ─── Load index, build lookup tables ─────────────────────────────
@@ -147,7 +153,12 @@ internal static class PromoteCommand
             var existingBlob = meta.StoredAnalysis;
 
             // ── 2. Check if already fully Applied ──────────────────────────
-            if (IsFullyApplied(existingBlob))
+            // N21 --retag: even if decisions=Applied, re-stamp the standard tags
+            // (TKEY/TBPM/ENERGY) from the blob to fix the ~4% of files where N15
+            // left a stale TKEY. In retag mode we never skip Applied files entirely;
+            // we still use the fast path (no index lookup needed) because the blob
+            // already has the correct Detected values.
+            if (IsFullyApplied(existingBlob) && !retag)
             {
                 alreadyDone++;
                 continue; // already correct, no write needed
@@ -159,7 +170,33 @@ internal static class PromoteCommand
 
             if (existingBlob is not null)
             {
-                // Has blob but decisions not fully Applied → upgrade decisions.
+                // Has blob but decisions not fully Applied (or --retag forces re-stamp).
+                // N21 --retag path: blob is Applied but TKEY may be stale. Check if
+                // TKEY already matches the blob key — if yes, skip the write to avoid
+                // touching files unnecessarily (only ~4% of Applied files need this fix).
+                if (retag && IsFullyApplied(existingBlob))
+                {
+                    var blobKey    = existingBlob.Detected.Key;
+                    var currentKey = MusicalKey.TryParse(meta.TaggedKey);
+                    var blobBpm    = existingBlob.Detected.Bpm is { } b
+                                     ? (uint)Math.Clamp(Math.Round(b), 0, 999) : 0u;
+                    var currentBpm = meta.TaggedBpm is { } tb
+                                     ? (uint)Math.Clamp(Math.Round(tb), 0, 999) : 0u;
+                    var blobEnergy = existingBlob.Detected.Energy;
+                    var currentEnergy = meta.TaggedEnergy;
+
+                    // Check if standard tags already match blob values exactly.
+                    var keyMatch    = blobKey is null || (currentKey is not null && blobKey.Value.Camelot == currentKey.Value.Camelot);
+                    var bpmMatch    = blobBpm == currentBpm;
+                    var energyMatch = blobEnergy == currentEnergy;
+                    if (keyMatch && bpmMatch && energyMatch)
+                    {
+                        alreadyDone++;
+                        continue; // standard tags are already consistent with blob — skip
+                    }
+                    // Falls through: standard tags need updating (TKEY/TBPM/ENERGY stale).
+                }
+
                 // Keep ALL Detected values as-is (don't change what the DSP found);
                 // only stamp decisions = Applied.
                 newState = existingBlob with

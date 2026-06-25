@@ -103,8 +103,11 @@ static int RunPromote(string[] args)
     var apply      = ParseBoolFlag(args, "--apply");
     var noGrouping = ParseBoolFlag(args, "--no-grouping");
     var backupDir  = ParseStringFlag(args, "--backup-dir");
+    // N21: --retag forces re-stamping of TKEY/TBPM/ENERGY even for fully-Applied files
+    // (fixes ~4% of files where N15 left a stale TKEY despite the blob being Applied).
+    var retag      = ParseBoolFlag(args, "--retag");
 
-    return PromoteCommand.Run(indexPath, root, apply, noGrouping, backupDir);
+    return PromoteCommand.Run(indexPath, root, apply, noGrouping, backupDir, retag);
 }
 
 // ── Tag ──────────────────────────────────────────────────────────────────────
@@ -137,11 +140,15 @@ static int RunTag(string[] args)
             var playlist  = ParseStringFlag(rest, "--playlist");
             var apply     = ParseBoolFlag(rest, "--apply");
             var backupDir = ParseStringFlag(rest, "--backup-dir");
+            // --force: rewrite the clean comment even when the visible value already matches,
+            // so the writer collapses any HIDDEN duplicate COMM frame (a stale/truncated second
+            // frame TagLib# doesn't surface). Use to normalize files that read as "already clean".
+            var force     = ParseBoolFlag(rest, "--force");
 
             if (playlist is not null)
-                return CleanCommentsCommand.RunPlaylist(playlist, apply, backupDir);
+                return CleanCommentsCommand.RunPlaylist(playlist, apply, backupDir, force);
             if (root is not null)
-                return CleanCommentsCommand.RunRoot(root, apply, backupDir);
+                return CleanCommentsCommand.RunRoot(root, apply, backupDir, force);
             return Fail("tag clean requires --root <dir> or --playlist <m3u>.");
         }
 
