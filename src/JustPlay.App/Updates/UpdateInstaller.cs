@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -90,8 +91,21 @@ internal static class UpdateInstaller
     /// </summary>
     public static void LaunchAndExit(string installerPath, string installDir)
     {
-        // Installed exe name comes from installer/justplay.iss (#define AppExe).
+        // Installed exe name comes from installer/justplay.iss (#define AppExe). Fall back to any
+        // JustPlay*.exe (never the CLI or the uninstaller) so a FUTURE exe rename can't strand the
+        // relaunch — that is exactly what broke 0.3.0 -> 0.3.1: the old build relaunched a
+        // since-renamed exe and the orphaned old exe kept coming back up.
         var exe = Path.Combine(installDir, "JustPlay.exe");
+        if (!File.Exists(exe))
+        {
+            exe = Directory.EnumerateFiles(installDir, "JustPlay*.exe")
+                .FirstOrDefault(p =>
+                {
+                    var n = Path.GetFileName(p);
+                    return !n.Equals("JustPlayCLI.exe", StringComparison.OrdinalIgnoreCase)
+                        && !n.StartsWith("unins", StringComparison.OrdinalIgnoreCase);
+                }) ?? exe;
+        }
         var pid = Environment.ProcessId;
 
         // PowerShell over a .bat: Wait-Process is a clean "wait for our exit" primitive and

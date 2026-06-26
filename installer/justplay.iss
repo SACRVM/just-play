@@ -65,6 +65,12 @@ Name: "assoc_wma";  Description: ".wma";        GroupDescription: "Open these in
 Name: "assoc_aiff"; Description: ".aiff / .aif"; GroupDescription: "Open these in JustPlay on double-click:"; Flags: unchecked
 Name: "assoc_m3u";  Description: ".m3u8 / .m3u playlists (opening one loads the whole set)"; GroupDescription: "Open these in JustPlay on double-click:"
 
+[InstallDelete]
+; Remove the pre-0.3.1 GUI exe (rebrand JustPlay.App.exe -> JustPlay.exe, commit a3927aa). Without
+; this, an over-install leaves the old exe behind and a pre-rebrand build's auto-updater relaunches
+; it -> the app appears to "downgrade" to the old version on every restart (the 0.3.0<->0.3.1 loop).
+Type: files; Name: "{app}\JustPlay.App.exe"
+
 [Files]
 ; The entire self-contained suite drop, shipped verbatim into one folder: JustPlay.exe +
 ; JustPlayCLI.exe (+ JustPlayCLI.howto.txt) sharing ONE copy of the .NET runtime, the
