@@ -170,15 +170,27 @@
 
                             <!-- Log + Settings (cap buttons, match the caption buttons) -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                                <!-- Mini-player toggle — stays visible in mini so you can expand back. Same
-                                     glyph (Lucide picture-in-picture-2) + tooltip as JUST PLAY. -->
-                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player">
+                                <!-- View toggle — swaps glyph AND tooltip by mode, like JUST PLAY (MaxView shows
+                                     "Mini player"/picture-in-picture, MiniView shows "Expand"/box). STREAM is one
+                                     resizing window, so the single slot flips on IsMini. -->
+                                <!-- FULL → go mini: Lucide picture-in-picture-2 -->
+                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player"
+                                        IsVisible="{Binding !IsMini}">
                                     <Path Stretch="Uniform" Width="17" Height="17"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
                                           StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
                                           Data="M21 9 V6 a2 2 0 0 0 -2 -2 H4 a2 2 0 0 0 -2 2 v10 c0 1.1 .9 2 2 2 h4
                                                 M14 13 h6 a2 2 0 0 1 2 2 v3 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-3 a2 2 0 0 1 2 -2 Z"/>
+                                </Button>
+                                <!-- MINI → expand back: same box glyph + "Expand" tooltip as JUST PLAY's MiniView -->
+                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand"
+                                        IsVisible="{Binding IsMini}">
+                                    <Path Stretch="None" Width="14" Height="14"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.4"
+                                          StrokeJoin="Round" Fill="Transparent"
+                                          Data="M 1,3 L 13,3 L 13,11 L 1,11 Z"/>
                                 </Button>
                                 <!-- Event-log button — opens the LogWindow; the dot marks unread entries.
                                      Stays visible in mini: it opens a SEPARATE window, so mini doesn't block it. -->
@@ -392,7 +404,7 @@
                                                Text="{Binding InputGainDb, Converter={x:Static vm:GainDbConverter.Instance}}"/>
                                 </Grid>
 
-                                <StackPanel Spacing="6"
+                                <StackPanel Spacing="10"
                                             ToolTip.Tip="Listen to the processed broadcast on a chosen output of THIS PC — does NOT affect the stream. 'No output (stream only)' = no local monitor (the default; you simply hear the stream itself).">
                                     <DockPanel>
                                         <TextBlock Classes="label" Text="MONITOR (LOCAL)" DockPanel.Dock="Left" VerticalAlignment="Center"/>
@@ -429,9 +441,37 @@
                                 <Border DockPanel.Dock="Right" Background="#16000000" CornerRadius="9" Padding="3"
                                         BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" HorizontalAlignment="Right">
                                     <StackPanel Orientation="Horizontal" Spacing="2">
-                                        <Button Classes="seg" Content="NORMAL" Command="{Binding ApplyNormalPresetCommand}"/>
-                                        <Button Classes="seg" Content="HARD" Command="{Binding ApplyHardPresetCommand}"
-                                                ToolTip.Tip="Brickwalled hard-dance: EQ High −3 dB, AutoTilt, Loud limiter"/>
+                                        <!-- Preset chips: built-in Normal/Hard (seeded) + user presets. Click = apply,
+                                             right-click = replace / rename / delete, (+) = save current. Same UX as
+                                             JUST PLAY's Sound tab (DspPreset CRUD). -->
+                                        <ItemsControl ItemsSource="{Binding SoundPresets}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="2"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:CompileBindings="False">
+                                                    <Button Classes="seg" Content="{Binding Name}"
+                                                            Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip.Tip="Apply this preset · right-click to replace / rename / delete">
+                                                        <Button.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="Replace with current" Click="OnPresetReplace"/>
+                                                                <MenuItem Header="Rename…" Click="OnPresetRename"/>
+                                                                <MenuItem Header="Delete" Click="OnPresetDelete"/>
+                                                            </ContextMenu>
+                                                        </Button.ContextMenu>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <!-- Save the current EQ + Tilt + Punch + Limiter as a NEW named preset.
+                                             Square (26×26): override seg's 44 MinWidth + side padding so it's not wider than tall. -->
+                                        <Button Classes="seg" Content="+" Command="{Binding SavePresetCommand}"
+                                                MinWidth="0" Width="26" Padding="0" FontSize="15"
+                                                ToolTip.Tip="Save the current DSP settings as a named preset"/>
                                     </StackPanel>
                                 </Border>
                             </DockPanel>

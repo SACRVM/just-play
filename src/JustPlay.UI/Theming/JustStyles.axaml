@@ -320,4 +320,15 @@
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
     </Style>
+
+    <!--
+      Shared TextBox optical-centering padding (both apps). Our fields rarely contain descenders
+      (g/j/y/p), so mathematically-centred text READS as floating too high. Nudge it down: a touch
+      MORE padding on top, LESS on bottom. Padding only (no VerticalContentAlignment) so multi-line
+      boxes (e.g. the log) stay top-aligned. Class-scoped fields (stream-field, the input dialog) carry
+      the same asymmetry locally. Tune the 8/5 split if it ever feels off.
+    -->
+    <Style Selector="TextBox">
+        <Setter Property="Padding" Value="11,8,11,5"/>
+    </Style>
 </Styles>

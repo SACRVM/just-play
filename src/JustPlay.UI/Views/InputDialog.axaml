@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="JustPlay.App.Views.InputDialog"
+        x:Class="JustPlay.UI.Views.InputDialog"
         Title="Name"
         Width="360" SizeToContent="Height"
         CanResize="False"
@@ -12,11 +12,8 @@
         WindowDecorations="None">
 
     <Window.Styles>
-        <!-- TextBox styling matching the app's other edit fields (cf. StreamingPanel.stream-field).
-             Critically overrides SelectionBrush AND the focused PART_BorderElement: FluentTheme paints
-             text selection + the focus border from the Windows SYSTEM accent colour (red on this
-             machine), and an inline / plain :focus setter loses to the templated part — so without the
-             /template/ override the border stays red. -->
+        <!-- TextBox: themed edit field. Overrides SelectionBrush AND the focused PART_BorderElement so
+             the Windows SYSTEM accent (red on this machine) never shows on selection / focus border. -->
         <Style Selector="TextBox">
             <Setter Property="Background" Value="#14FFFFFF"/>
             <Setter Property="Foreground" Value="#E6FFFFFF"/>
@@ -40,8 +37,8 @@
     </Window.Styles>
 
     <!--
-      Tiny themed text-input dialog (e.g. "name the set folder"). Frameless rounded card like the other
-      dialogs; NOT card-draggable so the TextBox stays clickable/selectable. ShowDialog returns the
+      Shared tiny themed text-input dialog (e.g. "name this preset"). Frameless rounded card matching the
+      shared About dialog; NOT card-draggable so the TextBox stays clickable. ShowDialog returns the
       entered string (trimmed) or null on Cancel/empty — see InputDialog.AskAsync.
     -->
     <Border CornerRadius="16" Margin="14" ClipToBounds="True"

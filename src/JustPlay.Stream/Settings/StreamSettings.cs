@@ -32,6 +32,16 @@ public sealed class StreamSettings
     /// <summary>Limiter/maximizer drive: "Off" | "Soft" | "Club" | "Loud". See StreamViewModel mapping.</summary>
     public string LimiterDrive { get; set; } = "Soft";
 
+    // ── User-saved Sound presets (additive to the built-in Normal / Hard) ──
+    /// <summary>User's saved DSP presets (the shared <see cref="DspPreset"/> Core model). The built-in
+    /// Normal + Hard are seeded into this list once (see <see cref="SoundPresetsSeeded"/>) as ordinary,
+    /// editable/deletable entries. Empty by default; an old settings.json without it deserializes empty.</summary>
+    public List<DspPreset> SoundPresets { get; set; } = new();
+
+    /// <summary>True once Normal + Hard have been seeded into <see cref="SoundPresets"/> (done exactly
+    /// once). Persisted so deleting the built-ins does NOT bring them back next launch.</summary>
+    public bool SoundPresetsSeeded { get; set; }
+
     // ── Sample rate ──────────────────────────────────────────────────────
     /// <summary>Capture/mixer sample rate: 44100 (default) or 48000 Hz.</summary>
     public int SampleRate { get; set; } = 44100;

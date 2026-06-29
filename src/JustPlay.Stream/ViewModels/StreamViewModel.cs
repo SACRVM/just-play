@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Stream.Settings;
+using JustPlay.UI.Views;
 
 namespace JustPlay.Stream.ViewModels;
 
@@ -146,6 +147,10 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [ObservableProperty] private double _punch;
     [ObservableProperty] private string _limiterDrive = "Soft"; // Off | Soft | Club | Loud
 
+    /// <summary>Saved Sound presets (built-in Normal/Hard seeded once + user presets). Bound to the
+    /// DSP preset chip row; click = apply, (+) = save current, right-click = replace/rename/delete.</summary>
+    public ObservableCollection<DspPreset> SoundPresets { get; } = new();
+
     // ── Levels / monitor ─────────────────────────────────────────────────
     [ObservableProperty] private double _inputGainDb;
     [ObservableProperty] private double _monitorVolume = 0.8;
@@ -219,6 +224,17 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         SendSongInfo = s.SendSongInfo;
         LogVisible = s.LogVisible;
 
+        // Sound presets: on a fresh install (never seeded) prepend the built-in Normal + Hard as
+        // ordinary, editable/deletable presets — exactly once (SoundPresetsSeeded), so deleting them
+        // doesn't bring them back. Then append the user's saved presets.
+        var seedDefaults = !s.SoundPresetsSeeded;
+        if (seedDefaults)
+        {
+            SoundPresets.Add(new DspPreset { Name = "Normal", LimiterMode = "Soft" });
+            SoundPresets.Add(DspPreset.Hard);
+        }
+        foreach (var p in s.SoundPresets) SoundPresets.Add(p);
+
         _loading = false;
 
         // Push the hydrated DSP state into the engine once.
@@ -228,6 +244,9 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         ApplyLimiter();
         ApplyMonitor();
         _engine.InputGainDb = InputGainDb;
+
+        // Persist the one-time built-in seed now that hydration is complete (flips SoundPresetsSeeded).
+        if (seedDefaults) Persist();
     }
 
     public void RefreshDevices()
@@ -266,6 +285,8 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         s.MonitorVolume = MonitorVolume;
         s.SendSongInfo = SendSongInfo;
         s.LogVisible = LogVisible;
+        s.SoundPresets = SoundPresets.ToList();
+        s.SoundPresetsSeeded = true;
         _settings.Save();
     }
 
@@ -408,29 +429,102 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void SetLimiterDrive(string drive) => LimiterDrive = drive;
 
-    /// <summary>
-    /// "Normal" preset — clean & transparent: EQ flat, no tilt, no punch, gentle safety limiter.
-    /// The neutral counterpart to <see cref="ApplyHardPreset"/> so the DJ has something to toggle to.
-    /// </summary>
+    // ── Sound presets (ported from JUST PLAY's DspPreset CRUD) ───────────────────────────────────
+    // Normal + Hard are seeded into SoundPresets as ORDINARY, editable chips (see Hydrate). Click a chip
+    // = apply; (+) = save the current bus state as a new named preset; right-click = replace / rename /
+    // delete. Same UX + the shared InputDialog as JUST PLAY's Sound tab.
+
+    /// <summary>Capture the current Sound-rack state, prompt for a name, save it as a preset. A name
+    /// matching an existing preset (case-insensitive) overwrites it. Cancel / empty = no-op.</summary>
     [RelayCommand]
-    private void ApplyNormalPreset()
+    private async Task SavePreset()
     {
-        EqLow = 1.0; EqMid = 1.0; EqHigh = 1.0;
-        AutoTilt = 0.0;
-        Punch = 0.0;
-        LimiterDrive = "Soft";
+        var owner = (Avalonia.Application.Current?.ApplicationLifetime
+            as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return;
+
+        var name = await InputDialog.AskAsync(owner, "Name this Sound preset", DefaultPresetName());
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var preset = CaptureCurrent(name);
+        var idx = IndexOfPresetByName(name);
+        if (idx >= 0) SoundPresets[idx] = preset;
+        else          SoundPresets.Add(preset);
+        Persist();
     }
 
-    /// <summary>
-    /// One-click "Hard" preset for brickwalled hard-dance, validated on Chloe's library
-    /// (blueprint §5): EQ High 0.72 (≈ −3 dB @ 4 kHz), AutoTilt 0.65, Limiter LOUD.
-    /// </summary>
+    /// <summary>Apply a saved preset to the bus — assigns the DSP properties, so each On…Changed pushes
+    /// to the engine (SetEqualizer / SetAdaptiveTilt / SetTransientDesigner / SetLimiter) AND persists.</summary>
     [RelayCommand]
-    private void ApplyHardPreset()
+    private void ApplyPreset(DspPreset? preset)
     {
-        EqLow = 1.0; EqMid = 1.0; EqHigh = 0.72;
-        AutoTilt = 0.65;
-        LimiterDrive = "Loud";
+        if (preset is null) return;
+        EqLow = preset.EqLowGain; EqMid = preset.EqMidGain; EqHigh = preset.EqHighGain;
+        AutoTilt = preset.AutoTiltStrength;
+        Punch = preset.TransientPunch;
+        LimiterDrive = preset.LimiterMode;
+    }
+
+    /// <summary>Delete a saved preset (right-click → Delete) and persist.</summary>
+    [RelayCommand]
+    private void DeletePreset(DspPreset? preset)
+    {
+        if (preset is not null && SoundPresets.Remove(preset)) Persist();
+    }
+
+    /// <summary>Rename a saved preset in place (right-click → Rename…); prompts with the current name.</summary>
+    [RelayCommand]
+    private async Task RenamePreset(DspPreset? preset)
+    {
+        if (preset is null) return;
+        var idx = SoundPresets.IndexOf(preset);
+        if (idx < 0) return;
+
+        var owner = (Avalonia.Application.Current?.ApplicationLifetime
+            as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (owner is null) return;
+
+        var name = await InputDialog.AskAsync(owner, "Rename preset", preset.Name);
+        if (string.IsNullOrWhiteSpace(name) || name == preset.Name) return;
+
+        SoundPresets[idx] = preset with { Name = name };
+        Persist();
+    }
+
+    /// <summary>Overwrite a saved preset's values with the CURRENT bus state, keeping its name + slot
+    /// (right-click → Replace with current). No prompt.</summary>
+    [RelayCommand]
+    private void ReplacePreset(DspPreset? preset)
+    {
+        if (preset is null) return;
+        var idx = SoundPresets.IndexOf(preset);
+        if (idx < 0) return;
+        SoundPresets[idx] = CaptureCurrent(preset.Name);
+        Persist();
+    }
+
+    private DspPreset CaptureCurrent(string name) => new()
+    {
+        Name = name,
+        EqLowGain = EqLow, EqMidGain = EqMid, EqHighGain = EqHigh,
+        AutoTiltStrength = AutoTilt, TransientPunch = Punch,
+        LimiterMode = LimiterDrive,
+    };
+
+    private int IndexOfPresetByName(string name)
+    {
+        for (var i = 0; i < SoundPresets.Count; i++)
+            if (string.Equals(SoundPresets[i].Name, name, StringComparison.OrdinalIgnoreCase)) return i;
+        return -1;
+    }
+
+    private string DefaultPresetName()
+    {
+        var n = SoundPresets.Count + 1;
+        string candidate;
+        do { candidate = $"Preset {n++}"; }
+        while (SoundPresets.Any(p => string.Equals(p.Name, candidate, StringComparison.OrdinalIgnoreCase)));
+        return candidate;
     }
 
     // ── Connect / disconnect ─────────────────────────────────────────────

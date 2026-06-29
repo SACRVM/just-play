@@ -1,11 +1,14 @@
 using System;
 using System.ComponentModel;
 using System.Reflection;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using JustPlay.Core.Models;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI;
 using JustPlay.UI.Controls;
@@ -272,5 +275,23 @@ public partial class MainWindow : Window, IFramelessWindow
         _log.Closed += (_, _) => _log = null;
         _log.Show(this);
         vm?.MarkLogsRead();
+    }
+
+    // ── Preset right-click menu (Replace / Rename / Delete) ─────────────────────
+    // Click handlers, NOT Command bindings: a ContextMenu is a popup OUTSIDE the control's visual tree,
+    // so RelativeSource/PlacementTarget command bindings resolve null and the items render disabled.
+    // The handler reads the clicked preset from the MenuItem DataContext (falls back to the chip via
+    // PlacementTarget) and the VM from this window. Same pattern as JUST PLAY's TweaksPanel.
+    private void OnPresetReplace(object? sender, RoutedEventArgs e) => RunPresetAction(sender, vm => vm.ReplacePresetCommand);
+    private void OnPresetRename(object? sender, RoutedEventArgs e)  => RunPresetAction(sender, vm => vm.RenamePresetCommand);
+    private void OnPresetDelete(object? sender, RoutedEventArgs e)  => RunPresetAction(sender, vm => vm.DeletePresetCommand);
+
+    private void RunPresetAction(object? sender, Func<StreamViewModel, ICommand> pick)
+    {
+        if (DataContext is not StreamViewModel vm || sender is not MenuItem mi) return;
+        var preset = mi.DataContext as DspPreset
+                     ?? (mi.FindLogicalAncestorOfType<ContextMenu>()?.PlacementTarget as Control)?.DataContext as DspPreset;
+        if (preset is null) return;
+        pick(vm).Execute(preset);
     }
 }

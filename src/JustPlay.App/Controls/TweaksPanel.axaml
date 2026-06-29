@@ -182,7 +182,7 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Width="320"
+    <Border Width="370"
             Background="#F01a1828"
             CornerRadius="0,14,14,0"
             BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
@@ -190,7 +190,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       AllowAutoHide="False">
-            <StackPanel Spacing="12" ClipToBounds="False" Width="276">
+            <StackPanel Spacing="12" ClipToBounds="False" Width="326">
 
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
