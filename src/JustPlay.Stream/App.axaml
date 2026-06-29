@@ -167,17 +167,73 @@
         <Style Selector="Button.primary:pressed">
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
-        <!-- Live variant: when connected, the CTA goes red "stop" with a red glow -->
-        <Style Selector="Button.primary.live">
-            <Setter Property="Background">
-                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                    <GradientStop Offset="0" Color="#ff6f6f"/>
-                    <GradientStop Offset="1" Color="#ff3d6e"/>
-                </LinearGradientBrush>
+        <!-- ═══ CONNECT / DISCONNECT — ONE quiet-glass CTA, two colours (Chloe, 2026-06-29) ═══
+             Both states share the EXACT same shape + a FIXED width, so nothing jumps when the label
+             changes (CONNECT ↔ CONNECTING… ↔ DISCONNECT). Only the COLOUR + glyph differ:
+               offline = theme accent + ▶ play mark   ·   live = red + ■ stop mark   (glyphs in ConnectLabel).
+             A small, deliberate break from the gradient-CTA convention (SEND keeps the gradient pill) — the
+             glowing ON-AIR band stays the only signature; the transport CTA is calm dark glass. The old hard
+             red/green-style fills clashed with cool themes; a thin coloured border + text is a small SIGNAL
+             (like the green tally lamp), not a clashing slab. No glow, no hover-zoom — disciplined. -->
+        <Style Selector="Button.cta">
+            <Setter Property="Background" Value="#40000000"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBBrush}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="LetterSpacing" Value="0.6"/>
+            <Setter Property="CornerRadius" Value="11"/>
+            <Setter Property="Padding" Value="20,11"/>
+            <!-- Fixed width = both states identical, no rumspringen. Sized to clear the longest label
+                 ("RECONNECTING…"). -->
+            <Setter Property="Width" Value="184"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.12"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.12"/>
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="root"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Background="Transparent"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
             </Setter>
         </Style>
-        <Style Selector="Button.primary.live /template/ Border#root">
-            <Setter Property="BoxShadow" Value="0 6 18 -4 #99ff3d6e"/>
+        <!-- Keep FluentTheme's hover/pressed grey off our translucent glass (the documented custom-template
+             ContentPresenter leak); hover/press just shift the glass tint via Border#root Background. -->
+        <Style Selector="Button.cta /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.cta:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.cta:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.cta:pointerover">
+            <Setter Property="Background" Value="#59000000"/>
+        </Style>
+        <Style Selector="Button.cta:pressed">
+            <Setter Property="Background" Value="#6B000000"/>
+        </Style>
+        <!-- LIVE = red "stop": same pill, only the colour changes. -->
+        <Style Selector="Button.cta.live">
+            <Setter Property="BorderBrush" Value="#FF6B6B"/>
+            <Setter Property="Foreground" Value="#FF8088"/>
         </Style>
 
         <!-- Ghost icon button (gear, small actions) -->

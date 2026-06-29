@@ -30,14 +30,17 @@ public partial class AboutWindow : Window
     }
 
     /// <summary>
-    /// Build the white brand glyph on the chip — same approach as
-    /// <see cref="ThemedWindowIcon"/> (Stretch.Uniform + BoxRatio sizing, stroke thickness as a
-    /// fraction of the chip), so the About mark matches the taskbar / Alt-Tab icon exactly.
+    /// Build the white brand glyph for the About card. No chip background anymore (Chloe 2026-06-30) —
+    /// just the graphic, enlarged to fill the area the gradient chip used to occupy. Same render
+    /// approach as <see cref="ThemedWindowIcon"/> (Stretch.Uniform, stroke thickness as a fraction of
+    /// the box) so the glyph shape itself stays identical to the taskbar mark.
     /// </summary>
     private static Control BuildGlyph(BrandGlyph g)
     {
         const double chip = 74;
-        var box = chip * g.BoxRatio;
+        // Fill ~70% of the (now chip-less) area, vs the old BoxRatio (~40%) that suited a glyph sitting
+        // ON a chip. Bigger reads right now that the glyph stands alone on the card background.
+        var box = chip * 0.7;
 
         var path = new Path
         {

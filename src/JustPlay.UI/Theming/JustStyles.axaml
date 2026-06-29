@@ -236,26 +236,30 @@
       TweaksPanel and JUST STREAM's SettingsWindow Look tab. Defined here (shared) so the two
       products stay visually identical without duplicating the swatch/swatchbtn styles.
     -->
+    <!--
+      Swatches now carry the theme's BACKGROUND gradient (dark) so the picker can't tell the ACTIVE
+      one apart by fill (same dark as the card). The selection cue is a RING in the swatch's OWN
+      highlight colour (BorderBrush set inline per swatch via {theming:ThemeAccent <Name>}): the active
+      theme shows it persistently; every other swatch shows it only on hover. The ring is toggled by
+      growing BorderThickness 0→2 (the colour is the inline per-theme accent), so each swatch lights in
+      ITS theme's highlight, not the globally-active one. (Chloe 2026-06-30.)
+    -->
     <Style Selector="Border.swatch">
         <Setter Property="Width" Value="46"/>
         <Setter Property="Height" Value="46"/>
         <Setter Property="CornerRadius" Value="10"/>
-        <Setter Property="BorderThickness" Value="2"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="RenderTransform" Value="none"/>
         <Setter Property="Transitions">
             <Transitions>
                 <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
-                <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
             </Transitions>
         </Setter>
     </Style>
+    <!-- ACTIVE theme: persistent ring in its own highlight colour (the inline per-theme accent). -->
     <Style Selector="Border.swatch.active">
-        <Setter Property="BorderBrush" Value="White"/>
-        <Setter Property="Effect">
-            <DropShadowEffect Color="White" BlurRadius="10" OffsetX="0" OffsetY="0" Opacity="0.6"/>
-        </Setter>
+        <Setter Property="BorderThickness" Value="2"/>
     </Style>
     <!--
       Wrapper button for each swatch. ClipToBounds=False lets the active chip's DropShadowEffect
@@ -278,9 +282,10 @@
     <Style Selector="Button.swatchbtn:pressed /template/ ContentPresenter">
         <Setter Property="Background" Value="Transparent"/>
     </Style>
+    <!-- Hover any swatch (incl. non-active): lift + show ITS highlight ring (inline per-theme accent). -->
     <Style Selector="Button.swatchbtn:pointerover Border.swatch">
         <Setter Property="RenderTransform" Value="translateY(-1px)"/>
-        <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        <Setter Property="BorderThickness" Value="2"/>
     </Style>
     <Style Selector="Button.swatchbtn:pressed Border.swatch">
         <Setter Property="RenderTransform" Value="translateY(0px)"/>

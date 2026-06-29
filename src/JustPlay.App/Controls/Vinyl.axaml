@@ -150,12 +150,13 @@
                 <Panel IsVisible="{Binding $parent[controls:Vinyl].Cover, Converter={x:Static ObjectConverters.IsNull}}"
                        ClipToBounds="True">
 
-                    <!-- Pink → purple → cyan gradient base -->
+                    <!-- AccentB → AccentA cover base. 2 colours by design: the old middle stop was AccentC,
+                         a background-bloom tone that is DARK on Midnight/Onyx and banded the diagonal
+                         (Chloe 2026-06-30). Same band-free recipe as the app icon (ThemeBrushes.IconGradient). -->
                     <Border>
                         <Border.Background>
                             <LinearGradientBrush StartPoint="10%,0%" EndPoint="90%,100%">
                                 <GradientStop Offset="0" Color="{DynamicResource AccentB}"/>
-                                <GradientStop Offset="0.55" Color="{DynamicResource AccentC}"/>
                                 <GradientStop Offset="1" Color="{DynamicResource AccentA}"/>
                             </LinearGradientBrush>
                         </Border.Background>

@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:JustPlay.Stream.ViewModels"
         xmlns:models="using:JustPlay.Core.Models"
+        xmlns:theming="using:JustPlay.UI.Theming"
         x:Class="JustPlay.Stream.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="JUST STREAM — Settings"
@@ -203,27 +204,27 @@
                                 <!-- Swatch row — same chip size/lift/glow as JUST PLAY (JustStyles: Border.swatch / Button.swatchbtn). -->
                                 <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
-                                        <Border Classes="swatch" Background="{StaticResource SwatchAurora}"
+                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Aurora}" BorderBrush="{theming:ThemeAccent Aurora}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Aurora}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
-                                        <Border Classes="swatch" Background="{StaticResource SwatchSunset}"
+                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Sunset}" BorderBrush="{theming:ThemeAccent Sunset}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Sunset}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
-                                        <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
+                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Midnight}" BorderBrush="{theming:ThemeAccent Midnight}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Midnight}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Onyx">
-                                        <Border Classes="swatch" Background="{StaticResource SwatchOnyx}"
+                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Onyx}" BorderBrush="{theming:ThemeAccent Onyx}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Onyx}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
-                                        <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
+                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Neon}" BorderBrush="{theming:ThemeAccent Neon}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Neon}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Hardcore">
-                                        <Border Classes="swatch" Background="{StaticResource SwatchHardcore}"
+                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Hardcore}" BorderBrush="{theming:ThemeAccent Hardcore}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Hardcore}"/>
                                     </Button>
                                 </StackPanel>

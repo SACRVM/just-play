@@ -38,15 +38,12 @@
             </Button>
 
             <StackPanel Margin="30,34,30,28" Spacing="0" HorizontalAlignment="Center">
-                <!-- Brand mark: theme-gradient chip + the app's white glyph + accent glow.
-                     The glyph (GlyphHost.Content) is built in code-behind from AboutInfo.Glyph. -->
-                <Border Width="74" Height="74" CornerRadius="19"
-                        Background="{DynamicResource AccentGradient}"
+                <!-- Brand mark: NO chip background — just the app's white glyph (Chloe 2026-06-30).
+                     The glyph (GlyphHost.Content) is built in code-behind from AboutInfo.Glyph, sized to
+                     fill the area the gradient chip used to occupy. -->
+                <Border Width="74" Height="74"
+                        Background="Transparent"
                         HorizontalAlignment="Center">
-                    <Border.Effect>
-                        <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="26"
-                                          OffsetX="0" OffsetY="6" Opacity="0.55"/>
-                    </Border.Effect>
                     <ContentControl x:Name="GlyphHost"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>

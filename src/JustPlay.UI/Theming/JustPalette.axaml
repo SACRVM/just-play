@@ -129,41 +129,12 @@
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled"    Color="#80FFFFFF"/>
 
     <!--
-      Per-theme palette previews — the swatches in the tweaks panel's palette radio.
-      Values come straight from the design's THEMES (+ Hardcore, a JustPlay original).
+      Per-theme palette-preview swatches MOVED OUT of this dictionary (Chloe 2026-06-29). They used to
+      be hand-painted here and drifted from the app-icon gradient — different stop counts and even
+      different colours per theme (only Onyx happened to match). Now both the icon (ThemedWindowIcon)
+      AND the swatch chip (`{theming:ThemeSwatch <Name>}`) derive from ONE source —
+      ThemeBrushes.IconGradient(theme) in JustPlay.UI/Theming/ThemeSwatch.cs (= IconFrom/IconTo ??
+      AccentA/AccentB, the exact theme record) — so a swatch is literally its app icon's gradient and
+      they can never diverge again.
     -->
-    <LinearGradientBrush x:Key="SwatchAurora" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#6ce0ff"/>
-        <GradientStop Offset="0.5" Color="#8a5fff"/>
-        <GradientStop Offset="1" Color="#ff5fae"/>
-    </LinearGradientBrush>
-    <LinearGradientBrush x:Key="SwatchSunset" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#ffd166"/>
-        <GradientStop Offset="0.5" Color="#ff9966"/>
-        <GradientStop Offset="1" Color="#ff6f91"/>
-    </LinearGradientBrush>
-    <!-- Midnight: the dark/night chip — near-black grey-blue → steel → soft ice-blue, so the picker
-         preview reads as a DARK theme (not a bright accent trio like the others). -->
-    <LinearGradientBrush x:Key="SwatchMidnight" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#0b1018"/>
-        <GradientStop Offset="0.55" Color="#33507a"/>
-        <GradientStop Offset="1" Color="#84b6da"/>
-    </LinearGradientBrush>
-    <!-- Onyx: pitch-black chip — MATCHES the app icon (dark slate → near-black). The preview shows the
-         theme's true near-black character, not a bright accent. -->
-    <LinearGradientBrush x:Key="SwatchOnyx" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#28384f"/>
-        <GradientStop Offset="1" Color="#05070c"/>
-    </LinearGradientBrush>
-    <LinearGradientBrush x:Key="SwatchNeon" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#5cffd4"/>
-        <GradientStop Offset="0.5" Color="#5cd0ff"/>
-        <GradientStop Offset="1" Color="#a8ff5c"/>
-    </LinearGradientBrush>
-    <!-- Hardcore: cyan accent → crimson → red, over the near-black base -->
-    <LinearGradientBrush x:Key="SwatchHardcore" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#22e6ff"/>
-        <GradientStop Offset="0.5" Color="#c8112a"/>
-        <GradientStop Offset="1" Color="#ff2233"/>
-    </LinearGradientBrush>
 </ResourceDictionary>

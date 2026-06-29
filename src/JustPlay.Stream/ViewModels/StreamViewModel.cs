@@ -86,10 +86,13 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     public bool IsConnected => State == BroadcastState.Connected;
     public string ConnectLabel => State switch
     {
-        BroadcastState.Connected => "DISCONNECT",
+        // Transport glyphs on the shared quiet-glass CTA (Button.cta in App.axaml): ▶ = go live,
+        // ■ = stop. Same pill + fixed width in every state; only colour + glyph change (accent ↔ red).
+        // The green tally lamp stays the live indicator.
+        BroadcastState.Connected => "■  DISCONNECT",
         BroadcastState.Connecting => "CONNECTING…",
         BroadcastState.Reconnecting => "RECONNECTING…",
-        _ => "CONNECT",
+        _ => "▶  CONNECT",
     };
     public string StatusText => State switch
     {
