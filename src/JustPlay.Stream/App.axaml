@@ -99,14 +99,17 @@
             </Setter>
         </Style>
         <Style Selector="Border.onair.live">
+            <!-- Live: themed ACCENT frame (was a hard green that clashed with the theme at the big size).
+                 The tally LAMP stays green (Border.tally.live) — only the box frame/wash/glow follow the
+                 active theme accent now, and the glow (OnAirHalo) is softer than the old green bloom. -->
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                    <GradientStop Offset="0" Color="#3336e07a"/>
-                    <GradientStop Offset="1" Color="#1436e07a"/>
+                    <GradientStop Offset="0" Color="{DynamicResource OnAirWashTop}"/>
+                    <GradientStop Offset="1" Color="{DynamicResource OnAirWashBottom}"/>
                 </LinearGradientBrush>
             </Setter>
-            <Setter Property="BorderBrush" Value="#8036e07a"/>
-            <Setter Property="BoxShadow" Value="0 0 28 -2 #6636e07a, inset 0 0 18 -6 #4036e07a"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
+            <Setter Property="BoxShadow" Value="{DynamicResource OnAirHalo}"/>
         </Style>
 
         <!-- Tally dot inside the band -->

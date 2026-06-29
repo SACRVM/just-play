@@ -67,6 +67,9 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["AccentBSolid"]      = accentB;
         app.Resources["AccentBRow"]        = WithAlpha(accentB, 0x10);
         app.Resources["AccentBRowHover"]   = WithAlpha(accentB, 0x1A);
+        // ON-AIR band wash (JUST STREAM live state) — same strength the old green had (0x33→0x14), accent-tinted.
+        app.Resources["OnAirWashTop"]      = WithAlpha(accentB, 0x33);
+        app.Resources["OnAirWashBottom"]   = WithAlpha(accentB, 0x14);
 
         // AccentC-derived
         app.Resources["AccentCRow"]        = WithAlpha(accentC, 0x22);
@@ -98,6 +101,15 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["ActiveRowEdgeHalo"] = new BoxShadows(new BoxShadow {
             OffsetX = 0, OffsetY = 0, Blur = 6, Spread = 0, Color = accentB,
         });
+
+        // ON-AIR band halo (JUST STREAM): the SAME strong two-layer glow the old green had (outer bloom
+        // α 0x66 blur 28 + inset α 0x40 blur 18) — just in the THEME ACCENT instead of a clashing green.
+        // Chloe liked the punch; only the colour was the problem.
+        app.Resources["OnAirHalo"] = new BoxShadows(
+            new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 28, Spread = -2, Color = WithAlpha(accentB, 0x66) },
+            new BoxShadow[] {
+                new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 18, Spread = -6, Color = WithAlpha(accentB, 0x40), IsInset = true },
+            });
 
         // Sleeve outer card shadow — drop + outer ring + soft accent aura.
         app.Resources["SleeveOuter"] = new BoxShadows(
