@@ -56,6 +56,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settingsSvc = settingsSvc;
         _selectedServer = stream.SelectedProfile ?? stream.Profiles.FirstOrDefault();
         LoadEditing();
+        // Lock all server CRUD while on air — changing host/mount/creds mid-broadcast is nonsensical.
+        Stream.PropertyChanged += OnStreamPropertyChanged;
+    }
+
+    /// <summary>False while a broadcast is live — the whole Server tab (list + add/dup/del + form) is
+    /// disabled so you can't change connection details out from under an active stream.</summary>
+    public bool CanEditServers => !Stream.IsConnected;
+
+    private void OnStreamPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(StreamViewModel.IsConnected)) return;
+        OnPropertyChanged(nameof(CanEditServers));
+        AddServerCommand.NotifyCanExecuteChanged();
+        RemoveServerCommand.NotifyCanExecuteChanged();
+        DuplicateServerCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Name of the currently active theme — drives the swatch "active" ring in the Look tab.</summary>
@@ -124,7 +139,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         return -1;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanEditServers))]
     private void AddServer()
     {
         var p = new StreamServerProfile { Name = "New Server" };
@@ -133,9 +148,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         Stream.SaveSettings();
     }
 
-    private bool HasSelection() => SelectedServer is not null;
+    // Modify (del/dup) needs a selection AND no live stream.
+    private bool CanModifySelected() => SelectedServer is not null && CanEditServers;
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    [RelayCommand(CanExecute = nameof(CanModifySelected))]
     private void RemoveServer()
     {
         if (SelectedServer is null) return;
@@ -145,7 +161,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         Stream.SaveSettings();
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    [RelayCommand(CanExecute = nameof(CanModifySelected))]
     private void DuplicateServer()
     {
         if (SelectedServer is null) return;

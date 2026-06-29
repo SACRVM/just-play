@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
@@ -25,6 +26,13 @@ public partial class MainWindow : Window, IFramelessWindow
     private SettingsWindow? _settings;
     private LogWindow? _log;
 
+    // Mini-player view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
+    private const double MiniWidth = 700;   // Chloe: 450 was too small, 700 fits the mini content
+    private const double MiniHeight = 320;  // compact, explicit (runtime SizeToContent left dead space below)
+    private double _fullHeight;          // captured at first open (the SizeToContent auto-fit height)
+    private PixelPoint _fullPosition;    // restore position when leaving mini
+    private bool _isMini;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -42,10 +50,54 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         base.OnOpened(e);
         UpdateChromeForState();
+        if (DataContext is StreamViewModel vm)
+            vm.PropertyChanged += OnViewModelPropertyChanged;
         // The window opens sized-to-content (SizeToContent=Height) so everything fits exactly.
-        // Once laid out, switch to manual sizing so the resize grips + custom maximize work
-        // (SizeToContent would otherwise snap the height back to content on every resize).
-        Dispatcher.UIThread.Post(() => SizeToContent = SizeToContent.Manual, DispatcherPriority.Loaded);
+        // Once laid out, capture that full height + switch to manual sizing so the resize grips +
+        // custom maximize work (SizeToContent would otherwise snap the height back on every resize).
+        Dispatcher.UIThread.Post(() =>
+        {
+            _fullHeight = Height;
+            SizeToContent = SizeToContent.Manual;
+        }, DispatcherPriority.Loaded);
+    }
+
+    // ── Mini-player view (mirrors JUST PLAY's ApplyViewMode) ─────────────────
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(StreamViewModel.IsMini) && sender is StreamViewModel vm)
+            ApplyViewMode(vm.IsMini);
+    }
+
+    private void ApplyViewMode(bool mini)
+    {
+        _isMini = mini;
+        if (mini)
+        {
+            _fullPosition = Position;
+            SizeToContent = SizeToContent.Manual;
+            CanResize = false;
+            Topmost = true;
+            // CRITICAL: the XAML mins (MinWidth=920, MinHeight=420) would CLAMP the mini size back up —
+            // that's why the mini window looked unchanged. Lower the mins BEFORE setting the size.
+            MinWidth = MiniWidth;
+            MinHeight = MiniHeight;
+            Width = MiniWidth;
+            Height = MiniHeight;
+        }
+        else
+        {
+            SizeToContent = SizeToContent.Manual;
+            CanResize = true;
+            Topmost = false;
+            // Restore the full-window mins (must match the XAML header values) before growing back.
+            MinWidth = 920;
+            MinHeight = 420;
+            Width = 980;
+            if (_fullHeight > 0) Height = _fullHeight;
+            Position = _fullPosition;
+        }
+        UpdateChromeForState(); // grips only in full, non-maximized mode
     }
 
     // Drag the window from the chrome bar (but not from interactive controls) — shared predicate.
@@ -88,7 +140,7 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         this.FindControl<Border>("RootCard")?.Classes.Set("maximized", _isMaxed);
         if (this.FindControl<Grid>("ResizeGrips") is { } grips)
-            grips.IsVisible = !_isMaxed;
+            grips.IsVisible = !_isMaxed && !_isMini;
     }
 
     // ── Custom edge/corner resize (manual; the borderless window has no OS resize frame) ──

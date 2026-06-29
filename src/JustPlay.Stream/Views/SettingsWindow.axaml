@@ -131,7 +131,16 @@
                         <!-- ═══ SERVER — de-boxed: list · vertical hairline · form ═══ -->
                         <Grid Grid.Row="1"
                               IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
-                              ColumnDefinitions="210,1,*" Margin="0,14,0,0">
+                              RowDefinitions="Auto,*" Margin="0,14,0,0">
+                            <!-- On-air lock: editing connection details mid-broadcast is blocked. This NEUTRAL
+                                 banner (no red) stays readable — it sits OUTSIDE the disabled content grid below. -->
+                            <Border Grid.Row="0" IsVisible="{Binding Stream.IsConnected}" Margin="0,0,0,12"
+                                    Background="#14FFFFFF" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1"
+                                    CornerRadius="8" Padding="12,8">
+                                <TextBlock Text="🔒  On air — stop the stream to edit server settings."
+                                           FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                            </Border>
+                            <Grid Grid.Row="1" IsEnabled="{Binding CanEditServers}" ColumnDefinitions="210,1,*">
                             <DockPanel Grid.Column="0" Margin="0,0,16,0">
                                 <Border DockPanel.Dock="Bottom" Background="#16000000" CornerRadius="9" Padding="3"
                                         BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" Margin="0,8,0,0">
@@ -182,6 +191,7 @@
                                     <ToggleSwitch Grid.Row="6" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent=""/>
                                 </Grid>
                             </ScrollViewer>
+                            </Grid>
                         </Grid>
 
                         <!-- ═══ LOOK — theme palette picker (mirrors TweaksPanel's Look tab in JUST PLAY) ═══ -->
@@ -231,12 +241,6 @@
                                 <TextBlock Classes="label" Text="SETTINGS &amp; LOG FOLDER"/>
                                 <TextBlock Classes="mono" FontSize="12" Text="%LOCALAPPDATA%\JustStream"
                                            Foreground="{StaticResource MutedBrush}"/>
-                            </StackPanel>
-                            <Border Classes="sep"/>
-                            <StackPanel Spacing="3">
-                                <TextBlock Classes="label" Text="ABOUT"/>
-                                <TextBlock Classes="value" Text="JUST STREAM — broadcast console (part of J.U.S.T. — Just Useful Sound Tools)"
-                                           Foreground="{StaticResource MutedBrush}" FontWeight="Normal"/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>

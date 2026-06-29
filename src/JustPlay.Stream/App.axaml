@@ -133,7 +133,10 @@
             <Setter Property="CornerRadius" Value="11"/>
             <Setter Property="Padding" Value="22,11"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <!-- MUST be "50%,50%" with the % — bare "0.5,0.5" parses as ABSOLUTE pixels (≈ top-left
+                 corner), so the hover scale pivots at the corner and the button zooms down-right
+                 instead of from its centre. (Verified: Avalonia RelativePoint.Parse, release/12.0.3.) -->
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="RenderTransform" Value="scale(1)"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
@@ -249,6 +252,30 @@
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="BorderBrush" Value="#33FFFFFF"/>
         </Style>
+        <!-- Open flyout + items — themed exactly like JUST PLAY's device-picker dropdown so the
+             Fluent SYSTEM-ACCENT (red on this machine) never shows on hover/selected. Generic =
+             applies to EVERY ComboBox in JUST STREAM. -->
+        <Style Selector="ComboBox /template/ Popup Border">
+            <Setter Property="Background" Value="#F01a1828"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ComboBox ComboBoxItem">
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox ComboBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox ComboBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox ComboBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF"/>
+        </Style>
 
         <Style Selector="TextBox">
             <Setter Property="Background" Value="#16FFFFFF"/>
@@ -257,6 +284,25 @@
             <Setter Property="CornerRadius" Value="9"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
             <Setter Property="MinHeight" Value="34"/>
+            <!-- Themed text-selection + caret so the OS accent (RED) can't show on highlight. -->
+            <Setter Property="SelectionBrush" Value="#448a5fff"/>
+            <Setter Property="CaretBrush" Value="#D9FFFFFF"/>
+        </Style>
+        <!-- Kill the Fluent SYSTEM-ACCENT (red on this machine) on the focus/hover BORDER. Fluent paints
+             the TextBox border on PART_BorderElement and swaps it to the accent on :focus — so it MUST be
+             overridden there (the control-level BorderBrush above is ignored once focused). Generic =
+             every TextBox in JUST STREAM (NOW PLAYING + the server-info fields). -->
+        <Style Selector="TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}"/>
+            <Setter Property="CornerRadius" Value="9"/>
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#59FFFFFF"/>
         </Style>
 
         <!-- Slider: accent-tinted active track + hand cursor -->
@@ -301,19 +347,24 @@
         </Style>
 
 
-        <!-- Brand/About mark button in the chrome bar (top-left) — transparent, subtle hover. -->
+        <!-- Brand/About mark button in the chrome bar (top-left) — IDENTICAL behaviour to JUST PLAY's
+             Button.brand (App.axaml): the brand mark is clickable but NEVER renders button chrome on
+             hover/press (no background appears). A Button only so the frameless drag handler treats it
+             as interactive. -->
         <Style Selector="Button.brandbtn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.brandbtn /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="Button.brandbtn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.brandbtn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
 

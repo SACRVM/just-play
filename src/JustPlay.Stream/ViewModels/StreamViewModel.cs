@@ -138,6 +138,9 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     // ── Log (now in its own LogWindow) ───────────────────────────────────
     [ObservableProperty] private bool _logVisible;         // kept for settings back-compat
     [ObservableProperty] private bool _hasUnreadLogs;      // drives the unread marker on the chrome log button
+
+    /// <summary>Mini-player view (mirrors JUST PLAY): only server-select + ON-AIR + output level, narrower.</summary>
+    [ObservableProperty] private bool _isMini;
     public ObservableCollection<string> LogEntries { get; } = new();
 
     /// <summary>All log lines joined — bound read-only by the LogWindow's selectable text box + Copy button.</summary>
@@ -510,6 +513,10 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     /// <summary>Called by the LogWindow on open — clears the unread marker.</summary>
     public void MarkLogsRead() => HasUnreadLogs = false;
+
+    /// <summary>Toggle the mini-player view (mirrors JUST PLAY's ToggleViewMode).</summary>
+    [RelayCommand]
+    private void ToggleViewMode() => IsMini = !IsMini;
 
     [RelayCommand]
     private void ClearLog() => LogEntries.Clear();
