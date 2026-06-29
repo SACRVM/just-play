@@ -18,14 +18,14 @@ namespace JustPlay.Stream.ViewModels;
 /// L/R meters, and the errors-only log. Layout it drives: just-stream-blueprint.md §3a / §7.3.
 ///
 /// Threading: broadcast state changes arrive on a BASS thread and are marshalled to the UI thread.
-/// A single DispatcherTimer (~33 ms) polls meters + stream time.
+/// Meters + stream time are pumped once per render frame (vsync-synced) via PumpFrame(), driven by
+/// the View's RequestAnimationFrame loop — no free-running timer (it juddered against vsync).
 /// </summary>
 public sealed partial class StreamViewModel : ObservableObject, IDisposable
 {
     private readonly IAudioInputEngine _engine;
     private readonly IBroadcastService _broadcast;
     private readonly JsonStreamSettingsService _settings;
-    private readonly DispatcherTimer _timer;
     private readonly Stopwatch _streamClock = new();
     private bool _loading; // suppress persistence/engine writes while hydrating from settings
 
@@ -184,10 +184,8 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         _broadcast.StateChanged += OnBroadcastStateChanged;
 
         Hydrate();
-
-        _timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(16) };
-        _timer.Tick += OnTick;
-        _timer.Start();
+        // No meter timer: the View pumps meters/lamp/time once per render frame (vsync-synced) via
+        // PumpFrame() — see MainWindow.OnRenderFrame. Frame-synced = no timer-vs-vsync judder.
     }
 
     // ── Hydration from settings ──────────────────────────────────────────
@@ -503,41 +501,53 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         });
     }
 
-    // Meter ballistics tuned for the 16 ms (60 fps) timer: rise quickly to new peaks, fall smoothly.
-    // One-pole filter both directions → no jumpy per-tick stepping. Tune the Ks if it feels off.
+    // Meter ballistics: one-pole filter (fast attack, smooth release) so the bars GLIDE. The K values
+    // are tuned for a 16 ms step; PumpFrame rescales them to the real frame dt, so the feel is identical
+    // at 60 / 120 / 144 Hz (frame-rate independent).
     private const double MeterAttackK = 0.40;
     private const double MeterReleaseK = 0.12;
-    private static double SmoothMeter(double current, double target)
-        => current + (target - current) * (target > current ? MeterAttackK : MeterReleaseK);
+    private const double RefStepSeconds = 0.016; // step the K values were tuned for
+    private static double SmoothMeter(double current, double target, double attackK, double releaseK)
+        => current + (target - current) * (target > current ? attackK : releaseK);
 
-    // GR-lamp peak-hold: keep a channel's lamp (and the "hard" colour) lit for a few ticks after a
-    // catch so a sub-frame event is visible. 16 ticks × 16 ms ≈ 0.25 s.
-    private const int LampHoldTicks = 16;
-    private int _lLampHold, _rLampHold, _hardHold;
+    // GR-lamp peak-hold: keep a channel's lamp (and the "hard" colour) lit ~0.25 s after a catch so a
+    // sub-frame event stays visible. Time-based (seconds) → same at any refresh rate.
+    private const double LampHoldSeconds = 0.25;
+    private double _lLampHoldS, _rLampHoldS, _hardHoldS;
 
-    private void OnTick(object? sender, EventArgs e)
+    /// <summary>
+    /// Pump meters + GR lamp + stream time once per RENDER FRAME — driven by MainWindow's
+    /// RequestAnimationFrame loop (vsync-synced). A free-running DispatcherTimer beat against vsync and
+    /// visibly juddered the meter on the narrower mini bar; frame-synced updates are smooth at any size.
+    /// <paramref name="dt"/> = seconds since the previous frame, so the ballistics + hold are
+    /// refresh-rate independent.
+    /// </summary>
+    public void PumpFrame(double dt)
     {
-        // Meters: one-pole ballistics (fast attack, smooth release) so the bars GLIDE instead of
-        // snapping to the raw per-tick peak. Converted to dB fill by LinearToDbFillConverter in XAML.
+        // Meters: convert the 16ms-tuned one-pole K to this frame's dt — applying a one-pole ~dt/16ms
+        // times ≈ 1-(1-K)^(dt/16ms). Glides identically whatever the monitor's refresh rate.
         _engine.GetLevels(out var l, out var r);
-        LeftLevel = SmoothMeter(LeftLevel, l);
-        RightLevel = SmoothMeter(RightLevel, r);
+        double steps = dt / RefStepSeconds;
+        double aK = 1.0 - Math.Pow(1.0 - MeterAttackK, steps);
+        double rK = 1.0 - Math.Pow(1.0 - MeterReleaseK, steps);
+        LeftLevel = SmoothMeter(LeftLevel, l, aK, rK);
+        RightLevel = SmoothMeter(RightLevel, r, aK, rK);
 
         // Limiter lamp: drain activity, refresh holds. grDb ≤ −4 OR duty ≥ 50% = crushing (red),
         // else a healthy occasional catch (amber). Limiter off → all dark.
         if (_engine.TryGetLimiterActivity(out var grDb, out var duty, out var lHit, out var rHit))
         {
-            if (lHit) _lLampHold = LampHoldTicks;
-            if (rHit) _rLampHold = LampHoldTicks;
-            if (grDb <= -4.0 || duty >= 0.5) _hardHold = LampHoldTicks;
+            if (lHit) _lLampHoldS = LampHoldSeconds;
+            if (rHit) _rLampHoldS = LampHoldSeconds;
+            if (grDb <= -4.0 || duty >= 0.5) _hardHoldS = LampHoldSeconds;
         }
-        else { _lLampHold = _rLampHold = _hardHold = 0; }
-        if (_lLampHold > 0) _lLampHold--;
-        if (_rLampHold > 0) _rLampHold--;
-        if (_hardHold  > 0) _hardHold--;
-        LeftLimitActive  = _lLampHold > 0;
-        RightLimitActive = _rLampHold > 0;
-        LimiterHard      = _hardHold  > 0;
+        else { _lLampHoldS = _rLampHoldS = _hardHoldS = 0; }
+        if (_lLampHoldS > 0) _lLampHoldS -= dt;
+        if (_rLampHoldS > 0) _rLampHoldS -= dt;
+        if (_hardHoldS  > 0) _hardHoldS  -= dt;
+        LeftLimitActive  = _lLampHoldS > 0;
+        RightLimitActive = _rLampHoldS > 0;
+        LimiterHard      = _hardHoldS  > 0;
 
         // Stream time
         if (_streamClock.IsRunning)
@@ -570,7 +580,6 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _timer.Stop();
         _broadcast.StateChanged -= OnBroadcastStateChanged;
     }
 }

@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
@@ -11,6 +12,17 @@ namespace JustPlay.UI.Controls;
 /// </summary>
 public partial class WindowControls : UserControl
 {
+    /// <summary>Show the maximize button. Set False for fixed-size windows (e.g. JUST STREAM, whose
+    /// layout isn't dynamic, so maximizing would only add dead space).</summary>
+    public static readonly StyledProperty<bool> ShowMaximizeProperty =
+        AvaloniaProperty.Register<WindowControls, bool>(nameof(ShowMaximize), defaultValue: true);
+
+    public bool ShowMaximize
+    {
+        get => GetValue(ShowMaximizeProperty);
+        set => SetValue(ShowMaximizeProperty, value);
+    }
+
     public WindowControls() => InitializeComponent();
 
     private Window? Window => TopLevel.GetTopLevel(this) as Window;

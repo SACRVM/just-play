@@ -235,6 +235,10 @@
             <Setter Property="Maximum" Value="1"/>
             <Setter Property="Background" Value="{StaticResource MeterTrackBrush}"/>
             <Setter Property="Foreground" Value="{StaticResource MeterGradient}"/>
+            <!-- Sub-pixel indicator glide: WITHOUT this the indicator width is rounded to whole device
+                 pixels, so on the narrower MINI bar the small per-frame value steps fall under 1px and
+                 the meter visibly stutters (smooth on the wider MAX bar). Off → smooth at any width. -->
+            <Setter Property="UseLayoutRounding" Value="False"/>
         </Style>
 
         <!-- Inputs: themed dark glass to replace raw Fluent chrome -->

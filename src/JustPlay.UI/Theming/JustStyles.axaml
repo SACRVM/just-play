@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:beh="using:JustPlay.UI.Behaviors"
         x:Class="JustPlay.UI.Theming.JustStyles">
     <!--
       ════════════════════════════════════════════════════════════════════════
@@ -197,6 +198,12 @@
         Classes="eq fader"  — for EQ-range sliders (Minimum=0, Maximum=2, kill/flat/+6dB)
         Classes="fader"     — for all other themed sliders (0..1 range, gain, monitor)
     -->
+    <!-- Mouse-wheel nudges every themed fader (one shared behaviour, both apps) — the operation must
+         feel identical in JUST PLAY and JUST STREAM. 2.5%/notch. -->
+    <Style Selector="Slider.fader">
+        <Setter Property="beh:SliderWheel.Enabled" Value="True"/>
+    </Style>
+
     <!-- EQ geometry only (Minimum/Maximum/Width). The visual look comes from Slider.fader. -->
     <Style Selector="Slider.eq">
         <Setter Property="Minimum" Value="0"/>

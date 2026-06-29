@@ -3,7 +3,7 @@
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:controls="using:JustPlay.App.Controls"
              xmlns:ui="using:JustPlay.UI.Controls"
-             xmlns:behaviors="using:JustPlay.App.Behaviors"
+             xmlns:behaviors="using:JustPlay.UI.Behaviors"
              xmlns:models="using:JustPlay.Core.Models"
              x:Class="JustPlay.App.Views.MaxView"
              x:DataType="vm:MainWindowViewModel">

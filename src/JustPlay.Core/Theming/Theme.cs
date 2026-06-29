@@ -35,4 +35,13 @@ public sealed record Theme(
     /// <summary>Optional bottom-bar gradient start (now-playing dock — design-defined, unused as of 2026-05-31).</summary>
     string BottomBarFrom,
     /// <summary>Optional bottom-bar gradient end.</summary>
-    string BottomBarTo);
+    string BottomBarTo,
+
+    /// <summary>
+    /// Optional app-icon chip gradient start (top-left). When null the icon uses <see cref="AccentA"/>
+    /// — set this (+ <see cref="IconTo"/>) only when a theme's ICON should differ from its accents,
+    /// e.g. a pitch-black theme whose icon must read DARK while its in-app accents stay a bright pop.
+    /// </summary>
+    string? IconFrom = null,
+    /// <summary>Optional app-icon chip gradient end (bottom-right). Null → <see cref="AccentB"/>.</summary>
+    string? IconTo = null);

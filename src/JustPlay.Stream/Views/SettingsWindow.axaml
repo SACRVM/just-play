@@ -214,6 +214,10 @@
                                         <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Midnight}"/>
                                     </Button>
+                                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Onyx">
+                                        <Border Classes="swatch" Background="{StaticResource SwatchOnyx}"
+                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Onyx}"/>
+                                    </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
                                         <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
                                                 Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Neon}"/>

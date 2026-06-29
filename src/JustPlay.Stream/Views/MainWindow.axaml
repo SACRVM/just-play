@@ -3,11 +3,13 @@
         xmlns:vm="using:JustPlay.Stream.ViewModels"
         xmlns:models="using:JustPlay.Core.Models"
         xmlns:ui="using:JustPlay.UI.Controls"
+        xmlns:beh="using:JustPlay.UI.Behaviors"
         x:Class="JustPlay.Stream.Views.MainWindow"
         x:DataType="vm:StreamViewModel"
         Title="JUST STREAM"
         Width="980"
         SizeToContent="Height"
+        CanResize="False"
         MinWidth="920" MinHeight="420"
         Background="#00000000"
         TransparencyLevelHint="Transparent,Mica,Blur"
@@ -204,8 +206,9 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- Caption buttons — shared suite control (JustPlay.UI/Controls/WindowControls) -->
-                            <ui:WindowControls Grid.Column="3"/>
+                            <!-- Caption buttons — shared suite control (JustPlay.UI/Controls/WindowControls).
+                                 No maximize: JUST STREAM is a fixed-size window (its layout isn't dynamic). -->
+                            <ui:WindowControls Grid.Column="3" ShowMaximize="False"/>
                         </Grid>
                     </Border>
 
@@ -218,6 +221,7 @@
                         <!-- Server profile selector -->
                         <ComboBox Grid.Row="0" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
                                   HorizontalAlignment="Stretch" Margin="0,0,0,12"
+                                  IsEnabled="{Binding !IsConnected}"
                                   PlaceholderText="Select server profile…">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:StreamServerProfile">
@@ -381,7 +385,8 @@
 
                                 <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                                     <TextBlock Grid.Column="0" Classes="label" Text="GAIN" VerticalAlignment="Center" Width="40"/>
-                                    <Slider Grid.Column="1" Classes="fader" Minimum="-24" Maximum="24" Value="{Binding InputGainDb}"/>
+                                    <Slider Grid.Column="1" Classes="fader" Minimum="-24" Maximum="24" Value="{Binding InputGainDb}"
+                                            beh:SliderReset.Default="0"/>
                                     <TextBlock Grid.Column="2" Classes="mono" FontSize="11" Width="48" TextAlignment="Right"
                                                VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                Text="{Binding InputGainDb, Converter={x:Static vm:GainDbConverter.Instance}}"/>
@@ -405,7 +410,8 @@
                                     <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                                         <TextBlock Grid.Column="0" Classes="label" Text="VOL" VerticalAlignment="Center" Width="40"/>
                                         <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding MonitorVolume}"
-                                                IsEnabled="{Binding IsMonitorDeviceSelected}" VerticalAlignment="Center"/>
+                                                IsEnabled="{Binding IsMonitorDeviceSelected}" VerticalAlignment="Center"
+                                                beh:SliderReset.Default="0.8"/>
                                         <TextBlock Grid.Column="2" Classes="mono" FontSize="11" Width="48" TextAlignment="Right"
                                                    VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                    Text="{Binding MonitorVolume, Converter={x:Static vm:VolumeDbConverter.Instance}}"/>
@@ -440,19 +446,19 @@
                                     <StackPanel Width="62" Spacing="4">
                                         <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                    Text="{Binding EqHigh, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                        <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqHigh}"/>
+                                        <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqHigh}" beh:SliderReset.Default="1"/>
                                         <TextBlock Classes="label" Text="HIGH" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Width="62" Spacing="4">
                                         <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                    Text="{Binding EqMid, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                        <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqMid}"/>
+                                        <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqMid}" beh:SliderReset.Default="1"/>
                                         <TextBlock Classes="label" Text="MID" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                     <StackPanel Width="62" Spacing="4">
                                         <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                    Text="{Binding EqLow, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                        <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqLow}"/>
+                                        <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="2" Value="{Binding EqLow}" beh:SliderReset.Default="1"/>
                                         <TextBlock Classes="label" Text="LOW" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </StackPanel>
@@ -463,13 +469,13 @@
                                         <StackPanel Width="62" Spacing="4">
                                             <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                        Text="{Binding AutoTilt, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                            <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding AutoTilt}"/>
+                                            <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding AutoTilt}" beh:SliderReset.Default="0"/>
                                             <TextBlock Classes="label" Text="TILT" HorizontalAlignment="Center"/>
                                         </StackPanel>
                                         <StackPanel Width="62" Spacing="4">
                                             <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
                                                        Text="{Binding Punch, Converter={x:Static vm:RatioF2Converter.Instance}}"/>
-                                            <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding Punch}"/>
+                                            <Slider Classes="fader" Orientation="Vertical" Height="72" HorizontalAlignment="Center" Minimum="0" Maximum="1" Value="{Binding Punch}" beh:SliderReset.Default="0"/>
                                             <TextBlock Classes="label" Text="PUNCH" HorizontalAlignment="Center"/>
                                         </StackPanel>
                                     </StackPanel>
@@ -524,8 +530,9 @@
             </Panel>
         </Border>
 
-        <!-- Edge + corner resize grips in the transparent shadow ring (frameless window has no OS frame) -->
-        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+        <!-- Resize grips kept in markup but DISABLED — JUST STREAM is fixed-size (no dynamic layout),
+             so user resizing is off (CanResize=False + these hidden). -->
+        <Grid Name="ResizeGrips" IsVisible="False" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
             <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
             <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"     PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>
             <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>

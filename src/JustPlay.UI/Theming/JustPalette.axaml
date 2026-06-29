@@ -142,10 +142,18 @@
         <GradientStop Offset="0.5" Color="#ff9966"/>
         <GradientStop Offset="1" Color="#ff6f91"/>
     </LinearGradientBrush>
+    <!-- Midnight: the dark/night chip — near-black grey-blue → steel → soft ice-blue, so the picker
+         preview reads as a DARK theme (not a bright accent trio like the others). -->
     <LinearGradientBrush x:Key="SwatchMidnight" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Offset="0" Color="#7ad7ff"/>
-        <GradientStop Offset="0.5" Color="#2a7bff"/>
-        <GradientStop Offset="1" Color="#7c5cff"/>
+        <GradientStop Offset="0" Color="#0b1018"/>
+        <GradientStop Offset="0.55" Color="#33507a"/>
+        <GradientStop Offset="1" Color="#84b6da"/>
+    </LinearGradientBrush>
+    <!-- Onyx: pitch-black chip — MATCHES the app icon (dark slate → near-black). The preview shows the
+         theme's true near-black character, not a bright accent. -->
+    <LinearGradientBrush x:Key="SwatchOnyx" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0" Color="#28384f"/>
+        <GradientStop Offset="1" Color="#05070c"/>
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="SwatchNeon" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Offset="0" Color="#5cffd4"/>

@@ -3,13 +3,16 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 
-namespace JustPlay.App.Behaviors;
+namespace JustPlay.UI.Behaviors;
 
 /// <summary>
 /// Attached behavior that lets the mouse wheel adjust an Avalonia <see cref="Slider"/> while hovering
-/// over it — the usability touch most players skip. Set <c>behaviors:SliderWheel.Enabled="True"</c>
-/// on a Slider (e.g. the EQ faders). One notch nudges by the slider's <see cref="Slider.SmallChange"/>
-/// if set, otherwise ~3% of its range. (The custom SkeuSlider has its own equivalent handler.)
+/// over it — the usability touch most apps skip. Set <c>beh:SliderWheel.Enabled="True"</c> on a Slider
+/// (or via a style on a fader class). One notch nudges by 2.5% of the slider's range.
+///
+/// SHARED across the J.U.S.T. suite (was JUST PLAY-only; moved here so JUST STREAM's faders behave
+/// identically — same logic, same feel — per the "one shared operation" rule). The custom SkeuSlider
+/// has its own equivalent handler.
 /// </summary>
 public static class SliderWheel
 {

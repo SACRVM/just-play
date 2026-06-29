@@ -36,17 +36,46 @@ public static class Themes
         BottomBarFrom:   "#ff7a59",
         BottomBarTo:     "#d94a8a");
 
+    /// <summary>
+    /// "Midnight" — a TRUE dark / night mode (Chloe 2026-06-29): black → dark grey-blue background,
+    /// calm steel/ice-blue accents (no neon, low strain — easy on the eyes, esp. for JUST STREAM's
+    /// long sessions). This REPLACES the old JSX-port Midnight (a saturated navy with bright
+    /// cyan/violet accents) — that one didn't read as "night mode". Background is desaturated
+    /// (grey-blue, not navy); AccentB stays present enough to drive the play-halo glow without glaring.
+    /// </summary>
     public static readonly Theme Midnight = new(
         Name:            "Midnight",
-        BgFrom:          "#16224a",
-        BgVia:           "#0b1230",
-        BgTo:            "#050817",
-        AccentA:         "#7ad7ff",
-        AccentB:         "#7c5cff",
-        AccentC:         "#2a7bff",
-        Glow:            "#803C78FF",   // rgba(60, 120, 255, 0.5)
-        BottomBarFrom:   "#3957d9",
-        BottomBarTo:     "#6dc3ff");
+        BgFrom:          "#1a2233",       // dark slate grey-blue (top)
+        BgVia:           "#10151f",       // darker mid
+        BgTo:            "#05070b",       // near-black (bottom)
+        AccentA:         "#84b6da",       // soft ice-blue — the cool pop (EQ fill, like, cyan side)
+        AccentB:         "#5b8ad8",       // steel blue — dominant glow/halo, calm not neon
+        AccentC:         "#33507a",       // deep desaturated blue — bg blooms + row wash (blue-lit, not purple)
+        Glow:            "#805b8ad8",     // rgba(91, 138, 216, 0.50) — soft blue halo
+        BottomBarFrom:   "#3a5896",
+        BottomBarTo:     "#6f9ed0");
+
+    /// <summary>
+    /// "Onyx" — pitch black (Chloe 2026-06-29): a darker sibling of Midnight. Background goes to PURE
+    /// black at the bottom (OLED-true), with only the faintest cool breath at the top. A single crisp
+    /// ice/azure accent that pops cleanly against the black without any warmth or neon. The blackest
+    /// theme in the set; pairs naturally with JUST STREAM's night console.
+    /// </summary>
+    public static readonly Theme Onyx = new(
+        Name:            "Onyx",
+        BgFrom:          "#0a0b0e",       // near-black with a faint cool tint (top)
+        BgVia:           "#050507",
+        BgTo:            "#000000",       // pure black (bottom)
+        AccentA:         "#b8d4ec",       // cool ice — the pop against the black
+        AccentB:         "#6f9fd0",       // azure — halo/glow, crisp on pure black
+        AccentC:         "#1a2230",       // deep charcoal-blue — minimal background bloom
+        Glow:            "#736f9fd0",     // rgba(111, 159, 208, 0.45) — soft azure halo
+        BottomBarFrom:   "#2c4870",
+        BottomBarTo:     "#5f93c8",
+        // Icon must read PITCH-BLACK like the theme — NOT the bright in-app accents. Dark slate → near
+        // black, with the white glyph on top, so the taskbar/About icon matches Onyx's character.
+        IconFrom:        "#28384f",
+        IconTo:          "#05070c");
 
     public static readonly Theme Neon = new(
         Name:            "Neon",
@@ -82,7 +111,7 @@ public static class Themes
         BottomBarTo:     "#ff4d3a");
 
     public static readonly IReadOnlyList<Theme> All =
-        new[] { Aurora, Sunset, Midnight, Neon, Hardcore };
+        new[] { Aurora, Sunset, Midnight, Onyx, Neon, Hardcore };
 
     /// <summary>
     /// Look up a theme by its <see cref="Theme.Name"/>. Falls back to Aurora

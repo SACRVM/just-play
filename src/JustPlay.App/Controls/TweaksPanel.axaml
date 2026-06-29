@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:models="using:JustPlay.Core.Models"
-             xmlns:behaviors="using:JustPlay.App.Behaviors"
+             xmlns:behaviors="using:JustPlay.UI.Behaviors"
              x:Class="JustPlay.App.Controls.TweaksPanel"
              x:DataType="vm:MainWindowViewModel">
 
@@ -255,6 +255,10 @@
                             <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
                                     Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Midnight}"/>
                         </Button>
+                        <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Onyx">
+                            <Border Classes="swatch" Background="{StaticResource SwatchOnyx}"
+                                    Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Onyx}"/>
+                        </Button>
                         <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
                             <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
                                     Classes.active="{Binding CurrentTheme, Converter={StaticResource StringEquals}, ConverterParameter=Neon}"/>
@@ -409,20 +413,20 @@
                             <StackPanel Width="42" Spacing="6">
                                 <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
                                         HorizontalAlignment="Center" Value="{Binding EqHigh}"
-                                        behaviors:SliderWheel.Enabled="True"/>
-                                <TextBlock Classes="tweak-label" Text="High" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                                        behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="1"/>
+                                <TextBlock Classes="tweak-label" Text="HIGH" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Width="42" Spacing="6">
                                 <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
                                         HorizontalAlignment="Center" Value="{Binding EqMid}"
-                                        behaviors:SliderWheel.Enabled="True"/>
-                                <TextBlock Classes="tweak-label" Text="Mid" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                                        behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="1"/>
+                                <TextBlock Classes="tweak-label" Text="MID" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Width="42" Spacing="6">
                                 <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
                                         HorizontalAlignment="Center" Value="{Binding EqLow}"
-                                        behaviors:SliderWheel.Enabled="True"/>
-                                <TextBlock Classes="tweak-label" Text="Low" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
+                                        behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="1"/>
+                                <TextBlock Classes="tweak-label" Text="LOW" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -441,18 +445,18 @@
 
                         <!-- Transient punch. 0 = off, 1 = max attack lift. -->
                         <Grid ColumnDefinitions="58,*" Margin="0,6,0,0">
-                            <TextBlock Classes="tweak-label" Text="Punch" FontSize="11" VerticalAlignment="Center"
+                            <TextBlock Classes="tweak-label" Text="PUNCH" FontSize="11" VerticalAlignment="Center"
                                        ToolTip.Tip="Transient designer — boosts attacks (kick/snare snap) to bring punch back to brickwall masters, without making them louder."/>
                             <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding TransientPunch}"
-                                    behaviors:SliderWheel.Enabled="True"/>
+                                    behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="0"/>
                         </Grid>
 
                         <!-- Adaptive spectral tilt (auto-master). 0 = off, 1 = full correction. -->
                         <Grid ColumnDefinitions="58,*">
-                            <TextBlock Classes="tweak-label" Text="Auto-tilt" FontSize="11" VerticalAlignment="Center"
+                            <TextBlock Classes="tweak-label" Text="TILT" FontSize="11" VerticalAlignment="Center"
                                        ToolTip.Tip="Gentle auto-master — slowly nudges each track's bass/treble balance toward an even target so dull or thin tracks sit better. Very subtle (a few dB max)."/>
                             <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding AutoTiltStrength}"
-                                    behaviors:SliderWheel.Enabled="True"/>
+                                    behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="0"/>
                         </Grid>
                     </StackPanel>
 

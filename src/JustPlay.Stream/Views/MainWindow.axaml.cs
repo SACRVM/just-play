@@ -33,6 +33,11 @@ public partial class MainWindow : Window, IFramelessWindow
     private PixelPoint _fullPosition;    // restore position when leaving mini
     private bool _isMini;
 
+    // Render-frame meter pump (vsync-synced, replaces the free-running timer that juddered the mini meter).
+    private const double RefStep = 0.016; // fallback frame dt (first frame / hitch)
+    private bool _pumpRunning;
+    private TimeSpan _lastFrame;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -51,7 +56,13 @@ public partial class MainWindow : Window, IFramelessWindow
         base.OnOpened(e);
         UpdateChromeForState();
         if (DataContext is StreamViewModel vm)
+        {
             vm.PropertyChanged += OnViewModelPropertyChanged;
+            // Pump meters/lamp/time from the RENDER frame (vsync-synced) instead of a free-running timer
+            // — the timer beat against vsync and juddered the meter on the narrower mini bar.
+            _pumpRunning = true;
+            RequestAnimationFrame(OnRenderFrame);
+        }
         // The window opens sized-to-content (SizeToContent=Height) so everything fits exactly.
         // Once laid out, capture that full height + switch to manual sizing so the resize grips +
         // custom maximize work (SizeToContent would otherwise snap the height back on every resize).
@@ -60,6 +71,26 @@ public partial class MainWindow : Window, IFramelessWindow
             _fullHeight = Height;
             SizeToContent = SizeToContent.Manual;
         }, DispatcherPriority.Loaded);
+    }
+
+    // Frame-synced meter pump: re-arms each frame, so updates land exactly on render frames (no
+    // timer-vs-vsync judder). dt drives the ballistics → identical feel at 60 / 120 / 144 Hz.
+    private void OnRenderFrame(TimeSpan now)
+    {
+        if (!_pumpRunning) return;
+        var dt = _lastFrame == TimeSpan.Zero ? RefStep : (now - _lastFrame).TotalSeconds;
+        _lastFrame = now;
+        if (dt <= 0 || dt > 0.25) dt = RefStep; // clamp the first frame and any hitch
+        (DataContext as StreamViewModel)?.PumpFrame(dt);
+        RequestAnimationFrame(OnRenderFrame);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _pumpRunning = false;
+        if (DataContext is StreamViewModel vm)
+            vm.PropertyChanged -= OnViewModelPropertyChanged;
+        base.OnClosed(e);
     }
 
     // ── Mini-player view (mirrors JUST PLAY's ApplyViewMode) ─────────────────
@@ -75,9 +106,8 @@ public partial class MainWindow : Window, IFramelessWindow
         if (mini)
         {
             _fullPosition = Position;
-            SizeToContent = SizeToContent.Manual;
-            CanResize = false;
-            Topmost = true;
+            // Mini is the SAME window, ONLY smaller + fewer rows shown. NO behaviour differs — no
+            // topmost, no transparency change. (Chloe: "der einzige Unterschied ist kleiner + es fehlen Dinge".)
             // CRITICAL: the XAML mins (MinWidth=920, MinHeight=420) would CLAMP the mini size back up —
             // that's why the mini window looked unchanged. Lower the mins BEFORE setting the size.
             MinWidth = MiniWidth;
@@ -87,9 +117,6 @@ public partial class MainWindow : Window, IFramelessWindow
         }
         else
         {
-            SizeToContent = SizeToContent.Manual;
-            CanResize = true;
-            Topmost = false;
             // Restore the full-window mins (must match the XAML header values) before growing back.
             MinWidth = 920;
             MinHeight = 420;
@@ -97,7 +124,7 @@ public partial class MainWindow : Window, IFramelessWindow
             if (_fullHeight > 0) Height = _fullHeight;
             Position = _fullPosition;
         }
-        UpdateChromeForState(); // grips only in full, non-maximized mode
+        UpdateChromeForState();
     }
 
     // Drag the window from the chrome bar (but not from interactive controls) — shared predicate.
@@ -138,9 +165,8 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private void UpdateChromeForState()
     {
+        // Fixed-size window: resize grips stay hidden (set in XAML); nothing to toggle here.
         this.FindControl<Border>("RootCard")?.Classes.Set("maximized", _isMaxed);
-        if (this.FindControl<Grid>("ResizeGrips") is { } grips)
-            grips.IsVisible = !_isMaxed && !_isMini;
     }
 
     // ── Custom edge/corner resize (manual; the borderless window has no OS resize frame) ──

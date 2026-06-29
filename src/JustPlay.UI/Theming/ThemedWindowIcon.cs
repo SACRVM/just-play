@@ -31,8 +31,11 @@ public static class ThemedWindowIcon
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
             EndPoint   = new RelativePoint(1, 1, RelativeUnit.Relative),
         };
-        bg.GradientStops.Add(new GradientStop(Color.Parse(theme.AccentA), 0));
-        bg.GradientStops.Add(new GradientStop(Color.Parse(theme.AccentB), 1));
+        // Icon chip uses the theme's accents by default, but a theme may override it (IconFrom/IconTo)
+        // when its icon should differ from its accents — e.g. Onyx (pitch-black) needs a DARK chip, not
+        // its bright in-app accents, so the icon matches the near-black theme.
+        bg.GradientStops.Add(new GradientStop(Color.Parse(theme.IconFrom ?? theme.AccentA), 0));
+        bg.GradientStops.Add(new GradientStop(Color.Parse(theme.IconTo ?? theme.AccentB), 1));
 
         var path = new Path
         {
