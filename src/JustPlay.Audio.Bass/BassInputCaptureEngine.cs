@@ -381,6 +381,18 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         lim.ProcessInterleavedStereo(samples);
     }
 
+    public bool TryGetLimiterActivity(out double gainReductionDb, out double dutyCycle, out bool leftAtCeiling, out bool rightAtCeiling)
+    {
+        var lim = _limiter; // ref read is atomic; SetLimiter swaps it under _limiterLock
+        if (lim is null)
+        {
+            gainReductionDb = 0; dutyCycle = 0; leftAtCeiling = rightAtCeiling = false;
+            return false;
+        }
+        lim.ReadTelemetry(out gainReductionDb, out dutyCycle, out leftAtCeiling, out rightAtCeiling);
+        return true;
+    }
+
     public void SetEqualizer(double lowGain, double midGain, double highGain)
     {
         EnsureMixer();

@@ -85,6 +85,16 @@ public sealed class MasteringLimiter
     private double _grFast = 1.0;
     private double _grSlow = 1.0;
 
+    // ── Live telemetry for the UI gain-reduction lamp ───────────────────────────
+    // Written on the BASS audio thread, drained by the UI poll (ReadTelemetry resets them). Plain
+    // fields, no lock: a torn read just yields a one-poll-stale lamp, which is invisible at 60 Hz.
+    // GR is stereo-LINKED so depth/duty are bus-wide; the per-channel ceiling hits say WHICH channel
+    // is driving the limiter (its own true-peak crossed the ceiling) — that's the honest per-channel bit.
+    private double _telMinGain = 1.0;   // smallest applied gain since last read → peak gain reduction
+    private long   _telActiveFrames;    // frames where the limiter was actually reducing
+    private long   _telTotalFrames;
+    private bool   _telHitL, _telHitR;  // a channel's true-peak exceeded the ceiling since last read
+
     /// <param name="sampleRate">Bus sample rate (the JustPlay mixer is 44100).</param>
     /// <param name="ceilingDbTp">True-peak ceiling. −1 dBTP is the broadcast-safe default.</param>
     /// <param name="driveDb">Maximizer makeup gain in dB applied before limiting (0 = safety only).</param>
@@ -156,10 +166,27 @@ public sealed class MasteringLimiter
         _dqHead = _dqTail = 0;
         _n = 0;
         _grFast = _grSlow = 1.0;
+        _telMinGain = 1.0; _telActiveFrames = 0; _telTotalFrames = 0; _telHitL = _telHitR = false;
     }
 
     /// <summary>Look-ahead latency this limiter adds to the signal, in samples.</summary>
     public int LatencySamples => _lookahead;
+
+    /// <summary>
+    /// Snapshot of limiter activity since the previous call, for the UI gain-reduction lamp, and
+    /// RESETS the accumulators (call at UI poll rate). <paramref name="gainReductionDb"/> is the
+    /// deepest reduction in the interval (≤ 0; 0 = the limiter wasn't reducing); <paramref name="dutyCycle"/>
+    /// is the fraction of frames that were being reduced (0..1); the two flags say whether each
+    /// channel's true-peak crossed the ceiling (i.e. that channel was driving the limiter).
+    /// </summary>
+    public void ReadTelemetry(out double gainReductionDb, out double dutyCycle, out bool leftAtCeiling, out bool rightAtCeiling)
+    {
+        gainReductionDb = _telMinGain >= 1.0 ? 0.0 : 20.0 * Math.Log10(_telMinGain);
+        dutyCycle       = _telTotalFrames > 0 ? (double)_telActiveFrames / _telTotalFrames : 0.0;
+        leftAtCeiling   = _telHitL;
+        rightAtCeiling  = _telHitR;
+        _telMinGain = 1.0; _telActiveFrames = 0; _telTotalFrames = 0; _telHitL = _telHitR = false;
+    }
 
     /// <summary>
     /// Process one block of interleaved-stereo float samples (L,R,L,R,…) in place.
@@ -179,8 +206,13 @@ public sealed class MasteringLimiter
             float r = buf[idx + 1] * _drive;
 
             // 2. True-peak of this frame = max |oversampled phase| over both channels (linked).
-            float tp = Math.Max(FirTruePeak(_firHistL, l), FirTruePeak(_firHistR, r));
+            //    Keep the per-channel peaks too, so the UI lamp can show which channel is hitting the ceiling.
+            float tpL = FirTruePeak(_firHistL, l);
+            float tpR = FirTruePeak(_firHistR, r);
+            float tp  = Math.Max(tpL, tpR);
             _firPos = (_firPos + 1) % _firDelayLen;
+            if (tpL > _ceilingLinear) _telHitL = true;
+            if (tpR > _ceilingLinear) _telHitR = true;
 
             // 3. Push into the sliding-max deque keyed by the running sample index, expire anything
             //    older than the look-ahead window. winMax = loudest upcoming true-peak for the
@@ -204,6 +236,11 @@ public sealed class MasteringLimiter
 
             if (_grSlow > 1.0) _grSlow = 1.0;                  // hard anti-AGC clamp
             float gain = (float)_grSlow;
+
+            // Telemetry: track the deepest reduction + how often we're reducing (duty cycle).
+            _telTotalFrames++;
+            if (_grSlow < 0.9995) _telActiveFrames++;          // ~0.004 dB threshold = "actually limiting"
+            if (_grSlow < _telMinGain) _telMinGain = _grSlow;
 
             // 6. Read the look-ahead-delayed DRIVEN sample, apply the (now-aligned) gain, write the
             //    current driven sample into the ring.

@@ -50,6 +50,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(SelectedProfileBitrateKbps))]
     [NotifyPropertyChangedFor(nameof(CanBroadcastSongInfo))]
     [NotifyPropertyChangedFor(nameof(IsSongInfoActive))]
+    [NotifyPropertyChangedFor(nameof(StatusDetail))]
     private StreamServerProfile? _selectedProfile;
 
     // ── Input devices ────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(OnAir))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
     [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusDetail))]
     [NotifyPropertyChangedFor(nameof(ConnectLabel))]
     private BroadcastState _state = BroadcastState.Disconnected;
 
@@ -97,6 +99,22 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         _ => "Offline",
     };
 
+    private string CodecLabel => SelectedProfileFormat == StreamFormat.Opus ? "Opus" : "MP3";
+
+    /// <summary>Dynamic sub-line under the big status word — the useful detail the headline can't say:
+    /// the armed target when offline, the host while connecting, the confirmed format when on air.</summary>
+    public string StatusDetail => State switch
+    {
+        BroadcastState.Connected =>
+            $"{SelectedProfile?.Name ?? "—"} · {CodecLabel} {SelectedProfileBitrateKbps} kbps",
+        BroadcastState.Connecting or BroadcastState.Reconnecting =>
+            SelectedProfile is { } p ? $"{p.Host}:{p.Port}{p.Mount}" : "connecting…",
+        BroadcastState.Error =>
+            "Check host, mount & credentials",
+        _ =>
+            SelectedProfile is { } s ? $"→ {s.Name} · {CodecLabel} {SelectedProfileBitrateKbps} kbps" : "No server selected",
+    };
+
     // ── Live readouts (direct fields, never the log — §3a) ────────────────
     [ObservableProperty] private string _codecText = "MP3";
     [ObservableProperty] private string _bitrateText = "—";
@@ -108,6 +126,14 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     // ── Meters (0..1 linear) ─────────────────────────────────────────────
     [ObservableProperty] private double _leftLevel;
     [ObservableProperty] private double _rightLevel;
+
+    // ── Limiter gain-reduction lamp (right of each L/R meter) ─────────────
+    // Lit = that channel's true-peak is hitting the limiter ceiling. Colour = bus-wide health:
+    // amber = occasional, shallow catching (transparent, healthy); red = deep/sustained (crushing →
+    // turn the input gain down). Held ~0.25 s so a 5 ms catch is actually visible.
+    [ObservableProperty] private bool _leftLimitActive;
+    [ObservableProperty] private bool _rightLimitActive;
+    [ObservableProperty] private bool _limiterHard;
 
     // ── Sample rate (RATE dropdown) ───────────────────────────────────────
     [ObservableProperty] private int _selectedSampleRate = 44100;
@@ -484,6 +510,11 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     private static double SmoothMeter(double current, double target)
         => current + (target - current) * (target > current ? MeterAttackK : MeterReleaseK);
 
+    // GR-lamp peak-hold: keep a channel's lamp (and the "hard" colour) lit for a few ticks after a
+    // catch so a sub-frame event is visible. 16 ticks × 16 ms ≈ 0.25 s.
+    private const int LampHoldTicks = 16;
+    private int _lLampHold, _rLampHold, _hardHold;
+
     private void OnTick(object? sender, EventArgs e)
     {
         // Meters: one-pole ballistics (fast attack, smooth release) so the bars GLIDE instead of
@@ -491,6 +522,22 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         _engine.GetLevels(out var l, out var r);
         LeftLevel = SmoothMeter(LeftLevel, l);
         RightLevel = SmoothMeter(RightLevel, r);
+
+        // Limiter lamp: drain activity, refresh holds. grDb ≤ −4 OR duty ≥ 50% = crushing (red),
+        // else a healthy occasional catch (amber). Limiter off → all dark.
+        if (_engine.TryGetLimiterActivity(out var grDb, out var duty, out var lHit, out var rHit))
+        {
+            if (lHit) _lLampHold = LampHoldTicks;
+            if (rHit) _rLampHold = LampHoldTicks;
+            if (grDb <= -4.0 || duty >= 0.5) _hardHold = LampHoldTicks;
+        }
+        else { _lLampHold = _rLampHold = _hardHold = 0; }
+        if (_lLampHold > 0) _lLampHold--;
+        if (_rLampHold > 0) _rLampHold--;
+        if (_hardHold  > 0) _hardHold--;
+        LeftLimitActive  = _lLampHold > 0;
+        RightLimitActive = _rLampHold > 0;
+        LimiterHard      = _hardHold  > 0;
 
         // Stream time
         if (_streamClock.IsRunning)

@@ -68,6 +68,15 @@ public interface IAudioInputEngine : IDisposable
     /// </summary>
     void GetLevels(out float leftPeak, out float rightPeak);
 
+    /// <summary>
+    /// Drain the limiter's activity since the previous call, for the output-level gain-reduction
+    /// lamp. Returns false when the limiter is disabled (lamp stays dark). <paramref name="gainReductionDb"/>
+    /// is the deepest reduction in the interval (≤ 0); <paramref name="dutyCycle"/> the fraction of
+    /// time it was reducing (0..1) — together they say healthy-catch vs. crushing. The per-channel
+    /// flags say which channel's true-peak hit the ceiling (drove the limiter). Poll at UI rate.
+    /// </summary>
+    bool TryGetLimiterActivity(out double gainReductionDb, out double dutyCycle, out bool leftAtCeiling, out bool rightAtCeiling);
+
     // ── Output / gain ────────────────────────────────────────────────────
 
     /// <summary>

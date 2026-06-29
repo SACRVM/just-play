@@ -77,6 +77,32 @@
                 <DropShadowEffect Color="#FF5C57" BlurRadius="9" OffsetX="0" OffsetY="0" Opacity="0.95"/>
             </Setter>
         </Style>
+
+        <!-- OUTPUT-LEVEL gain-reduction lamp (right of each L/R meter): dim idle → AMBER (occasional,
+             shallow catch = healthy) → RED (deep ≤−4 dB or sustained ≥50% = crushing). Per-channel lit,
+             bus-wide colour. -->
+        <Style Selector="Ellipse.grlamp">
+            <Setter Property="Width" Value="9"/>
+            <Setter Property="Height" Value="9"/>
+            <Setter Property="Fill" Value="#26FFFFFF"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Fill" Duration="0:0:0.10"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Ellipse.grlamp.lit">
+            <Setter Property="Fill" Value="#FFB020"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="#FFB020" BlurRadius="9" OffsetX="0" OffsetY="0" Opacity="0.9"/>
+            </Setter>
+        </Style>
+        <Style Selector="Ellipse.grlamp.lit.hard">
+            <Setter Property="Fill" Value="#FF5C57"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="#FF5C57" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="0.95"/>
+            </Setter>
+        </Style>
         <Style Selector="Button.limbtn.off.active /template/ ContentPresenter">
             <Setter Property="BorderBrush" Value="#66FF5C57"/>
         </Style>
@@ -208,7 +234,10 @@
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" Margin="0,0,12,0">
                                     <TextBlock Text="{Binding StatusText}" FontSize="24" FontWeight="Bold"
                                                TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Classes="label" Text="STREAM STATUS" TextTrimming="CharacterEllipsis"/>
+                                    <!-- Dynamic detail (replaces the old static "STREAM STATUS" caption):
+                                         armed target offline · host while connecting · confirmed format on air. -->
+                                    <TextBlock Text="{Binding StatusDetail}" FontSize="12"
+                                               Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0" HorizontalAlignment="Right">
                                     <TextBlock Text="{Binding StreamTimeText}" Classes="mono" FontSize="22" FontWeight="SemiBold"
@@ -230,22 +259,29 @@
                                            HorizontalAlignment="Right"/>
                             </DockPanel>
 
-                            <!-- L -->
-                            <Grid ColumnDefinitions="14,*" VerticalAlignment="Center">
+                            <!-- L — trailing 22px column holds the limiter gain-reduction lamp (right side
+                                 = symmetry with the L/R labels on the left + a useful per-channel readout). -->
+                            <Grid ColumnDefinitions="14,*,22" VerticalAlignment="Center">
                                 <TextBlock Grid.Column="0" Text="L" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
                                 <ProgressBar Grid.Column="1" Classes="meter tall" Margin="4,0,0,0"
                                              Value="{Binding LeftLevel, Converter={x:Static vm:LinearToDbFillConverter.Instance}}"/>
+                                <Ellipse Grid.Column="2" Classes="grlamp" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Classes.lit="{Binding LeftLimitActive}" Classes.hard="{Binding LimiterHard}"
+                                         ToolTip.Tip="Limiter — amber: catching peaks (healthy) · red: heavy/sustained (lower the input)"/>
                             </Grid>
 
                             <!-- R -->
-                            <Grid ColumnDefinitions="14,*" VerticalAlignment="Center">
+                            <Grid ColumnDefinitions="14,*,22" VerticalAlignment="Center">
                                 <TextBlock Grid.Column="0" Text="R" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
                                 <ProgressBar Grid.Column="1" Classes="meter tall" Margin="4,0,0,0"
                                              Value="{Binding RightLevel, Converter={x:Static vm:LinearToDbFillConverter.Instance}}"/>
+                                <Ellipse Grid.Column="2" Classes="grlamp" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Classes.lit="{Binding RightLimitActive}" Classes.hard="{Binding LimiterHard}"
+                                         ToolTip.Tip="Limiter — amber: catching peaks (healthy) · red: heavy/sustained (lower the input)"/>
                             </Grid>
 
-                            <!-- dB ruler -->
-                            <Grid ColumnDefinitions="14,*">
+                            <!-- dB ruler — same 14,*,22 grid so the bar (*) lines up under the meters above. -->
+                            <Grid ColumnDefinitions="14,*,22">
                                 <StackPanel Grid.Column="1" Margin="4,0,0,0" Spacing="2">
                                     <Grid ColumnDefinitions="*,*,*,*" Height="4">
                                         <Border Grid.Column="0" Classes="mtick" HorizontalAlignment="Left"/>
