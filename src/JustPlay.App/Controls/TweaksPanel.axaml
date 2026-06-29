@@ -411,19 +411,19 @@
                              same centre. Mouse-wheel over a fader nudges it (behaviors:SliderWheel). -->
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="30" Margin="0,4,0,0">
                             <StackPanel Width="42" Spacing="6">
-                                <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
+                                <Slider Classes="eq fader" Orientation="Vertical" Height="104"
                                         HorizontalAlignment="Center" Value="{Binding EqHigh}"
                                         behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="1"/>
                                 <TextBlock Classes="tweak-label" Text="HIGH" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Width="42" Spacing="6">
-                                <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
+                                <Slider Classes="eq fader" Orientation="Vertical" Height="104"
                                         HorizontalAlignment="Center" Value="{Binding EqMid}"
                                         behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="1"/>
                                 <TextBlock Classes="tweak-label" Text="MID" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>
                             </StackPanel>
                             <StackPanel Width="42" Spacing="6">
-                                <Slider Classes="eq fader" Orientation="Vertical" Height="104" Width="30"
+                                <Slider Classes="eq fader" Orientation="Vertical" Height="104"
                                         HorizontalAlignment="Center" Value="{Binding EqLow}"
                                         behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="1"/>
                                 <TextBlock Classes="tweak-label" Text="LOW" HorizontalAlignment="Center" TextAlignment="Center" FontSize="11"/>

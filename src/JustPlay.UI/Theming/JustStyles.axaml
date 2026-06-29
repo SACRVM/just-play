@@ -204,11 +204,16 @@
         <Setter Property="beh:SliderWheel.Enabled" Value="True"/>
     </Style>
 
-    <!-- EQ geometry only (Minimum/Maximum/Width). The visual look comes from Slider.fader. -->
+    <!-- EQ geometry only (Minimum/Maximum). The visual look comes from Slider.fader.
+         NO explicit Width: a vertical Fluent Slider's track lives in an Auto middle column
+         with MinWidth 32 (SliderVerticalWidth, verified against release/12.0.3
+         Themes.Fluent/Controls/Slider.xaml). Forcing the Slider narrower than that (the old
+         Width=30) under-sizes the track so its optical centre drifts off the centred label.
+         Letting it size naturally — exactly like JUST STREAM's faders — keeps track and label
+         on the same centre. -->
     <Style Selector="Slider.eq">
         <Setter Property="Minimum" Value="0"/>
         <Setter Property="Maximum" Value="2"/>
-        <Setter Property="Width" Value="30"/>
         <Setter Property="HorizontalAlignment" Value="Center"/>
     </Style>
     <Style Selector="Slider.fader /template/ Thumb">
