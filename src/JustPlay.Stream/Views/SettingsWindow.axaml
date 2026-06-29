@@ -12,6 +12,43 @@
         WindowDecorations="None"
         WindowStartupLocation="CenterOwner">
 
+    <!-- Themed server-list rows — mirrors JUST PLAY's queue ListBoxItem (MaxView.axaml): flat
+         white hover, theme-driven accent swipe on selected (AccentCRow/AccentBRow recolour per
+         theme), rounded. Replaces the bare Fluent default that clashed with the dark card. -->
+    <Window.Styles>
+        <Style Selector="ListBox.servers ListBoxItem">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="7"/>
+        </Style>
+        <Style Selector="ListBox.servers ListBoxItem /template/ ContentPresenter">
+            <Setter Property="CornerRadius" Value="7"/>
+        </Style>
+        <Style Selector="ListBox.servers ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF"/>
+        </Style>
+        <Style Selector="ListBox.servers ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"   Color="{DynamicResource AccentCRow}"/>
+                    <GradientStop Offset="0.6" Color="{DynamicResource AccentBRow}"/>
+                    <GradientStop Offset="1"   Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.servers ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"   Color="{DynamicResource AccentCRowHover}"/>
+                    <GradientStop Offset="0.6" Color="{DynamicResource AccentBRowHover}"/>
+                    <GradientStop Offset="1"   Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+    </Window.Styles>
+
     <!-- Frameless rounded dialog — same shell as the main console + JUST PLAY (no classic title bar). -->
     <Panel>
         <Border CornerRadius="14" ClipToBounds="False"
@@ -73,6 +110,14 @@
                                     </Panel>
                                 </Button>
                                 <Button Classes="tab"
+                                        Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Look}"
+                                        Command="{Binding SetSettingsTabCommand}" CommandParameter="Look">
+                                    <Panel>
+                                        <TextBlock Text="Look" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab"
                                         Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}"
                                         Command="{Binding SetSettingsTabCommand}" CommandParameter="Advanced">
                                     <Panel>
@@ -96,11 +141,13 @@
                                         <Button Classes="seg" Content="DEL" Command="{Binding RemoveServerCommand}"/>
                                     </StackPanel>
                                 </Border>
-                                <ListBox ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                                <ListBox Classes="servers" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
                                          Background="Transparent" BorderThickness="0">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:StreamServerProfile">
-                                            <TextBlock Text="{Binding Name}" Padding="2,4"/>
+                                            <TextBlock Text="{Binding Name}" FontSize="13" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextBrush}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -111,38 +158,65 @@
                             <ScrollViewer Grid.Column="2" Margin="16,0,0,0"
                                           IsEnabled="{Binding Editing, Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <!-- x:CompileBindings=False: Editing.Port (int→TextBox.Text) + enum/int ComboBox needs coercion. -->
-                                <Grid x:CompileBindings="False" ColumnDefinitions="96,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                <Grid x:CompileBindings="False" ColumnDefinitions="96,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                       VerticalAlignment="Top">
+                                    <!-- UpdateSourceTrigger=LostFocus: commit on blur, not per keystroke — so typing isn't
+                                         interrupted by the collection-replace in OnEditingChanged (the focus-loss bug). -->
                                     <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="NAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Editing.Name}" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Editing.Name, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="HOST" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding Editing.Host}" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding Editing.Host, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="PORT" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding Editing.Port}" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding Editing.Port, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="MOUNT" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="3" Grid.Column="1" Text="{Binding Editing.Mount}" PlaceholderText="/live.mp3" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="3" Grid.Column="1" Text="{Binding Editing.Mount, UpdateSourceTrigger=LostFocus}" PlaceholderText="/live.mp3" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="USERNAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="4" Grid.Column="1" Text="{Binding Editing.Username}" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="4" Grid.Column="1" Text="{Binding Editing.Username, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="PASSWORD" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="5" Grid.Column="1" Text="{Binding Editing.Password}" PasswordChar="•" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="5" Grid.Column="1" Text="{Binding Editing.Password, UpdateSourceTrigger=LostFocus}" PasswordChar="•" Margin="0,0,0,8"/>
 
-                                    <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="CODEC" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <Grid Grid.Row="6" Grid.Column="1" ColumnDefinitions="*,*" Margin="0,0,0,8">
-                                        <ComboBox Grid.Column="0" ItemsSource="{Binding Formats}" SelectedItem="{Binding Editing.Format}"
-                                                  HorizontalAlignment="Stretch" Margin="0,0,4,0"/>
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding Bitrates}" SelectedItem="{Binding Editing.BitrateKbps}"
-                                                  HorizontalAlignment="Stretch" Margin="4,0,0,0"/>
-                                    </Grid>
+                                    <!-- CODEC + BITRATE → main page (quality settings). PROTOCOL removed too:
+                                         the connect is AUTO now (tries PUT, falls back to SOURCE). -->
 
-                                    <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="PROTOCOL" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <ComboBox Grid.Row="7" Grid.Column="1" ItemsSource="{Binding Protocols}" SelectedItem="{Binding Editing.Protocol}"
-                                              HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
-
-                                    <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="TLS / SSL" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <ToggleSwitch Grid.Row="8" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent=""/>
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="TLS / SSL" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <ToggleSwitch Grid.Row="6" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent=""/>
                                 </Grid>
                             </ScrollViewer>
                         </Grid>
+
+                        <!-- ═══ LOOK — theme palette picker (mirrors TweaksPanel's Look tab in JUST PLAY) ═══ -->
+                        <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"
+                                    IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Look}"
+                                    ClipToBounds="False">
+                            <StackPanel Spacing="8" ClipToBounds="False">
+                                <TextBlock Classes="label" Text="THEME"/>
+                                <!-- Swatch row — same chip size/lift/glow as JUST PLAY (JustStyles: Border.swatch / Button.swatchbtn). -->
+                                <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
+                                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
+                                        <Border Classes="swatch" Background="{StaticResource SwatchAurora}"
+                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Aurora}"/>
+                                    </Button>
+                                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
+                                        <Border Classes="swatch" Background="{StaticResource SwatchSunset}"
+                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Sunset}"/>
+                                    </Button>
+                                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
+                                        <Border Classes="swatch" Background="{StaticResource SwatchMidnight}"
+                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Midnight}"/>
+                                    </Button>
+                                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
+                                        <Border Classes="swatch" Background="{StaticResource SwatchNeon}"
+                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Neon}"/>
+                                    </Button>
+                                    <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Hardcore">
+                                        <Border Classes="swatch" Background="{StaticResource SwatchHardcore}"
+                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Hardcore}"/>
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
+                                           Foreground="#73FFFFFF" LetterSpacing="2"/>
+                            </StackPanel>
+                        </StackPanel>
 
                         <!-- ═══ ADVANCED — de-boxed, hairline-separated rows ═══ -->
                         <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"

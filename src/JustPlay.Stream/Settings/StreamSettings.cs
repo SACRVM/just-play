@@ -32,9 +32,16 @@ public sealed class StreamSettings
     /// <summary>Limiter/maximizer drive: "Off" | "Soft" | "Club" | "Loud". See StreamViewModel mapping.</summary>
     public string LimiterDrive { get; set; } = "Soft";
 
+    // ── Sample rate ──────────────────────────────────────────────────────
+    /// <summary>Capture/mixer sample rate: 44100 (default) or 48000 Hz.</summary>
+    public int SampleRate { get; set; } = 44100;
+
     // ── Levels ───────────────────────────────────────────────────────────
     public double InputGainDb { get; set; } = 0.0;
-    public bool MonitorOn { get; set; } = false;
+
+    /// <summary>Name of the local monitor OUTPUT device (resolved to a BASS index at runtime).
+    /// null / unknown ⇒ "No output (stream only)" — no local monitor (the default).</summary>
+    public string? MonitorDeviceName { get; set; }
     public double MonitorVolume { get; set; } = 0.8;
 
     // ── Stream / privacy ─────────────────────────────────────────────────
@@ -43,4 +50,7 @@ public sealed class StreamSettings
 
     /// <summary>Whether the bottom error-log strip is expanded.</summary>
     public bool LogVisible { get; set; } = false;
+
+    /// <summary>Name of the active theme palette (see <see cref="JustPlay.Core.Theming.Themes"/>). Defaults to Aurora.</summary>
+    public string Theme { get; set; } = "Aurora";
 }

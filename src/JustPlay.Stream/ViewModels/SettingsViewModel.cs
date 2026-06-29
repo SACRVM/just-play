@@ -2,7 +2,10 @@ using System.ComponentModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
+using JustPlay.Core.Theming;
+using JustPlay.Stream.Settings;
 
 namespace JustPlay.Stream.ViewModels;
 
@@ -18,6 +21,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     /// <summary>The live main-window VM. The Audio/Stream/DSP tabs bind to this (e.g. {Binding Stream.EqLow}).</summary>
     public StreamViewModel Stream { get; }
+
+    private readonly IThemeService _themeSvc;
+    private readonly JsonStreamSettingsService _settingsSvc;
 
     // Option sources for the Server/Stream form ComboBoxes.
     public StreamFormat[] Formats { get; } = { StreamFormat.Mp3, StreamFormat.Opus };
@@ -43,11 +49,28 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private bool _syncingSelection;
 
-    public SettingsViewModel(StreamViewModel stream)
+    public SettingsViewModel(StreamViewModel stream, IThemeService themeSvc, JsonStreamSettingsService settingsSvc)
     {
         Stream = stream;
+        _themeSvc = themeSvc;
+        _settingsSvc = settingsSvc;
         _selectedServer = stream.SelectedProfile ?? stream.Profiles.FirstOrDefault();
         LoadEditing();
+    }
+
+    /// <summary>Name of the currently active theme — drives the swatch "active" ring in the Look tab.</summary>
+    public string CurrentTheme => _settingsSvc.Current.Theme;
+
+    /// <summary>Apply a named theme live and persist the choice (mirrors JUST PLAY's SetThemeCommand pattern).</summary>
+    [RelayCommand]
+    private void SetTheme(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return;
+        var theme = Themes.ByNameOrDefault(name);
+        _themeSvc.Apply(theme);
+        _settingsSvc.Current.Theme = theme.Name;
+        _settingsSvc.Save();
+        OnPropertyChanged(nameof(CurrentTheme));
     }
 
     /// <summary>Server profiles — the SAME collection the main window shows.</summary>
@@ -78,16 +101,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (idx < 0) return;
 
         var updated = Editing.ToProfile();
-        Servers[idx] = updated;
 
-        // Keep the main window's selection pointing at the edited profile.
-        if (Stream.SelectedProfile?.Id == updated.Id)
-            Stream.SelectedProfile = updated;
-
-        // Re-point our own selection at the replaced record without re-running LoadEditing
-        // (that would rebuild the editor and drop focus mid-keystroke).
+        // Guard the WHOLE mutation. Replacing Servers[idx] makes the ListBox re-evaluate its
+        // SelectedItem (the old record is gone) and push a selection change back SYNCHRONOUSLY —
+        // which, if the guard were set after the replace, would re-enter OnSelectedServerChanged →
+        // LoadEditing and rebuild the editor mid-edit, dropping focus after a single keystroke.
+        // We keep the SAME Editing object (Id is stable via ToProfile), so the form bindings survive.
         _syncingSelection = true;
+        Servers[idx] = updated;
         SelectedServer = updated;
+        if (Stream.SelectedProfile?.Id == updated.Id)
+            Stream.SelectedProfile = updated; // keep the main window pointing at the edited profile
         _syncingSelection = false;
 
         Stream.SaveSettings();

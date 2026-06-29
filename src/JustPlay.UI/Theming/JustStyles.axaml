@@ -142,4 +142,175 @@
             <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="11" OffsetX="0" OffsetY="0" Opacity="1"/>
         </Setter>
     </Style>
+
+    <!--
+      Shared dialog button — pill, dark translucent, hover lift. Used by the suite's frameless
+      dialog windows (the shared About, and JUST PLAY's Transfer / InputDialog). Overriding the
+      pointerover/pressed ContentPresenter background keeps FluentTheme's accent from leaking
+      through (the documented custom-button quirk).
+    -->
+    <Style Selector="Button.dialog-close">
+        <Setter Property="Background" Value="#1AFFFFFF"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="9"/>
+        <Setter Property="Padding" Value="28,9"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.dialog-close:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#2EFFFFFF"/>
+    </Style>
+    <Style Selector="Button.dialog-close:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="#14FFFFFF"/>
+    </Style>
+    <!--
+      "ghost" variant — a de-emphasised dialog action (e.g. "Ignore this version" sitting to the
+      left of the primary). Transparent until hover, muted text, tighter padding so a long label
+      doesn't crowd the primary actions. Pair with Classes="dialog-close ghost".
+    -->
+    <Style Selector="Button.dialog-close.ghost">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#80FFFFFF"/>
+        <Setter Property="Padding" Value="6,9"/>
+        <Setter Property="FontSize" Value="12.5"/>
+    </Style>
+    <Style Selector="Button.dialog-close.ghost /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.dialog-close.ghost:pointerover">
+        <Setter Property="Foreground" Value="#CCFFFFFF"/>
+    </Style>
+    <Style Selector="Button.dialog-close.ghost:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+
+    <!--
+      Shared fader look — used by JUST PLAY (EQ + Revive sliders in TweaksPanel) and JUST STREAM
+      (EQ + AutoTilt + Punch + Gain + Monitor faders). Lifted verbatim from TweaksPanel so the two
+      products share one implementation. WHITE thumb — theme-independent, not the OS SystemAccent
+      which rendered wrong (red) on Chloe's Midnight theme. AccentABrush fills the value side
+      (PART_DecreaseButton); a faint groove sits past the thumb (PART_IncreaseButton). Selectors
+      no-op when a part is absent (i.e., the opposite orientation's template parts are simply missing).
+
+      Classes to apply:
+        Classes="eq fader"  — for EQ-range sliders (Minimum=0, Maximum=2, kill/flat/+6dB)
+        Classes="fader"     — for all other themed sliders (0..1 range, gain, monitor)
+    -->
+    <!-- EQ geometry only (Minimum/Maximum/Width). The visual look comes from Slider.fader. -->
+    <Style Selector="Slider.eq">
+        <Setter Property="Minimum" Value="0"/>
+        <Setter Property="Maximum" Value="2"/>
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Slider.fader /template/ Thumb">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="16"/>
+        <Setter Property="Effect">
+            <DropShadowEffect Color="Black" BlurRadius="4" OffsetX="0" OffsetY="1" Opacity="0.4"/>
+        </Setter>
+    </Style>
+    <Style Selector="Slider.fader /template/ RepeatButton#PART_DecreaseButton">
+        <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
+    </Style>
+    <Style Selector="Slider.fader /template/ RepeatButton#PART_IncreaseButton">
+        <Setter Property="Background" Value="#1FFFFFFF"/>
+    </Style>
+
+    <!--
+      Palette swatch (chip) — coloured ring + accent glow when active. Used by JUST PLAY's
+      TweaksPanel and JUST STREAM's SettingsWindow Look tab. Defined here (shared) so the two
+      products stay visually identical without duplicating the swatch/swatchbtn styles.
+    -->
+    <Style Selector="Border.swatch">
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="Height" Value="46"/>
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="RenderTransform" Value="none"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    <Style Selector="Border.swatch.active">
+        <Setter Property="BorderBrush" Value="White"/>
+        <Setter Property="Effect">
+            <DropShadowEffect Color="White" BlurRadius="10" OffsetX="0" OffsetY="0" Opacity="0.6"/>
+        </Setter>
+    </Style>
+    <!--
+      Wrapper button for each swatch. ClipToBounds=False lets the active chip's DropShadowEffect
+      glow bleed past the button bounds (the Fluent ContentPresenter clip would crop it otherwise).
+    -->
+    <Style Selector="Button.swatchbtn">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="ClipToBounds" Value="False"/>
+    </Style>
+    <Style Selector="Button.swatchbtn /template/ ContentPresenter">
+        <Setter Property="ClipToBounds" Value="False"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.swatchbtn:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.swatchbtn:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.swatchbtn:pointerover Border.swatch">
+        <Setter Property="RenderTransform" Value="translateY(-1px)"/>
+        <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+    </Style>
+    <Style Selector="Button.swatchbtn:pressed Border.swatch">
+        <Setter Property="RenderTransform" Value="translateY(0px)"/>
+    </Style>
+
+    <!--
+      Codec/bitrate segmented radio buttons — shared look for the CodecBitrateEditor
+      (JustPlay.UI.Views) used on JUST STREAM's main page. Identical to the locally-scoped
+      fmt-radio/bps-radio styles in JustPlay.App/Controls/StreamingPanel.axaml; lifted here
+      so the suite shares one definition without duplicating markup.
+      Active state (Classes.active) fills with the theme's AccentGradient so it follows
+      live theme switches without any extra wiring (DynamicResource).
+    -->
+    <Style Selector="Button.fmt-radio">
+        <Setter Property="Background" Value="#0FFFFFFF"/>
+        <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="Foreground" Value="#B3FFFFFF"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.fmt-radio.active">
+        <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style Selector="Button.bps-radio">
+        <Setter Property="Background" Value="#0FFFFFFF"/>
+        <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Foreground" Value="#B3FFFFFF"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="Button.bps-radio.active">
+        <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
 </Styles>

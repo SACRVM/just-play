@@ -122,46 +122,8 @@
         </Style>
 
 
-        <!--
-          Shared dialog button — pill, dark translucent, hover lift. Used by the frameless dialog
-          windows (About, Transfer, InputDialog). Overriding the pointerover/pressed ContentPresenter
-          background keeps FluentTheme's accent from leaking through (the documented custom-button quirk).
-        -->
-        <Style Selector="Button.dialog-close">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="9"/>
-            <Setter Property="Padding" Value="28,9"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.dialog-close:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#2EFFFFFF"/>
-        </Style>
-        <Style Selector="Button.dialog-close:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-        </Style>
-        <!--
-          "ghost" variant — a de-emphasised dialog action (e.g. "Ignore this version" sitting to the
-          left of the primary). Transparent until hover, muted text, tighter padding so a long label
-          doesn't crowd the primary actions. Pair with Classes="dialog-close ghost".
-        -->
-        <Style Selector="Button.dialog-close.ghost">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#80FFFFFF"/>
-            <Setter Property="Padding" Value="6,9"/>
-            <Setter Property="FontSize" Value="12.5"/>
-        </Style>
-        <Style Selector="Button.dialog-close.ghost /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.dialog-close.ghost:pointerover">
-            <Setter Property="Foreground" Value="#CCFFFFFF"/>
-        </Style>
-        <Style Selector="Button.dialog-close.ghost:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
+        <!-- Button.dialog-close (+ .ghost) now live in the shared JustPlay.UI/Theming/JustStyles,
+             used by the shared About and JUST PLAY's Transfer / InputDialog. -->
 
         <!--
           Primary play button: vertical cyan→pink gradient, layered inset bevel + outer rings

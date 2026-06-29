@@ -23,6 +23,13 @@ public interface IAudioInputEngine : IDisposable
     bool IsCapturing { get; }
 
     /// <summary>
+    /// Capture / mixer sample rate: 44100 or 48000 Hz. Setting this while capturing tears down
+    /// the current mixer + push stream so the next <see cref="StartCapture"/> recreates them at
+    /// the new rate. 48 kHz is Opus's native rate; 44.1 kHz matches most DJ software output.
+    /// </summary>
+    int SampleRate { get; set; }
+
+    /// <summary>
     /// The BASS recording-device index currently captured, or -1 when not capturing.
     /// </summary>
     int CurrentInputDevice { get; }
@@ -90,4 +97,21 @@ public interface IAudioInputEngine : IDisposable
 
     /// <summary>Transient designer (punch). punch 0 → bypass. See <see cref="IAudioEngine.SetTransientDesigner"/>.</summary>
     void SetTransientDesigner(double punch);
+
+    // ── Local monitor output device ──────────────────────────────────────
+
+    /// <summary>
+    /// Output devices available for LOCAL monitoring of the broadcast bus, mirroring
+    /// <see cref="IAudioEngine.GetOutputDevices"/>. Includes a "No output (stream only)" entry
+    /// (BASS device 0) — the default: nothing reaches this PC's speakers, the stream still goes out.
+    /// </summary>
+    IReadOnlyList<AudioOutputDevice> GetOutputDevices();
+
+    /// <summary>
+    /// Route the local monitor (the mixer's playback) to the given BASS device index. 0 =
+    /// "No output (stream only)" — no local monitor. Does NOT affect the encoded stream: the
+    /// encoder taps the mixer regardless of which device it plays on (channel-scoped DSP).
+    /// Mirrors <see cref="IAudioEngine.SetOutputDevice"/>.
+    /// </summary>
+    void SetOutputDevice(int index);
 }

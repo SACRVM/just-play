@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:JustPlay.UI.Views"
+        x:Class="JustPlay.UI.Views.AboutWindow"
+        x:DataType="v:AboutInfo"
+        Title="About"
+        Width="384" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <!--
+      SHARED "About" dialog for the whole J.U.S.T. suite (JustPlay.UI). Renders in the active
+      palette by consuming the same DynamicResource keys the main windows use (BgLinear/BgGlowA/
+      BgGlowB background, AccentGradient/TitleGradient brand mark) — so it follows live theme
+      switches with no extra wiring, and looks identical across apps. The per-app content (name,
+      tagline, version, glyph) comes from the AboutInfo DataContext; the brand glyph is built in
+      code-behind with the same logic as ThemedWindowIcon so it matches the taskbar mark.
+    -->
+    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
+            BoxShadow="0 18 54 0 #B3000000"
+            PointerPressed="OnCardPressed">
+        <Panel>
+            <!-- Themed background layers (same recipe as the main windows). -->
+            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
+            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
+            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
+            <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+
+            <!-- Close (×) in the rounded top-right corner (shared Button.cap.close). -->
+            <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close"
+                    HorizontalAlignment="Right" VerticalAlignment="Top">
+                <TextBlock Text="✕" FontSize="13"/>
+            </Button>
+
+            <StackPanel Margin="30,34,30,28" Spacing="0" HorizontalAlignment="Center">
+                <!-- Brand mark: theme-gradient chip + the app's white glyph + accent glow.
+                     The glyph (GlyphHost.Content) is built in code-behind from AboutInfo.Glyph. -->
+                <Border Width="74" Height="74" CornerRadius="19"
+                        Background="{DynamicResource AccentGradient}"
+                        HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect Color="{DynamicResource AccentB}" BlurRadius="26"
+                                          OffsetX="0" OffsetY="6" Opacity="0.55"/>
+                    </Border.Effect>
+                    <ContentControl x:Name="GlyphHost"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Name (gradient) + tagline. -->
+                <TextBlock Text="{Binding AppName}" FontSize="31" FontWeight="Bold"
+                           Foreground="{DynamicResource TitleGradient}"
+                           HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                <TextBlock Text="{Binding Tagline}" FontSize="13"
+                           Foreground="{DynamicResource MutedBrush}"
+                           HorizontalAlignment="Center" Margin="0,5,0,0"/>
+
+                <!-- Version. -->
+                <TextBlock Text="{Binding Version}" FontSize="12" FontWeight="SemiBold"
+                           LetterSpacing="0.5"
+                           Foreground="{DynamicResource MutedDimBrush}"
+                           HorizontalAlignment="Center" Margin="0,20,0,0"/>
+
+                <Border Height="1" Background="{DynamicResource HairlineBrush}" Margin="0,20"/>
+
+                <!-- Suite brand: J.U.S.T. = "Just Useful Sound Tools". -->
+                <TextBlock Text="{Binding SuiteLine}" FontSize="11"
+                           Foreground="{DynamicResource MutedBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                <TextBlock Text="{Binding By}" FontSize="12"
+                           Foreground="{DynamicResource MutedBrush}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding Copyright}" FontSize="11"
+                           Foreground="{DynamicResource MutedDimBrush}"
+                           HorizontalAlignment="Center" Margin="0,4,0,0"/>
+
+                <Button Classes="dialog-close" Content="Close" Click="OnCloseClick"
+                        Margin="0,24,0,0"/>
+            </StackPanel>
+        </Panel>
+    </Border>
+</Window>

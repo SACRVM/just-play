@@ -12,6 +12,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using JustPlay.App.Controls;
 using JustPlay.UI.Controls;
+using JustPlay.UI.Theming;
 using JustPlay.App.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -46,11 +47,19 @@ public partial class MaxView : UserControl
         (TopLevel.GetTopLevel(this) as Window)?.BeginMoveDrag(e);
     }
 
-    // Title-bar brand → open the themed About dialog (moved here from the Tweaks panel).
+    // Title-bar brand → open the SHARED themed About dialog (JustPlay.UI), parameterized with
+    // JUST PLAY's name / tagline / version / glyph so every JUST app's About is identical.
     private void OnAboutClick(object? sender, RoutedEventArgs e)
     {
         if (TopLevel.GetTopLevel(this) is Window owner)
-            new AboutWindow().ShowDialog(owner);
+        {
+            var about = new JustPlay.UI.Views.AboutWindow(new JustPlay.UI.Views.AboutInfo(
+                AppName: "JustPlay",
+                Tagline: "Key-aware DJ music player",
+                Version: $"Version {AppInfo.Version}",
+                Glyph: BrandGlyphs.Play));
+            about.ShowDialog(owner);
+        }
     }
 
     // Title-bar update badge → show the update dialog, then install / ignore / dismiss.

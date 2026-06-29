@@ -32,11 +32,24 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     /// <summary>Limiter drive options for the DSP strip ComboBox (maps in <see cref="ApplyLimiter"/>).</summary>
     public string[] LimiterDrives { get; } = { "Off", "Soft", "Club", "Loud" };
 
+    /// <summary>Codec options for the main-page CODEC dropdown (quality setting, editable while offline).</summary>
+    public StreamFormat[] Formats { get; } = { StreamFormat.Mp3, StreamFormat.Opus };
+
+    /// <summary>Bitrate (kbps) options for the main-page QUALITY dropdown.</summary>
+    public int[] Bitrates { get; } = { 128, 192, 256, 320 };
+
+    /// <summary>Sample rate options for the RATE dropdown. 48 kHz = Opus native; 44.1 kHz = most DJ software.</summary>
+    public int[] SampleRates { get; } = { 44100, 48000 };
+
     // ── Server profiles ──────────────────────────────────────────────────
     public ObservableCollection<StreamServerProfile> Profiles { get; } = new();
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ToggleConnectCommand))]
+    [NotifyPropertyChangedFor(nameof(SelectedProfileFormat))]
+    [NotifyPropertyChangedFor(nameof(SelectedProfileBitrateKbps))]
+    [NotifyPropertyChangedFor(nameof(CanBroadcastSongInfo))]
+    [NotifyPropertyChangedFor(nameof(IsSongInfoActive))]
     private StreamServerProfile? _selectedProfile;
 
     // ── Input devices ────────────────────────────────────────────────────
@@ -44,6 +57,16 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private AudioInputDevice? _selectedInputDevice;
+
+    // ── Monitor output device (local listen-back; "No output (stream only)" = off) ─────────
+    public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMonitorDeviceSelected))]
+    private AudioOutputDevice? _selectedOutputDevice;
+
+    /// <summary>True when a real monitor device is chosen (not "No output") — gates the VOL slider.</summary>
+    public bool IsMonitorDeviceSelected => (SelectedOutputDevice?.Index ?? 0) > 0;
 
     // ── Connection state ─────────────────────────────────────────────────
     [ObservableProperty]
@@ -77,17 +100,17 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     // ── Live readouts (direct fields, never the log — §3a) ────────────────
     [ObservableProperty] private string _codecText = "MP3";
     [ObservableProperty] private string _bitrateText = "—";
-    [ObservableProperty] private string _samplerateText = "44100 Hz";
     [ObservableProperty] private string _mountText = "—";
     [ObservableProperty] private string _listenersText = "—"; // needs an Icecast stats poll (future)
     [ObservableProperty] private string _streamTimeText = "00:00:00";
     [ObservableProperty] private string _nowPlayingText = "";
 
-    // ── Meters (0..1 linear + dB readout) ────────────────────────────────
+    // ── Meters (0..1 linear) ─────────────────────────────────────────────
     [ObservableProperty] private double _leftLevel;
     [ObservableProperty] private double _rightLevel;
-    [ObservableProperty] private string _leftDb = "-∞";
-    [ObservableProperty] private string _rightDb = "-∞";
+
+    // ── Sample rate (RATE dropdown) ───────────────────────────────────────
+    [ObservableProperty] private int _selectedSampleRate = 44100;
 
     // ── Bus DSP rack ─────────────────────────────────────────────────────
     [ObservableProperty] private double _eqLow = 1.0;
@@ -99,15 +122,26 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     // ── Levels / monitor ─────────────────────────────────────────────────
     [ObservableProperty] private double _inputGainDb;
-    [ObservableProperty] private bool _monitorOn;
     [ObservableProperty] private double _monitorVolume = 0.8;
 
     // ── Stream / privacy ─────────────────────────────────────────────────
-    [ObservableProperty] private bool _sendSongInfo = true;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSongInfoActive))]
+    private bool _sendSongInfo = true;
 
-    // ── Errors-only log (small, collapsible — §3a) ───────────────────────
-    [ObservableProperty] private bool _logVisible;
+    /// <summary>Opus/Ogg streams can't carry live ICY now-playing → song-info broadcast is MP3-only.</summary>
+    public bool CanBroadcastSongInfo => SelectedProfileFormat != StreamFormat.Opus;
+
+    /// <summary>Now-playing input + SEND are usable only when broadcasting song info AND the codec supports it.</summary>
+    public bool IsSongInfoActive => SendSongInfo && CanBroadcastSongInfo;
+
+    // ── Log (now in its own LogWindow) ───────────────────────────────────
+    [ObservableProperty] private bool _logVisible;         // kept for settings back-compat
+    [ObservableProperty] private bool _hasUnreadLogs;      // drives the unread marker on the chrome log button
     public ObservableCollection<string> LogEntries { get; } = new();
+
+    /// <summary>All log lines joined — bound read-only by the LogWindow's selectable text box + Copy button.</summary>
+    public string LogText => string.Join(System.Environment.NewLine, LogEntries);
 
     public StreamViewModel(IAudioInputEngine engine, IBroadcastService broadcast, JsonStreamSettingsService settings)
     {
@@ -115,11 +149,14 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         _broadcast = broadcast;
         _settings = settings;
 
+        // Keep the selectable LogText in sync as entries are added/cleared (UI thread — Log() is marshalled).
+        LogEntries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(LogText));
+
         _broadcast.StateChanged += OnBroadcastStateChanged;
 
         Hydrate();
 
-        _timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(33) };
+        _timer = new DispatcherTimer(DispatcherPriority.Normal) { Interval = TimeSpan.FromMilliseconds(16) };
         _timer.Tick += OnTick;
         _timer.Start();
     }
@@ -134,16 +171,23 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         foreach (var p in s.Servers) Profiles.Add(p);
         SelectedProfile = Profiles.FirstOrDefault(p => p.Id == s.SelectedServerId) ?? Profiles.FirstOrDefault();
 
+        // Sample rate must be set BEFORE device selection so the engine uses the correct rate when
+        // OnSelectedInputDeviceChanged triggers StartCapture. The change handler is guarded by
+        // _loading so it won't restart capture — we set the engine directly here.
+        SelectedSampleRate = s.SampleRate;
+        _engine.SampleRate = SelectedSampleRate;
+
         RefreshDevices();
         SelectedInputDevice = InputDevices.FirstOrDefault(d => d.Name == s.InputDeviceName)
                               ?? InputDevices.FirstOrDefault(d => d.IsLoopback)
                               ?? InputDevices.FirstOrDefault();
+        SelectedOutputDevice = OutputDevices.FirstOrDefault(d => d.Name == s.MonitorDeviceName)
+                               ?? OutputDevices.FirstOrDefault(d => d.Index == 0); // default = No output (stream only)
 
         EqLow = s.EqLow; EqMid = s.EqMid; EqHigh = s.EqHigh;
         AutoTilt = s.AutoTilt; Punch = s.Punch;
         LimiterDrive = s.LimiterDrive;
         InputGainDb = s.InputGainDb;
-        MonitorOn = s.MonitorOn;
         MonitorVolume = s.MonitorVolume;
         SendSongInfo = s.SendSongInfo;
         LogVisible = s.LogVisible;
@@ -166,6 +210,12 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         foreach (var d in _engine.GetInputDevices()) InputDevices.Add(d);
         if (current is not null)
             SelectedInputDevice = InputDevices.FirstOrDefault(d => d.Name == current) ?? SelectedInputDevice;
+
+        var currentOut = SelectedOutputDevice?.Name;
+        OutputDevices.Clear();
+        foreach (var d in _engine.GetOutputDevices()) OutputDevices.Add(d);
+        if (currentOut is not null)
+            SelectedOutputDevice = OutputDevices.FirstOrDefault(d => d.Name == currentOut) ?? SelectedOutputDevice;
     }
 
     [RelayCommand]
@@ -180,11 +230,12 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         s.Servers = Profiles.ToList();
         s.SelectedServerId = SelectedProfile?.Id;
         s.InputDeviceName = SelectedInputDevice?.Name;
+        s.SampleRate = SelectedSampleRate;
         s.EqLow = EqLow; s.EqMid = EqMid; s.EqHigh = EqHigh;
         s.AutoTilt = AutoTilt; s.Punch = Punch;
         s.LimiterDrive = LimiterDrive;
         s.InputGainDb = InputGainDb;
-        s.MonitorOn = MonitorOn;
+        s.MonitorDeviceName = IsMonitorDeviceSelected ? SelectedOutputDevice?.Name : null;
         s.MonitorVolume = MonitorVolume;
         s.SendSongInfo = SendSongInfo;
         s.LogVisible = LogVisible;
@@ -212,6 +263,54 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedProfileChanged(StreamServerProfile? value) => Persist();
 
+    // ── Per-profile codec / bitrate — editable on the main page ─────────────
+    // These proxy through to the selected profile record (records are immutable, so we
+    // replace the entry in Profiles and re-point SelectedProfile). Setting SelectedProfile
+    // triggers OnSelectedProfileChanged → Persist(), so no extra save call is needed.
+    // The [NotifyPropertyChangedFor] attributes above ensure the editor refreshes when
+    // the user switches to a different server profile.
+
+    /// <summary>
+    /// Live-editable codec of the selected profile. Two-way bound to the main-page CODEC
+    /// dropdown. Replacing SelectedProfile persists via OnSelectedProfileChanged.
+    /// </summary>
+    public StreamFormat SelectedProfileFormat
+    {
+        get => SelectedProfile?.Format ?? StreamFormat.Mp3;
+        set
+        {
+            if (SelectedProfile is null || SelectedProfile.Format == value) return;
+            var updated = SelectedProfile with { Format = value };
+            var idx = IndexOfProfileById(SelectedProfile.Id);
+            if (idx >= 0) Profiles[idx] = updated;
+            SelectedProfile = updated; // triggers Persist()
+        }
+    }
+
+    /// <summary>
+    /// Live-editable bitrate (kbps) of the selected profile. Same persistence pattern as
+    /// <see cref="SelectedProfileFormat"/>.
+    /// </summary>
+    public int SelectedProfileBitrateKbps
+    {
+        get => SelectedProfile?.BitrateKbps ?? 320;
+        set
+        {
+            if (SelectedProfile is null || SelectedProfile.BitrateKbps == value) return;
+            var updated = SelectedProfile with { BitrateKbps = value };
+            var idx = IndexOfProfileById(SelectedProfile.Id);
+            if (idx >= 0) Profiles[idx] = updated;
+            SelectedProfile = updated; // triggers Persist()
+        }
+    }
+
+    private int IndexOfProfileById(string id)
+    {
+        for (var i = 0; i < Profiles.Count; i++)
+            if (Profiles[i].Id == id) return i;
+        return -1;
+    }
+
     // ── DSP property changes → engine + persist ──────────────────────────
 
     partial void OnEqLowChanged(double value) { ApplyEqualizer(); Persist(); }
@@ -221,15 +320,47 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     partial void OnPunchChanged(double value) { ApplyTransient(); Persist(); }
     partial void OnLimiterDriveChanged(string value) { ApplyLimiter(); Persist(); }
     partial void OnInputGainDbChanged(double value) { if (!_loading) _engine.InputGainDb = value; Persist(); }
-    partial void OnMonitorOnChanged(bool value) { ApplyMonitor(); Persist(); }
+    partial void OnSelectedOutputDeviceChanged(AudioOutputDevice? value) { ApplyMonitor(); Persist(); }
     partial void OnMonitorVolumeChanged(double value) { ApplyMonitor(); Persist(); }
     partial void OnSendSongInfoChanged(bool value) => Persist();
     partial void OnLogVisibleChanged(bool value) => Persist();
 
+    /// <summary>
+    /// Sample-rate change: rebuild the engine at the new rate, restart capture if it was active,
+    /// and re-apply the full DSP rack (the old mixer was freed so all processors need re-registration).
+    /// Guarded by <see cref="_loading"/> so Hydrate's property assignment doesn't trigger a restart.
+    /// </summary>
+    partial void OnSelectedSampleRateChanged(int value)
+    {
+        if (_loading) return;
+        var wasCapturing = _engine.IsCapturing;
+        var dev = SelectedInputDevice;
+        _engine.SampleRate = value; // tears down mixer + capture internally
+        if (wasCapturing && dev is not null)
+        {
+            try { _engine.StartCapture(dev.Index); }
+            catch (Exception ex) { Log($"Capture restart after sample-rate change failed: {ex.Message}"); }
+            // Re-apply the full DSP rack — the old mixer was freed so all processor handles are gone.
+            ApplyEqualizer();
+            ApplyTilt();
+            ApplyTransient();
+            ApplyLimiter();
+            ApplyMonitor();
+            _engine.InputGainDb = InputGainDb;
+        }
+        Persist();
+    }
+
     private void ApplyEqualizer() => _engine.SetEqualizer(EqLow, EqMid, EqHigh);
     private void ApplyTilt() => _engine.SetAdaptiveTilt(AutoTilt);
     private void ApplyTransient() => _engine.SetTransientDesigner(Punch);
-    private void ApplyMonitor() => _engine.MonitorVolume = MonitorOn ? MonitorVolume : 0.0;
+    private void ApplyMonitor()
+    {
+        // Route the local monitor to the chosen device (0 = "No output (stream only)" = no monitor).
+        // Volume is harmless on device 0; the slider is gated by IsMonitorDeviceSelected in the UI.
+        _engine.SetOutputDevice(SelectedOutputDevice?.Index ?? 0);
+        _engine.MonitorVolume = MonitorVolume;
+    }
 
     /// <summary>
     /// Limiter/maximizer drive mapping (just-stream-blueprint.md §4): Off = bypass / Soft = 0 dB
@@ -343,14 +474,20 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         });
     }
 
+    // Meter ballistics tuned for the 16 ms (60 fps) timer: rise quickly to new peaks, fall smoothly.
+    // One-pole filter both directions → no jumpy per-tick stepping. Tune the Ks if it feels off.
+    private const double MeterAttackK = 0.40;
+    private const double MeterReleaseK = 0.12;
+    private static double SmoothMeter(double current, double target)
+        => current + (target - current) * (target > current ? MeterAttackK : MeterReleaseK);
+
     private void OnTick(object? sender, EventArgs e)
     {
-        // Meters
+        // Meters: one-pole ballistics (fast attack, smooth release) so the bars GLIDE instead of
+        // snapping to the raw per-tick peak. Converted to dB fill by LinearToDbFillConverter in XAML.
         _engine.GetLevels(out var l, out var r);
-        LeftLevel = l;
-        RightLevel = r;
-        LeftDb = ToDb(l);
-        RightDb = ToDb(r);
+        LeftLevel = SmoothMeter(LeftLevel, l);
+        RightLevel = SmoothMeter(RightLevel, r);
 
         // Stream time
         if (_streamClock.IsRunning)
@@ -360,13 +497,6 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static string ToDb(double linear)
-    {
-        if (linear <= 0.00001) return "-∞";
-        var db = 20.0 * Math.Log10(linear);
-        return db.ToString("0.0");
-    }
-
     // ── Log (errors/warnings only — §3a) ─────────────────────────────────
 
     private void Log(string message)
@@ -374,9 +504,12 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         var line = $"{DateTime.Now:HH:mm:ss}  {message}";
         LogEntries.Add(line);
         if (LogEntries.Count > 200) LogEntries.RemoveAt(0);
-        if (!LogVisible) LogVisible = true; // surface the strip when something goes wrong
+        HasUnreadLogs = true; // light up the chrome log button marker
         Console.WriteLine("[JUST STREAM] " + line);
     }
+
+    /// <summary>Called by the LogWindow on open — clears the unread marker.</summary>
+    public void MarkLogsRead() => HasUnreadLogs = false;
 
     [RelayCommand]
     private void ClearLog() => LogEntries.Clear();

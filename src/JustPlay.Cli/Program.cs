@@ -1,3 +1,4 @@
+using JustPlay.Analysis;
 using JustPlay.Cli.Commands;
 
 // ── Just Sort CLI ─────────────────────────────────────────────────────────────
@@ -8,6 +9,8 @@ using JustPlay.Cli.Commands;
 //   justplay stats   --index <path> [--json <out>]
 //   justplay tag write --index <path> [--root <dir>] [--apply]
 //   justplay promote --index <path> --root <dir> [--apply] [--backup-dir <dir>]
+//   justplay squeeze --index <path> --keep N [--root <dir>] [--playlist <m3u>]
+//                    [--threshold 0..1] [--no-sequence] [--out <file.m3u|.json>]
 //   justplay spectrum <audiofile> [--out path.png]
 //             [--eq-low x] [--eq-mid x] [--eq-high x]
 //             [--tilt x] [--punch x]
@@ -37,6 +40,7 @@ return verb switch
     "stats"    => RunStats(args[1..]),
     "tag"      => RunTag(args[1..]),
     "promote"  => RunPromote(args[1..]),
+    "squeeze"  => RunSqueeze(args[1..]),
     "spectrum" => RunSpectrum(args[1..]),
     _ => Fail($"Unknown command '{args[0]}'. Run 'justplay --help' for usage."),
 };
@@ -155,6 +159,26 @@ static int RunTag(string[] args)
         default:
             return Fail("Unknown 'tag' sub-command. Usage: justplay tag write … | tag clean …");
     }
+}
+
+// ── Squeeze ──────────────────────────────────────────────────────────────────
+static int RunSqueeze(string[] args)
+{
+    var indexPath = ParseStringFlag(args, "--index");
+    if (indexPath is null)
+        return Fail("squeeze requires --index <path>.");
+
+    var keep = ParseIntFlag(args, "--keep", -1);
+    if (keep < 1)
+        return Fail("squeeze requires --keep <N> (N >= 1).");
+
+    var root      = ParseStringFlag(args, "--root");
+    var playlist  = ParseStringFlag(args, "--playlist");
+    var threshold = ParseDoubleFlag(args, "--threshold", SetSqueezer.DefaultCoherenceThreshold);
+    var sequence  = !ParseBoolFlag(args, "--no-sequence");
+    var outPath   = ParseStringFlag(args, "--out");
+
+    return SqueezeCommand.Run(indexPath, keep, root, playlist, threshold, sequence, outPath);
 }
 
 // ── Spectrum ─────────────────────────────────────────────────────────────────
@@ -304,6 +328,26 @@ static void PrintHelp()
           EXAMPLES
           justplay promote --index C:\tmp\sets.v9.index.json --root \\nas\music\GENRES
           justplay promote --index C:\tmp\sets.v9.index.json --root \\nas\music\GENRES --apply
+
+          squeeze --index <v9-index> --keep N [--root <dir>] [--playlist <m3u>]
+                  [--threshold 0..1] [--no-sequence] [--out <file.m3u|.json>]
+              Phase 2 of harmonic sort — compress a pool down to the N tracks that mix best
+              together (the densest mutually-compatible core), drop the outliers, and report
+              HONESTLY if fewer than N are truly coherent. Uses the SAME MixCompatibility scorer
+              as Harmonic Sort; pure over the index, no audio decode.
+
+              Pool source (first given wins): --playlist (tracks in an .m3u, matched by filename) >
+              --root (index entries under the folder) > the whole index.
+              --keep N         Target kept-set size (required, >= 1).
+              --threshold x    Coherence cut for "counts as part of the set" (default 0.60).
+              --no-sequence    Keep greedy growth order instead of HarmonicSequencer play order.
+              --out <file>     Write the kept set: .m3u/.m3u8 (portable paths) or .json (report).
+              Default: DRY-RUN — prints the plan; writes nothing without --out.
+
+          EXAMPLES
+          justplay squeeze --index C:\tmp\sets.v9.index.json --keep 20
+          justplay squeeze --index C:\tmp\sets.v9.index.json --root \\nas\music\GENRES\Techno --keep 15 --out C:\tmp\tight.m3u
+          justplay squeeze --index C:\tmp\sets.v9.index.json --playlist \\nas\music\SETS\pile.m3u --keep 12 --threshold 0.7
 
           spectrum <audiofile> [--out path.png]
                    [--eq-low x] [--eq-mid x] [--eq-high x]

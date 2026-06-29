@@ -75,67 +75,8 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
-        <!-- Palette swatch (chip) — coloured ring + accent glow when active.
-             RenderTransform=none is the resting state so the hover lift can transition. -->
-        <Style Selector="Border.swatch">
-            <Setter Property="Width" Value="46"/>
-            <Setter Property="Height" Value="46"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="RenderTransform" Value="none"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.12"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Border.swatch.active">
-            <Setter Property="BorderBrush" Value="White"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="White" BlurRadius="10" OffsetX="0" OffsetY="0" Opacity="0.6"/>
-            </Setter>
-        </Style>
-
-        <!--
-          Wrapper button for each swatch. The Fluent default Button template gives
-          its PART_ContentPresenter a CornerRadius-based clip region that crops the
-          active swatch's glow (the DropShadowEffect above) flush to the chip.
-          ClipToBounds=False on the templated ContentPresenter — plus on the button
-          and its ancestor StackPanels — lets the glow bleed out properly.
-          (Repo rule: glow needs ClipToBounds=False all the way up the chain,
-           and "up" includes the templated ContentPresenter, not just the Button.)
-        -->
-        <Style Selector="Button.swatchbtn">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="ClipToBounds" Value="False"/>
-        </Style>
-        <Style Selector="Button.swatchbtn /template/ ContentPresenter">
-            <Setter Property="ClipToBounds" Value="False"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <!-- Belt-and-braces: keep the templated CP transparent in every state so the
-             Fluent hover/pressed greys never paint a box behind the chip. -->
-        <Style Selector="Button.swatchbtn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.swatchbtn:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <!-- Hover lifts the chip 1px + shows a faint ring (design twk-chip:hover,
-             tweaks-panel.jsx:147). Pressed settles it back down for a tactile click. -->
-        <Style Selector="Button.swatchbtn:pointerover Border.swatch">
-            <Setter Property="RenderTransform" Value="translateY(-1px)"/>
-            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
-        </Style>
-        <Style Selector="Button.swatchbtn:pressed Border.swatch">
-            <Setter Property="RenderTransform" Value="translateY(0px)"/>
-        </Style>
+        <!-- Border.swatch / Button.swatchbtn styles promoted to JustPlay.UI/Theming/JustStyles.axaml
+             (shared) so JUST STREAM's SettingsWindow Look tab uses the identical chip. -->
 
         <Style Selector="Button.tweak-radio">
             <Setter Property="Background" Value="#0FFFFFFF"/>
@@ -188,40 +129,8 @@
             </Setter>
         </Style>
 
-        <!-- 3-band EQ as vertical faders (DJ-mixer look). Range 0..2 (0 = kill, 1 = flat, 2 = +6 dB).
-             Styled against the Avalonia 12.0.3 Slider template: PART_DecreaseButton paints the rail
-             from the bottom (low values) up to the thumb via its Background TemplateBinding, so the
-             accent fill shows the level; PART_IncreaseButton is the faint groove above. -->
-        <!-- EQ-specific GEOMETRY only (range 0..2 = kill/flat/+6 dB; column width). The LOOK is the
-             shared "fader" class below — EQ sliders carry Classes="eq fader". -->
-        <Style Selector="Slider.eq">
-            <Setter Property="Minimum" Value="0"/>
-            <Setter Property="Maximum" Value="2"/>
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-        </Style>
-
-        <!-- Shared FADER look — ONE base for BOTH the EQ faders (vertical) and the Revive sliders
-             (horizontal); the only difference between them is orientation, so these cover both.
-             A WHITE thumb (theme-independent — NOT the OS SystemAccent the bare Fluent slider picks
-             up, which rendered RED on Chloe's Midnight theme), an AccentA value-fill, and a faint
-             groove past the thumb. PART_DecreaseButton paints the filled side (bottom→thumb when
-             vertical, left→thumb when horizontal); PART_IncreaseButton is the groove. No orientation
-             qualifier — only the active template's parts exist, and selectors no-op if a part is absent. -->
-        <Style Selector="Slider.fader /template/ Thumb">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Width" Value="16"/>
-            <Setter Property="Height" Value="16"/>
-            <Setter Property="Effect">
-                <DropShadowEffect Color="Black" BlurRadius="4" OffsetX="0" OffsetY="1" Opacity="0.4"/>
-            </Setter>
-        </Style>
-        <Style Selector="Slider.fader /template/ RepeatButton#PART_DecreaseButton">
-            <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
-        </Style>
-        <Style Selector="Slider.fader /template/ RepeatButton#PART_IncreaseButton">
-            <Setter Property="Background" Value="#1FFFFFFF"/>
-        </Style>
+        <!-- Slider.eq and Slider.fader styles promoted to JustPlay.UI/Theming/JustStyles.axaml
+             (shared) so JUST STREAM's DSP sliders also get the themed look. -->
 
         <!-- Tabs reuse the SHARED underline-tab style (Button.tab / Border.tabline) now in App.axaml
              — same look as the UP NEXT strip, no reinvented styles here. -->

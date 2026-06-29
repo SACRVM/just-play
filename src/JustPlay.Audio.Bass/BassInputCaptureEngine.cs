@@ -46,6 +46,8 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     private int _push;     // Push decode stream bridging RecordProc → mixer, 0 when not capturing
     private int _currentDevice = -1;
     private bool _capturing;
+    private int _outputDevice;   // local monitor device; 0 = "No output (stream only)" (default)
+    private int _sampleRate = 44100; // 44100 or 48000; rebuilt on change via SampleRate setter
 
     private double _monitorVolume; // 0..1, local only (default 0 = no monitor)
     private double _inputGainDb;    // dB trim applied to the capture source (stream + monitor)
@@ -93,6 +95,47 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 
     public int CurrentInputDevice => _currentDevice;
 
+    /// <summary>
+    /// Capture/mixer sample rate: 44100 (default, matches most DJ software) or 48000 Hz
+    /// (Opus native rate, best for Opus streams). Setting this while capturing tears down the
+    /// current mixer and push stream; the next StartCapture recreates them at the new rate.
+    /// The VM is responsible for restarting capture and re-applying the DSP rack after a change.
+    /// </summary>
+    public int SampleRate
+    {
+        get => _sampleRate;
+        set
+        {
+            var clamped = (value == 48000) ? 48000 : 44100;
+            if (clamped == _sampleRate) return;
+            _sampleRate = clamped;
+            // Tear down capture + mixer — next StartCapture rebuilds at the new rate.
+            TeardownCapture();
+            if (_mixer != 0)
+            {
+                ManagedBass.Bass.StreamFree(_mixer);
+                _mixer = 0;
+            }
+            // Reset DSP handles so SetLimiter/SetEqualizer/etc. re-register their callbacks on
+            // the new mixer when EnsureMixer recreates it.
+            _limiterDspHandle = 0;
+            _equalizerDspHandle = 0;
+            _tiltDspHandle = 0;
+            _transientDspHandle = 0;
+            // Null processor objects — they were tuned to the old sample rate.
+            _limiter = null;
+            _equalizer = null;
+            _tilt = null;
+            _transient = null;
+            // Null pinned delegates — they are no longer registered with BASS.
+            _limiterDsp = null;
+            _equalizerDsp = null;
+            _tiltDsp = null;
+            _transientDsp = null;
+            SetCapturing(false);
+        }
+    }
+
     public event EventHandler<bool>? CaptureStateChanged;
 
     // ── Device enumeration ───────────────────────────────────────────────
@@ -105,6 +148,27 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
             if (!info.IsEnabled) continue;
             list.Add(new AudioInputDevice(i, info.Name ?? $"Device {i}", info.IsLoopback, info.IsDefault));
         }
+        return list;
+    }
+
+    /// <summary>Friendly name for BASS device 0 ("No sound") — the stream-only / no-monitor option.</summary>
+    internal const string NoOutputDeviceName = "No output (stream only)";
+
+    /// <summary>
+    /// Enumerate enabled output devices for LOCAL monitoring, plus device 0 = "No output (stream
+    /// only)". Mirrors <see cref="BassAudioEngine.GetOutputDevices"/>: real devices start at index 1
+    /// (0 is BASS's "No sound" device, appended as the explicit no-monitor option — the stream still
+    /// goes out, nothing touches the OS audio stack).
+    /// </summary>
+    public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
+    {
+        var list = new List<AudioOutputDevice>();
+        for (int i = 1; ManagedBass.Bass.GetDeviceInfo(i, out var info); i++)
+        {
+            if (!info.IsEnabled) continue;
+            list.Add(new AudioOutputDevice(i, info.Name ?? $"Device {i}", info.IsDefault));
+        }
+        list.Add(new AudioOutputDevice(0, NoOutputDeviceName, false));
         return list;
     }
 
@@ -124,14 +188,14 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         ManagedBass.Bass.CurrentRecordingDevice = deviceIndex;
 
         // Bridge: a Push DECODE stream the RecordProc feeds and the mixer pulls from.
-        _push = ManagedBass.Bass.CreateStream(44100, 2, BassFlags.Decode | BassFlags.Float, StreamProcedureType.Push);
+        _push = ManagedBass.Bass.CreateStream(_sampleRate, 2, BassFlags.Decode | BassFlags.Float, StreamProcedureType.Push);
         if (_push == 0)
             throw new InvalidOperationException($"Push stream create failed: {ManagedBass.Bass.LastError}");
         ApplyInputGain();
 
-        // Capture at the mixer's format; BASS resamples the device to 44.1k stereo float for us.
+        // Capture at the mixer's format; BASS resamples the device to the target rate for us.
         _recordProc = RecordCallback;
-        _record = ManagedBass.Bass.RecordStart(44100, 2, BassFlags.Float, _recordProc);
+        _record = ManagedBass.Bass.RecordStart(_sampleRate, 2, BassFlags.Float, _recordProc);
         if (_record == 0)
         {
             var err = ManagedBass.Bass.LastError;
@@ -227,6 +291,30 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         }
     }
 
+    /// <summary>
+    /// Route the monitor (the mixer's playback) to a BASS output device. 0 = "No output (stream
+    /// only)". The encoder is attached to the mixer as channel-scoped DSP, so moving the device
+    /// changes ONLY where the local monitor is heard — the stream is never disturbed (same proven
+    /// behaviour as <see cref="BassAudioEngine.SetOutputDevice"/>).
+    /// </summary>
+    public void SetOutputDevice(int index)
+    {
+        _outputDevice = index;
+        ApplyOutputDevice();
+    }
+
+    private void ApplyOutputDevice()
+    {
+        if (_mixer == 0) return; // applied later by EnsureMixer once the mixer exists
+        if (!ManagedBass.Bass.Init(_outputDevice) && ManagedBass.Bass.LastError != Errors.Already)
+        {
+            Console.WriteLine($"[Capture] Bass.Init(device {_outputDevice}) failed: {ManagedBass.Bass.LastError}");
+            return;
+        }
+        if (!ManagedBass.Bass.ChannelSetDevice(_mixer, _outputDevice))
+            Console.WriteLine($"[Capture] ChannelSetDevice({_outputDevice}) failed: {ManagedBass.Bass.LastError}");
+    }
+
     public double InputGainDb
     {
         get => _inputGainDb;
@@ -249,11 +337,12 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     private void EnsureMixer()
     {
         if (_mixer != 0) return;
-        _mixer = BassMix.CreateMixerStream(44100, 2, BassFlags.MixerNonStop | BassFlags.Float);
+        _mixer = BassMix.CreateMixerStream(_sampleRate, 2, BassFlags.MixerNonStop | BassFlags.Float);
         if (_mixer == 0)
             throw new InvalidOperationException($"CreateMixerStream failed: {ManagedBass.Bass.LastError}");
         ManagedBass.Bass.ChannelSetAttribute(_mixer, ChannelAttribute.Volume, _monitorVolume);
         ManagedBass.Bass.ChannelPlay(_mixer, false);
+        ApplyOutputDevice(); // honour the chosen monitor device (default 0 = no local output)
     }
 
     // ── Bus DSP rack — identical wiring to BassAudioEngine (priorities 200/180/140/0) ─────────────
@@ -275,7 +364,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
                 return;
             }
 
-            _limiter = new MasteringLimiter(sampleRate: 44100, ceilingDbTp: ceilingDbTp, driveDb: driveDb);
+            _limiter = new MasteringLimiter(sampleRate: _sampleRate, ceilingDbTp: ceilingDbTp, driveDb: driveDb);
             if (_limiterDspHandle == 0)
             {
                 _limiterDsp = LimiterDspCallback;
@@ -313,7 +402,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
                 return;
             }
 
-            _equalizer = new ThreeBandEqualizer(sampleRate: 44100, lowGain, midGain, highGain);
+            _equalizer = new ThreeBandEqualizer(sampleRate: _sampleRate, lowGain, midGain, highGain);
             if (_equalizerDspHandle == 0)
             {
                 _equalizerDsp = EqualizerDspCallback;
@@ -347,7 +436,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
                 return;
             }
 
-            _tilt = new AdaptiveTilt(sampleRate: 44100, strength: strength);
+            _tilt = new AdaptiveTilt(sampleRate: _sampleRate, strength: strength);
             if (_tiltDspHandle == 0)
             {
                 _tiltDsp = TiltDspCallback;
@@ -381,7 +470,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
                 return;
             }
 
-            _transient = new TransientDesigner(sampleRate: 44100, punch: punch);
+            _transient = new TransientDesigner(sampleRate: _sampleRate, punch: punch);
             if (_transientDspHandle == 0)
             {
                 _transientDsp = TransientDspCallback;

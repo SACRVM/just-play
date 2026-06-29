@@ -1,11 +1,15 @@
 using System;
+using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI;
 using JustPlay.UI.Controls;
+using JustPlay.UI.Theming;
+using JustPlay.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace JustPlay.Stream.Views;
@@ -19,6 +23,7 @@ namespace JustPlay.Stream.Views;
 public partial class MainWindow : Window, IFramelessWindow
 {
     private SettingsWindow? _settings;
+    private LogWindow? _log;
 
     public MainWindow()
     {
@@ -37,6 +42,10 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         base.OnOpened(e);
         UpdateChromeForState();
+        // The window opens sized-to-content (SizeToContent=Height) so everything fits exactly.
+        // Once laid out, switch to manual sizing so the resize grips + custom maximize work
+        // (SizeToContent would otherwise snap the height back to content on every resize).
+        Dispatcher.UIThread.Post(() => SizeToContent = SizeToContent.Manual, DispatcherPriority.Loaded);
     }
 
     // Drag the window from the chrome bar (but not from interactive controls) — shared predicate.
@@ -132,6 +141,22 @@ public partial class MainWindow : Window, IFramelessWindow
         e.Handled = true;
     }
 
+    // ── About ───────────────────────────────────────────────────────────────
+    // Brand mark (top-left) → the SHARED themed About dialog (JustPlay.UI), parameterized with
+    // JUST STREAM's name / tagline / version / Funkturm glyph so it's identical to JUST PLAY's.
+    private void OnAbout(object? sender, RoutedEventArgs e)
+    {
+        var asm = typeof(App).Assembly;
+        var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var ver = info?.Split('+')[0] ?? asm.GetName().Version?.ToString(3) ?? "";
+        var about = new AboutWindow(new AboutInfo(
+            AppName: "JUST STREAM",
+            Tagline: "Broadcast streaming console",
+            Version: string.IsNullOrEmpty(ver) ? "" : $"Version {ver}",
+            Glyph: BrandGlyphs.RadioTower));
+        about.ShowDialog(this);
+    }
+
     // ── Settings ────────────────────────────────────────────────────────────
     private void OpenSettings(object? sender, RoutedEventArgs e)
     {
@@ -147,5 +172,27 @@ public partial class MainWindow : Window, IFramelessWindow
         };
         _settings.Closed += (_, _) => _settings = null;
         _settings.Show(this);
+    }
+
+    // ── Event log ─────────────────────────────────────────────────────────────
+    // The log lives in its own frameless window now (not the main console). Opening it clears the
+    // unread marker on the chrome log button.
+    private void OnOpenLog(object? sender, RoutedEventArgs e)
+    {
+        var vm = DataContext as StreamViewModel;
+        if (_log is { } w)
+        {
+            w.Activate();
+            vm?.MarkLogsRead();
+            return;
+        }
+        _log = new LogWindow
+        {
+            DataContext = vm,
+            Icon = Icon, // reuse the main window's rendered brand icon
+        };
+        _log.Closed += (_, _) => _log = null;
+        _log.Show(this);
+        vm?.MarkLogsRead();
     }
 }

@@ -21,5 +21,7 @@ namespace JustPlay.Cli;
 [JsonSerializable(typeof(StatsReport))]
 [JsonSerializable(typeof(BpmBucket))]
 [JsonSerializable(typeof(List<BpmBucket>))]
+[JsonSerializable(typeof(SqueezeReport))]
+[JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
 public sealed partial class CliJsonContext : JsonSerializerContext;

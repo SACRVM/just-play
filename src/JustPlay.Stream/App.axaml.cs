@@ -4,6 +4,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Theming;
+using JustPlay.Stream.Settings;
 using JustPlay.Stream.ViewModels;
 using JustPlay.Stream.Views;
 using JustPlay.UI.Theming;
@@ -17,12 +18,13 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // Apply the active theme BEFORE the window opens — this publishes the full palette (incl.
+        // Apply the saved theme BEFORE the window opens — this publishes the full palette (incl.
         // the glow/alpha keys that have no XAML default) into Application.Resources, so the shared
-        // design system renders correctly and JUST STREAM matches JUST PLAY. Default Aurora for now;
-        // wiring a persisted choice + an in-app switcher is the remaining step.
+        // design system renders correctly and JUST STREAM matches JUST PLAY. Falls back to Aurora when
+        // the settings file is missing or the saved name is stale (Themes.ByNameOrDefault).
         var themeSvc = Program.Services.GetRequiredService<IThemeService>();
-        themeSvc.Apply(Themes.Aurora);
+        var settings = Program.Services.GetRequiredService<JsonStreamSettingsService>();
+        themeSvc.Apply(Themes.ByNameOrDefault(settings.Current.Theme));
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {

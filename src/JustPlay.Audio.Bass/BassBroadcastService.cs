@@ -55,8 +55,12 @@ public sealed class BassBroadcastService : IBroadcastService
     // (BassInputCaptureEngine). We only ever read its OutputChannel — fully decoupled.
     private readonly IBassMixerSource _source;
 
-    // Encoder handle returned by BASS_Encode_MP3_Start. Zero when not active.
+    // Encoder handle returned by the format-selected start function. Zero when not active.
     private int _encoder;
+
+    // Format of the active encoder — used to gate ICY now-playing (Opus has no out-of-band
+    // metadata channel, so UpdateNowPlayingAsync is a no-op for Opus streams).
+    private StreamFormat _activeFormat;
 
     // bassenc_mp3.dll — the built-in LAME MP3 encoder add-on for BASSenc. ManagedBass.Enc 4.0.2
     // ships NO wrapper for it, so we P/Invoke directly. Encodes IN-PROCESS — no external lame.exe.
@@ -140,19 +144,38 @@ public sealed class BassBroadcastService : IBroadcastService
             return Task.CompletedTask;
         }
 
-        // ── Step 1: Start the built-in BASSenc_MP3 (LAME) encoder on the mixer ──
-        // bassenc_mp3.dll encodes IN-PROCESS — no external lame.exe in PATH required.
-        // The encoder taps the mixer's output as it plays; CastInit (Step 3) forwards the
-        // encoded MP3 to Icecast. Options are LAME-style: "-b {kbps}" = CBR bitrate.
-        // (S2: Format is MP3-first; Opus would need bassenc_opus.dll — a later sprint.)
-        var mp3Options = $"-b {profile.BitrateKbps}";
-        _encoder = BASS_Encode_MP3_Start(mixer, mp3Options, 0, IntPtr.Zero, IntPtr.Zero);
-        if (_encoder == 0)
+        // ── Step 1: Start the encoder — MP3 (LAME) or Ogg/Opus ─────────────
+        // MP3: bassenc_mp3.dll (LAME, in-process, LAME-style options: "-b {kbps}" = CBR).
+        // Opus: bassenc_opus.dll (libopus, in-process). Options are opusenc-style:
+        //   "--bitrate {kbps}" = CBR bitrate (verified at un4seen.com/doc/bassenc_opus/
+        //   BASS_Encode_OPUS_Start.html). libopus resamples the mixer's 44100 Hz output
+        //   to 48 kHz internally — this is transparent and correct on x64.
+        // In both cases the encoder taps the mixer output; CastInit (Step 3) routes it to Icecast.
+        _activeFormat = profile.Format;
+        if (profile.Format == StreamFormat.Opus)
         {
-            _lastError = $"MP3 encoder failed to start ({ManagedBass.Bass.LastError}). Check bassenc_mp3.dll.";
-            SetState(BroadcastState.Error);
-            Console.WriteLine("[Broadcast] " + _lastError);
-            return Task.CompletedTask;
+            var opusOptions = $"--bitrate {profile.BitrateKbps}";
+            _encoder = BassEnc_Opus.Start(mixer, opusOptions, EncodeFlags.Default, (EncodeProcedure?)null, IntPtr.Zero);
+            if (_encoder == 0)
+            {
+                _lastError = $"Opus encoder failed to start ({ManagedBass.Bass.LastError}). Check bassenc_opus.dll.";
+                SetState(BroadcastState.Error);
+                Console.WriteLine("[Broadcast] " + _lastError);
+                return Task.CompletedTask;
+            }
+        }
+        else
+        {
+            // MP3 (default): LAME-style "-b {kbps}" = CBR bitrate.
+            var mp3Options = $"-b {profile.BitrateKbps}";
+            _encoder = BASS_Encode_MP3_Start(mixer, mp3Options, 0, IntPtr.Zero, IntPtr.Zero);
+            if (_encoder == 0)
+            {
+                _lastError = $"MP3 encoder failed to start ({ManagedBass.Bass.LastError}). Check bassenc_mp3.dll.";
+                SetState(BroadcastState.Error);
+                Console.WriteLine("[Broadcast] " + _lastError);
+                return Task.CompletedTask;
+            }
         }
 
         // ── Step 2: Register connection-dropped notification ──────────────
@@ -193,17 +216,24 @@ public sealed class BassBroadcastService : IBroadcastService
         // the NEW ABI: final arg is DWORD flags (PUBLIC=1 / PUT=2 / SSL=4, verified against the
         // bassenc.h shipped with this DLL). Modern Icecast (2.4+) commonly requires the PUT
         // method — sending SOURCE returns BASS_ERROR_CAST_DENIED ("'pass' is not valid").
-        var flags = 0;
-        if (profile.Protocol == IcecastProtocol.Put) flags |= BASS_ENCODE_CAST_PUT;
+        // AUTO method: always try the modern PUT method first; the fallback below retries with the
+        // legacy SOURCE method if PUT is denied. This covers every Icecast version/host without the
+        // user having to pick — so the per-profile Protocol toggle was removed from the UI.
+        var flags = BASS_ENCODE_CAST_PUT;
         if (profile.UseTls) flags |= BASS_ENCODE_CAST_SSL;
 
-        Console.WriteLine($"[Broadcast] Connecting to {server} via {(profile.Protocol == IcecastProtocol.Put ? "PUT" : "SOURCE")}…");
+        Console.WriteLine($"[Broadcast] Connecting to {server} via PUT (auto; SOURCE fallback on denial)…");
+
+        // Content MIME type: Icecast sets this as the stream's Content-Type header and uses it
+        // to determine the container/codec. MP3 = "audio/mpeg" (ICY out-of-band metadata works).
+        // Ogg/Opus = "audio/ogg" (no out-of-band ICY metadata; see UpdateNowPlayingAsync guard).
+        var contentType = profile.Format == StreamFormat.Opus ? "audio/ogg" : "audio/mpeg";
 
         var castOk = BASS_Encode_CastInit(
             _encoder,
             server,
             creds,
-            "audio/mpeg",           // content MIME (BASS_ENCODE_TYPE_MP3)
+            contentType,
             profile.Name,           // stream name
             null,                   // url
             null,                   // genre
@@ -220,7 +250,7 @@ public sealed class BassBroadcastService : IBroadcastService
             Console.WriteLine($"[Broadcast] PUT method failed ({putErr}); retrying with SOURCE…");
             flags &= ~BASS_ENCODE_CAST_PUT;
             castOk = BASS_Encode_CastInit(
-                _encoder, server, creds, "audio/mpeg", profile.Name,
+                _encoder, server, creds, contentType, profile.Name,
                 null, null, null, null, profile.BitrateKbps, flags);
         }
 
@@ -261,6 +291,11 @@ public sealed class BassBroadcastService : IBroadcastService
     public Task UpdateNowPlayingAsync(string title)
     {
         if (_state != BroadcastState.Connected || _encoder == 0)
+            return Task.CompletedTask;
+
+        // Ogg/Opus streams have no out-of-band ICY metadata channel — CastSetTitle only works
+        // for MP3/ICY streams. Documented at IBroadcastService.cs:88-89 and in streaming-broadcast.md §1.3B.
+        if (_activeFormat == StreamFormat.Opus)
             return Task.CompletedTask;
 
         var ok = BassEnc.CastSetTitle(_encoder, title, null);
