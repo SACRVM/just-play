@@ -31,8 +31,10 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 Title = Clean(tag.Title),
                 Artist = Clean(tag.FirstPerformer),
                 Album = Clean(tag.Album),
+                AlbumArtist = Clean(tag.FirstAlbumArtist),
                 Genre = Clean(tag.FirstGenre),
                 Year = tag.Year == 0 ? null : tag.Year,
+                TrackNumber = tag.Track == 0 ? null : tag.Track,
                 Comment = Clean(tag.Comment),
                 Grouping = Clean(tag.Grouping),
                 Duration = props?.Duration ?? TimeSpan.Zero,
@@ -51,6 +53,33 @@ public sealed class TagLibMetadataReader : IMetadataReader
         {
             // Corrupt/unsupported tags must never stop playback — return the bare minimum.
             return new TrackMetadata { FallbackName = fallback };
+        }
+    }
+
+    public EditableTags ReadEditable(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        try
+        {
+            using var file = TagLib.File.Create(filePath);
+            var tag = file.Tag;
+            return new EditableTags
+            {
+                Title       = Clean(tag.Title),
+                Artist      = Clean(tag.FirstPerformer),
+                Album       = Clean(tag.Album),
+                AlbumArtist = Clean(tag.FirstAlbumArtist),
+                Genre       = Clean(tag.FirstGenre),
+                Year        = tag.Year,
+                TrackNumber = tag.Track,
+                Comment     = Clean(tag.Comment),
+            };
+        }
+        catch
+        {
+            // Corrupt/unsupported file — return empty snapshot rather than surfacing an exception.
+            return new EditableTags();
         }
     }
 

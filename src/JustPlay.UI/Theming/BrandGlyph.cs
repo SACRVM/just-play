@@ -36,4 +36,12 @@ public static class BrandGlyphs
         "M9.5 18 h5 " +
         "M8 22 l4 -11 l4 11",
         Stroked: true, Thickness: 0.04, BoxRatio: 0.52);
+
+    /// <summary>JUST TAG — the price-tag / label mark (Lucide "tag", stroked line-art + the punch-hole).</summary>
+    public static readonly BrandGlyph Tag = new(
+        "M12.586 2.586 A2 2 0 0 0 11.172 2 H4 a2 2 0 0 0 -2 2 v7.172 " +
+        "a2 2 0 0 0 .586 1.414 l8.704 8.704 a2.426 2.426 0 0 0 3.42 0 " +
+        "l6.58 -6.58 a2.426 2.426 0 0 0 0 -3.42 Z " +
+        "M6.3 7.5 A1.2 1.2 0 1 0 8.7 7.5 A1.2 1.2 0 1 0 6.3 7.5",
+        Stroked: true, Thickness: 0.04, BoxRatio: 0.5);
 }

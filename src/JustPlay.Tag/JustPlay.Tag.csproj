@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <!-- Ships as "JustTag.exe" — sibling product in the J.U.S.T. suite. RootNamespace stays
+         JustPlay.Tag so x:Class / clr-namespace references resolve. -->
+    <AssemblyName>JustTag</AssemblyName>
+    <AssemblyTitle>JUST TAG</AssemblyTitle>
+    <Product>JUST TAG</Product>
+    <Company>Chloe Dream</Company>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.1">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+  </ItemGroup>
+
+  <!-- JUST TAG = a single-file tag editor. Platform-agnostic Core (models/abstractions) +
+       JustPlay.Metadata (TagLib# read/write — all tag logic lives there, never in the app) +
+       JustPlay.UI (shared suite chrome, caption buttons, themed icon, theme engine, About).
+       Deliberately NO BASS / Analysis reference — no playback, no DSP; this is a tagger. -->
+  <ItemGroup>
+    <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+    <ProjectReference Include="..\JustPlay.Metadata\JustPlay.Metadata.csproj" />
+    <ProjectReference Include="..\JustPlay.UI\JustPlay.UI.csproj" />
+  </ItemGroup>
+</Project>

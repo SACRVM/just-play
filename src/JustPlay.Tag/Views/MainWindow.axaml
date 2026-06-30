@@ -1,0 +1,219 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JustPlay.Tag.ViewModels"
+        xmlns:theming="using:JustPlay.UI.Theming"
+        x:Class="JustPlay.Tag.Views.MainWindow"
+        x:DataType="vm:TagEditorViewModel"
+        Title="JUST TAG"
+        Width="440" Height="340"
+        CanResize="False"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None"
+        WindowStartupLocation="CenterScreen">
+
+    <!-- Frameless rounded floating card — SAME shell as JUST PLAY / STREAM (JustPlay.UI design system):
+         no OS title bar, rounded card + drop shadow blooming into a transparent margin, custom caption
+         buttons, drag from the chrome bar. -->
+    <Panel>
+        <Border Name="RootCard"
+                CornerRadius="14" ClipToBounds="False"
+                Margin="20,20,20,22"
+                Background="#40000000"
+                BoxShadow="0 18 50 -12 #B0000000">
+            <Panel>
+                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+
+                <DockPanel LastChildFill="True">
+
+                    <!-- ─── CHROME / TITLE BAR (frameless; brand left, caption buttons right) ─── -->
+                    <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
+                            Background="Transparent" PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <!-- Brand mark IS the About button (JUST suite UI philosophy) — transparent
+                                 chip, just the white TAG glyph + wordmark. -->
+                            <Button Grid.Column="0" Classes="brandbtn" Click="OnAbout" Margin="6,0,0,0"
+                                    ToolTip.Tip="About JUST TAG">
+                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Border Width="20" Height="20" Background="Transparent">
+                                        <!-- Lucide "tag" — the brand glyph, white line-art. -->
+                                        <Path Stretch="Uniform" Width="16" Height="16"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="White" StrokeThickness="2"
+                                              StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M12.586 2.586 A2 2 0 0 0 11.172 2 H4 a2 2 0 0 0 -2 2 v7.172
+                                                    a2 2 0 0 0 .586 1.414 l8.704 8.704 a2.426 2.426 0 0 0 3.42 0
+                                                    l6.58 -6.58 a2.426 2.426 0 0 0 0 -3.42 Z
+                                                    M6.3 7.5 A1.2 1.2 0 1 0 8.7 7.5 A1.2 1.2 0 1 0 6.3 7.5">
+                                            <Path.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                            </Path.Effect>
+                                        </Path>
+                                    </Border>
+                                    <TextBlock Text="JUST TAG" Classes="brand" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Caption buttons: settings + minimize + close (shared Button.cap styles, JustStyles). -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                                <Button Classes="cap" Click="OnSettings" ToolTip.Tip="Settings">
+                                    <!-- Lucide "sliders-horizontal". -->
+                                    <Path Stretch="Uniform" Width="13" Height="13"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.7"
+                                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                          Data="M21 4 H14 M10 4 H3 M21 12 H12 M8 12 H3 M21 20 H16 M12 20 H3
+                                                M14 2 v4 M8 10 v4 M16 18 v4"/>
+                                </Button>
+                                <Button Classes="cap" Click="OnMinimize" ToolTip.Tip="Minimize">
+                                    <TextBlock Text="—" FontSize="13"/>
+                                </Button>
+                                <Button Classes="cap close" Click="OnClose" ToolTip.Tip="Close">
+                                    <TextBlock Text="✕" FontSize="13"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- ─── BODY — adaptive: EMPTY = a bare drop-zone; a file loaded = the editor.
+                         (Batch table for 2+ files lands next.) ─── -->
+                    <Panel>
+                        <!-- EMPTY STATE: just a drop target. Chloe's flow / the mp3tag pain-fix: drop one
+                             file → edit it immediately, no list, no click-to-select. -->
+                        <Border IsVisible="{Binding !HasFile}" Margin="22,6,22,22"
+                                CornerRadius="12" BorderThickness="1.5" BorderBrush="#33FFFFFF"
+                                Background="#0AFFFFFF">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                                <Path Stretch="Uniform" Width="34" Height="34" HorizontalAlignment="Center"
+                                      Stroke="#73FFFFFF" StrokeThickness="1.6" StrokeLineCap="Round" StrokeJoin="Round"
+                                      Fill="Transparent"
+                                      Data="M21 15 v4 a2 2 0 0 1 -2 2 H5 a2 2 0 0 1 -2 -2 v-4 M7 10 l5 5 l5 -5 M12 15 V3"/>
+                                <TextBlock Text="Drop audio files here" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#D9FFFFFF" HorizontalAlignment="Center"/>
+                                <TextBlock Text="one file → edit it · several → batch list" Classes="value" FontSize="11"
+                                           HorizontalAlignment="Center"/>
+                                <Button Classes="ghost" Content="Open file…" Click="OnOpenFile" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- SINGLE-FILE EDITOR -->
+                        <ScrollViewer IsVisible="{Binding HasFile}" Padding="24,8,24,20"
+                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="16">
+
+                            <!-- Open / current file -->
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Button Grid.Column="0" Classes="ghost" Content="Open file…" Click="OnOpenFile"/>
+                                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="#ECFFFFFF" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding FileInfo}" Classes="value" FontSize="11"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="1" Background="{StaticResource HairlineBrush}"/>
+
+                            <!-- Cover + the two headline fields -->
+                            <Grid ColumnDefinitions="150,18,*">
+                                <!-- Cover -->
+                                <StackPanel Grid.Column="0" Spacing="8">
+                                    <Border Width="150" Height="150" CornerRadius="10" ClipToBounds="True"
+                                            Background="{StaticResource CardGradient}"
+                                            BorderBrush="#1FFFFFFF" BorderThickness="1">
+                                        <Panel>
+                                            <TextBlock Text="No cover" Classes="value" FontSize="11"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       IsVisible="{Binding !HasCover}"/>
+                                            <Image Source="{Binding Cover}" Stretch="UniformToFill"
+                                                   IsVisible="{Binding HasCover}"/>
+                                        </Panel>
+                                    </Border>
+                                    <!-- Change = text; Remove = a compact trash icon (the two text buttons
+                                         clipped sideways under the cover — Chloe). -->
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                        <Button Classes="ghost" Content="Change…" Padding="12,5" FontSize="11"
+                                                Click="OnChangeCover" IsEnabled="{Binding HasFile}"/>
+                                        <Button Classes="ghost" Padding="8,5" Command="{Binding RemoveCoverCommand}"
+                                                ToolTip.Tip="Remove cover">
+                                            <Path Stretch="Uniform" Width="13" Height="13"
+                                                  Stroke="#E6FFFFFF" StrokeThickness="1.5"
+                                                  StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                                  Data="M3 6 h18 M8 6 V4 a1 1 0 0 1 1 -1 h6 a1 1 0 0 1 1 1 v2
+                                                        M19 6 v14 a2 2 0 0 1 -2 2 H7 a2 2 0 0 1 -2 -2 V6
+                                                        M10 11 v6 M14 11 v6"/>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <!-- Title + Artist + Album -->
+                                <StackPanel Grid.Column="2" Spacing="10">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="TITLE" Classes="label"/>
+                                        <TextBox Classes="field" Text="{Binding Title}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="ARTIST" Classes="label"/>
+                                        <TextBox Classes="field" Text="{Binding Artist}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Text="ALBUM" Classes="label"/>
+                                        <TextBox Classes="field" Text="{Binding Album}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Album artist + Genre -->
+                            <Grid ColumnDefinitions="*,18,*">
+                                <StackPanel Grid.Column="0" Spacing="3">
+                                    <TextBlock Text="ALBUM ARTIST" Classes="label"/>
+                                    <TextBox Classes="field" Text="{Binding AlbumArtist}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="3">
+                                    <TextBlock Text="GENRE" Classes="label"/>
+                                    <TextBox Classes="field" Text="{Binding Genre}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Year + Track -->
+                            <Grid ColumnDefinitions="*,18,*">
+                                <StackPanel Grid.Column="0" Spacing="3">
+                                    <TextBlock Text="YEAR" Classes="label"/>
+                                    <TextBox Classes="field" Text="{Binding Year}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="3">
+                                    <TextBlock Text="TRACK #" Classes="label"/>
+                                    <TextBox Classes="field" Text="{Binding Track}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Comment -->
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="COMMENT" Classes="label"/>
+                                <TextBox Classes="field" Text="{Binding Comment}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="62"/>
+                            </StackPanel>
+
+                            <!-- Save + status -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
+                                <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="value"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                <Button Grid.Column="1" Classes="primary" Content="Save"
+                                        Command="{Binding SaveCommand}"/>
+                            </Grid>
+
+                            <!-- Theme picker MOVED to a separate Settings window (like JUST STREAM) — the
+                                 inline bottom row couldn't size reliably. Settings window (using the new
+                                 diagonal ThemeSwatchChip) is the next build step. -->
+
+                        </StackPanel>
+                    </ScrollViewer>
+                    </Panel>
+                </DockPanel>
+            </Panel>
+        </Border>
+    </Panel>
+</Window>

@@ -27,21 +27,70 @@ namespace JustPlay.UI.Theming;
 public sealed class AvaloniaThemeService : IThemeService
 {
     private Theme _current = Themes.Aurora;
+    private bool _previewing;
 
     public Theme Current => _current;
 
     public event EventHandler<Theme>? ThemeChanged;
 
+    /// <summary>The live instance (one per app process) so the shared <see cref="ThemeSwatchChip"/> can
+    /// drive whole-app hover preview without per-app wiring. Set in the constructor.</summary>
+    public static AvaloniaThemeService? Active { get; private set; }
+
+    public AvaloniaThemeService() => Active = this;
+
     public void Apply(Theme theme)
     {
         ArgumentNullException.ThrowIfNull(theme);
+        WriteResources(theme);
+        _previewing = false; // a real commit ends any in-flight hover preview
+
+        if (string.Equals(_current.Name, theme.Name, StringComparison.OrdinalIgnoreCase))
+            return; // resources still (re)written above for cold-start keys; just don't re-commit/fire
+        _current = theme;
+        ThemeChanged?.Invoke(this, theme);
+        Console.WriteLine($"[Theme] applied: {theme.Name}");
+    }
+
+    /// <summary>
+    /// Temporarily restyle the WHOLE app to <paramref name="theme"/> without committing or persisting —
+    /// the theme-swatch hover preview ("try before you click"). <see cref="EndPreview"/> restores the
+    /// committed theme. Deliberately does NOT fire <see cref="ThemeChanged"/> (no taskbar-icon repaint
+    /// churn per hover) and leaves <see cref="Current"/> unchanged, so the active ring + persistence keep
+    /// tracking the real choice.
+    /// </summary>
+    public void ApplyPreview(Theme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+        if (string.Equals(_current.Name, theme.Name, StringComparison.OrdinalIgnoreCase))
+            return; // already showing the committed theme — nothing to preview
+        _previewing = true;
+        WriteResources(theme);
+    }
+
+    /// <summary>Revert a hover preview (started by <see cref="ApplyPreview"/>) back to the committed theme.</summary>
+    public void EndPreview()
+    {
+        if (!_previewing) return;
+        _previewing = false;
+        WriteResources(_current);
+    }
+
+    /// <summary>
+    /// Write the full palette + composed-brush resources for <paramref name="theme"/> into the app
+    /// dictionary. Every key is written each call (even no-ops) so cold start publishes keys that have no
+    /// hard-coded XAML default (PlayHaloIdle/Hover). Shared by <see cref="Apply"/> / <see cref="ApplyPreview"/>
+    /// / <see cref="EndPreview"/>.
+    /// </summary>
+    private static void WriteResources(Theme theme)
+    {
         var app = Application.Current ?? throw new InvalidOperationException(
-            "AvaloniaThemeService.Apply called before Application is initialised.");
+            "AvaloniaThemeService.WriteResources called before Application is initialised.");
 
-        var sameName = string.Equals(_current.Name, theme.Name, StringComparison.OrdinalIgnoreCase);
-
-        // Resources are written EVERY call, even on the no-op same-theme path, so cold-start
-        // publishes keys that don't have hard-coded XAML defaults (PlayHaloIdle/Hover).
+        // The name the UI DISPLAYS as "current" — because WriteResources runs for hover preview too
+        // (ApplyPreview), the theme-name label updates on HOVER, not just on click. Labels bind it via
+        // {DynamicResource DisplayThemeName} → zero per-app / per-VM wiring.
+        app.Resources["DisplayThemeName"] = theme.Name;
 
         app.Resources["BgFrom"]        = Color.Parse(theme.BgFrom);
         app.Resources["BgVia"]         = Color.Parse(theme.BgVia);
@@ -153,10 +202,5 @@ public sealed class AvaloniaThemeService : IThemeService
             new BoxShadow[] {
                 new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 6, Spread = 0, Color = fillGlowB },
             });
-
-        if (sameName) return;
-        _current = theme;
-        ThemeChanged?.Invoke(this, theme);
-        Console.WriteLine($"[Theme] applied: {theme.Name}");
     }
 }

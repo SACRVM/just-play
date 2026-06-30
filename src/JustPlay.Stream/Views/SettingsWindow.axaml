@@ -204,31 +204,32 @@
                                 <!-- Swatch row — same chip size/lift/glow as JUST PLAY (JustStyles: Border.swatch / Button.swatchbtn). -->
                                 <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
-                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Aurora}" BorderBrush="{theming:ThemeAccent Aurora}"
-                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Aurora}"/>
+                                        <theming:ThemeSwatchChip ThemeName="Aurora"
+                                                IsActive="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Aurora}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Sunset">
-                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Sunset}" BorderBrush="{theming:ThemeAccent Sunset}"
-                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Sunset}"/>
+                                        <theming:ThemeSwatchChip ThemeName="Sunset"
+                                                IsActive="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Sunset}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Midnight">
-                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Midnight}" BorderBrush="{theming:ThemeAccent Midnight}"
-                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Midnight}"/>
+                                        <theming:ThemeSwatchChip ThemeName="Midnight"
+                                                IsActive="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Midnight}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Onyx">
-                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Onyx}" BorderBrush="{theming:ThemeAccent Onyx}"
-                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Onyx}"/>
+                                        <theming:ThemeSwatchChip ThemeName="Onyx"
+                                                IsActive="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Onyx}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Neon">
-                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Neon}" BorderBrush="{theming:ThemeAccent Neon}"
-                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Neon}"/>
+                                        <theming:ThemeSwatchChip ThemeName="Neon"
+                                                IsActive="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Neon}"/>
                                     </Button>
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Hardcore">
-                                        <Border Classes="swatch" Background="{theming:ThemeSwatch Hardcore}" BorderBrush="{theming:ThemeAccent Hardcore}"
-                                                Classes.active="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Hardcore}"/>
+                                        <theming:ThemeSwatchChip ThemeName="Hardcore"
+                                                IsActive="{Binding CurrentTheme, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Hardcore}"/>
                                     </Button>
                                 </StackPanel>
-                                <TextBlock Text="{Binding CurrentTheme}" FontSize="10"
+                                <!-- Tracks HOVER preview (live resource), not just the committed theme. -->
+                                <TextBlock Text="{DynamicResource DisplayThemeName}" FontSize="10"
                                            Foreground="#73FFFFFF" LetterSpacing="2"/>
                             </StackPanel>
                         </StackPanel>

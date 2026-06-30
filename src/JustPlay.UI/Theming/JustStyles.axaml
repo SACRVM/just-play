@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:beh="using:JustPlay.UI.Behaviors"
+        xmlns:theming="using:JustPlay.UI.Theming"
         x:Class="JustPlay.UI.Theming.JustStyles">
     <!--
       ════════════════════════════════════════════════════════════════════════
@@ -340,5 +341,48 @@
     -->
     <Style Selector="TextBox">
         <Setter Property="Padding" Value="11,8,11,5"/>
+    </Style>
+
+    <!--
+      Theme-picker swatch chip (shared, all apps) — see ThemeSwatchChip.cs. A 46×46 rounded square split
+      on the bottom-left→top-right diagonal: PART_Bg (a Border) carries the theme BACKGROUND gradient over
+      the whole face; PART_Accent (the upper-left triangle, Polygon points (0,0)(46,0)(0,46)) sits on top
+      with the theme accent gradient; PART_Card is the per-theme ring; the glow + hover-zoom are from code.
+
+      LAYERS (avalonia skill — verified): PART_Glow is a sibling BEHIND, NOT clipped, so its BoxShadow
+      bloom escapes; PART_Bg is the ONLY ClipToBounds=True element (rounds the corners + the diagonal).
+      Pitfalls that bit earlier cuts: (1) a DropShadowEffect on the control rasterised it offscreen →
+      aliased edges + the glow vanished — use BoxShadow on the unclipped sibling instead; (2) a stroke-less
+      Rectangle as the bg field measures to ~0 and renders NOTHING (black void) — use a Border.Background.
+      (Chloe 2026-06-30.)
+    -->
+    <Style Selector="theming|ThemeSwatchChip">
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="Height" Value="46"/>
+        <Setter Property="ClipToBounds" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+        <Setter Property="RenderTransform" Value="scale(1)"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+            </Transitions>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Panel Background="Transparent">
+                    <!-- Glow sibling BEHIND, never clipped — its BoxShadow blooms (set from code when lit). -->
+                    <Border Name="PART_Glow" CornerRadius="10" Background="Transparent" ClipToBounds="False"/>
+                    <!-- The chip FACE: PART_Bg.Background = the theme BACKGROUND gradient (a Border fills
+                         reliably; a stroke-less Rectangle measures to ~0 and renders nothing). The accent
+                         triangle sits on top; ClipToBounds rounds the corners + the diagonal. The ONLY clip. -->
+                    <Border Name="PART_Bg" CornerRadius="10" ClipToBounds="True">
+                        <Polygon Name="PART_Accent" Points="0,0 46,0 0,46"/>
+                    </Border>
+                    <!-- Per-theme ring on top. -->
+                    <Border Name="PART_Card" CornerRadius="10" BorderThickness="1.5"/>
+                </Panel>
+            </ControlTemplate>
+        </Setter>
     </Style>
 </Styles>

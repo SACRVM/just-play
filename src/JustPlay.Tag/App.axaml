@@ -1,0 +1,149 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="JustPlay.Tag.App"
+             xmlns:theming="using:JustPlay.UI.Theming"
+             RequestedThemeVariant="Dark">
+
+    <!--
+      JUST TAG design system — built on the SHARED J.U.S.T. palette + styles from JustPlay.UI
+      (merged below), so it's one family with JUST PLAY / STREAM and switches themes LIVE
+      (AvaloniaThemeService, registered in Program.cs). Only TAG-specific control styles live here.
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <theming:JustPalette/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Frosted card surface: faint vertical glass gradient. -->
+            <LinearGradientBrush x:Key="CardGradient" StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Offset="0" Color="#16FFFFFF"/>
+                <GradientStop Offset="1" Color="#08FFFFFF"/>
+            </LinearGradientBrush>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme/>
+        <!-- Shared J.U.S.T. chrome/tab/cursor/text styles (JustPlay.UI). TAG-specific styles layer after. -->
+        <theming:JustStyles/>
+
+        <!-- ═══ Type roles ═══ -->
+        <Style Selector="TextBlock.brand">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="Foreground" Value="#D9FFFFFF"/>
+        </Style>
+        <!-- Field caption: small, muted, letter-spaced (above each input). -->
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        </Style>
+
+        <!-- ═══ Editable field — themed TextBox (frosted, accent focus; OS red killed) ═══ -->
+        <Style Selector="TextBox.field">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Foreground" Value="#ECFFFFFF"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="SelectionBrush" Value="#448a5fff"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBBrush}"/>
+        </Style>
+        <Style Selector="TextBox.field:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="TextBox.field:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+
+        <!-- ═══ Primary CTA (Save) — themed gradient pill + glow + hover lift (suite primary) ═══ -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="LetterSpacing" Value="0.6"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.13"/>
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="root"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}"
+                            BoxShadow="0 6 18 -4 #99ff5fae">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.03)"/>
+        </Style>
+        <Style Selector="Button.primary:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+        <Style Selector="Button.primary:disabled">
+            <Setter Property="Opacity" Value="0.45"/>
+        </Style>
+
+        <!-- ═══ Ghost / secondary button (Open, Change cover, …) ═══ -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="#0FFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Button.ghost:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF"/>
+        </Style>
+
+        <!-- Brand-mark button — fully transparent in every state (no hover chrome), per the JUST suite
+             philosophy (the About opens from the brand mark, top-left). -->
+        <Style Selector="Button.brandbtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.brandbtn /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.brandbtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.brandbtn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+    </Application.Styles>
+</Application>

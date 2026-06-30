@@ -8,8 +8,15 @@ public sealed record TrackMetadata
     public string? Title { get; init; }
     public string? Artist { get; init; }
     public string? Album { get; init; }
+
+    /// <summary>Album artist tag (ID3v2 TPE2 / Xiph ALBUMARTIST).</summary>
+    public string? AlbumArtist { get; init; }
+
     public string? Genre { get; init; }
     public uint? Year { get; init; }
+
+    /// <summary>Track number tag; null when unset (zero in the raw tag).</summary>
+    public uint? TrackNumber { get; init; }
 
     /// <summary>Free-text comment tag (where some tools, e.g. Mixed In Key, stash the key/energy).</summary>
     public string? Comment { get; init; }

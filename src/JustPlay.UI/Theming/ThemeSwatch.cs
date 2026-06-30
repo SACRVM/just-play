@@ -37,6 +37,30 @@ public static class ThemeBrushes
         brush.GradientStops.Add(new GradientStop(Color.Parse(theme.AccentA), 1));
         return brush;
     }
+
+    /// <summary>
+    /// The theme's BACKGROUND gradient (<c>BgFrom→BgVia→BgTo</c>, same diagonal as the app window's
+    /// BgLinear). Used by <see cref="ThemeSwatchChip"/>'s lower-right triangle so a swatch honestly
+    /// previews the theme's surface (dark for Onyx/Midnight), not just its bright accents
+    /// (Chloe 2026-06-30).
+    /// </summary>
+    public static LinearGradientBrush BackgroundGradient(Theme theme)
+    {
+        // BgTo (the DARKEST stop) at the top-left, fading to BgFrom (the theme's lightest / most
+        // recognisable background tone) at the bottom-right. This matters because the chip only SHOWS
+        // this brush in its lower-right triangle — a plain BgFrom→BgTo diagonal would land the darkest
+        // stop exactly in that corner, so every theme's field read as a near-black blob ("repräsentiert
+        // NICHT den background", Chloe 2026-06-30). Flipped, the corner shows the theme's actual bg colour.
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+            EndPoint   = new RelativePoint(1, 1, RelativeUnit.Relative),
+        };
+        brush.GradientStops.Add(new GradientStop(Color.Parse(theme.BgTo), 0));
+        brush.GradientStops.Add(new GradientStop(Color.Parse(theme.BgVia), 0.5));
+        brush.GradientStops.Add(new GradientStop(Color.Parse(theme.BgFrom), 1));
+        return brush;
+    }
 }
 
 /// <summary>

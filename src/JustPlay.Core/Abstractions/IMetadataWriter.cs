@@ -24,6 +24,39 @@ public interface IMetadataWriter
     /// JUSTPLAY custom fields are removed. Non-null fields are written back verbatim.
     /// </summary>
     void Restore(string filePath, TagRestore restore);
+
+    /// <summary>
+    /// Write the editorial fields from <paramref name="tags"/> to the file and save.
+    /// <para>
+    /// Analysis fields (BPM, key, energy, JUSTPLAY blob, ReplayGain, POPM) are
+    /// intentionally NOT touched — this method is purely editorial.
+    /// </para>
+    /// </summary>
+    /// <param name="filePath">Path to the audio file to update.</param>
+    /// <param name="tags">New editorial tag values.</param>
+    /// <param name="coverAction">
+    /// What to do with embedded cover art: <see cref="CoverAction.Keep"/> leaves the
+    /// Pictures array untouched; <see cref="CoverAction.Remove"/> clears it;
+    /// <see cref="CoverAction.Replace"/> replaces it with the supplied image.
+    /// </param>
+    /// <param name="newCover">
+    /// Raw cover image bytes; only used when <paramref name="coverAction"/> is
+    /// <see cref="CoverAction.Replace"/>.
+    /// </param>
+    /// <param name="coverMimeType">
+    /// MIME type of <paramref name="newCover"/> (e.g. "image/jpeg"); defaults to
+    /// "image/jpeg" when null.
+    /// </param>
+    void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
+        byte[]? newCover, string? coverMimeType);
+
+    /// <summary>
+    /// Set the ID3v2 version + text encoding used when SAVING MP3 tags — process-global (TagLib#
+    /// static config). Call once at startup and whenever the user changes the preference. Non-MP3
+    /// containers (FLAC / MP4 / Ogg) are unaffected. The default <see cref="Id3WriteFormat.Id3v23Utf16"/>
+    /// matches mp3tag and is the most broadly readable; see <see cref="Id3WriteFormat"/>.
+    /// </summary>
+    void ConfigureId3WriteFormat(Id3WriteFormat format);
 }
 
 /// <summary>
