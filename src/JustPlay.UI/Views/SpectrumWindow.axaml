@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:JustPlay.UI.Controls"
+        x:Class="JustPlay.UI.Views.SpectrumWindow"
+        Title="Spectrum"
+        Width="780" Height="480"
+        MinWidth="520" MinHeight="320"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <!-- Clickable legend entries (toggle a curve's visibility). Transparent, hand cursor. -->
+        <Style Selector="Button.legend">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="3,1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.legend /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.legend:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+    </Window.Styles>
+
+    <!-- Frameless rounded card — same suite shell as the player / settings windows. -->
+    <Panel>
+        <Border CornerRadius="14" ClipToBounds="False"
+                Margin="20,20,20,22"
+                Background="#40000000"
+                BoxShadow="0 18 50 -12 #B0000000">
+            <Panel>
+                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+
+                <DockPanel LastChildFill="True">
+
+                    <!-- ─── CHROME / TITLE BAR ── -->
+                    <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
+                            Background="Transparent" PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                        Margin="14,0,0,0" VerticalAlignment="Center">
+                                <controls:SpectrumGlyph Width="17" Height="13" Active="False" Stroke="White"
+                                                        VerticalAlignment="Center"/>
+                                <TextBlock Text="SPECTRUM" FontSize="11" FontWeight="SemiBold" LetterSpacing="2"
+                                           Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Legend: TARGET (dashed) · DRY (pre-bus) · WET (post-bus, theme accent). -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14"
+                                        HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                    <!-- Dashed, to match the dashed target curve in the plot. -->
+                                    <Line StartPoint="0,1" EndPoint="14,1" Stroke="#80808090" StrokeThickness="2"
+                                          StrokeDashArray="2,1.5" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Target" FontSize="10" Foreground="#8888A8" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <!-- Click to show / hide each curve. -->
+                                <Button Classes="legend" Name="DryLegend" Click="OnToggleDry"
+                                        ToolTip.Tip="Show / hide the DRY (pre-bus) curve">
+                                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                        <Border Width="14" Height="2" Background="#CCB8B8C8" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Dry (in)" FontSize="10" Foreground="#B8B8C8" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="legend" Name="WetLegend" Click="OnToggleWet"
+                                        ToolTip.Tip="Show / hide the WET (post-bus) curve">
+                                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                        <Border Width="14" Height="2" Background="{DynamicResource AccentBBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Wet (out)" FontSize="10" Foreground="{DynamicResource AccentBBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close">
+                                <TextBlock Text="✕" FontSize="13"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- ─── LIVE SPECTRUM + LIMITER GAIN-REDUCTION METER ── -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="16,6,14,14">
+                        <controls:SpectrumView Name="View" Grid.Column="0"/>
+                        <Grid Grid.Column="1" Width="60" Margin="14,0,0,0" RowDefinitions="Auto,*">
+                            <TextBlock Grid.Row="0" Text="LIMITER" FontSize="9" FontWeight="Bold"
+                                       LetterSpacing="1.5" Foreground="#73FFFFFF"
+                                       HorizontalAlignment="Center" Margin="0,2,0,6"/>
+                            <controls:GainReductionMeter Grid.Row="1" Name="GrMeter"/>
+                        </Grid>
+                        <!-- OUT column — host can hide it (e.g. JUST STREAM already has its own L/R meter). -->
+                        <Grid Grid.Column="2" Name="OutColumn" Width="58" Margin="10,0,0,0" RowDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Row="0" Text="OUT" FontSize="9" FontWeight="Bold"
+                                       LetterSpacing="1.5" Foreground="#73FFFFFF"
+                                       HorizontalAlignment="Center" Margin="0,2,0,6"/>
+                            <!-- Two shared single-channel meters (L | R) + labels below. -->
+                            <Grid Grid.Row="1" ColumnDefinitions="*,6,*">
+                                <controls:LevelMeter Grid.Column="0" Name="MeterL"/>
+                                <controls:LevelMeter Grid.Column="2" Name="MeterR"/>
+                            </Grid>
+                            <Grid Grid.Row="2" ColumnDefinitions="*,6,*" Margin="0,3,0,0">
+                                <TextBlock Grid.Column="0" Text="L" FontSize="9" Foreground="#8888A8" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="R" FontSize="9" Foreground="#8888A8" HorizontalAlignment="Center"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </DockPanel>
+            </Panel>
+        </Border>
+    </Panel>
+</Window>

@@ -173,6 +173,15 @@ public sealed class MasteringLimiter
     public int LatencySamples => _lookahead;
 
     /// <summary>
+    /// Current gain reduction in dB, as a NON-NEGATIVE value (0 = not limiting).
+    /// Reads directly from the live smoothed gain envelope <c>_grSlow</c> — a plain field read, no lock,
+    /// no reset of the telemetry accumulators. Safe to poll at UI frame rate from any thread.
+    /// e.g. 2.3 = limiter is currently pulling peaks down by 2.3 dB.
+    /// </summary>
+    public double LastGainReductionDb =>
+        _grSlow < 1.0 ? Math.Max(0.0, -20.0 * Math.Log10(_grSlow)) : 0.0;
+
+    /// <summary>
     /// Snapshot of limiter activity since the previous call, for the UI gain-reduction lamp, and
     /// RESETS the accumulators (call at UI poll rate). <paramref name="gainReductionDb"/> is the
     /// deepest reduction in the interval (≤ 0; 0 = the limiter wasn't reducing); <paramref name="dutyCycle"/>

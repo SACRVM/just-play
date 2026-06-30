@@ -1276,6 +1276,32 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _engine.SetOutputDevice(match.Index);
     }
 
+    /// <summary>
+    /// Re-enumerate audio devices after the user plugs/unplugs hardware — no restart needed (the ↻
+    /// button by the device pickers, mirroring JUST STREAM). Rebuilds <see cref="OutputDevices"/> + the
+    /// PRE-CUE <see cref="HeadphoneDevices"/>, keeping each selection by NAME where it still exists
+    /// (indices shift as devices come and go). Output falls back to default/first; the headphone pick
+    /// never auto-selects (cue must stay off the speakers).
+    /// </summary>
+    [RelayCommand]
+    private void RefreshDevices()
+    {
+        var outName = SelectedOutputDevice?.Name;
+        OutputDevices.Clear();
+        foreach (var d in _engine.GetOutputDevices()) OutputDevices.Add(d);
+        OnPropertyChanged(nameof(HasNoOutputDevices));
+        if (OutputDevices.Count > 0)
+            SelectedOutputDevice = OutputDevices.FirstOrDefault(d => d.Name == outName)
+                                   ?? OutputDevices.FirstOrDefault(d => d.IsDefault)
+                                   ?? OutputDevices[0];
+
+        var hpName = SelectedHeadphoneDevice?.Name;
+        HeadphoneDevices.Clear();
+        foreach (var d in _preListen.GetOutputDevices()) HeadphoneDevices.Add(d);
+        OnPropertyChanged(nameof(HasNoHeadphoneDevices));
+        SelectedHeadphoneDevice = hpName is null ? null : HeadphoneDevices.FirstOrDefault(d => d.Name == hpName);
+    }
+
     // ── Pre-listen (PFL) headphone device selection ───────────────────────────
     // Mirrors the output device pattern. The pre-listen engine does NOT auto-select the
     // system default (that would put cue audio on the speakers). If no saved device name

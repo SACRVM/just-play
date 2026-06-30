@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window, IFramelessWindow
 {
     private SettingsWindow? _settings;
     private LogWindow? _log;
+    private SpectrumWindow? _spectrum;
 
     // Mini-player view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
     private const double MiniWidth = 700;   // Chloe: 450 was too small, 700 fits the mini content
@@ -40,6 +42,7 @@ public partial class MainWindow : Window, IFramelessWindow
     private const double RefStep = 0.016; // fallback frame dt (first frame / hitch)
     private bool _pumpRunning;
     private TimeSpan _lastFrame;
+    private LevelMeter? _meterL, _meterR; // shared output meters, fed raw each render frame
 
     public MainWindow()
     {
@@ -52,6 +55,9 @@ public partial class MainWindow : Window, IFramelessWindow
             WindowTransparencyLevel.Mica,
             WindowTransparencyLevel.Blur,
         };
+
+        _meterL = this.FindControl<LevelMeter>("MeterL");
+        _meterR = this.FindControl<LevelMeter>("MeterR");
     }
 
     protected override void OnOpened(EventArgs e)
@@ -84,7 +90,12 @@ public partial class MainWindow : Window, IFramelessWindow
         var dt = _lastFrame == TimeSpan.Zero ? RefStep : (now - _lastFrame).TotalSeconds;
         _lastFrame = now;
         if (dt <= 0 || dt > 0.25) dt = RefStep; // clamp the first frame and any hitch
-        (DataContext as StreamViewModel)?.PumpFrame(dt);
+        if (DataContext is StreamViewModel vm)
+        {
+            vm.PumpFrame(dt);
+            _meterL?.Push(vm.OutLevelLeft, dt);
+            _meterR?.Push(vm.OutLevelRight, dt);
+        }
         RequestAnimationFrame(OnRenderFrame);
     }
 
@@ -253,6 +264,26 @@ public partial class MainWindow : Window, IFramelessWindow
         };
         _settings.Closed += (_, _) => _settings = null;
         _settings.Show(this);
+    }
+
+    // ── Spectrum analyzer ───────────────────────────────────────────────────────
+    // Opens the SHARED spectrum window (JustPlay.UI) over the broadcast bus. The capture engine is
+    // an ISpectrumSource (DRY/WET taps + limiter GR), so it plugs in exactly like JUST PLAY's engine.
+    // OUT meter suppressed — STREAM already has its own output meter on the main bar. Single-instance.
+    private void OnSpectrum(object? sender, RoutedEventArgs e)
+    {
+        if (_spectrum is { } w)
+        {
+            w.Activate();
+            return;
+        }
+        var source = Program.Services.GetService<IAudioInputEngine>();
+        _spectrum = new SpectrumWindow(source, showOutputLevels: false)
+        {
+            Icon = Icon, // reuse the main window's rendered brand icon
+        };
+        _spectrum.Closed += (_, _) => _spectrum = null;
+        _spectrum.Show(this);
     }
 
     // ── Event log ─────────────────────────────────────────────────────────────

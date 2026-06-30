@@ -14,8 +14,12 @@ namespace JustPlay.Core.Abstractions;
 /// sees this interface (CLAUDE.md layering rule). The DSP setters mirror
 /// <see cref="IAudioEngine"/> exactly, so JUST STREAM reuses the same Tweaks/DSP logic and the
 /// "Hard" preset transfers 1:1.
+///
+/// Also an <see cref="ISpectrumSource"/> (like <see cref="IAudioEngine"/>): it exposes DRY (pre-bus)
+/// vs WET (post-bus) tonal-balance taps, the limiter gain-reduction, and output levels, so the SHARED
+/// spectrum-analyzer window (JustPlay.UI) opens over the broadcast bus exactly as it does over playout.
 /// </summary>
-public interface IAudioInputEngine : IDisposable
+public interface IAudioInputEngine : IDisposable, ISpectrumSource
 {
     // ── Capture lifecycle ────────────────────────────────────────────────
 

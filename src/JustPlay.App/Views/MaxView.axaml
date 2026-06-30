@@ -455,8 +455,19 @@
             <Border DockPanel.Dock="Bottom" Padding="32,8,32,16">
                 <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
 
-                    <!-- Left: shuffle + repeat — shared control (Controls/ShuffleRepeatButtons). -->
-                    <controls:ShuffleRepeatButtons VerticalAlignment="Center"/>
+                    <!-- Left: shuffle + repeat (shared control) · separator · live spectrum-analyzer button.
+                         The glyph is an animated curve that undulates while playing and rests still otherwise. -->
+                    <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+                        <controls:ShuffleRepeatButtons VerticalAlignment="Center"/>
+                        <Border Width="1" Height="16" Background="{StaticResource HairlineBrush}"
+                                Margin="8,0" VerticalAlignment="Center"/>
+                        <Button Classes="iconbtn" Click="OnSpectrumClick" ToolTip.Tip="Spectrum analyzer"
+                                VerticalAlignment="Center">
+                            <ui:SpectrumGlyph Width="18" Height="14"
+                                              Active="{Binding IsPlaying}"
+                                              Stroke="{Binding $parent[Button].Foreground}"/>
+                        </Button>
+                    </StackPanel>
 
                     <!--
                       Play has a separate Ellipse BEHIND it as its halo (BoxShadow was rendering

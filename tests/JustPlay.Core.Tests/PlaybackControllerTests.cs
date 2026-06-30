@@ -607,6 +607,10 @@ file sealed class FakeAudioEngine : IAudioEngine
     }
 
     public void GetFftBands(Span<float> destination) => destination.Clear();
+    public void GetSpectrum(Span<float> dryMagnitudes, Span<float> wetMagnitudes) { dryMagnitudes.Clear(); wetMagnitudes.Clear(); }
+    public void SetSpectrumTapEnabled(bool enabled) { }
+    public double GetLimiterGainReductionDb() => 0.0;
+    public void GetOutputLevels(out float leftPeak, out float rightPeak) { leftPeak = 0; rightPeak = 0; }
 
     public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
         => Array.Empty<AudioOutputDevice>();

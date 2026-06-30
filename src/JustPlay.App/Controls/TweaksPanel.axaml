@@ -532,7 +532,13 @@
                 <!-- ════════════ AUDIO ════════════ -->
                 <StackPanel Spacing="6"
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Audio}">
-                    <TextBlock Classes="tweak-section" Text="OUTPUT DEVICE"/>
+                    <!-- Label row with the rescan ↻ behind the label, then a full-width picker below —
+                         identical to JUST STREAM (shared Button.seg). -->
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Classes="seg" Content="↻"
+                                Command="{Binding RefreshDevicesCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
+                        <TextBlock Classes="tweak-section" Text="OUTPUT DEVICE" VerticalAlignment="Center"/>
+                    </DockPanel>
                     <ComboBox Classes="device-picker"
                               ItemsSource="{Binding OutputDevices}"
                               SelectedItem="{Binding SelectedOutputDevice}">

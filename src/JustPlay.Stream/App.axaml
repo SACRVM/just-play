@@ -258,33 +258,9 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
-        <!-- Segmented control (limiter drive Off|Soft|Club|Loud, log show/clear) — port of lens-seg -->
-        <Style Selector="Button.seg">
-            <Setter Property="MinWidth" Value="44"/>
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Padding" Value="10,0"/>
-            <Setter Property="CornerRadius" Value="7"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{StaticResource MutedDimBrush}"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.seg /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.seg:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-        </Style>
-        <Style Selector="Button.seg.active">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.seg.active /template/ ContentPresenter">
-            <Setter Property="Background" Value="{StaticResource AccentCBrush}"/>
-        </Style>
+        <!-- Button.seg moved to the SHARED JustStyles (JustPlay.UI) so JUST PLAY + STREAM use the
+             identical segmented / compact button (incl. the device-rescan ↻). -->
+
 
         <!-- Level meter: gradient indicator on a dark track, rounded -->
         <Style Selector="ProgressBar.meter">

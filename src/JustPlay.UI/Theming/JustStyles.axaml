@@ -343,6 +343,36 @@
         <Setter Property="Padding" Value="11,8,11,5"/>
     </Style>
 
+    <!-- Segmented / compact action button (limiter-drive segments, the device-rescan ↻, log show/clear)
+         — SHARED so JUST PLAY + STREAM use the IDENTICAL control. Moved here from STREAM's App.axaml
+         ("lens-seg"); theme brushes via DynamicResource so it tracks live theme switches. -->
+    <Style Selector="Button.seg">
+        <Setter Property="MinWidth" Value="44"/>
+        <Setter Property="Height" Value="26"/>
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedDimBrush}"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.seg /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.seg:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#1AFFFFFF"/>
+    </Style>
+    <Style Selector="Button.seg.active">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.seg.active /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentCBrush}"/>
+    </Style>
+
     <!--
       Theme-picker swatch chip (shared, all apps) — see ThemeSwatchChip.cs. A 46×46 rounded square split
       on the bottom-left→top-right diagonal: PART_Bg (a Border) carries the theme BACKGROUND gradient over

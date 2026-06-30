@@ -19,5 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+    <!-- Analysis (platform-agnostic DSP) for the SHARED SpectrumView: SpectralProfile band count +
+         the SpectralTarget golden curve / zones. Still no BASS, no app-specific code. -->
+    <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
   </ItemGroup>
 </Project>

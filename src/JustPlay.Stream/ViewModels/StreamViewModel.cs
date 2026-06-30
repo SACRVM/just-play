@@ -128,8 +128,9 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _nowPlayingText = "";
 
     // ── Meters (0..1 linear) ─────────────────────────────────────────────
-    [ObservableProperty] private double _leftLevel;
-    [ObservableProperty] private double _rightLevel;
+    // Raw output peak (0..1 linear). The shared LevelMeter control owns the ballistics + peak-hold + display.
+    public double OutLevelLeft { get; private set; }
+    public double OutLevelRight { get; private set; }
 
     // ── Limiter gain-reduction lamp (right of each L/R meter) ─────────────
     // Lit = that channel's true-peak is hitting the limiter ceiling. Colour = bus-wide health:
@@ -598,14 +599,8 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         });
     }
 
-    // Meter ballistics: one-pole filter (fast attack, smooth release) so the bars GLIDE. The K values
-    // are tuned for a 16 ms step; PumpFrame rescales them to the real frame dt, so the feel is identical
-    // at 60 / 120 / 144 Hz (frame-rate independent).
-    private const double MeterAttackK = 0.40;
-    private const double MeterReleaseK = 0.12;
-    private const double RefStepSeconds = 0.016; // step the K values were tuned for
-    private static double SmoothMeter(double current, double target, double attackK, double releaseK)
-        => current + (target - current) * (target > current ? attackK : releaseK);
+    // (Meter ballistics moved into the shared JustPlay.UI LevelMeter control — it owns attack/release +
+    // peak-hold now, so JUST PLAY and STREAM glide identically from the same code.)
 
     // GR-lamp peak-hold: keep a channel's lamp (and the "hard" colour) lit ~0.25 s after a catch so a
     // sub-frame event stays visible. Time-based (seconds) → same at any refresh rate.
@@ -621,14 +616,10 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     /// </summary>
     public void PumpFrame(double dt)
     {
-        // Meters: convert the 16ms-tuned one-pole K to this frame's dt — applying a one-pole ~dt/16ms
-        // times ≈ 1-(1-K)^(dt/16ms). Glides identically whatever the monitor's refresh rate.
+        // Output level for the meters — RAW; the shared LevelMeter control does the ballistics + peak-hold.
         _engine.GetLevels(out var l, out var r);
-        double steps = dt / RefStepSeconds;
-        double aK = 1.0 - Math.Pow(1.0 - MeterAttackK, steps);
-        double rK = 1.0 - Math.Pow(1.0 - MeterReleaseK, steps);
-        LeftLevel = SmoothMeter(LeftLevel, l, aK, rK);
-        RightLevel = SmoothMeter(RightLevel, r, aK, rK);
+        OutLevelLeft = l;
+        OutLevelRight = r;
 
         // Limiter lamp: drain activity, refresh holds. grDb ≤ −4 OR duty ≥ 50% = crushing (red),
         // else a healthy occasional catch (amber). Limiter off → all dark.

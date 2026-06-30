@@ -7,7 +7,7 @@ namespace JustPlay.Core.Abstractions;
 /// The playback engine. One track loaded at a time — load, play, seek, stop.
 /// Implemented per platform (ManagedBass today); the UI only ever sees this interface.
 /// </summary>
-public interface IAudioEngine : IDisposable
+public interface IAudioEngine : IDisposable, ISpectrumSource
 {
     PlaybackState State { get; }
 
@@ -72,6 +72,10 @@ public interface IAudioEngine : IDisposable
     /// offline analysis).
     /// </summary>
     void GetFftBands(Span<float> destination);
+
+    // The live spectrum + limiter-GR telemetry methods (GetSpectrum / SetSpectrumTapEnabled /
+    // GetLimiterGainReductionDb) now live on ISpectrumSource — IAudioEngine inherits it so the SHARED
+    // JustPlay.UI analyzer window depends only on ISpectrumSource, not this playback-specific interface.
 
     // ── Output device selection ───────────────────────────────────────────
 

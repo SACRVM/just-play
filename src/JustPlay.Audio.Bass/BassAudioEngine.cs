@@ -123,6 +123,49 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
     private readonly float[] _fftBuffer = new float[1024];
     private readonly float[] _smoothBands = new float[4];
 
+    // ── Spectrum taps: DRY pre-bus + WET post-bus capture ─────────────────────────────────────────
+    // TWO passive read-only DSPs straddle the rack so DRY and WET are captured block-synchronously
+    // and measured the SAME way (same Hann window + same 2048-pt FFT + same band collapse):
+    //   DRY @ priority 1000 — runs BEFORE EQ(200)/AutoTilt(180)/Punch(140)/Limiter(0)/Encoder(−1000),
+    //                         so it sees the raw summed mix before the rack shapes it.
+    //   WET @ priority −500 — runs BELOW the limiter (0) and ABOVE the encoder (−1000), so it sees
+    //                         the fully-processed signal that is actually heard / streamed.
+    // Both callbacks are read-only (never modify the buffer), cheap (mono mixdown + array shift), and
+    // run on the BASS audio thread; GetSpectrum reads the snapshots from the UI thread. The only
+    // residual DRY→WET offset is the limiter's internal look-ahead — the real, correct latency.
+    // The two taps are gated together: _spectrumTapLock guards BOTH handle/delegate pairs; each
+    // snapshot has its own lock guarding only its bytes.
+    private readonly object _spectrumTapLock = new();
+    private DSPProcedure? _dryTapProc;
+    private int _dryTapHandle;
+    /// <summary>Most recent 2048 mono-mixdown samples from the pre-rack bus.
+    /// Written on the BASS thread; read on the UI thread — always under <see cref="_drySnapshotLock"/>.</summary>
+    private readonly float[] _drySnapshot = new float[2048];
+    private readonly object _drySnapshotLock = new();
+    private DSPProcedure? _wetTapProc;
+    private int _wetTapHandle;
+    /// <summary>Most recent 2048 mono-mixdown samples from the post-rack bus (what is heard / streamed).
+    /// Written on the BASS thread; read on the UI thread — always under <see cref="_wetSnapshotLock"/>.</summary>
+    private readonly float[] _wetSnapshot = new float[2048];
+    private readonly object _wetSnapshotLock = new();
+    // FFT work buffers — accessed only from the UI thread in GetSpectrum; no lock needed. One pair per
+    // tap so the two transforms don't trample each other within a single GetSpectrum call.
+    private readonly float[] _dryFftRe = new float[2048];
+    private readonly float[] _dryFftIm = new float[2048];
+    private readonly float[] _wetFftRe = new float[2048];
+    private readonly float[] _wetFftIm = new float[2048];
+    // Pre-computed Hann window for a 2048-point frame (static: one allocation per process).
+    private static readonly float[] _hannWindow = BuildHannWindow(2048);
+    // Reusable two-element buffer for ChannelGetLevel — avoids per-call allocation.
+    private readonly float[] _levelBuf = new float[2];
+    private static float[] BuildHannWindow(int n)
+    {
+        var w = new float[n];
+        for (var i = 0; i < n; i++)
+            w[i] = (float)(0.5 - 0.5 * Math.Cos(2.0 * Math.PI * i / (n - 1)));
+        return w;
+    }
+
     public BassAudioEngine()
     {
         // Default device, 44.1 kHz. Throws if the device can't be opened.
@@ -641,6 +684,32 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
         }
     }
 
+    /// <inheritdoc/>
+    public double GetLimiterGainReductionDb()
+    {
+        // _limiter is volatile — one read, no lock needed (same pattern as LimiterDspCallback).
+        // When bypassed (null) or not playing, return 0 so the meter stays dark.
+        var lim = _limiter;
+        if (lim is null || _state != CorePlaybackState.Playing)
+            return 0.0;
+        return lim.LastGainReductionDb;
+    }
+
+    /// <inheritdoc/>
+    public void GetOutputLevels(out float leftPeak, out float rightPeak)
+    {
+        leftPeak = rightPeak = 0f;
+        if (_mixer == 0 || _state != CorePlaybackState.Playing) return;
+        // Peak over a ~20 ms window on the post-DSP mixer output (what is heard / streamed).
+        // Stereo (per-channel) peak — RMS flag omitted ⇒ peak retrieval, one value per channel.
+        // Mirrors BassInputCaptureEngine.GetLevels — same BASS call, same _levelBuf pattern.
+        if (ManagedBass.Bass.ChannelGetLevel(_mixer, _levelBuf, 0.02f, LevelRetrievalFlags.Stereo))
+        {
+            leftPeak = _levelBuf[0];
+            rightPeak = _levelBuf[1];
+        }
+    }
+
     /// <summary>
     /// BASS DSP callback (fires on BASS's audio thread). The mixer is float PCM, so the native buffer
     /// is a block of interleaved-stereo floats; wrap it in a <see cref="Span{T}"/> with no copy and let
@@ -785,6 +854,22 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
         FreeSource();
         if (_mixer != 0)
         {
+            // Remove both spectrum taps before freeing the mixer (ChannelRemoveDSP needs a valid handle).
+            lock (_spectrumTapLock)
+            {
+                if (_dryTapHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _dryTapHandle);
+                    _dryTapHandle = 0;
+                    _dryTapProc   = null;
+                }
+                if (_wetTapHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _wetTapHandle);
+                    _wetTapHandle = 0;
+                    _wetTapProc   = null;
+                }
+            }
             ManagedBass.Bass.StreamFree(_mixer);
             _mixer = 0;
         }
@@ -865,5 +950,192 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
         for (var i = fromInclusive; i < toExclusive; i++)
             sum += bins[i];
         return sum / count;
+    }
+
+    // ── Dual-tap spectrum (DRY pre-bus + WET post-bus) ────────────────────────────────────────────
+
+    /// <summary>
+    /// Enable or disable BOTH spectrum capture taps together (DRY @ priority 1000, pre-rack; WET @
+    /// priority −500, post-rack). They are passive read-only DSPs straddling the rack so DRY and WET
+    /// are captured block-synchronously. Idempotent.
+    /// </summary>
+    public void SetSpectrumTapEnabled(bool enabled)
+    {
+        EnsureMixer();
+        lock (_spectrumTapLock)
+        {
+            if (enabled)
+            {
+                if (_dryTapHandle == 0)
+                {
+                    _dryTapProc   = DryTapDspCallback;
+                    _dryTapHandle = ManagedBass.Bass.ChannelSetDSP(_mixer, _dryTapProc, IntPtr.Zero, 1000);
+                }
+                if (_wetTapHandle == 0)
+                {
+                    _wetTapProc   = WetTapDspCallback;
+                    _wetTapHandle = ManagedBass.Bass.ChannelSetDSP(_mixer, _wetTapProc, IntPtr.Zero, -500);
+                }
+            }
+            else
+            {
+                if (_dryTapHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _dryTapHandle);
+                    _dryTapHandle = 0;
+                    _dryTapProc   = null;
+                }
+                if (_wetTapHandle != 0)
+                {
+                    ManagedBass.Bass.ChannelRemoveDSP(_mixer, _wetTapHandle);
+                    _wetTapHandle = 0;
+                    _wetTapProc   = null;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// BASS DSP callback for the DRY spectrum tap (priority 1000, pre-rack). Runs on BASS's audio
+    /// thread. Snapshots a mono mixdown of the most recent 2048 frames into <see cref="_drySnapshot"/>
+    /// for <see cref="GetSpectrum"/>. Does NOT modify the buffer — purely observational.
+    /// </summary>
+    private unsafe void DryTapDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
+    {
+        if (length <= 0) return;
+        CaptureMonoSnapshot(new ReadOnlySpan<float>((void*)buffer, length / sizeof(float)), _drySnapshot, _drySnapshotLock);
+    }
+
+    /// <summary>
+    /// BASS DSP callback for the WET spectrum tap (priority −500, post-rack — below the limiter, above
+    /// the encoder). Runs on BASS's audio thread. Snapshots a mono mixdown of the most recent 2048
+    /// frames into <see cref="_wetSnapshot"/>. Does NOT modify the buffer — purely observational.
+    /// </summary>
+    private unsafe void WetTapDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
+    {
+        if (length <= 0) return;
+        CaptureMonoSnapshot(new ReadOnlySpan<float>((void*)buffer, length / sizeof(float)), _wetSnapshot, _wetSnapshotLock);
+    }
+
+    /// <summary>
+    /// Mono-mixdown the most recent up-to-2048 interleaved-stereo frames in <paramref name="samples"/>
+    /// into <paramref name="snapshot"/> (shifting older content left when the block is shorter). Held
+    /// under <paramref name="snapshotLock"/> so <see cref="GetSpectrum"/> can read a consistent frame.
+    /// Shared by both taps so DRY and WET are captured identically.
+    /// </summary>
+    private static void CaptureMonoSnapshot(ReadOnlySpan<float> samples, float[] snapshot, object snapshotLock)
+    {
+        var frameCount = samples.Length / 2;   // stereo interleaved: 2 floats per frame
+        if (frameCount <= 0) return;
+
+        lock (snapshotLock)
+        {
+            if (frameCount >= 2048)
+            {
+                // Block large enough to fill the snapshot entirely: copy last 2048 frames.
+                var offset = frameCount - 2048;
+                for (var i = 0; i < 2048; i++)
+                {
+                    var s = (offset + i) * 2;
+                    snapshot[i] = (samples[s] + samples[s + 1]) * 0.5f;
+                }
+            }
+            else
+            {
+                // Shift the existing snapshot left to make room for the new block.
+                var keep = 2048 - frameCount;
+                for (var i = 0; i < keep; i++)
+                    snapshot[i] = snapshot[i + frameCount];
+                for (var i = 0; i < frameCount; i++)
+                {
+                    var s = i * 2;
+                    snapshot[keep + i] = (samples[s] + samples[s + 1]) * 0.5f;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fill <paramref name="dryMagnitudes"/> (pre-rack) and <paramref name="wetMagnitudes"/> (post-rack)
+    /// with 60 log-spaced 1/6-octave summed-power bands from 20 Hz to 20 kHz, matching
+    /// <c>SpectralProfile.BandCount</c>. Both taps are measured identically (same Hann window + same
+    /// 2048-pt FFT + same band collapse) from block-synchronous snapshots, so the only DRY→WET offset
+    /// is the limiter's internal look-ahead. Returns zeros for BOTH when not playing or the taps are
+    /// disabled. UI-thread safe; cheap enough to call every render frame.
+    /// </summary>
+    public void GetSpectrum(Span<float> dryMagnitudes, Span<float> wetMagnitudes)
+    {
+        const double BinHz = 44100.0 / 2048.0;   // bin width ≈ 21.53 Hz for a 2048-pt FFT @ 44100
+        var fillW = Math.Min(wetMagnitudes.Length, 60);
+        var fillD = Math.Min(dryMagnitudes.Length, 60);
+
+        bool tapsEnabled;
+        lock (_spectrumTapLock)
+            tapsEnabled = _dryTapHandle != 0 && _wetTapHandle != 0;
+        bool active = tapsEnabled && _mixer != 0 && _state == CorePlaybackState.Playing;
+
+        if (!active)
+        {
+            dryMagnitudes[..fillD].Clear();
+            wetMagnitudes[..fillW].Clear();
+            return;
+        }
+
+        // Identical processing for both taps → DRY and WET are directly comparable.
+        SnapshotToBands(_drySnapshot, _drySnapshotLock, _dryFftRe, _dryFftIm, BinHz, dryMagnitudes[..fillD]);
+        SnapshotToBands(_wetSnapshot, _wetSnapshotLock, _wetFftRe, _wetFftIm, BinHz, wetMagnitudes[..fillW]);
+    }
+
+    /// <summary>
+    /// Copy a mono snapshot (under its lock), apply the Hann window, run a 2048-pt forward FFT, and
+    /// collapse the positive-frequency bins to log-spaced power bands. All FFT work happens outside the
+    /// snapshot lock. <paramref name="fftRe"/>/<paramref name="fftIm"/> are per-tap scratch buffers.
+    /// </summary>
+    private static void SnapshotToBands(float[] snapshot, object snapshotLock, float[] fftRe, float[] fftIm, double binHz, Span<float> bands)
+    {
+        // Copy the snapshot under lock; everything below operates on the local scratch buffers.
+        lock (snapshotLock)
+            Array.Copy(snapshot, fftRe, 2048);
+
+        // Apply Hann window to reduce spectral leakage, then zero the imaginary part.
+        for (var i = 0; i < 2048; i++)
+            fftRe[i] *= _hannWindow[i];
+        Array.Clear(fftIm, 0, 2048);
+
+        // In-place forward FFT (JustPlay.Analysis.Fft — radix-2 Cooley–Tukey, no allocations).
+        Fft.Forward(fftRe, fftIm);
+
+        // Linear magnitude for bins 0..1023 (positive-frequency half). Reuse fftRe as magnitude scratch.
+        for (var i = 0; i < 1024; i++)
+            fftRe[i] = MathF.Sqrt(fftRe[i] * fftRe[i] + fftIm[i] * fftIm[i]);
+
+        BinsToBands(new ReadOnlySpan<float>(fftRe, 0, 1024), binHz, bands);
+    }
+
+    /// <summary>
+    /// Collapse <paramref name="magnitudeBins"/> into 60 log-spaced 1/6-octave summed-power bands
+    /// from 20 Hz to 20 kHz. Band <c>b</c>: lo = 20·2^(b/6) Hz, hi = 20·2^((b+1)/6) Hz.
+    /// Power contribution of each bin = magnitude² (converting linear-magnitude bins to power domain).
+    /// Fills min(<paramref name="bands"/>.Length, 60) output entries.
+    /// </summary>
+    private static void BinsToBands(ReadOnlySpan<float> magnitudeBins, double binHz, Span<float> bands)
+    {
+        const int BandCount = 60;
+        var fillCount = Math.Min(bands.Length, BandCount);
+        bands[..fillCount].Clear();
+        for (var b = 0; b < fillCount; b++)
+        {
+            var loHz   = 20.0 * Math.Pow(2.0,  b      / 6.0);
+            var hiHz   = 20.0 * Math.Pow(2.0, (b + 1) / 6.0);
+            var loIdx  = Math.Max(0, (int)(loHz / binHz));
+            var hiIdx  = Math.Min(magnitudeBins.Length - 1, (int)(hiHz / binHz));
+            var power  = 0f;
+            for (var i = loIdx; i <= hiIdx; i++)
+            {
+                var m = magnitudeBins[i];
+                power += m * m;
+            }
+            bands[b] = power;
+        }
     }
 }

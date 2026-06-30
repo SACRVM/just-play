@@ -11,6 +11,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using JustPlay.App.Controls;
+using JustPlay.Core.Abstractions;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
 using JustPlay.App.ViewModels;
@@ -60,6 +61,19 @@ public partial class MaxView : UserControl
                 Glyph: BrandGlyphs.Play));
             about.ShowDialog(owner);
         }
+    }
+
+    // Transport spectrum button → open the live analyzer (NON-modal: keep playing / controlling while
+    // it's open). Single instance — a second click just re-focuses the existing window.
+    private JustPlay.UI.Views.SpectrumWindow? _spectrumWindow;
+    private void OnSpectrumClick(object? sender, RoutedEventArgs e)
+    {
+        if (_spectrumWindow is not null) { _spectrumWindow.Activate(); return; }
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        // The shared analyzer (JustPlay.UI) takes an ISpectrumSource — our IAudioEngine implements it.
+        _spectrumWindow = new JustPlay.UI.Views.SpectrumWindow(Program.Services?.GetService<IAudioEngine>());
+        _spectrumWindow.Closed += (_, _) => _spectrumWindow = null;
+        _spectrumWindow.Show(owner);
     }
 
     // Title-bar update badge → show the update dialog, then install / ignore / dismiss.
