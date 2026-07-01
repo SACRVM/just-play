@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/JustCheck.Probe/JustCheck.Probe.csproj" />
     <Project Path="src/JustPlay.Analysis/JustPlay.Analysis.csproj" />
     <Project Path="src/JustPlay.App/JustPlay.App.csproj" />
     <Project Path="src/JustPlay.Audio.Bass/JustPlay.Audio.Bass.csproj" />

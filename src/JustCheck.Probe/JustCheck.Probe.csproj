@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>JustCheck.Probe</AssemblyName>
+    <RootNamespace>JustCheck.Probe</RootNamespace>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <!-- Self-contained friendly: no reflection, no ResourceManager -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NAudio.Wasapi contains NAudio.CoreAudioApi (MMDeviceEnumerator etc.) -->
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+  </ItemGroup>
+
+</Project>
