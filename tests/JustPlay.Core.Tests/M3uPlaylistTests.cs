@@ -17,13 +17,13 @@ public class M3uPlaylistTests
         => Assert.Equal(expected, M3uPlaylist.IsPlaylist(path));
 
     [Fact]
-    public void Write_UsesRelativeUnderSaveDir_AndAbsoluteElsewhere_AndRoundTrips()
+    public void Write_AlwaysRelativeForwardSlash_IncludingParent_CrlfAndRoundTrips()
     {
         var dir = Directory.CreateTempSubdirectory("jp-m3u").FullName;
         var outsideDir = Directory.CreateTempSubdirectory("jp-m3u-out").FullName;
         try
         {
-            // One track UNDER the save folder, one OUTSIDE it.
+            // One track UNDER the save folder, one in a SIBLING folder (the real SETS→GENRES case).
             var under = Path.Combine(dir, "a.mp3");
             var outside = Path.Combine(outsideDir, "b.mp3");
             File.WriteAllText(under, "");
@@ -36,10 +36,16 @@ public class M3uPlaylistTests
                 new M3uPlaylist.Entry(outside, null, "Artist - B"),
             ]);
 
-            var lines = File.ReadAllText(m3u).Replace("\r", "").Split('\n');
+            var text = File.ReadAllText(m3u);
+            Assert.Contains("\r\n", text);                              // CRLF line endings (Traktor/Mac)
+            var lines = text.Replace("\r", "").Split('\n');
             Assert.Equal("#EXTM3U", lines[0]);
-            Assert.Equal("a.mp3", lines[2]);          // under → written relative
-            Assert.Equal(outside, lines[4]);          // outside → written absolute
+            Assert.Equal("a.mp3", lines[2]);                            // under → relative
+            // sibling → RELATIVE with "../" + forward slashes (NEVER absolute) — the fix.
+            var expectedSibling = Path.GetRelativePath(dir, outside).Replace('\\', '/');
+            Assert.StartsWith("../", expectedSibling);
+            Assert.Equal(expectedSibling, lines[4]);
+            Assert.DoesNotContain("\\", lines[4]);                      // forward slashes only
 
             // Read back: both resolve to their absolute locations, order preserved.
             var paths = M3uPlaylist.ReadPaths(m3u);

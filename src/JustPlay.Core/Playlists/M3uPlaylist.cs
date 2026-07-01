@@ -25,42 +25,46 @@ public static class M3uPlaylist
     /// <summary>One line to write: the absolute file path plus optional #EXTINF metadata.</summary>
     public readonly record struct Entry(string Path, TimeSpan? Duration, string? Title);
 
-    /// <summary>Write an extended M3U8 (UTF-8, no BOM) listing the entries in order. Paths are written
-    /// portably: a track that lives UNDER the destination folder is written relative (so saving the
-    /// .m3u8 into your music folder makes the whole set copy-anywhere on a USB stick), while tracks
-    /// elsewhere — other folders or drives — stay absolute so they always resolve. ReadPaths resolves
-    /// relatives against the playlist's own folder, so this round-trips.</summary>
+    /// <summary>Write an extended M3U8 (UTF-8, no BOM, CRLF) listing the entries in order. Paths are
+    /// ALWAYS written RELATIVE with FORWARD slashes whenever the track shares a root with the playlist —
+    /// INCLUDING climbing out with "../" (a set in SETS/ references its tracks in the sibling GENRES/ as
+    /// ../GENRES/…). This is the format Chloe's Mac/Traktor needs (see the traktor-playlist-format note):
+    /// relative + forward-slash so the set resolves on any machine/mount. Only a track on a DIFFERENT
+    /// drive/root (no relative path possible) stays absolute. ReadPaths resolves relatives against the
+    /// playlist's own folder, so this round-trips.</summary>
     public static void Write(string destPath, IEnumerable<Entry> entries)
     {
         var baseDir = Path.GetDirectoryName(Path.GetFullPath(destPath)) ?? string.Empty;
 
         var sb = new StringBuilder();
-        sb.Append("#EXTM3U\n");
+        sb.Append("#EXTM3U\r\n");
         foreach (var e in entries)
         {
             var secs = e.Duration is { } d ? (int)Math.Round(d.TotalSeconds) : -1;
             var title = (e.Title ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ');
-            sb.Append("#EXTINF:").Append(secs).Append(',').Append(title).Append('\n');
-            sb.Append(ToPortablePath(e.Path, baseDir)).Append('\n');
+            sb.Append("#EXTINF:").Append(secs).Append(',').Append(title).Append("\r\n");
+            sb.Append(ToPortablePath(e.Path, baseDir)).Append("\r\n");
         }
         File.WriteAllText(destPath, sb.ToString(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
-    /// <summary>Relative path if <paramref name="fullPath"/> sits under <paramref name="baseDir"/>
-    /// (same drive, no climbing out with "..") — otherwise the absolute path. Never throws.</summary>
+    /// <summary>Relative, forward-slash path whenever <paramref name="fullPath"/> shares a root with
+    /// <paramref name="baseDir"/> — INCLUDING "../" parents (sibling folders like SETS/ ↔ GENRES/). Only
+    /// a different drive/root (Path.GetRelativePath returns a rooted path) stays absolute. Forward slashes
+    /// because the sets are played on a Mac/Traktor deck. Never throws.</summary>
     private static string ToPortablePath(string fullPath, string baseDir)
     {
-        if (baseDir.Length == 0) return fullPath;
+        if (baseDir.Length == 0) return fullPath.Replace('\\', '/');
         try
         {
             var rel = Path.GetRelativePath(baseDir, fullPath);
-            return !Path.IsPathRooted(rel) && !rel.StartsWith("..", StringComparison.Ordinal)
-                ? rel
-                : fullPath;
+            // A rooted result means there's no shared root (different drive/UNC host) → can't be relative.
+            // Otherwise use it relative, even when it climbs out with ".." — that's the normal SETS→GENRES case.
+            return (Path.IsPathRooted(rel) ? fullPath : rel).Replace('\\', '/');
         }
         catch
         {
-            return fullPath;
+            return fullPath.Replace('\\', '/');
         }
     }
 
