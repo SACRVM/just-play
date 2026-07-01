@@ -49,6 +49,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private double? _pendingPreCueSeek;
     private int _pendingPreCueSeekTicks;
 
+    // ── Pre-cue v2: saved-by-NAME headphone device (auto-reconnect "CLOU") ─────────────────────
+    // Independent of the live SelectedHeadphoneDevice binding, which drops to null the moment the
+    // device disappears (e.g. Chloe's Bluetooth headphones going idle) — if we persisted THAT, the
+    // saved name would be wiped the instant the device vanished, defeating the whole point of
+    // remembering it. This field is set only on an explicit/successful bind (never cleared to null
+    // just because the live selection drops out) and is what PollPreCueDeviceRebind + PersistSettings
+    // read from. See PreCueTransport.TryAutoRebind (JustPlay.Core.Playback) for the match logic.
+    private string? _savedHeadphoneDeviceName;
+
     // User-seek reconciliation: when the user scrubs, the native engine takes a moment to
     // actually report the new position. Until it lands near the target, the timer must NOT
     // write the stale pre-seek position back to the slider (that's the "jumps back, then
@@ -188,7 +197,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _controller.TrackEnded += OnTrackEnded;
         _preListen.StateChanged += OnPreCueStateChanged;
         _preListen.PlaybackEnded += OnPreCueEnded;
-        PreCueTracks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoPreCueTracks));
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _timer.Tick += (_, _) => Tick();
@@ -1004,8 +1012,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ColumnViewB      = [.. _viewB],
         ColumnViewC      = [.. _viewC],
         ActiveColumnView = ActiveColumnView,
-        // Pre-listen (PFL) headphone device and volume.
-        HeadphoneDeviceName = SelectedHeadphoneDevice?.Name,
+        // Pre-listen (PFL) headphone device and volume. Persist the SAVED name (survives the
+        // device briefly disappearing), not the live selection — see _savedHeadphoneDeviceName.
+        HeadphoneDeviceName = _savedHeadphoneDeviceName,
         PreCueVolume        = PreCueVolume,
     });
 
@@ -1295,11 +1304,35 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                                    ?? OutputDevices.FirstOrDefault(d => d.IsDefault)
                                    ?? OutputDevices[0];
 
-        var hpName = SelectedHeadphoneDevice?.Name;
+        // Fall back to the saved-by-name device (not just the live selection) so a manual refresh
+        // also recovers a device that disappeared and reappeared while nothing was actively bound —
+        // same source of truth the auto-reconnect poll uses (PollPreCueDeviceRebind).
+        var hpName = SelectedHeadphoneDevice?.Name ?? _savedHeadphoneDeviceName;
         HeadphoneDevices.Clear();
         foreach (var d in _preListen.GetOutputDevices()) HeadphoneDevices.Add(d);
         OnPropertyChanged(nameof(HasNoHeadphoneDevices));
         SelectedHeadphoneDevice = hpName is null ? null : HeadphoneDevices.FirstOrDefault(d => d.Name == hpName);
+    }
+
+    /// <summary>
+    /// Pre-cue v2 auto-reconnect "CLOU": while the PRE-CUE tab is open (gated in <see cref="Tick"/>
+    /// by <see cref="IsPreCueTab"/>), poll for the saved-by-name headphone device reappearing (e.g.
+    /// Chloe's Bluetooth headphones waking up) and bind it automatically — no Settings detour.
+    /// Never overrides an already-bound device, and never falls back to the system default (cue
+    /// audio must never land on the speakers) — see <see cref="PreCueTransport.TryAutoRebind"/>.
+    /// </summary>
+    private void PollPreCueDeviceRebind()
+    {
+        var fresh = _preListen.GetOutputDevices();
+        var pick = PreCueTransport.TryAutoRebind(SelectedHeadphoneDevice, _savedHeadphoneDeviceName, fresh);
+        if (pick is null) return;
+
+        // Refresh the bound list so the ComboBox shows the (re)appeared device, then bind it.
+        // OnSelectedHeadphoneDeviceChanged does the rest (_preListen.OutputDevice + persist).
+        HeadphoneDevices.Clear();
+        foreach (var d in fresh) HeadphoneDevices.Add(d);
+        OnPropertyChanged(nameof(HasNoHeadphoneDevices));
+        SelectedHeadphoneDevice = pick;
     }
 
     // ── Pre-listen (PFL) headphone device selection ───────────────────────────
@@ -1324,6 +1357,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedHeadphoneDeviceChanged(AudioOutputDevice? value)
     {
+        // Remember the bind by name — but only forward (never clear to null just because the live
+        // selection drops out, e.g. the device disappearing). See _savedHeadphoneDeviceName's field
+        // comment: this is what makes the auto-reconnect poll (PollPreCueDeviceRebind) possible.
+        if (value is not null) _savedHeadphoneDeviceName = value.Name;
+
         if (!_settingsHydrated) return;
         _preListen.OutputDevice = value?.Index ?? -1;
         PersistSettings();
@@ -1331,6 +1369,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void PopulateHeadphoneDevices(string? savedName)
     {
+        _savedHeadphoneDeviceName = savedName;
+
         // Enumerate from the pre-listen engine (same underlying BASS call as main engine, but returns
         // all enabled devices — the user picks which one is their headphones).
         var devices = _preListen.GetOutputDevices();
@@ -1349,25 +1389,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _preListen.OutputDevice = match.Index;
     }
 
-    // ── Pre-listen transport state ────────────────────────────────────────────────
-    // PreCueTracks: the audition list. Each entry is a standard TrackViewModel with pre-cue
-    // callbacks injected (PlayInPreCueCallback / AddPreCueToMainQueueCallback / DiscardFromPreCueCallback).
-    // PreCueCurrent: the track currently loaded in the cue engine.
-
-    /// <summary>The audition list for pre-listening. Tracks are added via "Add files…" and removed
-    /// via the "✕" discard button or automatically when added to the main queue.</summary>
-    public ObservableCollection<TrackViewModel> PreCueTracks { get; } = [];
-
-    /// <summary>True when there are no tracks in the audition list — drives the empty-list hint
-    /// visibility. Raises PropertyChanged via the PreCueTracks.CollectionChanged subscription in
-    /// the constructor (see wire-up near _preListen.StateChanged).</summary>
-    public bool HasNoPreCueTracks => PreCueTracks.Count == 0;
+    // ── Pre-listen transport state (Pre-Cue v2 — single slot) ──────────────────────
+    // PreCueCurrent: the ONE track currently loaded in the cue engine, or null when the slot is
+    // empty. "es muss schnell gehen" — loading a track REPLACES the slot and autoplays immediately;
+    // there is no audition list and no pause. Add/Kick + ±30s live below (── Pre-cue commands ──).
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreCueIsPlaying))]
     [NotifyPropertyChangedFor(nameof(PreCuePositionText))]
     [NotifyPropertyChangedFor(nameof(PreCueDurationText))]
+    [NotifyPropertyChangedFor(nameof(HasPreCueCurrent))]
+    [NotifyCanExecuteChangedFor(nameof(CueAddCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CueKickCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CueJumpForwardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CueJumpBackCommand))]
     private TrackViewModel? _preCueCurrent;
+
+    /// <summary>True while the pre-cue slot has a track loaded — drives the Add/Kick/±30s buttons'
+    /// enabled state (via CanExecute) and the empty-slot hint text in the PRE-CUE panel.</summary>
+    public bool HasPreCueCurrent => PreCueCurrent is not null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreCuePositionText))]
@@ -1385,7 +1425,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(PreCueIsPlaying))]
     private PlaybackState _preCueState = PlaybackState.Stopped;
 
-    /// <summary>True while the cue engine is playing — drives the play/pause icon in the PRE-CUE panel.</summary>
+    /// <summary>True while the cue engine is playing — reflects the engine's live state (autoplay
+    /// on load, no pause in v2; goes false again on Kick or natural end-of-track).</summary>
     public bool PreCueIsPlaying => PreCueState == PlaybackState.Playing;
 
     public string PreCuePositionText => Format(PreCuePositionSeconds);
@@ -1411,7 +1452,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void OnPreCueEnded(object? sender, EventArgs e)
         => Dispatcher.UIThread.Post(() =>
         {
-            // v1: just stop — no auto-advance in the cue list.
+            // Single-slot v2: just stop — no auto-advance (there's nothing queued to advance to).
+            // The slot stays loaded (PreCueCurrent unchanged) so Chloe can still Add/Kick it or
+            // scrub back in with ±30s; only Kick clears the slot.
             PreCueState = PlaybackState.Stopped;
         });
 
@@ -1433,40 +1476,66 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void SetRightColumnTab(string which) => RightColumnTab = which;
 
-    // ── Pre-cue commands ───────────────────────────────────────────────────────
+    // ── Pre-cue commands (v2: single slot, autoplay, no pause) ─────────────────
 
-    /// <summary>Start playing a track in the headphone cue engine. Called when the user taps the
-    /// play button on a pre-cue list row, or when the row's PlayInPreCueCommand fires.</summary>
-    private void PlayPreCueInternal(TrackViewModel track)
+    /// <summary>Load ONE file into the pre-cue slot and autoplay it immediately — replaces whatever
+    /// was cued before ("es muss schnell gehen": no confirmation, no pause). Called from the
+    /// file-picker code-behind (<c>OnAddPreCueFilesClicked</c>) or a queue row's
+    /// <see cref="TrackViewModel.PlayInPreCueCommand"/> (wired in <see cref="AddPathsAsync"/>).</summary>
+    public async Task LoadPreCueTrackAsync(string filePath)
     {
-        if (SelectedHeadphoneDevice is null) return; // no device → ignore
+        if (SelectedHeadphoneDevice is null) return; // no device → ignore (never routes to speakers)
+
+        var tvm = new TrackViewModel(new Track(filePath));
         _preListen.Stop();
-        _preListen.Load(track.Model.FilePath);
+        _preListen.Load(filePath);       // replaces any previously-loaded source — single slot by construction
         _preListen.Volume = PreCueVolume;
-        _preListen.Play();
-        PreCueCurrent = track;
+        _preListen.Play();               // autoplay — no pause state in v2
+        PreCueCurrent = tvm;
+
+        // Load metadata async so the title/artist appear without blocking the UI.
+        await Task.Run(() =>
+        {
+            tvm.Model.Metadata = _metadata.Read(filePath);
+            Dispatcher.UIThread.Post(tvm.Refresh);
+        });
     }
 
-    /// <summary>Pause or resume cue playback.</summary>
-    [RelayCommand]
-    private void TogglePreCuePause()
+    /// <summary>Send a queue row into the pre-cue slot — the callback wired onto every
+    /// <see cref="TrackViewModel"/> added to <see cref="Tracks"/> (see <see cref="AddPathsAsync"/>).</summary>
+    private void LoadPreCueTrackFromRow(TrackViewModel row) => _ = LoadPreCueTrackAsync(row.Model.FilePath);
+
+    /// <summary>Seek the cue track by ±<paramref name="delta"/>, clamped to [0, Duration] via the
+    /// shared <see cref="PreCueTransport.ClampedJump"/> helper (unit-tested in
+    /// PreListenEngineTests.cs). Routes through the <see cref="PreCuePositionSeconds"/> setter so the
+    /// existing seek-hold bookkeeping (Tick doesn't snap the slider back to a stale position) applies
+    /// here too — same as a manual slider drag.</summary>
+    private void JumpPreCue(TimeSpan delta)
     {
-        if (_preListen.State == PlaybackState.Playing) _preListen.Pause();
-        else if (_preListen.State == PlaybackState.Paused) _preListen.Play();
+        var target = PreCueTransport.ClampedJump(_preListen.Position, delta, _preListen.Duration);
+        PreCuePositionSeconds = target.TotalSeconds;
     }
 
-    /// <summary>Stop cue playback and rewind.</summary>
-    [RelayCommand]
-    private void StopPreCue() => _preListen.Stop();
+    /// <summary>Jump the cue track forward 30 seconds.</summary>
+    [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
+    private void CueJumpForward() => JumpPreCue(TimeSpan.FromSeconds(30));
 
-    /// <summary>Append a pre-cue track to the MAIN queue without removing it from the audition list.
-    /// The user can add multiple times or discard separately.</summary>
-    private void AppendPreCueToMainQueueInternal(TrackViewModel track)
+    /// <summary>Jump the cue track back 30 seconds.</summary>
+    [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
+    private void CueJumpBack() => JumpPreCue(TimeSpan.FromSeconds(-30));
+
+    /// <summary>"Add": append the cued track to the MAIN queue. Does not clear the slot — Chloe can
+    /// still Kick it, jump around, or Add it again.</summary>
+    [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
+    private void CueAdd()
     {
-        var tvm = new TrackViewModel(new Track(track.Model.FilePath))
+        if (PreCueCurrent is not { } cued) return;
+
+        var tvm = new TrackViewModel(new Track(cued.Model.FilePath))
         {
             AddOrder = _addSeq++,
             ToggleFavoriteCallback = ToggleFavoriteForTrack,
+            PlayInPreCueCallback = LoadPreCueTrackFromRow,
             NormalizationTargetDb = LevelToLufs(NormalizationLevel),
         };
         Tracks.Add(tvm);
@@ -1480,54 +1549,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void DiscardFromPreCueInternal(TrackViewModel track)
+    /// <summary>"Kick": discard the cued track — stop cue playback, release the file handle, and
+    /// clear the slot. Fast audition workflow: Add what you like, Kick what you don't.</summary>
+    [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
+    private void CueKick()
     {
-        // If this track is the one currently loaded in the cue engine, stop it first.
-        if (ReferenceEquals(PreCueCurrent, track))
-        {
-            _preListen.Unload();
-            PreCueCurrent = null;
-        }
-        PreCueTracks.Remove(track);
-    }
-
-    /// <summary>Add file paths to the pre-cue audition list (called from code-behind after the picker).</summary>
-    public async Task AddPreCuePathsAsync(IEnumerable<string> paths)
-    {
-        var files = new List<string>();
-        foreach (var p in paths)
-        {
-            if (Directory.Exists(p))
-                files.AddRange(Directory.EnumerateFiles(p, "*", SearchOption.AllDirectories));
-            else if (File.Exists(p))
-                files.Add(p);
-        }
-
-        var audioFiles = files.Where(IsAudio).OrderBy(f => f, NaturalComparer.Instance);
-
-        // Create TrackViewModels with the pre-cue callbacks wired in.
-        var added = new List<TrackViewModel>();
-        foreach (var f in audioFiles)
-        {
-            var tvm = new TrackViewModel(new Track(f));
-            tvm.PlayInPreCueCallback        = PlayPreCueInternal;
-            tvm.AddPreCueToMainQueueCallback = AppendPreCueToMainQueueInternal;
-            tvm.DiscardFromPreCueCallback    = DiscardFromPreCueInternal;
-            PreCueTracks.Add(tvm);
-            added.Add(tvm);
-        }
-
-        if (added.Count == 0) return;
-
-        // Load metadata async so titles/artists appear without blocking the UI.
-        await Task.Run(() =>
-        {
-            foreach (var tvm in added)
-            {
-                tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
-                Dispatcher.UIThread.Post(tvm.Refresh);
-            }
-        });
+        if (PreCueCurrent is null) return;
+        _preListen.Stop();
+        _preListen.Unload();
+        PreCueCurrent = null;
     }
 
     /// <summary>The profile currently open in the editor, or null when none is selected.</summary>
@@ -2388,6 +2418,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 AddOrder = _addSeq++,
                 ToggleFavoriteCallback = ToggleFavoriteForTrack,
+                PlayInPreCueCallback = LoadPreCueTrackFromRow,
                 NormalizationTargetDb = LevelToLufs(NormalizationLevel),
             };
             Tracks.Add(tvm);
@@ -2797,6 +2828,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         PreCueDurationSeconds = _preListen.Duration.TotalSeconds;
         OnPropertyChanged(nameof(PreCueDurationText));
+
+        // Auto-reconnect "CLOU": only worth polling device availability while the PRE-CUE tab is
+        // actually open (cheap either way — a handful of Bass.GetDeviceInfo calls — but no reason
+        // to run it in the background).
+        if (IsPreCueTab) PollPreCueDeviceRebind();
     }
 
     private void MaybeStartCrossfade(double posSeconds, double durationSeconds)

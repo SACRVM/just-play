@@ -238,13 +238,6 @@ public sealed class BassPreListenEngine : IPreListenEngine
         SetState(CorePlaybackState.Playing);
     }
 
-    public void Pause()
-    {
-        if (_source == 0) return;
-        BassMix.ChannelFlags(_source, BassFlags.MixerChanPause, BassFlags.MixerChanPause);
-        SetState(CorePlaybackState.Paused);
-    }
-
     public void Stop()
     {
         if (_source == 0) return;

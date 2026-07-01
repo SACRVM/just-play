@@ -24,34 +24,21 @@ public sealed partial class TrackViewModel : ObservableObject
     /// </summary>
     public Func<TrackViewModel, bool, System.Threading.Tasks.Task>? ToggleFavoriteCallback { get; set; }
 
-    // ── Pre-listen (PFL) row callbacks ─────────────────────────────────────
-    // Set by MainWindowViewModel when the row lives in PreCueTracks. Null for all main-queue rows.
-    // The callback pattern mirrors ToggleFavoriteCallback so the DataTemplate can bind to these
-    // typed RelayCommands via compiled bindings without cross-DataContext gymnastics.
+    // ── Pre-listen (PFL) row entry point ────────────────────────────────────
+    // Pre-Cue v2 (Phase A): the audition list is gone (ONE slot now — MainWindowViewModel.
+    // PreCueCurrent), so "add to main queue" / "discard" moved to slot-level VM commands
+    // (CueAddCommand / CueKickCommand). This is the one entry point that stays on the row itself:
+    // wired on every main-queue TrackViewModel (mirrors ToggleFavoriteCallback) so any row can be
+    // sent into the pre-cue slot for headphone audition — see MainWindowViewModel.AddPathsAsync.
 
-    /// <summary>Injected when the track lives in the pre-cue audition list.
-    /// Fires the cue engine to start playing this track on the headphone device.</summary>
+    /// <summary>Injected by MainWindowViewModel on every queue row. Loads this track into the
+    /// single pre-cue slot and autoplays it on headphones (replaces whatever was cued before).</summary>
     public Action<TrackViewModel>? PlayInPreCueCallback { get; set; }
 
-    /// <summary>Injected when the track lives in the pre-cue audition list.
-    /// Appends this track to the MAIN Tracks queue (add-to-queue from cue).</summary>
-    public Action<TrackViewModel>? AddPreCueToMainQueueCallback { get; set; }
-
-    /// <summary>Injected when the track lives in the pre-cue audition list.
-    /// Removes this track from PreCueTracks (discard from the audition list).</summary>
-    public Action<TrackViewModel>? DiscardFromPreCueCallback { get; set; }
-
-    /// <summary>Start playing this track in the headphone pre-listen engine. No-op for main-queue rows.</summary>
+    /// <summary>Send this track to the headphone pre-listen slot. No-op for rows where the
+    /// callback wasn't wired.</summary>
     [RelayCommand]
     private void PlayInPreCue() => PlayInPreCueCallback?.Invoke(this);
-
-    /// <summary>Append this track to the main queue. Only wired on pre-cue rows.</summary>
-    [RelayCommand]
-    private void AddPreCueToMainQueue() => AddPreCueToMainQueueCallback?.Invoke(this);
-
-    /// <summary>Remove this track from the pre-cue audition list. Only wired on pre-cue rows.</summary>
-    [RelayCommand]
-    private void DiscardFromPreCue() => DiscardFromPreCueCallback?.Invoke(this);
 
     public TrackViewModel(Track model) => Model = model;
 

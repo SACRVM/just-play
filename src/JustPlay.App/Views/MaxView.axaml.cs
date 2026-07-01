@@ -359,9 +359,9 @@ public partial class MaxView : UserControl
     /// <summary>Default export name: JustPlay_YEAR-MONTH-DAY_HH-MM (no extension — pickers add it).</summary>
     private static string DefaultSetName() => $"JustPlay_{DateTime.Now:yyyy-MM-dd_HH-mm}";
 
-    // ── PRE-CUE: "Add files…" button ──────────────────────────────────────────
-    // Opens a multi-select file picker then hands the chosen paths to the ViewModel,
-    // which builds TrackViewModel wrappers and appends them to PreCueTracks.
+    // ── PRE-CUE: "Load track…" button ─────────────────────────────────────────
+    // Opens a SINGLE-select file picker then hands the chosen path to the ViewModel, which loads
+    // it straight into the one pre-cue slot and autoplays it (v2: single slot, no audition list).
     // Lives in code-behind because file pickers require the window's StorageProvider.
     private async void OnAddPreCueFilesClicked(object? sender, RoutedEventArgs e)
     {
@@ -370,8 +370,8 @@ public partial class MaxView : UserControl
 
         var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Add tracks to audition list",
-            AllowMultiple = true,
+            Title = "Load a track into the pre-cue slot",
+            AllowMultiple = false,
             FileTypeFilter =
             [
                 new FilePickerFileType("Audio files")
@@ -381,11 +381,10 @@ public partial class MaxView : UserControl
             ],
         });
 
-        var paths = files
-            .Select(f => f.TryGetLocalPath())
-            .OfType<string>();
+        if (files.Count == 0) return; // user cancelled
+        if (files[0].TryGetLocalPath() is not { } path) return;
 
-        await vm.AddPreCuePathsAsync(paths);
+        await vm.LoadPreCueTrackAsync(path);
     }
 
     // Window min/max/close now live in the shared WindowControls control.

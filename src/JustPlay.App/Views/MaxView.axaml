@@ -145,6 +145,29 @@
         </Style>
 
         <!--
+          PRE-CUE v2 transport pills — Load track… / −30s / +30s / Add / Kick. A rounded Border
+          carries the background+border (proven pattern, copied from TweaksPanel.axaml's preset
+          chips) around a Classes="ghost" Button (transparent, borderless) so there's no FluentTheme
+          Background/BorderBrush-leaks-onto-ContentPresenter fight to have (see CLAUDE.md "FluentTheme
+          leaks Background / BorderBrush..."). Add reads accent (constructive), Kick reads a muted red
+          (destructive-but-cheap — it only clears the audition slot, not a real delete). CanExecute
+          (HasPreCueCurrent) auto-disables/dims the buttons via the standard Button-Command wiring —
+          no explicit IsEnabled binding needed.
+        -->
+        <Style Selector="Border.precue-pill">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+        </Style>
+        <Style Selector="Border.precue-pill.precue-add">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
+        </Style>
+        <Style Selector="Border.precue-pill.precue-kick">
+            <Setter Property="BorderBrush" Value="#4DFF8A80"/>
+        </Style>
+
+        <!--
           Queue scrollbar — FULL CUSTOM TEMPLATE (FluentTheme overrides via `/template/`
           selectors were not winning reliably; the dark track background, square thumb
           and template setters all slipped through). With our own ControlTemplate we
@@ -1066,9 +1089,13 @@
                         </Panel>
 
                         <!-- ═══════════════════════════════════════════════════════════════════
-                             PRE-CUE PANEL — the audition list + compact cue transport.
+                             PRE-CUE PANEL — v2: ONE fast-scout song slot, not an audition list.
                              Visible only when IsPreCueTab. Shares the right-column panel host
                              with the queue list. Theming: DynamicResource accent brushes.
+
+                             "es muss schnell gehen" — loading a track REPLACES the slot and
+                             autoplays immediately; there is no pause. Add pushes the cued track
+                             into the main queue; Kick discards it. ±30s jumps around inside it.
 
                              STRUCTURAL ISOLATION: cue audio routes through IPreListenEngine
                              (BassPreListenEngine) on a separate BASS device. There is NO
@@ -1078,7 +1105,7 @@
                              ═══════════════════════════════════════════════════════════════════ -->
                         <DockPanel Name="PreCuePanel" IsVisible="{Binding IsPreCueTab}" LastChildFill="True">
 
-                            <!-- Bottom control strip: transport + volume + device + add-files -->
+                            <!-- Bottom control strip: transport + Add/Kick/±30s + volume + device + load-track -->
                             <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
 
                                 <!-- Compact cue transport: position slider + time labels -->
@@ -1092,24 +1119,33 @@
                                                FontSize="11" Foreground="#73FFFFFF" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                 </Grid>
 
-                                <!-- Play/pause + stop buttons (two buttons, IsVisible-toggled — no converter needed) -->
-                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                    <!-- "Play" shown when NOT playing -->
-                                    <Button Classes="iconbtn" Command="{Binding TogglePreCuePauseCommand}"
-                                            IsVisible="{Binding !PreCueIsPlaying}"
-                                            ToolTip.Tip="Play cue">
-                                        <TextBlock Text="▶" FontSize="15"/>
-                                    </Button>
-                                    <!-- "Pause" shown while playing -->
-                                    <Button Classes="iconbtn" Command="{Binding TogglePreCuePauseCommand}"
-                                            IsVisible="{Binding PreCueIsPlaying}"
-                                            ToolTip.Tip="Pause cue">
-                                        <TextBlock Text="⏸" FontSize="15"/>
-                                    </Button>
-                                    <Button Classes="iconbtn" Command="{Binding StopPreCueCommand}"
-                                            ToolTip.Tip="Stop cue and rewind">
-                                        <TextBlock Text="■" FontSize="13"/>
-                                    </Button>
+                                <!-- Add · Kick · −30s · +30s — autoplay, no pause. CanExecute (HasPreCueCurrent)
+                                     auto-disables/dims these when the slot is empty. -->
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <Border Classes="precue-pill">
+                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="SemiBold"
+                                                Foreground="#D9FFFFFF" Content="−30s"
+                                                Command="{Binding CueJumpBackCommand}"
+                                                ToolTip.Tip="Jump back 30 seconds"/>
+                                    </Border>
+                                    <Border Classes="precue-pill">
+                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="SemiBold"
+                                                Foreground="#D9FFFFFF" Content="+30s"
+                                                Command="{Binding CueJumpForwardCommand}"
+                                                ToolTip.Tip="Jump forward 30 seconds"/>
+                                    </Border>
+                                    <Border Classes="precue-pill precue-add">
+                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="Bold"
+                                                Foreground="{DynamicResource AccentBBrush}" Content="Add"
+                                                Command="{Binding CueAddCommand}"
+                                                ToolTip.Tip="Add this track to the main queue"/>
+                                    </Border>
+                                    <Border Classes="precue-pill precue-kick">
+                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="Bold"
+                                                Foreground="#FF8A80" Content="Kick"
+                                                Command="{Binding CueKickCommand}"
+                                                ToolTip.Tip="Discard this track and clear the slot"/>
+                                    </Border>
                                 </StackPanel>
 
                                 <!-- Cue volume slider -->
@@ -1122,13 +1158,16 @@
                                             behaviors:SliderWheel.Enabled="True"/>
                                 </Grid>
 
-                                <!-- "Add files…" button + headphone device ComboBox -->
+                                <!-- "Load track…" button + headphone device ComboBox. The ComboBox auto-rebinds
+                                     the saved-by-name device when it (re)appears while this tab is open — see
+                                     MainWindowViewModel.PollPreCueDeviceRebind — no Settings detour needed. -->
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <Button Grid.Column="0" Classes="cap" Click="OnAddPreCueFilesClicked"
-                                            Margin="0,0,8,0" ToolTip.Tip="Add audio files to the audition list"
-                                            Padding="10,4" Height="26">
-                                        <TextBlock Text="Add files…" FontSize="11"/>
-                                    </Button>
+                                    <Border Grid.Column="0" Classes="precue-pill" Margin="0,0,8,0">
+                                        <Button Classes="ghost" Padding="10,4" FontSize="11"
+                                                Foreground="#D9FFFFFF" Content="Load track…"
+                                                Click="OnAddPreCueFilesClicked"
+                                                ToolTip.Tip="Load an audio file into the pre-cue slot"/>
+                                    </Border>
                                     <!-- Dark-frosted headphone device ComboBox (styles defined in MaxView's local styles). -->
                                     <ComboBox Grid.Column="1" Classes="precue-device-picker"
                                               ItemsSource="{Binding HeadphoneDevices}"
@@ -1152,77 +1191,19 @@
                             </StackPanel>
                             <!-- /bottom strip -->
 
-                            <!-- Pre-cue audition list (fills remaining space) -->
-                            <Border>
-                                <Border.OpacityMask>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                        <GradientStop Offset="0.0"   Color="Transparent"/>
-                                        <GradientStop Offset="0.018" Color="White"/>
-                                        <GradientStop Offset="0.982" Color="White"/>
-                                        <GradientStop Offset="1.0"   Color="Transparent"/>
-                                    </LinearGradientBrush>
-                                </Border.OpacityMask>
-                                <Panel>
-                                    <ListBox Name="PreCueList" ItemsSource="{Binding PreCueTracks}"
-                                             SelectionMode="Single" Background="Transparent"
-                                             BorderThickness="0" Padding="0"
-                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:TrackViewModel">
-                                                <!-- Pre-cue row: track info + play / add-to-queue / discard -->
-                                                <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto"
-                                                      Margin="4,0,8,0" MinHeight="40">
-                                                    <!-- Play in cue engine -->
-                                                    <Button Grid.Column="0" Classes="iconbtn"
-                                                            Command="{Binding PlayInPreCueCommand}"
-                                                            ToolTip.Tip="Audition on headphones"
-                                                            Margin="0,0,4,0">
-                                                        <TextBlock Text="▶" FontSize="11"
-                                                                   Foreground="{DynamicResource AccentABrush}"/>
-                                                    </Button>
-                                                    <!-- Title + Artist -->
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="SemiBold"
-                                                                   Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding Artist}" FontSize="10"
-                                                                   Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                                    </StackPanel>
-                                                    <!-- Duration -->
-                                                    <TextBlock Grid.Column="2" Text="{Binding DurationText}"
-                                                               FontSize="10" Foreground="#59FFFFFF"
-                                                               VerticalAlignment="Center" Margin="4,0"/>
-                                                    <!-- Add to main queue -->
-                                                    <Button Grid.Column="3" Classes="iconbtn"
-                                                            Command="{Binding AddPreCueToMainQueueCommand}"
-                                                            ToolTip.Tip="Add to main queue"
-                                                            Margin="0,0,2,0">
-                                                        <TextBlock Text="+" FontSize="15" FontWeight="Bold"
-                                                                   Foreground="{DynamicResource AccentBBrush}"/>
-                                                    </Button>
-                                                    <!-- Discard from audition list -->
-                                                    <Button Grid.Column="4" Classes="iconbtn"
-                                                            Command="{Binding DiscardFromPreCueCommand}"
-                                                            ToolTip.Tip="Remove from audition list">
-                                                        <TextBlock Text="x" FontSize="11" Foreground="#73FFFFFF"/>
-                                                    </Button>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-
-                                    <!-- Empty audition-list hint (shown when PreCueTracks is empty) -->
-                                    <StackPanel IsVisible="{Binding HasNoPreCueTracks}"
-                                                HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-                                        <TextBlock Text="(  )" FontSize="32" HorizontalAlignment="Center"
-                                                   Foreground="#33FFFFFF" FontWeight="Light"/>
-                                        <TextBlock Text="No tracks to audition" FontSize="14" FontWeight="SemiBold"
-                                                   HorizontalAlignment="Center" Foreground="#A6FFFFFF"/>
-                                        <TextBlock Text="Use &quot;Add files…&quot; to load tracks for headphone preview"
-                                                   FontSize="11" HorizontalAlignment="Center"
-                                                   Foreground="#59FFFFFF" TextWrapping="Wrap" TextAlignment="Center"/>
-                                    </StackPanel>
-                                </Panel>
-                            </Border>
+                            <!-- The one now-playing cue slot fills the remaining space. FallbackValue text
+                                 doubles as the "nothing cued" hint (same pattern as the main transport's
+                                 Current.Title, FallbackValue='Drop a track to begin' — see line ~641). -->
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                <TextBlock Text="{Binding PreCueCurrent.Title, FallbackValue='No track cued'}"
+                                           FontSize="16" FontWeight="SemiBold" Foreground="White"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="240"
+                                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <TextBlock Text="{Binding PreCueCurrent.Artist, FallbackValue='Load a track to audition on headphones'}"
+                                           FontSize="12" Foreground="#73FFFFFF"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="240"
+                                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                            </StackPanel>
 
                         </DockPanel>
                         <!-- /PreCuePanel -->
