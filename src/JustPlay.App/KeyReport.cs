@@ -727,4 +727,434 @@ internal static class KeyReport
     }
 
     private static string Pct(int n, int total) => total == 0 ? "  0%" : $"{100.0 * n / total,3:0}%";
+
+    // ── N19 helpers (V4 segment + HPSS combination) ───────────────────────────────────
+    private static DecodedAudio DownsampleBy4ForReport(DecodedAudio audio)
+    {
+        var samples = audio.Samples!;
+        var newLen  = samples.Length / 4;
+        var dst     = new float[newLen];
+        for (var i = 0; i < newLen; i++) dst[i] = samples[i * 4];
+        return new DecodedAudio(dst, audio.SampleRate / 4);
+    }
+
+    private static List<(int Start, int End)> BuildSegmentsForReport(
+        IReadOnlyList<JustPlay.Analysis.StructureBoundary> boundaries, int sampleRate, int totalSamples)
+    {
+        var times = new List<double> { 0.0 };
+        foreach (var b in boundaries) times.Add(b.TimeSeconds);
+        times.Add(totalSamples / (double)sampleRate);
+        var segs = new List<(int, int)>(times.Count - 1);
+        for (var i = 0; i < times.Count - 1; i++)
+        {
+            var s = (int)(times[i] * sampleRate);
+            var e = (int)(times[i + 1] * sampleRate);
+            if (e > s + sampleRate) segs.Add((s, e));
+        }
+        return segs;
+    }
+
+    private static DecodedAudio SliceForReport(DecodedAudio audio, int startSample, int endSample)
+    {
+        endSample = Math.Min(endSample, audio.Samples!.Length);
+        var len   = endSample - startSample;
+        if (len <= 0) return new DecodedAudio([], audio.SampleRate);
+        var slice = new float[len];
+        Array.Copy(audio.Samples!, startSample, slice, 0, len);
+        return new DecodedAudio(slice, audio.SampleRate);
+    }
+
+    // ── N19 TUNING AUDIT ──────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// N19 tuning audit: for each GiantSteps track, determine the dominant tuning offset
+    /// (the sub-semitone bin with the most energy in the 36-bin fine HPCP chroma), then
+    /// compare classification accuracy WITH vs WITHOUT the 36-bin tuning correction.
+    ///
+    /// <para>Our shipped 36-bin folding corrects for detuning (non-A440 tracks) by choosing
+    /// the dominant sub-bin before folding to 12. edmkey uses a different approach: a 12-bin
+    /// HPCP + shift_pcp to correct the whole vector. This audit measures HOW MUCH each track
+    /// is detuned and whether the correction helped.</para>
+    ///
+    /// Usage: <c>--giantsteps-tuning &lt;root&gt; [maxFiles]</c>
+    /// </summary>
+    public static void RunGiantStepsTuningAudit(IServiceProvider services, string root, int maxFiles = int.MaxValue)
+    {
+        var audioDir = Path.Combine(root, "audio");
+        var keyDir   = Path.Combine(root, "annotations", "key");
+        if (!Directory.Exists(audioDir) || !Directory.Exists(keyDir))
+        {
+            Console.WriteLine($"Expected {audioDir} and {keyDir} to exist.");
+            return;
+        }
+
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError})");
+
+        var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
+            .Where(f => new FileInfo(f).Length > 10_000)
+            .OrderBy(f => f)
+            .Take(maxFiles)
+            .ToList();
+
+        Console.WriteLine($"N19 tuning audit [{files.Count} files]\n");
+
+        var hpcp   = new JustPlay.Analysis.HpcpKeyDetector();
+
+        // Counters per tuning class:
+        // offset 0 = on-pitch (A440), offset 1 = slightly sharp, offset 2 = slightly flat.
+        // Each offset class tracks: total, correct WITH tuning correction, correct WITHOUT.
+        var countByOffset  = new int[3];
+        var correctWith    = new int[3];
+        var correctWithout = new int[3];
+        var mirexWith      = new double[3];
+        var mirexWithout   = new double[3];
+
+        // Track how many detuned tracks there are.
+        var detuned = 0;
+        var n = 0;
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
+                if (!File.Exists(keyFile)) continue;
+                var keyLabel = File.ReadAllText(keyFile).Trim();
+                if (MusicalKey.TryParse(keyLabel) is not { } reference) continue;
+
+                DecodedAudio audio;
+                try { audio = decoder.DecodeMono(file, 44100); }
+                catch { continue; }
+
+                // Build the 36-bin fine HPCP.
+                var fine36 = hpcp.BuildFine36(audio);
+                if (fine36 is null) continue;
+
+                // Determine dominant tuning sub-bin (0, 1, or 2).
+                const int BPS = 3; // bins per semitone
+                const int CB  = 36;
+                var subEnergy = new double[BPS];
+                for (var b = 0; b < CB; b++) subEnergy[b % BPS] += fine36[b];
+                var tuningBin = 0;
+                if (subEnergy[1] > subEnergy[0]) tuningBin = 1;
+                if (subEnergy[2] > subEnergy[tuningBin]) tuningBin = 2;
+                if (tuningBin != 0) detuned++;
+
+                // WITH tuning correction: fold centred on tuningBin.
+                var chromaWith = FoldWithTuning(fine36, tuningBin);
+                // WITHOUT tuning correction: fold always centred on bin 0 (A440 assumption).
+                var chromaWithout = FoldWithTuning(fine36, 0);
+
+                var r_with    = JustPlay.Analysis.ChromagramKeyDetector.Classify(chromaWith, 0.0);
+                var r_without = JustPlay.Analysis.ChromagramKeyDetector.Classify(chromaWithout, 0.0);
+
+                if (r_with is null && r_without is null) continue;
+
+                n++;
+                countByOffset[tuningBin]++;
+
+                if (r_with is { } rw)
+                {
+                    var (sc, cat) = MirexScore(rw.Key, reference);
+                    mirexWith[tuningBin] += sc;
+                    if (cat == "exact") correctWith[tuningBin]++;
+                }
+                if (r_without is { } rwo)
+                {
+                    var (sc, cat) = MirexScore(rwo.Key, reference);
+                    mirexWithout[tuningBin] += sc;
+                    if (cat == "exact") correctWithout[tuningBin]++;
+                }
+            }
+        }
+        finally { ManagedBass.Bass.Free(); }
+
+        Console.WriteLine($"=== N19 Tuning audit ({n} scored) ===");
+        Console.WriteLine($"  Detuned tracks (offset ≠ 0): {detuned}/{n}  ({100.0*detuned/Math.Max(1,n):0}%)");
+        Console.WriteLine();
+        Console.WriteLine($"{"Offset",-8} {"count",6} {"exact WITH",11} {"exact WITHOUT",14} {"MIREX WITH",11} {"MIREX WITHOUT",14}");
+        var offNames = new[] { "centre(0)", "sharp(+1)", "flat(-1)" };
+        for (var o = 0; o < 3; o++)
+        {
+            var c = countByOffset[o];
+            if (c == 0) continue;
+            Console.WriteLine($"{offNames[o],-8} {c,6}  {Pct(correctWith[o], c),11}  {Pct(correctWithout[o], c),14}  {mirexWith[o]/c,11:0.000}  {mirexWithout[o]/c,14:0.000}");
+        }
+        var totalWith    = mirexWith.Sum();
+        var totalWithout = mirexWithout.Sum();
+        Console.WriteLine($"\n  Overall: WITH tuning MIREX {totalWith/Math.Max(1,n):0.000}  vs  WITHOUT tuning MIREX {totalWithout/Math.Max(1,n):0.000}");
+        Console.WriteLine($"  Tuning correction gain: {(totalWith - totalWithout)/Math.Max(1,n):+0.000;-0.000} MIREX");
+    }
+
+    /// <summary>Fold 36-bin fine chroma to 12, centred on <paramref name="tuningBin"/> (0, 1, or 2).</summary>
+    private static double[] FoldWithTuning(double[] fine, int tuningBin)
+    {
+        const int BPS = 3;
+        const int CB  = 36;
+        var chroma = new double[12];
+        for (var pc = 0; pc < 12; pc++)
+        {
+            var c = pc * BPS + tuningBin;
+            chroma[pc]  = fine[Mod12(c, CB)];
+            chroma[pc] += 0.5 * fine[Mod12(c - 1, CB)];
+            chroma[pc] += 0.5 * fine[Mod12(c + 1, CB)];
+        }
+        // Normalise.
+        var sum = 0.0; for (var i = 0; i < 12; i++) sum += chroma[i];
+        if (sum > 1e-9) for (var i = 0; i < 12; i++) chroma[i] /= sum;
+        return chroma;
+    }
+
+    private static int Mod12(int x, int m) => ((x % m) + m) % m;
+
+    // ── N19 EXPERIMENT: segment-aware + HPSS variants ──────────────────────────────────
+
+    /// <summary>
+    /// N19 experiment harness — scores four key-detection variants against GiantSteps ground
+    /// truth in a single pass over the dataset:
+    /// <list type="bullet">
+    ///   <item><b>V1 global</b>: shipped HpcpKeyDetector (identical to RunGiantStepsHpcp)</item>
+    ///   <item><b>V2 segment-vote</b>: StructureDetector segments + tonal-segment weighted vote</item>
+    ///   <item><b>V3 HPSS</b>: median-filter drum suppression before HPCP chroma</item>
+    ///   <item><b>V4 segment+HPSS</b>: both combined</item>
+    /// </list>
+    /// Usage: <c>--giantsteps-segment &lt;root&gt; [maxFiles]</c>
+    /// </summary>
+    public static void RunGiantStepsSegmentExperiment(
+        IServiceProvider services, string root, int maxFiles = int.MaxValue)
+    {
+        var audioDir = Path.Combine(root, "audio");
+        var keyDir   = Path.Combine(root, "annotations", "key");
+        if (!Directory.Exists(audioDir) || !Directory.Exists(keyDir))
+        {
+            Console.WriteLine($"Expected {audioDir} and {keyDir} to exist (clone giantsteps-key-dataset).");
+            return;
+        }
+
+        var decoder = services.GetRequiredService<IAudioDecoder>();
+        if (!ManagedBass.Bass.Init(0))
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+
+        var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
+            .Where(f => new FileInfo(f).Length > 10_000)
+            .OrderBy(f => f)
+            .Take(maxFiles)
+            .ToList();
+
+        Console.WriteLine($"N19 segment-aware key experiment [{files.Count} files @ 44.1 kHz]");
+        Console.WriteLine("Variants: V1=global(HPCP) | V2=segment-vote | V3=HPSS | V4=segment+HPSS\n");
+
+        // Per-variant accumulators.
+        var names = new[] { "V1-global", "V2-segment", "V3-HPSS", "V4-seg+HPSS" };
+        var exact   = new int[4];
+        var fifth   = new int[4];
+        var rel     = new int[4];
+        var par     = new int[4];
+        var other   = new int[4];
+        var missed  = new int[4];
+        var mirex   = new double[4];
+
+        // Per-track agreement stats (do the variants AGREE with each other? — diagnostic).
+        int agreeV1V2 = 0, agreeV1V3 = 0, agreeV1V4 = 0;
+        int disagreeV1V2 = 0, disagreeV1V3 = 0, disagreeV1V4 = 0;
+        int v2BetterThanV1 = 0, v3BetterThanV1 = 0, v4BetterThanV1 = 0;
+
+        // Segment diagnostics.
+        var totalSegments = new List<int>();
+        var tonalSegments = new List<int>();
+        var fallbackCount = 0;
+
+        // Tuning audit: track how many tracks have a non-zero tuning offset detected,
+        // and whether the correct key was only reachable with tuning correction.
+        // (We compare HpcpKeyDetector which does tuning vs a variant without it.)
+        var tuningOffsets = new List<double>(); // the dominant sub-bin offset per track
+
+        var n = 0;
+        var segDetector  = new JustPlay.Analysis.SegmentKeyDetector();
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var keyFile = Path.Combine(keyDir, Path.GetFileNameWithoutExtension(file) + ".key");
+                if (!File.Exists(keyFile)) continue;
+                var keyLabel = File.ReadAllText(keyFile).Trim();
+                if (MusicalKey.TryParse(keyLabel) is not { } reference) continue;
+
+                DecodedAudio audio;
+                try { audio = decoder.DecodeMono(file, 44100); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"  [decode FAIL] {Path.GetFileName(file)}: {ex.Message}");
+                    for (var v = 0; v < 4; v++) missed[v]++;
+                    continue;
+                }
+
+                // V1: global HPCP
+                var r1 = segDetector.DetectGlobal(audio);
+
+                // V2: per-tonal-segment vote
+                var r2full = segDetector.DetectSegmented(audio);
+                (MusicalKey Key, double Confidence)? r2 = r2full is null ? null
+                    : (r2full.Value.Key, r2full.Value.Confidence);
+                if (r2full is { } r2d)
+                {
+                    totalSegments.Add(r2d.Details.TotalSegments);
+                    tonalSegments.Add(r2d.Details.TonalSegmentCount);
+                    if (r2d.Details.UsedFallback) fallbackCount++;
+                }
+
+                // V3: HPSS flatness-gated chroma (per-frame tonalness weighting).
+                // Downsample to 11025 Hz first: the chromagram approach (used inside DetectHpssGated)
+                // was calibrated at 11025 Hz where 8192-pt frames give 1.35 Hz/bin resolution —
+                // enough to resolve semitones at the bass octave. At 44.1 kHz, 8192-pt frames give
+                // 5.38 Hz/bin and the lowest semitones are unresolved, degrading accuracy.
+                var audio11k = DownsampleBy4ForReport(audio);
+                var r3 = segDetector.DetectHpssGated(audio11k);
+
+                // V4: segment-vote on HPSS-gated chroma segments
+                // (combines V2's structural segmentation with V3's tonalness weighting at segment level;
+                //  V2 already does per-segment tonalness VOTING — so V4 adds V3-style gating WITHIN each
+                //  segment's HPCP build. This requires a segment-level gated chroma. For V4 we use the
+                //  simplest combination: the V2 segment-vote but with HPSS-gated chroma per segment.)
+                (MusicalKey Key, double Confidence)? r4 = null;
+                if (r2full is { } r2d4 && !r2d4.Details.UsedFallback)
+                {
+                    // Re-run segment detection with gated chroma per segment.
+                    var boundaries4 = new JustPlay.Analysis.StructureDetector { MinBoundaryGapSeconds = 15.0 }
+                        .Detect(DownsampleBy4ForReport(audio));
+                    var segs4 = BuildSegmentsForReport(boundaries4, audio.SampleRate, audio.Samples!.Length);
+                    var votes4 = new List<(double[] Chroma, double Weight)>();
+                    foreach (var (s4, e4) in segs4)
+                    {
+                        // Slice at 44100 then downsample to 11025 for the gated chroma build.
+                        var seg4raw  = SliceForReport(audio, s4, e4);
+                        var seg4     = DownsampleBy4ForReport(seg4raw);
+                        var c4 = JustPlay.Analysis.HpssDrumSuppressor.BuildGatedChroma12(seg4);
+                        if (c4 is null) continue;
+                        var dur4 = (double)(e4 - s4) / audio.SampleRate;
+                        votes4.Add((c4, dur4));  // weight = duration (flatness already embedded in chroma)
+                    }
+                    if (votes4.Count >= 2)
+                    {
+                        var ks4 = new double[24];
+                        foreach (var (c4, w4) in votes4)
+                        {
+                            var d4 = JustPlay.Analysis.ChromagramKeyDetector.Classify(c4, 0.0);
+                            if (d4 is null) continue;
+                            ks4[d4.Value.Key.PitchClass * 2 + (d4.Value.Key.Mode == KeyMode.Minor ? 1 : 0)] += w4;
+                        }
+                        var best4 = 0;
+                        for (var i = 1; i < 24; i++) if (ks4[i] > ks4[best4]) best4 = i;
+                        var sec4 = -1;
+                        for (var i = 0; i < 24; i++) if (i != best4 && (sec4 < 0 || ks4[i] > ks4[sec4])) sec4 = i;
+                        var conf4 = (sec4 < 0 || ks4[best4] <= 0) ? 0.0
+                            : Math.Clamp((ks4[best4] - ks4[sec4]) / ks4[best4], 0.0, 1.0);
+                        r4 = (new MusicalKey(best4 / 2, best4 % 2 == 1 ? KeyMode.Minor : KeyMode.Major), conf4);
+                    }
+                }
+                if (r4 is null) r4 = r3;  // V4 falls back to V3 if segmentation didn't work
+
+                var results = new[] { r1, r2, r3, r4 };
+                n++;  // count one per track (tracks where all 4 could run)
+                for (var v = 0; v < 4; v++)
+                {
+                    if (results[v] is not { } res) { missed[v]++; continue; }
+                    var (score, cat) = MirexScore(res.Key, reference);
+                    mirex[v] += score;
+                    switch (cat)
+                    {
+                        case "exact":    exact[v]++; break;
+                        case "fifth":    fifth[v]++; break;
+                        case "relative": rel[v]++;   break;
+                        case "parallel": par[v]++;   break;
+                        default:         other[v]++;  break;
+                    }
+                }
+
+                // Agreement diagnostics (only when both detectors returned a result).
+                if (r1.HasValue && r2.HasValue)
+                {
+                    if (r1.Value.Key == r2.Value.Key) agreeV1V2++;
+                    else disagreeV1V2++;
+                }
+                if (r1.HasValue && r3.HasValue)
+                {
+                    if (r1.Value.Key == r3.Value.Key) agreeV1V3++;
+                    else disagreeV1V3++;
+                }
+                if (r1.HasValue && r4.HasValue)
+                {
+                    if (r1.Value.Key == r4.Value.Key) agreeV1V4++;
+                    else disagreeV1V4++;
+                }
+
+                // Track-level "better than V1" count (scores 1 if variant's MIREX > V1's MIREX).
+                if (r1.HasValue && r2.HasValue)
+                {
+                    var s1 = MirexScore(r1.Value.Key, reference).Score;
+                    var s2 = MirexScore(r2.Value.Key, reference).Score;
+                    if (s2 > s1) v2BetterThanV1++;
+                }
+                if (r1.HasValue && r3.HasValue)
+                {
+                    var s1 = MirexScore(r1.Value.Key, reference).Score;
+                    var s3 = MirexScore(r3.Value.Key, reference).Score;
+                    if (s3 > s1) v3BetterThanV1++;
+                }
+                if (r1.HasValue && r4.HasValue)
+                {
+                    var s1 = MirexScore(r1.Value.Key, reference).Score;
+                    var s4 = MirexScore(r4.Value.Key, reference).Score;
+                    if (s4 > s1) v4BetterThanV1++;
+                }
+
+                // Incremental checkpoint: print a full results table every 50 tracks so a
+                // killed/interrupted run never loses its aggregate numbers (the full 604-file
+                // pass takes ~2.5h and is fragile). The table prints "results (running)".
+                if (n % 50 == 0)
+                {
+                    Console.WriteLine($"  ... {n}/{files.Count} processed");
+                    PrintResults(running: true);
+                }
+            }
+        }
+        finally
+        {
+            ManagedBass.Bass.Free();
+            // Always print the final table, even on exception / early break.
+            PrintResults(running: false);
+        }
+
+        // ── Local result-printing function (callable for checkpoints + final) ───────────
+        void PrintResults(bool running)
+        {
+            var tag = running ? $"results (running — {n}/{files.Count})" : $"results ({n} scored, {files.Count} total)";
+            Console.WriteLine($"\n=== N19 segment-key experiment {tag} ===\n");
+            Console.WriteLine($"{"Variant",-16} {"exact%",7} {"MIREX",6} {"harmonically-ok",17} {"fifth%",7} {"rel%",5} {"par%",5} {"other%",7} {"missed",7}");
+            Console.WriteLine(new string('-', 80));
+            for (var v = 0; v < 4; v++)
+            {
+                var scored = exact[v] + fifth[v] + rel[v] + par[v] + other[v];
+                if (scored == 0) { Console.WriteLine($"{names[v],-16}  (no results)"); continue; }
+                var harmOk = exact[v] + fifth[v] + rel[v];
+                Console.WriteLine($"{names[v],-16} {Pct(exact[v], scored),7} {mirex[v] / scored,6:0.000} {Pct(harmOk, scored),17} {Pct(fifth[v], scored),7} {Pct(rel[v], scored),5} {Pct(par[v], scored),5} {Pct(other[v], scored),7} {missed[v],7}");
+            }
+
+            Console.WriteLine("\n── Segment diagnostics ──────────────────────────────────────────────────────");
+            if (totalSegments.Count > 0)
+            {
+                Console.WriteLine($"  avg segments per track:       {totalSegments.Average():0.1} (range {totalSegments.Min()}–{totalSegments.Max()})");
+                Console.WriteLine($"  avg tonal segments per track: {tonalSegments.Average():0.1}");
+                Console.WriteLine($"  tracks that used fallback:    {fallbackCount}/{totalSegments.Count}");
+            }
+
+            Console.WriteLine("\n── V1 vs variant agreement (when both returned a key) ───────────────────────");
+            Console.WriteLine($"  V1 vs V2 (segment): agree={agreeV1V2}, disagree={disagreeV1V2}, V2-better-on-track={v2BetterThanV1}");
+            Console.WriteLine($"  V1 vs V3 (HPSS):    agree={agreeV1V3}, disagree={disagreeV1V3}, V3-better-on-track={v3BetterThanV1}");
+            Console.WriteLine($"  V1 vs V4 (both):    agree={agreeV1V4}, disagree={disagreeV1V4}, V4-better-on-track={v4BetterThanV1}");
+        }
+    }
 }

@@ -121,6 +121,26 @@ sealed class Program
             return;
         }
 
+        // N19 tuning audit: quantifies the gain from 36-bin detuning correction vs no correction.
+        // Reports per-tuning-offset group (on-pitch / sharp / flat) accuracy with and without correction.
+        // Usage: --giantsteps-tuning <dataset-root> [maxFiles]
+        if (args is ["--giantsteps-tuning", var tuningRoot, ..])
+        {
+            var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
+            KeyReport.RunGiantStepsTuningAudit(Services, tuningRoot, max);
+            return;
+        }
+
+        // N19 experiment: segment-aware + HPSS key detection variants vs GiantSteps ground truth.
+        // Runs four variants (global/segment-vote/HPSS/combined) in one pass, prints comparison.
+        // Usage: --giantsteps-segment <dataset-root> [maxFiles]
+        if (args is ["--giantsteps-segment", var segRoot, ..])
+        {
+            var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
+            KeyReport.RunGiantStepsSegmentExperiment(Services, segRoot, max);
+            return;
+        }
+
         // BPM diagnostic: raw BASS_FX BPM + corrector internals + ACF peak table.
         // Usage: --bpm-debug "<file path>"
         if (args is ["--bpm-debug", var bpmFile, ..])
