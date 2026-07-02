@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JustPlay CLI — headless & agent-friendly</title>
+<title>JustPlay CLI — built for AI agents</title>
 <meta name="description" content="JustPlayCLI drives the JustPlay engine from the command line — scan, analyse, tag, sort and get stats on a whole music library, no GUI. Built to be scripted and driven by AI agents.">
 <meta name="theme-color" content="#060310">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e8ff'/%3E%3Cstop offset='1' stop-color='%23ff2ab8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cpath d='M32 30 L48 50 L32 70 M54 72 H74' fill='none' stroke='white' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -29,30 +29,41 @@
 </nav>
 
 <header class="doc-hero wrap">
-  <p class="kicker">Headless · agent-friendly</p>
+  <p class="kicker">Headless · built for AI agents</p>
   <h1>JustPlay <span class="grad">CLI</span></h1>
   <p class="lead">
-    The same engine as the app — BPM, Camelot key, energy, loudness and the full DSP analysis —
-    but driven from the command line. No window, no clicking. Point it at a folder and it tells you
-    what's in there, orders it, or writes the analysis back into your files. Made to be scripted, and
-    made to be driven by an AI agent.
+    Hand your music library to an AI. JustPlay's command-line tool is built so an <b>AI agent — like
+    Claude</b> — can analyse, order and tag a whole library for you, just by asking. Same engine as the
+    app, with no window and no clicking: point it at a folder and it does the work.
   </p>
 </header>
 
 <main class="wrap">
 
   <section class="doc-section prose">
-    <h2>Why a command line?</h2>
+    <h2>You don't even type it yourself</h2>
     <p>
       The app is for sitting down and playing music. The CLI is for everything you'd rather have
-      <b>done for you</b> across a whole library: "analyse these 6,000 tracks", "find the duplicates",
-      "sort this crate so it mixes", "write the keys into the files". It ships in the same install as
-      <a href="index.html">JUST PLAY</a> and <a href="just-stream.html">JUST STREAM</a> and shares one
-      copy of the engine — so a track analysed in the CLI reads identically in the player.
+      <b>done for you</b> across a whole library — and here's the twist: <b>you don't have to run it by
+      hand.</b> Because every command is a plain request in and a plain report out, an <b>AI agent — like
+      Claude — can drive it for you</b>. You just ask, in normal words:
+    </p>
+    <ul>
+      <li>"Analyse my new tracks."</li>
+      <li>"Order this crate so it mixes in key."</li>
+      <li>"Find the duplicates in my library."</li>
+      <li>"Write the detected keys into the files."</li>
+    </ul>
+    <p>
+      …and the agent runs the right commands and hands you the result. No menus, no manual — you talk,
+      it works.
     </p>
     <p>
-      It's called <code>JustPlayCLI.exe</code>. Every command takes a folder or an index file and
-      prints a plain, readable report.
+      It's called <code>JustPlayCLI.exe</code> and ships in the same install as
+      <a href="index.html">JUST PLAY</a> and <a href="just-stream.html">JUST STREAM</a>, sharing one copy
+      of the engine — so a track the agent analyses reads identically in the player. Every command takes a
+      folder or an index file and prints a plain, readable report: exactly what makes it easy for an agent
+      (or you) to read back.
     </p>
   </section>
 
@@ -113,10 +124,10 @@
     <h2>Built for agents</h2>
     <p>
       Because every command is a single call in, a plain report out — and writes are opt-in — the CLI is
-      an easy thing for an <b>AI agent to drive</b>. An assistant can scan your library, analyse the new
-      arrivals, find duplicates, build a mix-ready crate and (with your say-so) tag the files, all without
-      ever opening a window. The heavy analysis lives in one shared engine, so what the agent measures is
-      exactly what you'd hear in the player.
+      an easy thing for an <b>AI agent (like Claude) to drive</b>. It can scan your library, analyse the
+      new arrivals, find duplicates, build a mix-ready crate and (with your say-so) tag the files, all
+      without ever opening a window. The heavy analysis lives in one shared engine, so what the agent
+      measures is exactly what you'd hear in the player.
     </p>
     <div class="callout">
       <b>Coming next:</b> an <b>MCP</b> surface over the same engine, so agents can talk to JustPlay through
