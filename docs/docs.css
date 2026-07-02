@@ -1,0 +1,160 @@
+/* Shared stylesheet for the JUST suite documentation pages (cli.html, just-play.html,
+   just-stream.html). Matches the landing page's Aurora look. The landing (index.html) still
+   carries its own inline CSS — migrating it here is a later cleanup. */
+
+:root {
+  --void:      #060310;
+  --deep:      #0c0620;
+  --surface:   #130a2a;
+  --cyan:      #00e8ff;
+  --cyan-dim:  #6ce0ff;
+  --pink:      #ff2ab8;
+  --purple:    #7040ff;
+  --red:       #ff2244;
+  --white:     #f0eaff;
+  --muted:     rgba(240,234,255,.66);
+  --dim:       rgba(240,234,255,.4);
+  --glass:     rgba(255,255,255,.04);
+  --glass-hi:  rgba(255,255,255,.07);
+  --border:    rgba(255,255,255,.08);
+  --border-hi: rgba(255,255,255,.16);
+  --maxw:      880px;
+  --font-d:    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-m:    'Fira Code', 'Consolas', ui-monospace, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-d);
+  background:
+    radial-gradient(60vw 50vh at 78% -5%, rgba(0,232,255,.10), transparent 60%),
+    radial-gradient(55vw 55vh at -10% 100%, rgba(112,64,255,.16), transparent 60%),
+    radial-gradient(45vw 45vh at 110% 110%, rgba(255,42,184,.10), transparent 60%),
+    var(--void);
+  background-attachment: fixed;
+  color: var(--white);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--cyan-dim); text-decoration: none; }
+a:hover { color: var(--cyan); }
+code, kbd { font-family: var(--font-m); }
+
+/* ── Nav ─────────────────────────────────────────────── */
+.nav {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,3,16,.75);
+}
+.nav-inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px;
+  height: 58px; display: flex; align-items: center; gap: 20px;
+}
+.nav-brand {
+  font-weight: 800; letter-spacing: -.04em; font-size: 18px;
+  background: linear-gradient(90deg, var(--cyan), #e0d8ff);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.nav-links { display: flex; gap: 16px; margin-left: auto; flex-wrap: wrap; font-size: 13.5px; }
+.nav-links a { color: var(--muted); }
+.nav-links a:hover, .nav-links a.active { color: var(--white); }
+
+/* ── Layout ──────────────────────────────────────────── */
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+.doc-hero { padding: 66px 0 8px; }
+.kicker {
+  font-family: var(--font-m); font-size: 11px; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--cyan); margin-bottom: 14px;
+}
+.doc-hero h1 {
+  font-size: clamp(34px, 6vw, 56px); font-weight: 800;
+  letter-spacing: -.04em; line-height: 1.05; margin-bottom: 16px;
+}
+.grad {
+  background: linear-gradient(105deg, var(--cyan) 0%, #fff 55%, var(--pink) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lead { font-size: 17px; color: var(--muted); max-width: 640px; }
+
+.doc-section { padding: 34px 0; border-top: 1px solid var(--border); margin-top: 8px; }
+.doc-section:first-of-type { border-top: none; }
+.doc-section h2 {
+  font-size: clamp(22px, 3.4vw, 30px); font-weight: 800;
+  letter-spacing: -.03em; margin-bottom: 6px;
+}
+.doc-section > p { color: var(--muted); margin: 10px 0; }
+.doc-section h3 { font-size: 17px; font-weight: 700; margin: 22px 0 6px; letter-spacing: -.01em; }
+
+.prose p { color: var(--muted); margin: 10px 0; }
+.prose b, .prose strong { color: var(--white); font-weight: 600; }
+.prose ul { margin: 10px 0 10px 4px; list-style: none; }
+.prose ul li {
+  position: relative; padding: 5px 0 5px 20px; color: var(--muted);
+}
+.prose ul li::before {
+  content: ''; position: absolute; left: 2px; top: 13px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--cyan), var(--pink));
+}
+
+/* ── Parameter / feature cards ───────────────────────── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; }
+.card {
+  background: var(--glass); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 18px 18px 20px; position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 16px; left: 0; width: 3px; height: 30px;
+  border-radius: 0 2px 2px 0; background: linear-gradient(180deg, var(--cyan), var(--pink));
+}
+.card h3 { margin: 0 0 6px; font-size: 15.5px; font-weight: 700; }
+.card p { margin: 0; color: var(--muted); font-size: 13.6px; line-height: 1.55; }
+.card .tag {
+  display: inline-block; font-family: var(--font-m); font-size: 10px; letter-spacing: .08em;
+  color: var(--cyan-dim); margin-bottom: 6px; text-transform: uppercase;
+}
+
+/* ── Command blocks ──────────────────────────────────── */
+.cmd {
+  background: rgba(3,1,10,.6); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; margin: 10px 0;
+  font-family: var(--font-m); font-size: 13px; color: var(--white);
+  overflow-x: auto;
+}
+.cmd .p { color: var(--cyan); user-select: none; }
+.cmd .c { color: var(--dim); }
+.cmd-row { display: grid; grid-template-columns: 160px 1fr; gap: 10px 18px; margin: 14px 0; }
+.cmd-row dt { font-family: var(--font-m); font-size: 13.5px; color: var(--cyan-dim); font-weight: 600; }
+.cmd-row dd { color: var(--muted); font-size: 14px; margin: 0; }
+@media (max-width: 560px) { .cmd-row { grid-template-columns: 1fr; gap: 2px 0; } .cmd-row dd { margin-bottom: 8px; } }
+
+/* ── Callout ─────────────────────────────────────────── */
+.callout {
+  border: 1px solid var(--border); border-left: 3px solid var(--cyan);
+  background: rgba(0,232,255,.05); border-radius: 10px;
+  padding: 14px 18px; margin: 16px 0; color: var(--muted); font-size: 14px;
+}
+.callout.warn { border-left-color: var(--red); background: rgba(255,34,68,.05); }
+.callout b { color: var(--white); }
+
+/* ── WIP banner ──────────────────────────────────────── */
+.wip {
+  max-width: 1080px; margin: 0 auto; padding: 9px 24px;
+  font-family: var(--font-m); font-size: 11.5px; letter-spacing: .04em;
+  color: var(--dim); text-align: center; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.02);
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+footer { border-top: 1px solid var(--border); padding: 34px 0 56px; margin-top: 40px; text-align: center; }
+.foot-brand {
+  font-style: italic; font-weight: 800; letter-spacing: -.03em; font-size: 20px;
+  background: linear-gradient(110deg, var(--cyan), #fff, var(--pink));
+  -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 12px;
+}
+.foot-links { font-size: 14px; color: var(--muted); }
+.foot-links a { color: var(--muted); }
+.foot-links a:hover { color: var(--white); }
+.foot-note { max-width: 620px; margin: 14px auto 0; font-family: var(--font-m); font-size: 11px; color: var(--dim); line-height: 1.6; }

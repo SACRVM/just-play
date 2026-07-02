@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JUST STREAM — how it works</title>
+<meta name="description" content="How JUST STREAM works — capturing one app or a device, keeping your headphone cue off the air, the broadcast DSP, MP3/Opus and Icecast server profiles, in plain language.">
+<meta name="theme-color" content="#060310">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e8ff'/%3E%3Cstop offset='1' stop-color='%23ff2ab8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cg fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='50' cy='44' r='7'/%3E%3Cpath d='M34 28 a22 22 0 0 0 0 32'/%3E%3Cpath d='M66 28 a22 22 0 0 0 0 32'/%3E%3Cpath d='M40 80 l10 -29 l10 29'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<div class="wip">Documentation — work in progress · not part of the 0.4.0 release yet</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html">JustPlay</a>
+    <div class="nav-links">
+      <a href="just-play.html">JUST PLAY</a>
+      <a href="just-stream.html" class="active">JUST STREAM</a>
+      <a href="cli.html">CLI</a>
+      <a href="https://github.com/chloe-dream/just-play">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="doc-hero wrap">
+  <p class="kicker">The broadcaster · how it works</p>
+  <h1>JUST <span class="grad">STREAM</span></h1>
+  <p class="lead">
+    How JUST STREAM works — capturing your sound, cleaning it up and putting it on air — in plain
+    language.
+  </p>
+</header>
+
+<main class="wrap">
+
+  <section class="doc-section prose">
+    <h2>What it does</h2>
+    <p>
+      JUST STREAM takes a live sound source, runs it through the same tone tools as the player, and
+      broadcasts it to an Icecast server. The point: get your set on air without a tangle of virtual
+      cables.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Where the sound comes from — App or Device</h2>
+
+    <div class="cards">
+      <div class="card">
+        <h3>App (the headline trick)</h3>
+        <p>
+          Instead of grabbing a whole sound card, JUST STREAM can grab the audio of ONE application —
+          your DJ software, a browser tab, anything. Only that app goes on air; nothing else on your
+          PC leaks in.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Device</h3>
+        <p>Or pick any sound card / audio device as the source, straight from a dropdown.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <b>ASIO note:</b> If your DJ software sends its sound out over ASIO or "WASAPI exclusive",
+      Windows hides it from other apps — so app-capture can't hear it (you'd get silence). Fix: set
+      that app's output to a normal (shared) Windows device, or use a Device source instead. JUST
+      STREAM shows a note when this might be the case.
+    </div>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Keeping your cue off the air — Broadcast Channels</h2>
+    <p>
+      DJ gear usually sends the Master out on one pair of channels and your private headphone cue on
+      another. JUST STREAM defaults to broadcasting Channels 1-2 — on that gear, the Master — so your
+      cue never goes out by accident. If your setup routes the Master elsewhere, you can pick Channels
+      3-4 or the full mix.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>The broadcast DSP</h2>
+    <p>
+      The same rack as the player — EQ, TILT, PUNCH and the Limiter — with the same one-click genre
+      presets (Electronic, Hard, Rock, Neutral). The one difference: JUST STREAM leans the limiter a
+      notch louder, because a live stream has to stay competitively loud and you can't ride the gain
+      mid-mix. For what each control actually does, see the <a href="just-play.html">JUST PLAY</a>
+      page.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>MP3 or Opus</h2>
+    <p>
+      Stream in MP3 (works everywhere) or Opus (smaller for the same quality). Pick the bitrate: 128,
+      192, 256 or 320 kbps. One catch: live "now playing" song titles only ride on MP3 — Opus can't
+      carry them.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Server profiles</h2>
+    <p>
+      Save as many Icecast servers as you like — host, mount, login, MP3 or Opus, optional TLS. Switch
+      between them from the top.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Watch your sound — meters &amp; spectrum</h2>
+    <p>
+      A true-peak level meter with limiter lights shows how hard you're pushing, and the spectrum view
+      shows your sound before vs after the DSP (DRY vs WET) against the reference curve — so you can
+      see what you're putting out, not just hear it.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Mini mode</h2>
+    <p>
+      Shrink JUST STREAM to a compact on-air strip that stays out of the way while you mix.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="foot-brand">Just Useful Sound Tools.</p>
+    <p class="foot-links">
+      <a href="index.html">Home</a> · <a href="just-play.html">JUST PLAY</a> ·
+      <a href="just-stream.html">JUST STREAM</a> · <a href="cli.html">CLI</a> ·
+      <a href="https://github.com/chloe-dream/just-play">GitHub</a>
+    </p>
+    <p class="foot-note">Part of J.U.S.T. — Just Useful Sound Tools. Made by Chloe Dream. MIT-licensed.</p>
+  </div>
+</footer>
+
+</body>
+</html>

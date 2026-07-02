@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JUST PLAY — how it works</title>
+<meta name="description" content="How JUST PLAY works — the key/BPM/energy analysis, the A·B·C column views, and the Sound tools (EQ, TILT, PUNCH, Limiter) explained in plain language.">
+<meta name="theme-color" content="#060310">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e8ff'/%3E%3Cstop offset='1' stop-color='%23ff2ab8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cpath d='M36 28 L36 72 L76 50 Z' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<div class="wip">Documentation — work in progress · not part of the 0.4.0 release yet</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html">JustPlay</a>
+    <div class="nav-links">
+      <a href="just-play.html" class="active">JUST PLAY</a>
+      <a href="just-stream.html">JUST STREAM</a>
+      <a href="cli.html">CLI</a>
+      <a href="https://github.com/chloe-dream/just-play">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="doc-hero wrap">
+  <p class="kicker">The player · how it works</p>
+  <h1>JUST <span class="grad">PLAY</span></h1>
+  <p class="lead">
+    How JUST PLAY works — the analysis, the sound tools and the little decisions, explained in plain
+    language. Nothing here needs an audio-engineering degree.
+  </p>
+</header>
+
+<main class="wrap">
+
+  <section class="doc-section prose">
+    <h2>Key, BPM &amp; energy</h2>
+
+    <h3>Camelot key</h3>
+    <p>
+      JUST PLAY listens to each track and works out its musical key, shown the way DJs read it: a
+      number and a letter, like 8A or 5B (the "Camelot" wheel). Tracks whose numbers are the same or
+      next-door tend to sound good played together. It's worked out on your own computer — no
+      internet, no account.
+    </p>
+
+    <h3>BPM</h3>
+    <p>
+      The tempo, in beats per minute — measured automatically when a track is added.
+    </p>
+
+    <h3>Energy</h3>
+    <p>
+      A 1–10 score for how intense a track feels. Ambient sits low; peak-time hard techno sits high.
+      Handy for building a set from warm-up to peak.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Harmonic Sort</h2>
+    <p>
+      Drop a pile of tracks in and JUST PLAY can reorder them into a set that flows — weighing key,
+      tempo, energy and groove together, not just one of them. A running start on any set.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>A · B · C column views</h2>
+    <p>
+      The track list can show different columns depending on what you're doing. A, B and C are three
+      saved layouts you flip between with one click — each remembers its own columns. For example: A
+      for mixing (Genre, BPM, Key, Energy), B for loudness (BPM, Gain, LUFS, Key), C for whatever you
+      like. Click any column heading to sort by it.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>The Sound panel — shaping your sound</h2>
+    <p>
+      JUST PLAY has a small, honest set of tone tools on the output. Leave them alone and the sound
+      passes through untouched. Reach for them when a track needs help.
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <h3>EQ (Low / Mid / High)</h3>
+        <p>A simple three-band tone control. Boost or cut the lows, mids and highs. Flat = no change.</p>
+      </div>
+
+      <div class="card">
+        <h3>TILT</h3>
+        <p>
+          Every track is mixed a little differently — some too bright and harsh, some dull and muddy.
+          TILT gently leans the overall tone toward a pleasing reference balance (the gentle
+          high-to-low slope most well-made music follows). At 0 it does nothing; turn it up and a
+          harsh track calms down while a dull one opens up — and it adapts to each track on its own.
+          Think of it as a one-knob mastering assistant.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>PUNCH</h3>
+        <p>
+          PUNCH sharpens the very start of each drum hit — the attack of the kick and snare. A little
+          makes a track feel tighter and more alive; too much starts to sound clicky. At 0 it's off.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Limiter / Maximizer</h3>
+        <p>
+          The safety net and the loudness knob, right at the end. It catches the loudest peaks so
+          nothing distorts, measured to the broadcast true-peak standard with the ceiling kept just
+          under the edge. Four settings trade loudness for dynamics: Off (untouched), Soft (a gentle
+          catch that keeps the punch), Club (louder and denser), Loud (pushes hardest).
+          <b>Important:</b> it only ever turns peaks DOWN — never the cheap trick of shoving everything
+          up, which just adds distortion and ear-fatigue.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Genre presets</h3>
+        <p>
+          One-click starting points — Electronic, Hard, Rock, and Neutral (flat). Each sets the whole
+          panel to a sensible place for that kind of music. Fully editable, and you can save your own.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Loudness normalisation</h2>
+    <p>
+      Different tracks are mastered at different loudness, so without help you're forever nudging the
+      volume. Normalisation makes them all sit at one steady level. Pick Quiet, Normal or Loud. It
+      doesn't change your files, and it won't let a track distort.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Your files are the memory</h2>
+    <p>
+      When you ask — and only then — JUST PLAY writes the detected key, BPM and energy into each
+      file's own tags. The analysis then travels with the track, and other apps can read it. Every
+      change is undoable. Close the app and nothing else is left behind: no library, no database, no
+      leftovers.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Streaming from the player</h2>
+    <p>
+      JUST PLAY can broadcast your set straight to an Icecast server, with a clear on-air light,
+      several saved server profiles, and MP3 or Opus. For a dedicated broadcaster with app-capture,
+      see <a href="just-stream.html">JUST STREAM</a>.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Six themes</h2>
+    <p>
+      Aurora, Sunset, Midnight, Onyx, Neon and Hardcore — from soft aurora to pitch-black to
+      all-black-with-red. Swap live, no restart; the app icon even repaints to match.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="foot-brand">Just Useful Sound Tools.</p>
+    <p class="foot-links">
+      <a href="index.html">Home</a> · <a href="just-play.html">JUST PLAY</a> ·
+      <a href="just-stream.html">JUST STREAM</a> · <a href="cli.html">CLI</a> ·
+      <a href="https://github.com/chloe-dream/just-play">GitHub</a>
+    </p>
+    <p class="foot-note">Part of J.U.S.T. — Just Useful Sound Tools. Made by Chloe Dream. MIT-licensed.</p>
+  </div>
+</footer>
+
+</body>
+</html>
