@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Audio;
 using JustPlay.Core.Models;
 using JustPlay.Stream.Settings;
 using JustPlay.UI.Views;
@@ -59,6 +60,32 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private AudioInputDevice? _selectedInputDevice;
+
+    // ── App capture (Phase 0 "capture a specific APP" source) ─────────────
+    /// <summary>True when this build can capture a single app's audio directly — gates the SOURCE toggle.</summary>
+    public bool SupportsAppCapture => _engine.SupportsApplicationCapture;
+
+    /// <summary>Off = capture a device/loopback (default); On = capture ONE application's audio directly.</summary>
+    [ObservableProperty]
+    private bool _isAppSourceMode;
+
+    /// <summary>The apps whose audio can be captured (DJ apps first). Populated on demand in app mode.</summary>
+    public ObservableCollection<CaptureApp> CaptureApps { get; } = new();
+
+    [ObservableProperty]
+    private CaptureApp? _selectedCaptureApp;
+
+    /// <summary>Broadcast-channel options for a captured app, in picker order: channels 1-2 (the
+    /// default — on multi-out DJ gear that's the Master, dropping the Cue on 3-4; lossless for a plain
+    /// stereo app), channels 3-4, then the full stereo mix (see <see cref="AppCaptureChannels"/>).</summary>
+    public AppCaptureChannels[] AppChannelOptions { get; } =
+        { AppCaptureChannels.Master12, AppCaptureChannels.Master34, AppCaptureChannels.FullMix };
+
+    /// <summary>Selected broadcast-channel handling for the captured app. Default = channels 1-2
+    /// (isolates the Master pair on multi-out DJ gear; lossless for a plain stereo app — zero config
+    /// for the common case).</summary>
+    [ObservableProperty]
+    private AppCaptureChannels _selectedAppChannels = AppCaptureChannels.Master12;
 
     // ── Monitor output device (local listen-back; "No output (stream only)" = off) ─────────
     public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = new();
@@ -140,6 +167,12 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _rightLimitActive;
     [ObservableProperty] private bool _limiterHard;
 
+    // ── Input-signal presence (drives the chrome spectrum-glyph pulse) ────
+    // True while audio is actually ARRIVING from the source — independent of whether we're on air. The
+    // glyph reads as "we're receiving music", which is what a DJ expects even before hitting CONNECT
+    // (Chloe 2026-07-02: the old on-air-only pulse fooled her). Computed per frame in PumpFrame.
+    [ObservableProperty] private bool _hasInputSignal;
+
     // ── Sample rate (RATE dropdown) ───────────────────────────────────────
     [ObservableProperty] private int _selectedSampleRate = 44100;
 
@@ -213,12 +246,33 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         SelectedSampleRate = s.SampleRate;
         _engine.SampleRate = SelectedSampleRate;
 
+        // Set the source mode BEFORE device selection so a restored app-mode session doesn't also
+        // kick off device capture (OnSelectedInputDeviceChanged early-returns in app mode).
+        IsAppSourceMode = s.AppSourceMode && _engine.SupportsApplicationCapture;
+
         RefreshDevices();
         SelectedInputDevice = InputDevices.FirstOrDefault(d => d.Name == s.InputDeviceName)
                               ?? InputDevices.FirstOrDefault(d => d.IsLoopback)
                               ?? InputDevices.FirstOrDefault();
         SelectedOutputDevice = OutputDevices.FirstOrDefault(d => d.Name == s.MonitorDeviceName)
                                ?? OutputDevices.FirstOrDefault(d => d.Index == 0); // default = No output (stream only)
+
+        // Broadcast-channel handling BEFORE selecting the app, so the restored capture starts with it.
+        // Legacy "Auto" (3) and explicit "1-2" (1) both restore as channels 1-2; anything else → 1-2.
+        SelectedAppChannels = s.AppMasterChannels switch
+        {
+            0 => AppCaptureChannels.FullMix,
+            2 => AppCaptureChannels.Master34,
+            _ => AppCaptureChannels.Master12,
+        };
+
+        if (IsAppSourceMode)
+        {
+            RefreshCaptureApps();
+            // Selecting the app starts its capture (OnSelectedCaptureAppChanged) — the app-mode restore.
+            SelectedCaptureApp = CaptureApps.FirstOrDefault(a => a.ExecutableName == s.CaptureAppExe)
+                                 ?? CaptureApps.FirstOrDefault();
+        }
 
         EqLow = s.EqLow; EqMid = s.EqMid; EqHigh = s.EqHigh;
         AutoTilt = s.AutoTilt; Punch = s.Punch;
@@ -228,16 +282,16 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         SendSongInfo = s.SendSongInfo;
         LogVisible = s.LogVisible;
 
-        // Sound presets: on a fresh install (never seeded) prepend the built-in Normal + Hard as
-        // ordinary, editable/deletable presets — exactly once (SoundPresetsSeeded), so deleting them
-        // doesn't bring them back. Then append the user's saved presets.
-        var seedDefaults = !s.SoundPresetsSeeded;
-        if (seedDefaults)
-        {
-            SoundPresets.Add(new DspPreset { Name = "Normal", LimiterMode = "Soft" });
-            SoundPresets.Add(DspPreset.Hard);
-        }
+        // Sound presets: restore the user's saved presets, then TOP UP any missing built-in genre
+        // starting points (DspPreset.StreamDefaults — same tonal identity as JUST PLAY, broadcast-
+        // loudness tuned) — gated by SoundPresetsSeedVersion so it runs once per built-in set: a fresh
+        // install seeds all; an existing install gains only new ones; a deleted preset stays deleted.
         foreach (var p in s.SoundPresets) SoundPresets.Add(p);
+        var seedDefaults = s.SoundPresetsSeedVersion < DspPreset.BuiltInSeedVersion;
+        if (seedDefaults)
+            foreach (var d in DspPreset.StreamDefaults)
+                if (!SoundPresets.Any(p => p.Name == d.Name))
+                    SoundPresets.Add(d);
 
         _loading = false;
 
@@ -269,7 +323,69 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void RefreshDeviceList() => RefreshDevices();
+    private void RefreshDeviceList()
+    {
+        RefreshDevices();
+        if (IsAppSourceMode) RefreshCaptureApps();
+    }
+
+    /// <summary>Re-enumerate the capturable apps, keeping the current pick (by executable) if still present.</summary>
+    public void RefreshCaptureApps()
+    {
+        var currentExe = SelectedCaptureApp?.ExecutableName;
+        CaptureApps.Clear();
+        foreach (var a in _engine.GetCaptureApps()) CaptureApps.Add(a);
+        if (currentExe is not null)
+            SelectedCaptureApp = CaptureApps.FirstOrDefault(a => a.ExecutableName == currentExe) ?? SelectedCaptureApp;
+    }
+
+    private void StartDeviceCaptureSafe(AudioInputDevice dev)
+    {
+        try { _engine.StartCapture(dev.Index); }
+        catch (Exception ex) { Log($"Capture failed on '{dev.Name}': {ex.Message}"); }
+    }
+
+    private void StartAppCaptureSafe(CaptureApp app)
+    {
+        // The default (channels 1-2) isolates the Master pair on a multi-out DJ device (dropping the Cue
+        // on 3/4) and is lossless for a plain stereo app — Windows' 2→4 upmix preserves ch1/2 at unity
+        // (measured 2026-07-02). If a 4-ch capture fails, the provider falls back to stereo. A full
+        // downmix is served by the explicit "Full mix" choice. DJ detection only sorts the picker now;
+        // it no longer gates the capture, so even an unrecognised DJ app gets channels 1-2 by default.
+        try { _engine.StartApplicationCapture(app.ProcessId, SelectedAppChannels); }
+        catch (Exception ex) { Log($"App capture failed on '{app.DisplayName}': {ex.Message}"); }
+    }
+
+    partial void OnIsAppSourceModeChanged(bool value)
+    {
+        if (_loading) return;
+        if (value)
+        {
+            RefreshCaptureApps();
+            if (SelectedCaptureApp is null) SelectedCaptureApp = CaptureApps.FirstOrDefault();
+            else StartAppCaptureSafe(SelectedCaptureApp);
+        }
+        else if (SelectedInputDevice is { } dev)
+        {
+            StartDeviceCaptureSafe(dev);
+        }
+        Persist();
+    }
+
+    partial void OnSelectedCaptureAppChanged(CaptureApp? value)
+    {
+        if (value is null || !IsAppSourceMode) return;
+        StartAppCaptureSafe(value);
+        Persist();
+    }
+
+    partial void OnSelectedAppChannelsChanged(AppCaptureChannels value)
+    {
+        if (_loading) return;
+        // Re-arm the capture with the new Master-channel handling if an app is live.
+        if (IsAppSourceMode && SelectedCaptureApp is { } app) StartAppCaptureSafe(app);
+        Persist();
+    }
 
     // ── Persistence ──────────────────────────────────────────────────────
 
@@ -280,6 +396,9 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         s.Servers = Profiles.ToList();
         s.SelectedServerId = SelectedProfile?.Id;
         s.InputDeviceName = SelectedInputDevice?.Name;
+        s.AppSourceMode = IsAppSourceMode;
+        s.CaptureAppExe = SelectedCaptureApp?.ExecutableName;
+        s.AppMasterChannels = (int)SelectedAppChannels;
         s.SampleRate = SelectedSampleRate;
         s.EqLow = EqLow; s.EqMid = EqMid; s.EqHigh = EqHigh;
         s.AutoTilt = AutoTilt; s.Punch = Punch;
@@ -291,6 +410,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         s.LogVisible = LogVisible;
         s.SoundPresets = SoundPresets.ToList();
         s.SoundPresetsSeeded = true;
+        s.SoundPresetsSeedVersion = DspPreset.BuiltInSeedVersion;
         _settings.Save();
     }
 
@@ -301,7 +421,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedInputDeviceChanged(AudioInputDevice? value)
     {
-        if (value is null) return;
+        if (value is null || IsAppSourceMode) return; // in app mode the device combo doesn't drive capture
         try
         {
             _engine.StartCapture(value.Index);
@@ -607,6 +727,12 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     private const double LampHoldSeconds = 0.25;
     private double _lLampHoldS, _rLampHoldS, _hardHoldS;
 
+    // Input-signal detector for the chrome glyph: a channel peak above ~-48 dBFS counts as "signal",
+    // held ~0.5 s so the pulse rides through the gaps between beats / short breakdowns without strobing.
+    private const double SignalOnThreshold = 0.004; // ~ -48 dBFS peak — above the noise floor, below music
+    private const double SignalHoldSeconds = 0.5;
+    private double _signalHoldS;
+
     /// <summary>
     /// Pump meters + GR lamp + stream time once per RENDER FRAME — driven by MainWindow's
     /// RequestAnimationFrame loop (vsync-synced). A free-running DispatcherTimer beat against vsync and
@@ -620,6 +746,13 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         _engine.GetLevels(out var l, out var r);
         OutLevelLeft = l;
         OutLevelRight = r;
+
+        // Input-signal presence for the chrome spectrum glyph — lit while audio arrives, held across gaps
+        // so it doesn't strobe between beats. Setter only raises PropertyChanged on an actual flip.
+        var peak = l > r ? l : r;
+        if (peak >= SignalOnThreshold) _signalHoldS = SignalHoldSeconds;
+        else if (_signalHoldS > 0) _signalHoldS -= dt;
+        HasInputSignal = _signalHoldS > 0;
 
         // Limiter lamp: drain activity, refresh holds. grDb ≤ −4 OR duty ≥ 50% = crushing (red),
         // else a healthy occasional catch (amber). Limiter off → all dark.

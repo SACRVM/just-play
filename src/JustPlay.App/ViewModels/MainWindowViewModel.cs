@@ -163,18 +163,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             _selectedStreamServer = StreamServers.FirstOrDefault(p => p.Id == selectedId);
 
         // Seed Sound presets from persisted settings (before _settingsHydrated so the adds don't echo
-        // to disk). On a fresh install (never seeded) prepend the two built-in starting points Hard +
-        // Neutral as ORDINARY, fully editable/deletable presets — seeded exactly once
-        // (SoundPresetsSeeded), so deleting them does NOT bring them back. HasSoundPresets stays in
-        // sync as the collection changes.
-        var seedDefaults = !s.SoundPresetsSeeded;
-        if (seedDefaults)
-        {
-            SoundPresets.Add(DspPreset.Hard);
-            SoundPresets.Add(DspPreset.Neutral);
-        }
+        // to disk). Restore the user's saved presets, then TOP UP any missing built-in genre starting
+        // points (DspPreset.PlaybackDefaults) — gated by SoundPresetsSeedVersion so it runs once per
+        // built-in set: a fresh install seeds all of them; an existing install gains only new ones,
+        // never duplicating or resurrecting a preset the user deleted. HasSoundPresets tracks the list.
         foreach (var p in s.SoundPresets)
             SoundPresets.Add(p);
+        var seedDefaults = s.SoundPresetsSeedVersion < DspPreset.BuiltInSeedVersion;
+        if (seedDefaults)
+            foreach (var d in DspPreset.PlaybackDefaults)
+                if (!SoundPresets.Any(p => p.Name == d.Name))
+                    SoundPresets.Add(d);
         SoundPresets.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSoundPresets));
 
         // ── Output device: populate list, select saved device (or default) ────
@@ -993,10 +992,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         EqHighGain            = EqHigh,
         TransientPunch        = TransientPunch,
         AutoTiltStrength      = AutoTiltStrength,
-        // Sound presets — persist the full list so they survive restart, and record that the built-in
-        // defaults were seeded (always true once the VM is constructed) so they're never re-seeded.
+        // Sound presets — persist the full list so they survive restart, and record the built-in seed
+        // set we're at (always current once the VM is constructed) so the top-up never re-runs for it.
         SoundPresets          = [.. SoundPresets],
         SoundPresetsSeeded    = true,
+        SoundPresetsSeedVersion = DspPreset.BuiltInSeedVersion,
         AnalysisThreads    = AnalysisThreads,
         // Auto-update prefs have no Tweaks UI — preserve so a tweak save never resets them
         // (the update flow writes IgnoredUpdateVersion; a wipe here would un-ignore it).

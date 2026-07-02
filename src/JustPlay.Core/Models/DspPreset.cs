@@ -44,9 +44,25 @@ public sealed record DspPreset
     /// <summary>Master true-peak limiter mode: "Off" / "Soft" / "Club" / "Loud".</summary>
     public string LimiterMode { get; init; } = "Off";
 
-    // ── Built-in starting points ─────────────────────────────────────────────
-    // Seeded ONCE into the user's preset list on a fresh install (see
-    // MainWindowViewModel — SoundPresetsSeeded), then fully editable / deletable like any other.
+    // ── Built-in starting points (shared across the JUST suite) ──────────────
+    // Genre-oriented presets seeded ONCE per app into the user's list, then fully editable/deletable.
+    // The TONAL identity (EQ / AutoTilt / Punch) is IDENTICAL in every app — same recognisable sound,
+    // the suite "Wiedererkennungswert". Only the LIMITER differs by app: a live STREAM maximises
+    // loudness (a DJ can't gain-stage a broadcast and must stay competitive), local PLAYBACK stays
+    // transparent for monitoring. Hence the two seed sets PlaybackDefaults / StreamDefaults below.
+
+    /// <summary>Bumped whenever the built-in seed set changes. A settings file whose
+    /// <c>SoundPresetsSeedVersion</c> is lower TOPS UP any missing built-ins (by name) exactly once,
+    /// so existing installs gain new starting points without duplicating or resurrecting user presets.</summary>
+    public const int BuiltInSeedVersion = 1;
+
+    /// <summary>"Electronic" — EDM / House / Techno: already-loud produced masters. A hair of low-end
+    /// weight (+0.5 dB) + a gentle golden-curve tilt so the top doesn't fatigue over a long set, plus
+    /// light transient definition through the codec. Limiter is set per app in the seed sets.</summary>
+    private static DspPreset Electronic => new()
+    {
+        Name = "Electronic", EqLowGain = 1.06, AutoTiltStrength = 0.25, TransientPunch = 0.15,
+    };
 
     /// <summary>"Hard" — the validated correction for structurally-bright hard genres (hard techno /
     /// hardstyle): a static High −3 dB shelf + golden-curve AutoTilt 0.65 tame the hot 2–16 kHz, and
@@ -57,9 +73,39 @@ public sealed record DspPreset
         Name = "Hard", EqHighGain = 0.72, AutoTiltStrength = 0.65, LimiterMode = "Loud",
     };
 
+    /// <summary>"Rock" — rock / live / organic / vocal: dynamic music that lives on its transients.
+    /// Warmth over brightness (+0.5 dB low, −0.5 dB high to ease sibilance), a very gentle tilt, and
+    /// more punch for snare/kick life. The limiter stays conservative so the dynamics survive.</summary>
+    private static DspPreset Rock => new()
+    {
+        Name = "Rock", EqLowGain = 1.06, EqHighGain = 0.94, AutoTiltStrength = 0.15, TransientPunch = 0.25,
+    };
+
     /// <summary>"Neutral" — the whole bus chain flat / off (bit-transparent). Identical to the type
     /// defaults; named so it seeds as a recognisable reset starting point.</summary>
     public static DspPreset Neutral => new() { Name = "Neutral" };
+
+    /// <summary>The genre starting points seeded into JUST PLAY (local playback / DJ monitoring): the
+    /// limiter stays TRANSPARENT (loudness maximisation is a broadcast concern, not a monitoring one).
+    /// Picker order; Neutral is the transparent reset.</summary>
+    public static IReadOnlyList<DspPreset> PlaybackDefaults =>
+    [
+        Electronic with { LimiterMode = "Soft" },
+        Hard,                                   // validated Loud
+        Rock with { LimiterMode = "Soft" },
+        Neutral,
+    ];
+
+    /// <summary>The SAME starting points seeded into JUST STREAM (broadcast): identical tonal identity
+    /// to <see cref="PlaybackDefaults"/>, but the limiter is one notch LOUDER because a live stream must
+    /// stay competitively loud ([[hard-dance-headphone-mode]] / [[roadmap-just-stream]]).</summary>
+    public static IReadOnlyList<DspPreset> StreamDefaults =>
+    [
+        Electronic with { LimiterMode = "Club" },
+        Hard,                                   // Loud (validated)
+        Rock with { LimiterMode = "Club" },
+        Neutral,
+    ];
 }
 
 /// <summary>

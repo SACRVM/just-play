@@ -120,6 +120,13 @@ public sealed record UserSettings
     /// seeds the two defaults on first load, then flips this true.</summary>
     public bool SoundPresetsSeeded { get; init; }
 
+    /// <summary>Which built-in preset SET has been seeded (0 = none / pre-versioned). A load with a
+    /// value below <see cref="DspPreset.BuiltInSeedVersion"/> tops up any missing built-in starting
+    /// points (by name) exactly once, so existing installs gain new presets without duplicating or
+    /// resurrecting the user's own. Supersedes <see cref="SoundPresetsSeeded"/>; an old settings.json
+    /// without this key deserializes to 0 → tops up on first load. [[own-limiter-no-vst]]</summary>
+    public int SoundPresetsSeedVersion { get; init; }
+
     // ── Audio output device ───────────────────────────────────────────────────────────
 
     /// <summary>

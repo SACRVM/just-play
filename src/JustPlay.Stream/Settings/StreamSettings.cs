@@ -22,6 +22,19 @@ public sealed class StreamSettings
     /// <summary>Name of the last-used input device (resolved to a BASS index at runtime; names are stable, indices are not).</summary>
     public string? InputDeviceName { get; set; }
 
+    /// <summary>True when the source is a captured APPLICATION (per-process loopback) rather than a device.</summary>
+    public bool AppSourceMode { get; set; }
+
+    /// <summary>Executable name of the last-captured app (e.g. "rekordbox"), re-resolved to a live pid at launch.</summary>
+    public string? CaptureAppExe { get; set; }
+
+    /// <summary>Which channels of a captured app go on air: 1 = broadcast channels 1/2 (default — on
+    /// multi-out DJ gear that's the Master, dropping the Cue on 3/4; lossless for a plain stereo app),
+    /// 0 = full stereo mix (all channels combined), 2 = broadcast channels 3/4. Initialised to 1 so a
+    /// fresh install defaults to channels 1-2; a legacy value of 3 (the removed "Auto") is treated as 1
+    /// on load. See <see cref="JustPlay.Core.Audio.AppCaptureChannels"/>.</summary>
+    public int AppMasterChannels { get; set; } = 1;
+
     // ── Bus DSP rack (linear gains; defaults = transparent) ──────────────
     public double EqLow { get; set; } = 1.0;
     public double EqMid { get; set; } = 1.0;
@@ -38,9 +51,14 @@ public sealed class StreamSettings
     /// editable/deletable entries. Empty by default; an old settings.json without it deserializes empty.</summary>
     public List<DspPreset> SoundPresets { get; set; } = new();
 
-    /// <summary>True once Normal + Hard have been seeded into <see cref="SoundPresets"/> (done exactly
+    /// <summary>True once the built-ins have been seeded into <see cref="SoundPresets"/> (done exactly
     /// once). Persisted so deleting the built-ins does NOT bring them back next launch.</summary>
     public bool SoundPresetsSeeded { get; set; }
+
+    /// <summary>Which built-in preset SET has been seeded (0 = none / pre-versioned). A load below
+    /// <see cref="JustPlay.Core.Models.DspPreset.BuiltInSeedVersion"/> tops up any missing built-ins
+    /// (by name) once. Mirrors the field on JUST PLAY's UserSettings; supersedes SoundPresetsSeeded.</summary>
+    public int SoundPresetsSeedVersion { get; set; }
 
     // ── Sample rate ──────────────────────────────────────────────────────
     /// <summary>Capture/mixer sample rate: 44100 (default) or 48000 Hz.</summary>

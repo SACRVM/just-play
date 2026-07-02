@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
+using JustPlay.Core.Audio;
 
 namespace JustPlay.Stream.ViewModels;
 
@@ -39,6 +40,28 @@ public sealed class VolumeDbConverter : IValueConverter
         }
         return "-∞";
     }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Maps the app-capture channel choice to a friendly label for the "BROADCAST CHANNELS" ComboBox
+/// (App source only): channels 1-2 (the default), channels 3-4, or the full stereo mix.
+/// </summary>
+public sealed class AppChannelsLabelConverter : IValueConverter
+{
+    public static readonly AppChannelsLabelConverter Instance = new();
+
+    private AppChannelsLabelConverter() { }
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value switch
+        {
+            AppCaptureChannels.Master34 => "Channels 3-4",
+            AppCaptureChannels.FullMix => "Full mix (stereo)",
+            _ => "Channels 1-2", // Master12 (the default) + any fallback
+        };
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();

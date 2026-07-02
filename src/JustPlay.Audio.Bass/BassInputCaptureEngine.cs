@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Audio;
 using JustPlay.Core.Models;
 using ManagedBass;
 using ManagedBass.Mix;
@@ -57,6 +58,14 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     // BassAudioEngine._endSync / BassBroadcastService._notifyProc.
     private RecordProcedure? _recordProc;
 
+    // ── Per-process "capture a specific APP" source (Phase 0, Path A) ─────
+    // Injected platform provider (Windows WASAPI process-loopback, or Null where unsupported). When
+    // active it feeds float PCM straight into the SAME _push → mixer → DSP → encoder path a device
+    // source uses, so a captured app rides the identical broadcast chain.
+    private readonly IProcessAudioCapture _appCapture;
+    private Action<float[], int>? _onAppFrames;
+    private bool _appActive;
+
     // ── DSP rack (identical processors + priorities to BassAudioEngine) ───
     private readonly object _limiterLock = new();
     private readonly object _equalizerLock = new();
@@ -109,8 +118,9 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         return w;
     }
 
-    public BassInputCaptureEngine()
+    public BassInputCaptureEngine(IProcessAudioCapture appCapture)
     {
+        _appCapture = appCapture;
         // Initialise the default OUTPUT device so the mixer has a clock to play on (the encoder
         // taps the mixer; the device just drives it — monitor volume defaults to 0). Errors.Already
         // is success (some other component may have init'd already).
@@ -254,10 +264,72 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 
     public void StopCapture()
     {
-        if (!_capturing && _record == 0) return;
+        if (!_capturing && _record == 0 && !_appActive) return;
         TeardownCapture();
         _currentDevice = -1;
         SetCapturing(false);
+    }
+
+    // ── Application (per-process) capture ─────────────────────────────────
+
+    public bool SupportsApplicationCapture => _appCapture.IsSupported;
+
+    public IReadOnlyList<CaptureApp> GetCaptureApps() => _appCapture.GetCapturableApps();
+
+    public void StartApplicationCapture(int processId, AppCaptureChannels channels = AppCaptureChannels.FullMix)
+    {
+        if (!_appCapture.IsSupported)
+            throw new NotSupportedException("Per-process app capture is not supported on this build.");
+
+        EnsureMixer();
+
+        // Tear down any current source (a device record OR a previous app capture); keep the mixer
+        // (and any active Icecast stream) running so the switch is seamless.
+        TeardownCapture();
+
+        // Bridge: a Push DECODE stream the app-capture frames feed and the mixer pulls from — the
+        // SAME path a device source uses, so the captured app rides the identical DSP/limiter/encoder.
+        _push = ManagedBass.Bass.CreateStream(_sampleRate, 2, BassFlags.Decode | BassFlags.Float, StreamProcedureType.Push);
+        if (_push == 0)
+            throw new InvalidOperationException($"Push stream create failed: {ManagedBass.Bass.LastError}");
+        ApplyInputGain();
+
+        if (!BassMix.MixerAddChannel(_mixer, _push, BassFlags.MixerChanBuffer))
+        {
+            var err = ManagedBass.Bass.LastError;
+            ManagedBass.Bass.StreamFree(_push); _push = 0;
+            throw new InvalidOperationException($"MixerAddChannel failed: {err}");
+        }
+
+        _onAppFrames ??= OnAppFrames;
+        _appCapture.FramesAvailable += _onAppFrames;
+        try
+        {
+            // The provider always DELIVERS interleaved stereo (it extracts the Master pair for a
+            // multi-out target), so the push stream / mixer path below is unchanged.
+            _appCapture.Start(processId, _sampleRate, AppCaptureFormat.From(channels));
+        }
+        catch
+        {
+            _appCapture.FramesAvailable -= _onAppFrames;
+            TeardownCapture();
+            throw;
+        }
+
+        _appActive = true;
+        _currentDevice = -1;
+        SetCapturing(true);
+    }
+
+    /// <summary>
+    /// App-capture frame sink — fires on the provider's capture thread with interleaved-stereo float
+    /// PCM. Hand it straight to the push stream; the mixer pulls it through the DSP chain. Must NOT
+    /// touch UI APIs. Same discipline as <see cref="RecordCallback"/>.
+    /// </summary>
+    private void OnAppFrames(float[] buffer, int count)
+    {
+        if (_push != 0 && count > 0)
+            ManagedBass.Bass.StreamPutData(_push, buffer, count * sizeof(float));
     }
 
     /// <summary>
@@ -274,6 +346,14 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 
     private void TeardownCapture()
     {
+        // Stop an active app-capture source first (unsubscribe + stop the provider). Never let a
+        // provider fault break teardown.
+        if (_appActive)
+        {
+            if (_onAppFrames != null) _appCapture.FramesAvailable -= _onAppFrames;
+            try { _appCapture.Stop(); } catch { /* provider stop must not break teardown */ }
+            _appActive = false;
+        }
         if (_push != 0)
             BassMix.MixerRemoveChannel(_push);
         if (_record != 0)

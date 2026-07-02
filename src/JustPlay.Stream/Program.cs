@@ -3,6 +3,7 @@ using System.IO;
 using Avalonia;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Audio;
 using JustPlay.Stream.Settings;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI.Theming;
@@ -47,6 +48,14 @@ internal sealed class Program
     private static IServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
+
+        // Per-process "capture a specific APP" provider (Phase 0, Path A). Windows gets the real
+        // WASAPI process-loopback capturer; every other platform/build gets the Null provider (the
+        // "App" source is then hidden). Injected into the capture engine below.
+        if (OperatingSystem.IsWindows())
+            services.AddSingleton<IProcessAudioCapture, WasapiProcessLoopbackCapture>();
+        else
+            services.AddSingleton<IProcessAudioCapture, NullProcessAudioCapture>();
 
         // Capture engine: registered as IAudioInputEngine AND IBassMixerSource so the SAME instance
         // backs both the UI and the broadcast service (the encoder taps its post-DSP mixer).

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using JustPlay.Core.Audio;
 using JustPlay.Core.Models;
 
 namespace JustPlay.Core.Abstractions;
@@ -63,6 +64,34 @@ public interface IAudioInputEngine : IDisposable, ISpectrumSource
     /// appear/disappear at runtime — e.g. a USB interface). Disabled/absent devices are excluded.
     /// </summary>
     IReadOnlyList<AudioInputDevice> GetInputDevices();
+
+    // ── Application (per-process) capture — Phase 0 "capture a specific APP" source ──────────
+
+    /// <summary>
+    /// True when this platform/build can capture a SINGLE application's audio directly (per-process
+    /// WASAPI loopback / Core-Audio process tap). When false, the "App" source is hidden in the UI
+    /// and only device/loopback capture is available. See
+    /// <c>.claude/skills/just-route/references/just-route-vision.md</c> (Phase 0, Path A).
+    /// </summary>
+    bool SupportsApplicationCapture { get; }
+
+    /// <summary>
+    /// The apps whose audio can be captured right now (recognised DJ apps first), enumerated fresh
+    /// each call. Empty when <see cref="SupportsApplicationCapture"/> is false.
+    /// </summary>
+    IReadOnlyList<CaptureApp> GetCaptureApps();
+
+    /// <summary>
+    /// Start capturing ONE application's audio (by process id) into the broadcast bus — invisibly,
+    /// with NO system-sound leak, no virtual cable, and no reconfiguration (the app renders to its
+    /// own device normally, unaware). Runs through the exact same DSP rack / limiter / encoder as a
+    /// device source. Switches source seamlessly like <see cref="StartCapture"/>. Throws
+    /// <see cref="NotSupportedException"/> when <see cref="SupportsApplicationCapture"/> is false.
+    /// <para><paramref name="channels"/> handles a multi-out target: <see cref="AppCaptureChannels.FullMix"/>
+    /// (default) streams the whole output; <see cref="AppCaptureChannels.Master12"/>/<see cref="AppCaptureChannels.Master34"/>
+    /// isolate a DJ device's Master pair so the headphone Cue is not broadcast.</para>
+    /// </summary>
+    void StartApplicationCapture(int processId, AppCaptureChannels channels = AppCaptureChannels.FullMix);
 
     // ── Levels / metering ────────────────────────────────────────────────
 

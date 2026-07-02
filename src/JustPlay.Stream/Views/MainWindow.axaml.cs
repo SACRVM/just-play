@@ -7,7 +7,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
-using Avalonia.Threading;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Stream.ViewModels;
@@ -34,7 +33,6 @@ public partial class MainWindow : Window, IFramelessWindow
     // Mini-player view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
     private const double MiniWidth = 700;   // Chloe: 450 was too small, 700 fits the mini content
     private const double MiniHeight = 320;  // compact, explicit (runtime SizeToContent left dead space below)
-    private double _fullHeight;          // captured at first open (the SizeToContent auto-fit height)
     private PixelPoint _fullPosition;    // restore position when leaving mini
     private bool _isMini;
 
@@ -72,14 +70,11 @@ public partial class MainWindow : Window, IFramelessWindow
             _pumpRunning = true;
             RequestAnimationFrame(OnRenderFrame);
         }
-        // The window opens sized-to-content (SizeToContent=Height) so everything fits exactly.
-        // Once laid out, capture that full height + switch to manual sizing so the resize grips +
-        // custom maximize work (SizeToContent would otherwise snap the height back on every resize).
-        Dispatcher.UIThread.Post(() =>
-        {
-            _fullHeight = Height;
-            SizeToContent = SizeToContent.Manual;
-        }, DispatcherPriority.Loaded);
+        // Stay sized-to-content (SizeToContent=Height, from XAML) in the full view so the window
+        // AUTO-GROWS/shrinks to fit its content — e.g. when the App-source controls appear (taller)
+        // or a Device source is chosen (shorter). STREAM's manual resize grips + custom maximize are
+        // disabled (CanResize=False), so nothing needs a frozen height; freezing it was exactly what
+        // clipped the taller App-mode layout. Mini switches to Manual for its explicit compact size.
     }
 
     // Frame-synced meter pump: re-arms each frame, so updates land exactly on render frames (no
@@ -122,6 +117,8 @@ public partial class MainWindow : Window, IFramelessWindow
             _fullPosition = Position;
             // Mini is the SAME window, ONLY smaller + fewer rows shown. NO behaviour differs — no
             // topmost, no transparency change. (Chloe: "der einzige Unterschied ist kleiner + es fehlen Dinge".)
+            // Switch OFF auto-fit so the explicit compact height sticks (SizeToContent would re-grow it).
+            SizeToContent = SizeToContent.Manual;
             // CRITICAL: the XAML mins (MinWidth=920, MinHeight=420) would CLAMP the mini size back up —
             // that's why the mini window looked unchanged. Lower the mins BEFORE setting the size.
             MinWidth = MiniWidth;
@@ -135,7 +132,9 @@ public partial class MainWindow : Window, IFramelessWindow
             MinWidth = 920;
             MinHeight = 420;
             Width = 980;
-            if (_fullHeight > 0) Height = _fullHeight;
+            // Back to auto-fit: the window sizes its height to the full-view content again (and keeps
+            // tracking it — so an App-source switch grows/shrinks the window on its own).
+            SizeToContent = SizeToContent.Height;
             Position = _fullPosition;
         }
         UpdateChromeForState();

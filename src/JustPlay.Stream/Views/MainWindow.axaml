@@ -192,10 +192,11 @@
                                 </Button>
                                 <!-- Spectrum analyzer — opens the SHARED live spectrum window (JustPlay.UI)
                                      over the broadcast bus (DRY vs WET + limiter GR). OUT L/R column hidden:
-                                     STREAM already shows its own output meter. Glyph pulses while on air.
+                                     STREAM already shows its own output meter. Glyph pulses while a signal
+                                     is arriving (input present), NOT only on air (Chloe 2026-07-02).
                                      Stays visible in mini (separate window). -->
                                 <Button Classes="cap" Click="OnSpectrum" ToolTip.Tip="Spectrum analyzer">
-                                    <ui:SpectrumGlyph Width="18" Height="14" Active="{Binding OnAir}"
+                                    <ui:SpectrumGlyph Width="18" Height="14" Active="{Binding HasInputSignal}"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       VerticalAlignment="Center"/>
                                 </Button>
@@ -396,9 +397,18 @@
                                 <DockPanel>
                                     <TextBlock Classes="label" Text="INPUT SOURCE" DockPanel.Dock="Left" VerticalAlignment="Center"/>
                                     <Button Classes="seg" Content="↻" DockPanel.Dock="Right"
-                                            Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
+                                            Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices / apps" MinWidth="30"/>
+                                    <!-- Device vs single-App capture. Only shown when the OS build supports
+                                         per-process loopback (Windows 10 2004+). App = capture ONE app invisibly. -->
+                                    <ToggleSwitch DockPanel.Dock="Right" Margin="20,0,8,0"
+                                                  IsVisible="{Binding SupportsAppCapture}"
+                                                  IsChecked="{Binding IsAppSourceMode}"
+                                                  OffContent="Device" OnContent="App"
+                                                  ToolTip.Tip="Device = a sound-card / loopback. App = capture ONE application's audio directly (no cable, no system-sound leak)."/>
                                 </DockPanel>
-                                <ComboBox ItemsSource="{Binding InputDevices}" SelectedItem="{Binding SelectedInputDevice}"
+                                <!-- Device / loopback picker (default source). -->
+                                <ComboBox IsVisible="{Binding !IsAppSourceMode}"
+                                          ItemsSource="{Binding InputDevices}" SelectedItem="{Binding SelectedInputDevice}"
                                           HorizontalAlignment="Stretch" PlaceholderText="Select input / loopback…">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:AudioInputDevice">
@@ -406,6 +416,41 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
+                                <!-- App picker (per-process capture). DJ apps sort first. -->
+                                <ComboBox IsVisible="{Binding IsAppSourceMode}"
+                                          ItemsSource="{Binding CaptureApps}" SelectedItem="{Binding SelectedCaptureApp}"
+                                          HorizontalAlignment="Stretch" PlaceholderText="Select an app to capture…">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:CaptureApp">
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <!-- Master-channel handling for a multi-out DJ device (Master + headphone
+                                     Cue on ONE interface, e.g. Reloop Mixtour). "Full mix" downmixes
+                                     everything (the Cue bleeds into the broadcast); "Master 1-2/3-4"
+                                     captures the native channels and broadcasts only the Master pair.
+                                     Validated on Mixtour + Traktor (Chloe 2026-07-02). App mode only. -->
+                                <StackPanel IsVisible="{Binding IsAppSourceMode}" Spacing="4">
+                                    <TextBlock Classes="label" Text="BROADCAST CHANNELS"/>
+                                    <ComboBox x:CompileBindings="False" HorizontalAlignment="Stretch"
+                                              ItemsSource="{Binding AppChannelOptions}" SelectedItem="{Binding SelectedAppChannels}"
+                                              ToolTip.Tip="Which channels of the app go on air. Channels 1-2 (default) — on DJ gear that's usually the Master, so the headphone Cue (usually 3-4) is left out; a normal stereo app is just its audio. Channels 3-4 — if your Master is routed to that pair. Full mix — all channels combined.">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={x:Static vm:AppChannelsLabelConverter.Instance}}"/>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </StackPanel>
+                                <!-- ASIO / WASAPI-exclusive caveat. Per-process loopback taps the Windows
+                                     shared audio engine; an app driving its card via ASIO or exclusive mode
+                                     bypasses that engine, so it appears in the list but delivers silence.
+                                     Honest inline hint so a DJ knows WHY (Chloe 2026-07-02). -->
+                                <TextBlock IsVisible="{Binding IsAppSourceMode}"
+                                           FontSize="11" TextWrapping="Wrap" LineHeight="15"
+                                           Foreground="{StaticResource MutedFaintBrush}"
+                                           Text="No sound from an app? If it drives your DJ card via ASIO or WASAPI-exclusive it bypasses Windows and can't be captured here — set that app's output to a normal Windows device (shared mode), or use a Device source."/>
 
                                 <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                                     <TextBlock Grid.Column="0" Classes="label" Text="GAIN" VerticalAlignment="Center" Width="40"/>
@@ -418,7 +463,9 @@
 
                                 <StackPanel Spacing="10"
                                             ToolTip.Tip="Listen to the processed broadcast on a chosen output of THIS PC — does NOT affect the stream. 'No output (stream only)' = no local monitor (the default; you simply hear the stream itself).">
-                                    <DockPanel>
+                                    <!-- LastChildFill=False so the ↻ honours Dock=Right and hugs the right edge,
+                                         matching the INPUT SOURCE row (where the toggle is the fill child). -->
+                                    <DockPanel LastChildFill="False">
                                         <TextBlock Classes="label" Text="MONITOR (LOCAL)" DockPanel.Dock="Left" VerticalAlignment="Center"/>
                                         <Button Classes="seg" Content="↻" DockPanel.Dock="Right"
                                                 Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
