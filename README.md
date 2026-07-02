@@ -5,9 +5,11 @@ Drop tracks in, double-click to play. No library, no memory between sessions, no
 
 *Part of **J.U.S.T.** — Just Useful Sound Tools.*
 
-> **v0.3.0 — still pre-1.0, but daily-driver ready on Windows.**
-> Headline analysis (BPM · Camelot key · energy), a full output DSP bus, loudness normalisation,
-> crossfade, and an installer with auto-update all ship in this release.
+> **v0.4.0 — still pre-1.0, but a daily driver on Windows.**
+> This release adds a whole second app: **JUST STREAM**, a standalone broadcaster that can stream
+> the audio of *any single application* — including your DJ software — straight to Icecast. The
+> installer now ships the suite side by side: **JUST PLAY** (the player), **JUST STREAM** (the
+> broadcaster) and the headless **JustPlayCLI** tool, all sharing one runtime.
 > macOS / Linux share the codebase but aren't validated yet. Expect rough edges; the core
 > functionality plays, analyses, sorts and streams today.
 
@@ -21,8 +23,8 @@ which artist photo to fetch, asking you to log in. JustPlay aims for the opposit
   memory it keeps is the one *you* allow: detected values written into the files' own tags
   (the file is the memory, not a hidden database).
 - **Cross-platform from day 1** — Windows / macOS / Linux, single codebase.
-- **Small + fast deployment** — self-contained single-file `.exe`, no .NET install on the
-  end user's machine, no C++ build tools required to build.
+- **Small + fast deployment** — self-contained (no .NET install on the end user's machine),
+  no C++ build tools required to build.
 
 The DJ tilt comes from analysis baked straight into the player:
 
@@ -36,51 +38,51 @@ The DJ tilt comes from analysis baked straight into the player:
 
 Serious DJ analysis, living *inside* the player — without the library overhead.
 
-## New in 0.3.0
+## New in 0.4.0
 
-### Output bus DSP rack
+### JUST STREAM — the broadcaster app
 
-Every track — whether playing locally or streaming to Icecast — passes through a shared bus:
+A standalone sister app, shipped in the same installer, sharing JUST PLAY's engine, bus DSP and
+look. It takes a live audio source, runs it through the shared broadcast chain, and casts it to an
+Icecast server — the point being to stream your set without a rat's nest of virtual cables.
 
-- **3-band DJ EQ** (series RBJ shelves): boost or cut low / mid / high, with a deep-kill
-  per band. Non-destructive; bypass at neutral.
-- **AutoTilt** — a gentle auto-master that nudges the track's tonal balance toward a reference
-  ("golden") spectral curve. Think of it as a one-dial mastering assistant: at zero it does
-  nothing; dialled up it brings a harsh or dull mix closer to a target sound.
-- **Transient / Punch** — adds or softens attack to sharpen or smooth the groove feel.
-- **Mastering Limiter** — true-peak limiter to ITU-R BS.1770-4, ceiling −1 dBTP. Transparent
-  at normal levels; catches the occasional hot peak before it clips your output or your stream.
+- **Capture a specific app** — the headline feature. Instead of grabbing a whole sound card,
+  JUST STREAM can capture the audio of **one application** (Windows per-process loopback):
+  your DJ software (Traktor / rekordbox / Serato / VirtualDJ / djay), a browser tab, anything.
+  Nothing else on your system leaks into the stream.
+- **Cue-free by default** — on a multi-out DJ interface (Master on one channel pair, headphone
+  Cue on another), it auto-isolates the **Master pair** so your private cue never goes on air.
+  No routing to set up; it just works.
+- **MP3 + Opus** — 128 / 192 / 256 / 320 kbps, in-process encoders (LAME / libopus), multiple
+  saved server profiles, PUT or SOURCE, optional TLS.
+- **Broadcast DSP** — the same EQ · AutoTilt · Punch · Limiter bus as the player, tuned for
+  loudness so a live set stays competitively loud without you having to gain-stage mid-mix.
+- **Live monitor + spectrum + level/limiter meters**, framed in the same look as the player.
 
-**One-click presets:** *Neutral* (full bypass — flat signal path) and *Hard* (targets the
-harsh top-end of hard-techno / hardstyle toward the reference curve and pushes it loud via
-the limiter).
+> Capturing a specific app uses the Windows shared audio engine, so apps running in **ASIO /
+> WASAPI-exclusive** mode can't be captured that way — the app shows an inline note when that's
+> the case.
 
-### Loudness / ReplayGain
+### Genre DSP presets (shared across both apps)
 
-EBU R128 LUFS measurement, written as ReplayGain 2.0 tags. **Playback normalisation**
-switchable per-session: *Quiet / Normal / Loud*. Clip-safe (true-peak aware), non-destructive
-(no file is reencoded).
+The one-click presets are now genre starting points — **Electronic · Hard · Rock** (plus
+**Neutral**, the flat bypass). The *tonal* identity is identical in both apps; JUST STREAM just
+runs the limiter one notch louder for broadcast, JUST PLAY stays transparent for monitoring.
+Every preset is fully editable, and you can save your own.
 
-### Crossfade on auto-advance
+### In-app spectral analyser
 
-Equal-power crossfade when one track ends and the next begins. Duration: Off / 2 s / 4 s / 8 s.
-A "smart-lite" mode skips the crossfade when key or tempo distance between tracks is too large
-to blend gracefully.
+A live before/after tonal-balance view — DRY (pre-bus) vs WET (post-bus) plus limiter
+gain-reduction — shared by JUST PLAY and JUST STREAM, so you can actually *see* what the DSP
+rack is doing to your sound.
 
-### Hardcore theme + five live palettes
+### Carried over from 0.3.x
 
-A fifth theme: **Hardcore** (black / red accent / cyan highlight). The theme picker now offers
-Aurora · Sunset · Midnight · Neon · Hardcore — live palette swap, no restart.
-
-### Installer + in-app auto-update
-
-Inno Setup installer (per-user, no UAC prompt). In-app update check polls GitHub Releases;
-a one-click flow downloads and installs the new version silently and relaunches.
-
-### Playlist save / update · Like column · A|B|C column views
-
-Save and reload `.m3u` playlists. The track grid now supports A|B|C column-view lenses plus an
-optional **Like** column (POPM tag) so you can flag favourites without leaving the queue.
+The full output bus DSP rack (3-band DJ EQ · AutoTilt one-dial master · Transient/Punch ·
+true-peak Limiter to BS.1770-4), EBU R128 loudness + ReplayGain 2.0 with clip-safe playback
+normalisation (Quiet / Normal / Loud), equal-power crossfade on auto-advance, six live themes
+(Aurora · Sunset · Midnight · Onyx · Neon · Hardcore), and the per-user installer with in-app
+auto-update all remain.
 
 ---
 
@@ -90,31 +92,39 @@ optional **Like** column (POPM tag) so you can flag favourites without leaving t
 | --------------------------------------------------------------- | ------------------------------------------------ |
 | Drop / play / pause / next / prev                               | ✅ works                                          |
 | Shuffle (bag-with-history) · repeat · consume mode              | ✅ works                                          |
-| Volume + position slider                                        | ✅ works                                          |
 | Metadata read **+ write** (TagLib#)                             | ✅ works                                          |
-| Mini / Max view layout                                          | ✅ shared transport cluster, skeu look            |
 | BPM detection                                                   | ✅ BASS_FX, async per track on add               |
 | Camelot key detection                                           | ✅ chromagram + EDMA profiles (+ optional ONNX)  |
 | Energy score                                                    | ✅ spectral, 1–10                                |
 | Beat fingerprint + structure detection                          | ✅ feeds Harmonic Sort                            |
 | Harmonic Sort (mix sequencer)                                   | ✅ key + tempo + energy + groove                 |
 | Tag persistence — write BPM/Key/Energy to file tags             | ✅ consent-gated, per-field, full undo            |
-| Like / favourite (POPM) · remove duplicates                     | ✅ works                                          |
-| Playlist save / update                                          | ✅ works                                          |
-| A|B|C column views + Like column                                | ✅ works                                          |
 | Loudness analysis (EBU R128) + ReplayGain tags                  | ✅ written on analysis, readable by any player   |
 | Playback normalisation (Quiet / Normal / Loud)                  | ✅ clip-safe, non-destructive                    |
 | Crossfade on auto-advance (Off / 2 / 4 / 8 s)                  | ✅ equal-power, smart-lite skip                  |
 | Output bus DSP rack (EQ · AutoTilt · Punch · Limiter)          | ✅ shapes local playback + Icecast stream         |
-| Hard / Neutral one-click DSP presets                            | ✅ works                                          |
-| Theme switch (Aurora / Sunset / Midnight / Neon / Hardcore)     | ✅ live palette swap                              |
-| Waveform header                                                 | ✅ FFT-driven 4-band scaleY + beat-pulse         |
-| Vinyl spin animation                                            | ✅ spins around its centre, layered shadows      |
-| Output device picker                                            | ✅ per-device routing                            |
-| Live Icecast broadcast (stream your set)                        | ✅ BASSmix + BASSenc, multi-server profiles      |
+| Genre DSP presets (Electronic / Hard / Rock / Neutral)          | ✅ shared across JUST PLAY + JUST STREAM          |
+| In-app spectral analyser (DRY/WET + limiter GR)                 | ✅ shared player + stream                         |
+| Live Icecast broadcast (from the player)                        | ✅ BASSmix + BASSenc, MP3 + Opus, multi-server    |
+| **JUST STREAM** — standalone broadcaster                        | ✅ ships in the same installer                    |
+| JUST STREAM — capture a specific app (per-process loopback)     | ✅ auto-isolates Master on multi-out DJ gear      |
+| Theme switch (Aurora / Sunset / Midnight / Onyx / Neon / Hardcore) | ✅ live palette swap, repaints the app icon   |
 | Installer + in-app auto-update                                  | ✅ Inno Setup (per-user) + GitHub Releases       |
-| About dialog + version                                          | ✅ themed, build-stamped                         |
 | macOS / Linux builds                                            | ❌ target, not validated yet                    |
+
+## The J.U.S.T. suite
+
+One installer drops the whole suite into a single shared folder — one copy of the .NET runtime,
+the Avalonia natives and the BASS natives serve every tool:
+
+- **JustPlay.exe** — the GUI player (analysis, Harmonic Sort, DSP, local Icecast streaming).
+- **JustStream.exe** — the standalone broadcaster (capture-an-app, broadcast DSP, Icecast).
+- **JustPlayCLI.exe** — the headless library tool (scan / analyse / tag / sort / stats) over the
+  same engine, for power-user and agent workflows.
+
+They share one look and feel by design — frameless rounded windows, a theme-gradient app icon that
+repaints on theme switch, the About mark top-left — so a new suite app feels like a sibling on
+first run.
 
 ## Stack
 
@@ -122,7 +132,7 @@ optional **Like** column (POPM tag) so you can flag favourites without leaving t
 - **[Avalonia 12](https://avaloniaui.net/)** for the UI — frameless window, transparent
   surround, custom skeumorphic Templates, compiled bindings throughout
 - **[ManagedBass](https://github.com/ManagedBass/ManagedBass) + BASS_FX / BASSmix / BASSenc**
-  for playback, BPM detection and Icecast broadcasting
+  (MP3 via bassenc_mp3, Opus via bassenc_opus) for playback, BPM detection and Icecast broadcasting
 - **[TagLib#](https://github.com/mono/taglib-sharp)** for tag read/write
 - **[ONNX Runtime](https://onnxruntime.ai/)** for the optional trained key model
 - **[CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)** — source generators,
@@ -133,18 +143,21 @@ The codebase is **strict-layered** so the analysis / playback / metadata / DSP l
 testable without any UI dependency:
 
 ```
-JustPlay.Core         — platform-agnostic: Track, Metadata, MusicalKey, abstractions
-JustPlay.Audio.Bass   — ManagedBass playback, BPM detection, Icecast broadcast
+JustPlay.Core         — platform-agnostic: Track, Metadata, MusicalKey, audio abstractions
+JustPlay.Audio.Bass   — ManagedBass playback, BPM detection, capture + Icecast broadcast
 JustPlay.Metadata     — TagLib# metadata reader + writer (consent-gated tag persistence)
 JustPlay.Analysis     — key (chromagram/EDMA), energy, beat fingerprint, structure,
                         sequencer, DSP bus (EQ / AutoTilt / Punch / Limiter)
 JustPlay.ML           — optional ONNX "AI key" detector (falls back to DSP when absent)
 JustPlay.Engine       — analysis / tagging facade (shared library)
-JustPlay.App          — Avalonia shell: Views, ViewModels, Controls
+JustPlay.UI           — shared suite UI lib: window chrome, themed icon, theme engine, spectrum
+JustPlay.App          — JUST PLAY: the Avalonia player shell
+JustPlay.Stream       — JUST STREAM: the Avalonia broadcaster shell
+JustPlay.Cli          — JustPlayCLI: headless analysis / tagging / sorting tool
 ```
 
-`JustPlay.App` is the only project that knows about Avalonia. `JustPlay.Core` knows about
-nothing platform-specific.
+`JustPlay.App` and `JustPlay.Stream` are the only projects that know about Avalonia (with the
+shared `JustPlay.UI`). `JustPlay.Core` knows about nothing platform-specific.
 
 ## Build & run
 
@@ -156,57 +169,40 @@ You need the .NET 10 SDK installed (download from https://dotnet.microsoft.com/d
 .\build\watch.ps1
 
 # One-off run:
-dotnet run --project src/JustPlay.App
+dotnet run --project src/JustPlay.App      # the player
+dotnet run --project src/JustPlay.Stream   # the broadcaster
 
-# Release publish (Windows self-contained single-file .exe, no .NET install needed
-# on the target machine, no C++ toolchain needed to build):
+# Release publish (Windows self-contained shared folder — player + broadcaster + CLI side by
+# side, one runtime, no .NET install needed on the target machine, no C++ toolchain to build):
 .\build\publish-win-x64.ps1
+
+# Build the per-user installer (needs Inno Setup 6):
+.\build\publish-installer.ps1
 
 # Run the test suite:
 dotnet test
 ```
 
 The repo is a multi-project solution — `JustPlay.slnx` ties everything together. The product
-version is the single `<Version>` in `Directory.Build.props`; the About dialog reads it back
+version is the single `<Version>` in `Directory.Build.props`; the About dialogs read it back
 at runtime and the installer / release pipeline read the same value.
-
-## Repository layout
-
-```
-src/
-  JustPlay.Core/         platform-agnostic models + abstractions
-  JustPlay.Audio.Bass/   ManagedBass playback, BPM detection, Icecast broadcast
-  JustPlay.Metadata/     TagLib#-backed metadata reader + writer
-  JustPlay.Analysis/     key / energy / beat-fingerprint / structure / harmonic sequencer /
-                         DSP bus (EQ, AutoTilt, Punch, Limiter)
-  JustPlay.ML/           optional ONNX "AI key" detector
-  JustPlay.Engine/       analysis / tagging facade (shared library)
-  JustPlay.App/          Avalonia shell — Views, ViewModels, Controls
-tests/                   xUnit test projects (Core, Analysis, Metadata, Engine)
-build/
-  watch.ps1              dotnet watch dev loop
-  publish-win-x64.ps1    self-contained single-file release publish
-.design/                 original Claude-Design mockups (JSX) — the UI is a port of these
-```
 
 ## Roadmap
 
-**Next — v0.4.0:** bug-fixes, plus the **in-app spectral analyser** — a live before/after
-tonal-balance view *inside* the app (the offline `spectrum` tool grows a real GUI home).
+**Next — v0.5.0:** the headphone **Pre-Cue** flow (audition the next track on your headphones
+while the party / stream keeps playing), plus validated **macOS + Linux** builds — the codebase
+is cross-platform; they just need real-hardware runs and any OS-specific device-picker wiring.
 
 Beyond that, roughly in priority order:
 
-1. **Validated macOS + Linux builds** — the codebase is cross-platform; they just need
-   real-hardware CI runs and any OS-specific device-picker wiring.
-2. **JUST STREAM** — a standalone streaming sister app sharing the Icecast / DSP bus
-   libraries. Killer feature: dynamic loudness maximisation for live DJ sets so streamers
-   don't have to gain-stage mid-mix.
-3. **MCP / agent surface** over `JustPlay.Engine` — so external agents and tools can
-   drive analysis, tagging and sorting without the GUI.
-4. **Harmonic Sort P2 — "what mixes next"** — surface a ranked list of compatible next
-   tracks from the queue, not just a global sort order.
-5. **User-savable DSP presets** — name, save and recall custom EQ / AutoTilt / Punch /
-   Limiter configurations beyond the built-in Hard / Neutral pair.
+1. **JUST STREAM depth** — a transparent broadcast maximiser + anti-harshness (de-fatigue)
+   stage on top of the shared bus, for loud-but-listenable streams on harsh material.
+2. **MCP / agent surface** over `JustPlay.Engine` — so external agents and tools can drive
+   analysis, tagging and sorting without the GUI.
+3. **Harmonic Sort P2 — "what mixes next"** — surface a ranked list of compatible next tracks
+   from the queue, not just a global sort order.
+4. **DJ metadata interop** — read / write other DJ software's cue / grid / energy blocks
+   (under research; never a destructive clear-and-rewrite).
 
 ## License
 
@@ -214,11 +210,11 @@ Beyond that, roughly in priority order:
 
 ### Third-party notice
 
-The `src/JustPlay.Audio.Bass/native/` folder ships **BASS**, **BASS_FX**, **BASSmix** and
-**BASSenc** from [un4seen.com](https://www.un4seen.com/). BASS is **free for personal /
-non-commercial use**. If you intend to ship something based on JustPlay commercially you will
-need your own BASS licence from un4seen — JustPlay's MIT licence does NOT grant you any rights
-to BASS itself. See https://www.un4seen.com/ for licence terms.
+The `src/JustPlay.Audio.Bass/native/` folder ships **BASS**, **BASS_FX**, **BASSmix**,
+**BASSenc**, **bassenc_mp3** and **bassenc_opus** from [un4seen.com](https://www.un4seen.com/).
+BASS is **free for personal / non-commercial use**. If you intend to ship something based on
+JustPlay commercially you will need your own BASS licence from un4seen — JustPlay's MIT licence
+does NOT grant you any rights to BASS itself. See https://www.un4seen.com/ for licence terms.
 
 ## Credits
 

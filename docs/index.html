@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JustPlay — the music player for DJs and music lovers</title>
-<meta name="description" content="Drop tracks in, double-click to play. Automatic Camelot key, BPM &amp; energy detection, harmonic sort, live DSP rack, tag writing and Icecast streaming — free, no library, no nag. v0.3.0.">
+<meta name="description" content="JustPlay — drop tracks in, double-click to play: automatic Camelot key, BPM &amp; energy, harmonic sort, a live DSP rack and tag writing. Now shipping with JUST STREAM, a broadcaster that streams any single app to Icecast. Free, no library, no nag. v0.4.0.">
 <meta name="theme-color" content="#060310">
 
 <meta property="og:type" content="website">
@@ -162,15 +162,28 @@ a { color: inherit; text-decoration: none; }
   margin: 0 auto 30px;
   background: linear-gradient(135deg, var(--cyan) 0%, var(--pink) 100%);
   display: grid; place-items: center;
-  box-shadow: 0 0 48px var(--cyan-glow), 0 20px 40px rgba(0,0,0,.5),
+  box-shadow: 0 0 52px var(--cyan-glow), 0 20px 40px rgba(0,0,0,.5),
               inset 0 0 0 1px rgba(255,255,255,.18);
-  animation: chip-pulse 4s ease-in-out infinite;
 }
-@keyframes chip-pulse {
-  0%,100% { box-shadow: 0 0 48px var(--cyan-glow), 0 20px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.18); }
-  50%      { box-shadow: 0 0 80px rgba(0,232,255,.48), 0 0 140px rgba(0,232,255,.18), 0 20px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.22); }
+.hero-chip svg { width: 60%; height: 60%; }
+
+/* J.U.S.T. suite kicker + app-family line — makes the family framing prominent up top. */
+.hero-suite {
+  display: inline-block;
+  font-family: var(--font-m); font-size: clamp(12px, 1.7vw, 15px); font-weight: 600;
+  letter-spacing: .24em; text-transform: uppercase; color: var(--cyan-dim);
+  padding: 7px 18px; border-radius: 999px;
+  border: 1px solid rgba(0,232,255,.28); background: rgba(0,232,255,.06);
+  box-shadow: 0 0 26px rgba(0,232,255,.12);
+  margin-bottom: 22px;
 }
-.hero-chip svg { width: 44%; height: 44%; }
+.hero-family {
+  margin-top: 20px; font-family: var(--font-m); font-size: 12.5px;
+  letter-spacing: .04em; color: var(--muted); line-height: 1.95;
+}
+.hero-family b { color: var(--white); font-weight: 600; }
+.hero-family .fam-app { color: var(--cyan-dim); font-weight: 600; }
+.hero-family .soon { color: var(--dim); }
 
 /* Version badge row */
 .hero-badges {
@@ -262,11 +275,18 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Screenshots ───────────────────────────────────────── */
 .shot-featured { margin-bottom: 16px; }
-.shots-row {
-  display: grid; grid-template-columns: 0.82fr 1.18fr;
-  gap: 16px; align-items: start;
+/* Tall featured shot (a portrait-ish window) — cap the height and centre + letterbox it on a dark
+   panel so it can't blow up the layout. */
+.shot-frame.tall img { max-height: 680px; object-fit: contain; background: rgba(0,0,0,.32); }
+/* Uniform preview grid — every tile is the SAME 16:10 frame with the image centred
+   (object-fit: contain), so any source shape (a tall panel, a narrow dialog, a wide strip) fits
+   neatly instead of being stretched to the column width. Smaller, equal previews; click to zoom. */
+.shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 16px; }
+.shot-tile .thumb {
+  aspect-ratio: 16 / 10; background: rgba(0,0,0,.32);
+  display: grid; place-items: center; overflow: hidden;
 }
-.shots-stack { display: grid; gap: 16px; }
+.shot-tile .thumb img { width: 100%; height: 100%; object-fit: contain; }
 .shot-frame {
   border-radius: 14px; overflow: hidden;
   border: 1px solid var(--border); background: var(--glass);
@@ -284,7 +304,7 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--font-m);
   background: rgba(0,0,0,.25); border-top: 1px solid var(--border);
 }
-@media (max-width: 680px) { .shots-row { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .shot-grid { grid-template-columns: 1fr; } }
 
 /* ── Feature cards ─────────────────────────────────────── */
 .features-grid {
@@ -551,7 +571,7 @@ footer {
     <span class="nav-brand">JustPlay</span>
     <a class="nav-cta" href="https://github.com/chloe-dream/just-play/releases/latest">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-      Download v0.3.0
+      Download v0.4.0
     </a>
   </div>
 </nav>
@@ -561,26 +581,25 @@ footer {
   <div class="wrap">
 
     <div class="hero-chip" aria-hidden="true">
-      <svg viewBox="0 0 100 100" fill="white"><path d="M36 28 L36 72 L76 50 Z"/></svg>
+      <svg viewBox="0 0 100 100" fill="white"><path d="M33 23 L33 77 L81 50 Z"/></svg>
     </div>
 
-    <div class="hero-badges">
-      <span class="badge badge-v">v0.3.0</span>
-      <span class="badge badge-hc">Hardcore</span>
-    </div>
+    <span class="hero-suite">J.U.S.T. · Just Useful Sound Tools</span>
 
     <h1 class="hero-wordmark">JustPlay</h1>
 
     <p class="hero-tagline">The music player for DJs and music lovers.</p>
     <p class="hero-lead">Drop tracks in, double-click to play — no library, no sign-in, no nag. The analysis a DJ needs. The beauty everyone deserves.</p>
-    <p class="hero-meta"><b>Free</b> &nbsp;·&nbsp; Windows &nbsp;·&nbsp; MIT &nbsp;·&nbsp; no data leaves your machine</p>
 
-    <p style="margin-top:16px;font-size:.82rem;letter-spacing:.04em;color:var(--dim)">Part of <b>J.U.S.T.</b> — Just Useful Sound Tools</p>
+    <p class="hero-family"><b>One growing family of sound tools.</b><br>
+      <span class="fam-app">JUST PLAY</span> &nbsp;·&nbsp; <span class="fam-app">JUST STREAM</span> &nbsp;·&nbsp; <span class="fam-app">JustPlay CLI</span> <span class="soon">&nbsp;·&nbsp; more coming</span></p>
+
+    <p class="hero-meta"><b>v0.4.0</b> &nbsp;·&nbsp; Free &nbsp;·&nbsp; Windows &nbsp;·&nbsp; MIT &nbsp;·&nbsp; no data leaves your machine</p>
 
     <div class="hero-btns">
       <a class="btn btn-download" href="https://github.com/chloe-dream/just-play/releases/latest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-        Download for Windows · v0.3.0
+        Download for Windows · v0.4.0
       </a>
       <a class="btn btn-ghost" href="https://github.com/chloe-dream/just-play">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z"/></svg>
@@ -643,39 +662,90 @@ footer {
 
 <!-- ── Screenshots ─────────────────────────────────────── -->
 <section class="section wrap">
-  <p class="eyebrow">The look</p>
+  <p class="eyebrow">JUST PLAY · the player</p>
   <h2 class="section-title">Built to be <span class="grad">looked at</span></h2>
 
   <!-- Featured: main view full width -->
   <figure class="shot-frame shot-featured">
-    <img src="assets/max-view.png"
-         alt="JustPlay main view — queue with Camelot key, BPM, energy and cover art"
-         data-cap="Main view — your queue with Camelot key, BPM &amp; energy columns, cover art, and the now-playing vinyl.">
-    <p class="shot-cap">Main view — queue with Camelot key, BPM &amp; energy</p>
+    <img src="assets/play-hero.png"
+         alt="JUST PLAY main view — queue with Camelot key, BPM, energy and cover art"
+         data-cap="JUST PLAY — your queue with Camelot key, BPM &amp; energy columns, cover art, and the now-playing vinyl.">
+    <p class="shot-cap">JUST PLAY — queue with Camelot key, BPM &amp; energy</p>
   </figure>
 
-  <!-- Row: mini (portrait, tall) | streaming + tweaks (stacked) -->
-  <div class="shots-row">
-    <figure class="shot-frame">
-      <img src="assets/mini.png"
-           alt="JustPlay mini player — compact now-playing with vinyl and transport"
-           data-cap="Mini player — compact now-playing view with vinyl, cover art and transport controls.">
-      <p class="shot-cap">Mini player</p>
+  <!-- Uniform preview tiles — any aspect fits (object-fit: contain), click to zoom. -->
+  <div class="shot-grid">
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/play-analyse.png"
+           alt="JUST PLAY analysis columns — BPM, Camelot key, energy, gain, LUFS"
+           data-cap="Analysis at a glance — BPM, Camelot key, energy, ReplayGain and LUFS, per track."></div>
+      <p class="shot-cap">Analysis — key · BPM · energy · loudness</p>
     </figure>
-    <div class="shots-stack">
-      <figure class="shot-frame">
-        <img src="assets/streaming.png"
-             alt="JustPlay live streaming panel — Icecast broadcast"
-             data-cap="Live streaming — broadcast your set to an Icecast server, multiple profiles, MP3 or Opus.">
-        <p class="shot-cap">Live Icecast streaming</p>
-      </figure>
-      <figure class="shot-frame">
-        <img src="assets/tweaks.png"
-             alt="JustPlay themes, tweaks and about — five palettes including Hardcore"
-             data-cap="Themes, tweaks &amp; about — five palettes including the new Hardcore theme, stage toggles and analysis settings.">
-        <p class="shot-cap">Themes &amp; tweaks · Hardcore included</p>
-      </figure>
-    </div>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/play-sound.png"
+           alt="JUST PLAY Sound panel — genre presets, EQ, AutoTilt, Punch, Limiter"
+           data-cap="Sound panel — genre presets (Electronic / Hard / Rock), 3-band EQ, AutoTilt, Punch and the true-peak Limiter."></div>
+      <p class="shot-cap">Sound — genre presets &amp; DSP rack</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/play-streaming.png"
+           alt="JUST PLAY streaming panel — Icecast broadcast, MP3 or Opus"
+           data-cap="Stream from the player too — Icecast broadcast, multiple server profiles, MP3 or Opus."></div>
+      <p class="shot-cap">Stream from the player · MP3 or Opus</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/play-about.png"
+           alt="JUST PLAY about dialog — part of the J.U.S.T. suite"
+           data-cap="About — JustPlay is part of J.U.S.T., Just Useful Sound Tools."></div>
+      <p class="shot-cap">About · part of J.U.S.T.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ── JUST STREAM ─────────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">New in v0.4.0 · a second app</p>
+  <h2 class="section-title">Meet <span class="grad">JUST STREAM</span></h2>
+  <p style="margin:-32px 0 40px; max-width:660px; color:var(--muted); font-size:15.5px;">
+    A standalone broadcaster in the same install. Its headline trick: capture the audio of
+    <b>one application</b> — your DJ software, a browser tab — and stream exactly that to Icecast.
+    On a multi-out DJ interface it isolates the Master pair automatically, so your headphone cue
+    never goes on air. No virtual cables, no routing to untangle.
+  </p>
+
+  <figure class="shot-frame shot-featured tall">
+    <img src="assets/stream-console.png"
+         alt="JUST STREAM broadcast console — capturing Traktor, on air, with the broadcast DSP rack"
+         data-cap="JUST STREAM console — capturing Traktor Pro (Channels 1-2), on air to Icecast, with the broadcast DSP rack and genre presets.">
+    <p class="shot-cap">Broadcast console — capture an app, on air, DSP &amp; presets</p>
+  </figure>
+
+  <!-- Uniform preview tiles — any aspect fits (object-fit: contain), click to zoom. -->
+  <div class="shot-grid">
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/stream-device.png"
+           alt="JUST STREAM device input — pick any audio device from the input picker"
+           data-cap="Input source — App (per-process) or Device: capture a whole sound card straight from the device picker."></div>
+      <p class="shot-cap">Input source — app or any device</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/stream-spectrum.png"
+           alt="JUST STREAM spectrum — dry vs wet vs target tonal balance"
+           data-cap="Spectrum — see your sound: DRY (in) vs WET (out) against a target curve, with limiter gain-reduction."></div>
+      <p class="shot-cap">Spectrum — DRY vs WET vs target</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/stream-mini.png"
+           alt="JUST STREAM mini — compact on-air strip with true-peak level meters"
+           data-cap="Mini mode — a compact on-air strip with true-peak level meters, out of the way while you mix."></div>
+      <p class="shot-cap">Mini on-air strip</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/stream-settings.png"
+           alt="JUST STREAM server settings — Icecast profiles, MP3 or Opus, TLS"
+           data-cap="Server profiles — host, mount, credentials, MP3 or Opus, optional TLS. Save as many as you like."></div>
+      <p class="shot-cap">Server profiles · MP3 or Opus · TLS</p>
+    </figure>
   </div>
 </section>
 
@@ -750,13 +820,22 @@ footer {
     </div>
 
     <div class="feat-card">
+      <div class="ab ab-pink"></div>
+      <span class="feat-new">New · v0.4.0</span>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2M7.8 13.2a6 6 0 0 1 0-2.4M16.2 10.8a6 6 0 0 1 0 2.4"/></svg>
+      </div>
+      <h3>Capture Any App · JUST STREAM</h3>
+      <p>The sister broadcaster streams the audio of a single application — your DJ software, a browser — straight to Icecast, auto-isolating the Master pair so your cue stays private. Same look, same DSP.</p>
+    </div>
+
+    <div class="feat-card">
       <div class="ab ab-red"></div>
-      <span class="feat-new">New · v0.3.0</span>
       <div class="feat-icon">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
       </div>
-      <h3>Five Themes</h3>
-      <p>Aurora, Sunset, Midnight, Neon — and the new Hardcore: all-black with red + cyan. Live palette swap, no restart.</p>
+      <h3>Six Themes</h3>
+      <p>Aurora, Sunset, Midnight, Onyx, Neon and Hardcore — from soft aurora to pitch-black to all-black-with-red. Live palette swap, no restart, and the app icon repaints to match.</p>
     </div>
 
     <div class="feat-card">
@@ -768,12 +847,21 @@ footer {
       <p>No library, no scan, no account. Drag files in, double-click, go. Close it and nothing is left behind — the file tags are the memory. That's the whole philosophy.</p>
     </div>
 
+    <div class="feat-card">
+      <div class="ab ab-cyan"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>
+      </div>
+      <h3>Headless CLI · agent-friendly</h3>
+      <p>JustPlayCLI drives the same engine from the command line — scan, analyse, tag, sort, stats — so scripts and AI agents can work a whole library without the GUI. An MCP surface is on the way.</p>
+    </div>
+
   </div>
 </section>
 
 <!-- ── DSP Rack ─────────────────────────────────────────── -->
 <section class="section wrap">
-  <p class="eyebrow">New in v0.3.0</p>
+  <p class="eyebrow">One rack · player &amp; stream</p>
   <h2 class="section-title">The <span class="grad">DSP rack</span><br>shapes your sound</h2>
 
   <div class="rack-shell">
@@ -829,7 +917,7 @@ footer {
     </div>
 
     <p class="rack-note">
-      <b>One rack — two destinations.</b> Every module shapes your playback and your live Icecast stream simultaneously. All modules bypass at neutral so the signal is bit-perfect when nothing is engaged. The <b>Hardcore preset</b> engages the full chain for maximum controlled loudness — no distortion, no fatigue. Built for hard dance, schranz, and everything that needs to hit the back of the room.
+      <b>One rack — every output.</b> The same chain shapes local playback in JUST PLAY, its Icecast stream, and JUST STREAM's broadcast — bit-perfect when every module sits at neutral. Genre presets get you there in a click: <b>Electronic</b>, <b>Hard</b> (tames a harsh top end and pushes it loud), <b>Rock</b> and <b>Neutral</b> — the same tone in both apps, with JUST STREAM running the limiter a notch louder for broadcast. Built for hard dance, schranz, and everything that needs to hit the back of the room without fatigue.
     </p>
   </div>
 </section>
@@ -848,8 +936,9 @@ footer {
         <li><span class="mark">✓</span>Harmonic sort — key + BPM + groove combined</li>
         <li><span class="mark">✓</span>Analysis written into your files, if you ask</li>
         <li><span class="mark">✓</span>Full DSP rack — EQ, AutoTilt, Punch, Limiter</li>
-        <li><span class="mark">✓</span>Live Icecast streaming</li>
-        <li><span class="mark">✓</span>Five themes, including Hardcore</li>
+        <li><span class="mark">✓</span>Live Icecast streaming — player or JUST STREAM</li>
+        <li><span class="mark">✓</span>Capture &amp; stream a single app, cue kept private</li>
+        <li><span class="mark">✓</span>Six themes — Aurora to Onyx to Hardcore</li>
         <li><span class="mark">✓</span>Instant drop &amp; play, no install ceremony</li>
       </ul>
     </div>
@@ -887,7 +976,7 @@ footer {
     </div>
 
     <div class="footer-links">
-      <a href="https://github.com/chloe-dream/just-play/releases/latest">Download v0.3.0</a>
+      <a href="https://github.com/chloe-dream/just-play/releases/latest">Download v0.4.0</a>
       <span class="sep">·</span>
       <a href="https://github.com/chloe-dream/just-play">Source on GitHub</a>
       <span class="sep">·</span>
@@ -895,8 +984,9 @@ footer {
     </div>
 
     <p class="footer-note">
-      Part of <strong>J.U.S.T.</strong> — Just Useful Sound Tools.
-      JustPlay is <a href="https://github.com/chloe-dream/just-play/blob/main/LICENSE">MIT-licensed</a>.
+      Part of <strong>J.U.S.T.</strong> — Just Useful Sound Tools. The installer ships
+      <strong>JUST PLAY</strong> and <strong>JUST STREAM</strong> side by side, both
+      <a href="https://github.com/chloe-dream/just-play/blob/main/LICENSE">MIT-licensed</a>.
       It bundles BASS audio libraries from <a href="https://www.un4seen.com/" rel="noopener noreferrer">un4seen.com</a>,
       free for personal / non-commercial use — see the repository for licence details.
       Windows build is self-contained; no .NET install required.
