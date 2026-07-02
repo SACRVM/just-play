@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build tool (NOT shipped, NOT part of JustPlay.slnx): regenerates the JUST STREAM exe icon
+       src/JustPlay.Stream/Assets/juststream.ico from the REAL BrandGlyphs.RadioTower glyph + the
+       Aurora theme accents, via SkiaSharp. The sibling of build/make-icon.ps1 (which does JUST PLAY's
+       play-triangle in GDI+); the radio-tower glyph is a Lucide arc path GDI+ can't cleanly draw, so
+       this uses SkiaSharp's SVG-path parser instead. Re-run only if the STREAM brand mark changes:
+         dotnet run --project build/make-stream-icon -c Release -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+  </ItemGroup>
+</Project>

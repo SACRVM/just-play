@@ -17,9 +17,10 @@ public static class AppInfo
     /// <summary>
     /// True in DEBUG builds, false in RELEASE. Gates IN-PROGRESS / not-yet-working UI so release
     /// installers ship WITHOUT the dead bits, while development (dotnet run = Debug) still shows them.
-    /// Currently gates: the headphone <b>Pre-Cue</b> tab (drag-in not working yet) and the <b>Opus</b>
-    /// stream format (no Opus encoder shipped — MP3 only). Bind UI via
-    /// <c>MainWindowViewModel.ShowExperimentalUi</c>.
+    /// Currently gates ONLY the headphone <b>Pre-Cue</b> tab (drag-in not working yet — deferred to
+    /// 0.5). Bind UI via <c>MainWindowViewModel.ShowExperimentalUi</c>. (Opus streaming is NO LONGER
+    /// gated: the libopus encoder ships and works — bassenc_opus.dll — so the MP3/Opus toggle is
+    /// always visible in both JUST PLAY's streaming panel and JUST STREAM.)
     /// </summary>
 #if DEBUG
     public const bool Experimental = true;

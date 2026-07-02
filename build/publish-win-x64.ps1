@@ -1,5 +1,5 @@
-# Publishes the JustPlay SUITE — the app + the headless JustPlayCLI tool — into ONE
-# shared folder for Windows x64. (JUST STREAM will join the same folder later.)
+# Publishes the JustPlay SUITE — JustPlay.exe (GUI player) + JustStream.exe (streaming app)
+# + the headless JustPlayCLI tool — into ONE shared folder for Windows x64.
 #
 # Why one flat folder (not single-file, not subfolders): the exes SHARE their DLLs —
 # one copy of the .NET runtime, the BASS natives, the ONNX runtime, and keymodel.onnx
@@ -12,7 +12,8 @@
 # - Needs NO C++ build tools (that was only NativeAOT). Just the .NET SDK.
 #
 # Output: <repo>\publish\win-x64\  (wiped clean each run for a deterministic drop)
-#   JustPlay.exe       — the GUI app
+#   JustPlay.exe       — the GUI player
+#   JustStream.exe     — the streaming app (shares the engine + bus DSP + BASS natives)
 #   JustPlayCLI.exe    — the headless library tool (same analysis engine as the app)
 #   JustPlayCLI.howto.txt
 #   shared, single copy: the .NET runtime DLLs, the Avalonia natives
@@ -22,9 +23,10 @@
 
 $ErrorActionPreference = "Stop"
 $root    = Split-Path -Parent $PSScriptRoot
-$proj    = Join-Path $root "src\JustPlay.App"
-$cliProj = Join-Path $root "src\JustPlay.Cli"
-$out     = Join-Path $root "publish\win-x64"
+$proj       = Join-Path $root "src\JustPlay.App"
+$cliProj    = Join-Path $root "src\JustPlay.Cli"
+$streamProj = Join-Path $root "src\JustPlay.Stream"
+$out        = Join-Path $root "publish\win-x64"
 
 # Always start from an empty folder — incremental publishes into a dirty dir
 # leave stale files and confuse the file/size picture.
@@ -43,6 +45,14 @@ dotnet publish $cliProj -c Release -r win-x64 --self-contained -o $out `
     -p:DebugType=none `
     -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) { throw "CLI publish failed ($LASTEXITCODE)" }
+
+# 3. JUST STREAM — the sibling streaming app, into the SAME folder. Shares the .NET runtime +
+#    Avalonia natives + BASS natives with the app; only JustStream.exe / .dll / its deps.json +
+#    a few Stream-only managed DLLs are net-new.
+dotnet publish $streamProj -c Release -r win-x64 --self-contained -o $out `
+    -p:DebugType=none `
+    -p:DebugSymbols=false
+if ($LASTEXITCODE -ne 0) { throw "STREAM publish failed ($LASTEXITCODE)" }
 
 # Drop debug symbols that third-party native NuGets (SkiaSharp/HarfBuzz) drag in —
 # ~100 MB of .pdb that have no place in a release drop.

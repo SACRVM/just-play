@@ -9,6 +9,10 @@
     <AssemblyTitle>JUST STREAM</AssemblyTitle>
     <Product>JUST STREAM</Product>
     <Company>Chloe Dream</Company>
+    <!-- Static Win32 exe icon (Explorer / shortcuts) = the JUST STREAM brand mark, Aurora theme +
+         radio-tower glyph. Generated from BrandGlyphs.RadioTower via build/make-stream-icon (SkiaSharp).
+         The live taskbar/title-bar icon is still rendered per-theme by ThemedWindowIcon at runtime. -->
+    <ApplicationIcon>Assets\juststream.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
