@@ -49,6 +49,18 @@
   </section>
 
   <section class="doc-section prose">
+    <h2>Why a server between you and the listeners</h2>
+    <p>
+      You push <em>one</em> stream up to the Icecast server — everyone listens from there. That has
+      two quiet benefits. Your home connection only ever carries a single stream: if a hundred
+      listeners pulled directly from you instead, you'd need roughly 13&nbsp;Mbit/s of upload all
+      night. And listeners connect to the server, never to your machine —
+      <strong>your IP address is never exposed to the audience</strong>. The station box does the
+      heavy lifting; you just deliver the show.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
     <h2>Where the sound comes from — App or Device</h2>
 
     <div class="cards">

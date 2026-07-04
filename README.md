@@ -3,7 +3,7 @@
 The music player for DJs and music lovers — Windows / macOS / Linux.
 Drop tracks in, double-click to play. No library, no memory between sessions, no nag — just play.
 
-*Part of **J.U.S.T.** — Just Useful Sound Tools.*
+*Part of **J.U.S.T.** — Just Useful Sound Tools · **FROM DJS TO DJS** — built and gig-tested by a working DJ.*
 
 > **v0.4.0 — still pre-1.0, but a daily driver on Windows.**
 > This release adds a whole second app: **JUST STREAM**, a standalone broadcaster that can stream
