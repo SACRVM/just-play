@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -131,7 +132,27 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
         // ✓ stays live: the moment Enter (or anything else) changes the queue, re-flag rows.
         _main.Tracks.CollectionChanged += (_, _) => RebuildMembership();
+
+        // FILTER ranges — one dual-handle slider per analyzed field, each re-filtering the view live.
+        // Vibe scores gate on HasAnalysis (the finder loads the stored blob into Model.Analysis on browse),
+        // so an un-analyzed row reads null and drops out of any active vibe band.
+        Ranges =
+        [
+            new("bpm",      "BPM",      t => t.Bpm,                                     v => v.ToString("0"), RebuildView),
+            new("nrg",      "Energy",   t => (double?)t.Energy,                          v => v.ToString("0"), RebuildView),
+            // No gain-dB / LUFS / length ranges — nobody filters a set by those (Chloe 2026-07-07). They stay
+            // as sortable columns; only the vibe scores + BPM + energy + key earn a range slider here.
+            new("dark",     "Dark",     t => t.HasAnalysis ? t.DarkScore : null,         v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
+            new("hypnotic", "Hypnotic", t => t.HasAnalysis ? t.HypnoticScore : null,     v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
+            new("groove",   "Groove",   t => t.HasAnalysis ? t.GrooveScore : null,       v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
+            new("punch",    "Punch",    t => t.HasAnalysis ? t.PunchScore : null,        v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
+            new("harsh",    "Harsh",    t => t.HasAnalysis ? t.HarshScore : null,        v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
+        ];
     }
+
+    /// <summary>The FILTER tab's numeric range sliders (BPM · energy · vibe scores) — the fields DJs actually
+    /// narrow a set by; gain/LUFS/length stay sortable columns but earn no range slider.</summary>
+    public IReadOnlyList<FinderFilterRange> Ranges { get; }
 
     /// <summary>The shell VM — the settings flyout binds the shared cue device + volume through
     /// this (HeadphoneDevices / SelectedHeadphoneDevice / PreCueVolume), so the finder and the
@@ -343,6 +364,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     public BulkObservableCollection<FinderItemViewModel> Items { get; } = [];
 
+    /// <summary>Everything loaded for the current folder/playlist, BEFORE the FILTER tab narrows it.
+    /// <see cref="Items"/> is always sort(filter(this)). Filtering is purely in-memory over this list —
+    /// the finder never touches a library index (Chloe 2026-07-07: "keine library, erstmal").</summary>
+    private List<FinderItemViewModel> _masterItems = [];
+
     [ObservableProperty]
     private FinderItemViewModel? _selected;
 
@@ -364,7 +390,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public bool HasNoRoot => string.IsNullOrWhiteSpace(LibraryRoot);
 
     public bool ShowEmptyFolderHint =>
-        !HasNoRoot && LoadError is null && CurrentFolder is not null && Items.Count == 0;
+        !HasNoRoot && LoadError is null && CurrentFolder is not null && _masterItems.Count == 0;
+
+    /// <summary>The folder HAS tracks but the FILTER narrowed them all out — a distinct, non-alarming hint.</summary>
+    public bool ShowNoMatches =>
+        !HasNoRoot && LoadError is null && _masterItems.Count > 0 && Items.Count == 0;
 
     /// <summary>↑/↓/PageUp/PageDown while the FILE pane has focus — deterministic regardless of which
     /// control actually holds keyboard focus.</summary>
@@ -500,9 +530,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() =>
         {
             if (ct.IsCancellationRequested) return;
+            _masterItems = [];
             Items.ReplaceAll([]);
             LoadError = message;
             OnPropertyChanged(nameof(ShowEmptyFolderHint));
+            OnPropertyChanged(nameof(ShowNoMatches));
         });
 
     /// <summary>Turn a list of file paths into rows (metadata trickles in lazily, same two-step as
@@ -520,11 +552,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() =>
         {
             if (ct.IsCancellationRequested) return;
-            Items.ReplaceAll(items);
-            if (SortColumn is not null) SortItemsInPlace(); // keep her chosen sort across folder changes
+            _masterItems = items;
             ApplyMembership();
-            OnPropertyChanged(nameof(ShowEmptyFolderHint));
-            Selected = Items.FirstOrDefault();
+            RecomputeRangeDomains(); // scale the FILTER ranges to this folder (redone below once tags are in)
+            RebuildView();           // Items = sort(filter(master)) — keeps the chosen sort + any active filter
         });
 
         // Lazy tag pass: rows appear instantly, tags trickle in. Reading is all the finder ever
@@ -556,6 +587,16 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 if (ReferenceEquals(item, Selected)) RaiseDetail();
             });
         }
+
+        // Tags are all in now → re-scale the FILTER ranges to the real values and re-apply the filter (a
+        // band set while tags were still loading now matches correctly). Range handles reset to full span —
+        // harmless, since a range can't have been touched while its slider was hidden (no spread yet).
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ct.IsCancellationRequested) return;
+            RecomputeRangeDomains();
+            RebuildView();
+        });
     }
 
     // ── Pane focus (drives the header highlight; set from the window's GotFocus) ──
@@ -631,7 +672,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     private void ApplyMembership()
     {
-        foreach (var item in Items)
+        // Flag the whole loaded set, not just the filtered view, so the ✓ stays correct when the filter
+        // is later relaxed and a hidden row reappears.
+        foreach (var item in _masterItems)
             item.IsOnPlaylist = _queuePaths.Contains(item.NormalizedPath);
     }
 
@@ -1118,26 +1161,23 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
         else { SortColumn = column; SortDescending = false; }
 
-        var sel = Selected;
-        SortItemsInPlace();
-        Selected = sel; // ReplaceAll keeps the same instances — keep the cursor on the same row
+        RebuildView(); // re-sort the current (filtered) view; RebuildView keeps the cursor on the same row
     }
 
     /// <summary>Reorder <see cref="Items"/> to the active sort (or back to load order). Same comparators
     /// as the JUST PLAY queue's <c>ApplySort</c> (NaturalComparer for text, Nullable.Compare for numbers).</summary>
-    private void SortItemsInPlace()
+    private void SortList(List<FinderItemViewModel> list)
     {
-        if (Items.Count < 2) return;
+        if (list.Count < 2) return;
         var d = SortDescending;
-        var snap = Items.ToList();
 
         if (SortColumn is null)
         {
-            snap.Sort((a, b) => a.Order.CompareTo(b.Order));
+            list.Sort((a, b) => a.Order.CompareTo(b.Order));
         }
         else
         {
-            snap.Sort((a, b) =>
+            list.Sort((a, b) =>
             {
                 var (ta, tb) = (a.Track, b.Track);
                 var c = SortColumn switch
@@ -1161,8 +1201,6 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 return d ? -c : c;
             });
         }
-
-        Items.ReplaceAll(snap);
     }
 
     // ── Column visibility (right-click the header; persisted) — mirrors JUST PLAY ─────────────
@@ -1220,5 +1258,177 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsStep30));
         OnPropertyChanged(nameof(SeekLegendText));
         OnPropertyChanged(nameof(KeyHints));
+    }
+
+    // ── FILTER tab — in-memory search/filter over the CURRENT file pane only (no library index) ───────
+    // Shares the right pane with INFO via a header tab switch; everything narrows _masterItems live.
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowInfoContent))]
+    private bool _filterTabActive;
+
+    /// <summary>INFO content shows when the FILTER tab isn't active (the two share the right pane).</summary>
+    public bool ShowInfoContent => !FilterTabActive;
+
+    [RelayCommand] private void ShowInfoTab() => FilterTabActive = false;
+    [RelayCommand] private void ShowFilterTab() => FilterTabActive = true;
+
+    /// <summary>Free-text search over title + artist (case-insensitive substring).</summary>
+    [ObservableProperty] private string _filterName = "";
+    partial void OnFilterNameChanged(string value) => RebuildView();
+
+    // Camelot key selection (+ optional harmonic neighbours).
+    private readonly HashSet<string> _selectedKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _effectiveKeys = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Bound to the KeyWheel — the codes she picked (strong highlight).</summary>
+    [ObservableProperty] private IReadOnlyList<string> _selectedKeyList = [];
+    /// <summary>Bound to the KeyWheel — the extra codes a harmonic filter also lets through (soft glow).</summary>
+    [ObservableProperty] private IReadOnlyList<string> _neighborKeyList = [];
+
+    /// <summary>"+ harmonic": also match the neighbours (A/B flip + wheel ±1) of every picked key.</summary>
+    [ObservableProperty] private bool _harmonicKeys;
+    partial void OnHarmonicKeysChanged(bool value) { RecomputeKeys(); RebuildView(); }
+
+    [RelayCommand]
+    private void ToggleKey(string? code)
+    {
+        if (string.IsNullOrEmpty(code)) return;
+        if (!_selectedKeys.Remove(code)) _selectedKeys.Add(code);
+        RecomputeKeys();
+        RebuildView();
+    }
+
+    private void RecomputeKeys()
+    {
+        _effectiveKeys.Clear();
+        foreach (var k in _selectedKeys) _effectiveKeys.Add(k);
+        if (_harmonicKeys)
+            foreach (var k in _selectedKeys)
+                foreach (var nb in KeyNeighbors(k)) _effectiveKeys.Add(nb);
+
+        SelectedKeyList = _selectedKeys.ToList();
+        NeighborKeyList = _effectiveKeys.Where(k => !_selectedKeys.Contains(k)).ToList();
+    }
+
+    /// <summary>The Camelot codes a picked key mixes with: the A/B flip and the two wheel neighbours
+    /// (±1, wrapping 12↔1) — the standard harmonic set.</summary>
+    private static IEnumerable<string> KeyNeighbors(string code)
+    {
+        if (!TryParseCamelot(code, out var n, out var letter)) yield break;
+        yield return $"{n}{(letter == 'A' ? 'B' : 'A')}";
+        yield return $"{WrapWheel(n - 1)}{letter}";
+        yield return $"{WrapWheel(n + 1)}{letter}";
+    }
+
+    private static int WrapWheel(int n) => ((n - 1 + 12) % 12) + 1;
+
+    private static bool TryParseCamelot(string code, out int n, out char letter)
+    {
+        n = 0; letter = 'A';
+        if (string.IsNullOrEmpty(code)) return false;
+        var c = char.ToUpperInvariant(code[^1]);
+        if (c is not ('A' or 'B')) return false;
+        letter = c;
+        return int.TryParse(code[..^1], out n) && n is >= 1 and <= 12;
+    }
+
+    /// <summary>"12 / 340" — matches / total in the current folder view.</summary>
+    public string FilterMatchText => $"{Items.Count} / {_masterItems.Count}";
+
+    /// <summary>Any filter is narrowing the view (drives the FILTER-tab dot + the Clear button).</summary>
+    public bool HasActiveFilter =>
+        _filterName.Length > 0 || _selectedKeys.Count > 0 || Ranges.Any(r => r.IsActive);
+
+    [RelayCommand]
+    private void ClearFilters()
+    {
+        FilterName = ""; // triggers RebuildView via OnFilterNameChanged
+        _selectedKeys.Clear();
+        RecomputeKeys();
+        foreach (var r in Ranges) r.Reset();
+        RebuildView();
+    }
+
+    // ── The view pipeline: Items = sort(filter(master)) ──────────────────────────────────────────────
+
+    private bool PassesFilter(FinderItemViewModel item)
+    {
+        var t = item.Track;
+        if (_filterName.Length > 0
+            && t.Title.IndexOf(_filterName, StringComparison.OrdinalIgnoreCase) < 0
+            && t.Artist.IndexOf(_filterName, StringComparison.OrdinalIgnoreCase) < 0)
+            return false;
+
+        foreach (var r in Ranges)
+            if (!r.Passes(t)) return false;
+
+        if (_effectiveKeys.Count > 0)
+        {
+            var k = t.KeyText;
+            if (string.IsNullOrEmpty(k) || !_effectiveKeys.Contains(k)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Rebuild <see cref="Items"/> from the master list through the active filter + sort, keeping
+    /// the cursor on the same row when it survives. The single funnel every filter/sort change flows through.</summary>
+    private void RebuildView()
+    {
+        var filtered = _masterItems.Where(PassesFilter).ToList();
+        SortList(filtered);
+
+        // Detach the selection BEFORE the Reset. A ListBox in SelectionMode=Multiple with a bound
+        // SelectedItem crashes inside Avalonia's SelectionModel when the source collection resets while a
+        // selection is live — it enumerates SelectedItems against now-stale indices (the crash report from
+        // clicking a key on the wheel). Clearing against the still-valid OLD collection, then reselecting
+        // in the NEW one, sidesteps it. Multi-selection collapses to the cursor on any filter/sort — fine,
+        // the old selection was over the old view anyway. Chloe 2026-07-07.
+        var keep = Selected;
+        Selected = null;
+        Items.ReplaceAll(filtered);
+        Selected = keep is not null && filtered.Contains(keep) ? keep : filtered.FirstOrDefault();
+
+        OnPropertyChanged(nameof(FilterMatchText));
+        OnPropertyChanged(nameof(HasActiveFilter));
+        OnPropertyChanged(nameof(ShowEmptyFolderHint));
+        OnPropertyChanged(nameof(ShowNoMatches));
+    }
+
+    /// <summary>Auto-scale every range's domain to the values present in the current view and reset its
+    /// handles to full span. Called on folder load (see the tag-load note in PopulateItems).</summary>
+    private void RecomputeRangeDomains()
+    {
+        const int Bins = 40;
+        var vals = new List<double>(_masterItems.Count);
+        foreach (var r in Ranges)
+        {
+            vals.Clear();
+            double min = double.MaxValue, max = double.MinValue;
+            foreach (var it in _masterItems)
+                if (r.ValueOf(it.Track) is { } x)
+                {
+                    vals.Add(x);
+                    if (x < min) min = x;
+                    if (x > max) max = x;
+                }
+
+            if (min > max) { r.SetDomain(0, 0); continue; } // no values → collapsed → the row hides itself
+
+            // Bucket the values into a normalised distribution (peak bucket = 1) the slider paints behind
+            // its track — "see the shape of the crate, then dial into the dense part" (Chloe 2026-07-07).
+            double[]? hist = null;
+            if (max > min)
+            {
+                hist = new double[Bins];
+                var span = max - min;
+                foreach (var x in vals)
+                    hist[Math.Clamp((int)((x - min) / span * (Bins - 1)), 0, Bins - 1)]++;
+                var peak = 0.0;
+                foreach (var c in hist) if (c > peak) peak = c;
+                if (peak > 0) for (var i = 0; i < Bins; i++) hist[i] /= peak;
+            }
+            r.SetDomain(min, max, hist);
+        }
     }
 }

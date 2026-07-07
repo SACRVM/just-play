@@ -141,6 +141,39 @@
         <Style Selector="Border.pane-head.active TextBlock.finderhead">
             <Setter Property="Foreground" Value="#F5FFFFFF"/>
         </Style>
+
+        <!-- INFO | FILTER tab-switch buttons in the right-pane header. Dim when inactive, hover a touch
+             brighter, full-bright when active (Classes.active bound to the tab state). Order matters:
+             .active comes last so it wins the precedence race against :pointerover on an active tab. -->
+        <Style Selector="Button.tabhead">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.tabhead /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.tabhead TextBlock.finderhead">
+            <Setter Property="Foreground" Value="#5CFFFFFF"/>
+        </Style>
+        <Style Selector="Button.tabhead:pointerover TextBlock.finderhead">
+            <Setter Property="Foreground" Value="#C8FFFFFF"/>
+        </Style>
+        <Style Selector="Button.tabhead.active TextBlock.finderhead">
+            <Setter Property="Foreground" Value="#F5FFFFFF"/>
+        </Style>
+
+        <!-- FILTER range value readout: dim at full span, accent + semibold once the range is narrowing
+             (Classes.active bound to FinderFilterRange.IsActive) — the "this filter is live" cue. -->
+        <Style Selector="TextBlock.rangeval">
+            <Setter Property="Foreground" Value="{DynamicResource MutedDimBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.rangeval.active">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
         <!-- Active-sort arrow: smaller than the header label, snug against it, collapses when idle.
              Mirrors MaxView's .sortarrow so the finder sorts look identical to the JUST PLAY queue. -->
         <Style Selector="TextBlock.sortarrow">
@@ -736,9 +769,12 @@
                                                                TextAlignment="Right" VerticalAlignment="Center"/>
                                                     <Panel Width="58" VerticalAlignment="Center" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowKey}">
                                                         <Border CornerRadius="10" Padding="7,3" BorderThickness="1" HorizontalAlignment="Center"
-                                                                Background="{Binding Track.KeyText, Converter={StaticResource CamelotToBrush}}"
-                                                                BorderBrush="{Binding Track.KeyText, Converter={StaticResource CamelotBorder}}"
+                                                                Background="{Binding Track.KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
+                                                                BorderBrush="{Binding Track.KeyText, Converter={StaticResource CamelotWheelBrush}}"
                                                                 IsVisible="{Binding Track.KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <!-- Coloured outline + a ~18% hue wash behind plain white text — the classier
+                                                                 read Chloe preferred over a solid fill; hue from the shared wheel palette
+                                                                 (Chloe 2026-07-07). -->
                                                             <TextBlock Text="{Binding Track.KeyText}" FontSize="10" FontWeight="Bold"
                                                                        LetterSpacing="0.5" Foreground="White"/>
                                                         </Border>
@@ -816,15 +852,42 @@
                                        IsVisible="{Binding ShowEmptyFolderHint}"
                                        Foreground="{DynamicResource MutedDimBrush}" FontSize="11.5"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6"
+                                        IsVisible="{Binding ShowNoMatches}">
+                                <TextBlock Text="No tracks match the filter."
+                                           Foreground="{DynamicResource MutedBrush}" FontSize="12.5"
+                                           HorizontalAlignment="Center"/>
+                                <Button Classes="crumb" Content="Clear filters" FontSize="11.5"
+                                        HorizontalAlignment="Center"
+                                        Command="{Binding ClearFiltersCommand}"/>
+                            </StackPanel>
                         </Panel>
 
                         <!-- ── INFO (right): everything the analyzer stored (v9 blob). Its header sits on
                              the SAME line as LIBRARY + the file columns (Chloe 2026-07-05). ── -->
                         <DockPanel Grid.Column="4">
+                            <!-- INFO | FILTER share this pane via a header tab switch (Chloe 2026-07-07). The
+                                 FILTER tab carries a dot when a filter is narrowing the view. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head" Margin="0,0,0,3">
-                                <TextBlock Classes="finderhead" Text="INFO" Margin="2,0,0,0"/>
+                                <StackPanel Orientation="Horizontal" Spacing="16" Margin="2,0,0,0">
+                                    <Button Classes="tabhead" Classes.active="{Binding ShowInfoContent}"
+                                            Command="{Binding ShowInfoTabCommand}">
+                                        <TextBlock Classes="finderhead" Text="INFO"/>
+                                    </Button>
+                                    <Button Classes="tabhead" Classes.active="{Binding FilterTabActive}"
+                                            Command="{Binding ShowFilterTabCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Classes="finderhead" Text="FILTER"/>
+                                            <Ellipse Width="5" Height="5" VerticalAlignment="Center"
+                                                     Fill="{DynamicResource AccentBBrush}"
+                                                     IsVisible="{Binding HasActiveFilter}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
                             </Border>
-                            <Panel>
+                            <Panel OpacityMask="{StaticResource FinderBottomFade}">
+                            <!-- INFO tab content -->
+                            <Panel IsVisible="{Binding ShowInfoContent}">
                             <TextBlock Text="Select a track to see its analysis."
                                        IsVisible="{Binding !ShowDetail}"
                                        Foreground="{DynamicResource MutedFaintBrush}" FontSize="11"
@@ -981,6 +1044,92 @@
                                                IsVisible="{Binding ShowDetailUnanalyzed}"
                                                FontSize="10.5" Foreground="{DynamicResource MutedDimBrush}"
                                                TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                            </Panel><!-- /INFO tab -->
+
+                            <!-- FILTER tab: name search + Camelot key wheel + numeric ranges over the CURRENT
+                                 file pane only (in-memory, no library index). Chloe 2026-07-07. -->
+                            <ScrollViewer IsVisible="{Binding FilterTabActive}"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto" AllowAutoHide="False">
+                                <StackPanel Margin="2,10,4,2" Spacing="14">
+                                    <!-- Name -->
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="SEARCH" Classes="finder-section" Margin="0"/>
+                                        <TextBox Text="{Binding FilterName}"
+                                                 Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
+                                                 BorderThickness="1" CornerRadius="6"
+                                                 Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
+                                                 Watermark="song or artist…"/>
+                                    </StackPanel>
+
+                                    <!-- Camelot key wheel + harmonic toggle -->
+                                    <StackPanel Spacing="6">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Text="KEY" Classes="finder-section" Margin="0"
+                                                       VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="+ harmonic" FontSize="10.5"
+                                                           Foreground="{DynamicResource MutedBrush}"
+                                                           VerticalAlignment="Center"/>
+                                                <ToggleSwitch OnContent="" OffContent="" VerticalAlignment="Center"
+                                                              IsChecked="{Binding HarmonicKeys}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <uic:KeyWheel Height="210"
+                                                      SelectedKeys="{Binding SelectedKeyList}"
+                                                      NeighborKeys="{Binding NeighborKeyList}"
+                                                      ToggleKeyCommand="{Binding ToggleKeyCommand}"/>
+                                    </StackPanel>
+
+                                    <!-- Numeric ranges — each hides itself when the column has no spread. -->
+                                    <StackPanel Spacing="0">
+                                        <TextBlock Text="RANGES" Classes="finder-section" Margin="0,0,0,3"/>
+                                        <ItemsControl ItemsSource="{Binding Ranges}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:FinderFilterRange">
+                                                    <StackPanel Spacing="3" Margin="0,0,0,10"
+                                                                IsVisible="{Binding HasSpread}">
+                                                        <TextBlock Text="{Binding Label}" FontSize="10.5"
+                                                                   Foreground="{DynamicResource MutedBrush}"/>
+                                                        <!-- min | histogram | max — fixed 34px flank labels so every
+                                                             row's bars start & end on the same x (Chloe 2026-07-07). -->
+                                                        <Grid ColumnDefinitions="34,*,34">
+                                                            <TextBlock Grid.Column="0" Classes="rangeval"
+                                                                       Classes.active="{Binding IsActive}"
+                                                                       Text="{Binding LowerText}" FontSize="10.5"
+                                                                       TextAlignment="Right" VerticalAlignment="Bottom"
+                                                                       Margin="0,0,7,0"/>
+                                                            <uic:RangeSlider Grid.Column="1"
+                                                                             Minimum="{Binding DomainMin}"
+                                                                             Maximum="{Binding DomainMax}"
+                                                                             LowerValue="{Binding Lower, Mode=TwoWay}"
+                                                                             UpperValue="{Binding Upper, Mode=TwoWay}"
+                                                                             Histogram="{Binding Histogram}"
+                                                                             RangeBrush="{DynamicResource AccentABrush}"/>
+                                                            <TextBlock Grid.Column="2" Classes="rangeval"
+                                                                       Classes.active="{Binding IsActive}"
+                                                                       Text="{Binding UpperText}" FontSize="10.5"
+                                                                       TextAlignment="Left" VerticalAlignment="Bottom"
+                                                                       Margin="7,0,0,0"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
+                                    <!-- Footer: match count + clear -->
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,4">
+                                        <TextBlock Grid.Column="0" Text="{Binding FilterMatchText}" FontSize="11"
+                                                   Foreground="{DynamicResource MutedBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Classes="seg" Content="Clear"
+                                                Command="{Binding ClearFiltersCommand}"
+                                                IsEnabled="{Binding HasActiveFilter}"/>
+                                    </Grid>
                                 </StackPanel>
                             </ScrollViewer>
                             </Panel>

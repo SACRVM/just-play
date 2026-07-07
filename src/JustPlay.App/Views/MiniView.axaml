@@ -121,9 +121,10 @@
                                    IsVisible="{Binding Current.BpmText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         <TextBlock Text="·" Foreground="#66FFFFFF" VerticalAlignment="Center"
                                    IsVisible="{Binding Current.KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <!-- Same key badge as the pre-cue finder / max view: shared wheel palette. -->
                         <Border CornerRadius="9" Padding="6,2" BorderThickness="1"
-                                Background="{Binding Current.KeyText, Converter={StaticResource CamelotToBrush}}"
-                                BorderBrush="{Binding Current.KeyText, Converter={StaticResource CamelotBorder}}"
+                                Background="{Binding Current.KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
+                                BorderBrush="{Binding Current.KeyText, Converter={StaticResource CamelotWheelBrush}}"
                                 IsVisible="{Binding Current.KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                             <TextBlock Text="{Binding Current.KeyText}" FontSize="10" FontWeight="Bold"
                                        Foreground="White"/>

@@ -14,47 +14,25 @@ internal static class ThemeColors
     public static readonly Color AccentC = Color.Parse("#8a5fff"); // purple
 }
 
-/// <summary>
-/// Camelot pill background — cool gradient for A (minor), warm gradient for B (major),
-/// matching the design bundle's KeyPill component.
-/// </summary>
-public sealed class CamelotToBrushConverter : IValueConverter
+/// <summary>Camelot pill colour from the SHARED 12-hue wheel palette
+/// (<see cref="JustPlay.UI.Theming.CamelotPalette"/>) — so a key badge is the exact hue of its segment on the
+/// FILTER key wheel (Chloe 2026-07-07). <c>ConverterParameter</c> is an optional hex alpha byte: pass e.g.
+/// <c>"2E"</c> for the ~18% background wash, omit it for the full-strength coloured outline. Chloe preferred
+/// "outline bunt, text gleich, background nur 15–20% Deckung" over a solid fill — classier read. Used suite-wide
+/// (finder + max + mini) — ONE key-colour system, no per-view drift; the old cyan/pink A/B converter is gone.</summary>
+public sealed class CamelotWheelBrushConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        var s = value as string;
-        if (string.IsNullOrEmpty(s)) return Brushes.Transparent;
-
-        var isB = s.EndsWith("B", StringComparison.OrdinalIgnoreCase);
-        return new LinearGradientBrush
-        {
-            StartPoint = new Avalonia.RelativePoint(0, 0, Avalonia.RelativeUnit.Relative),
-            EndPoint = new Avalonia.RelativePoint(1, 1, Avalonia.RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(isB ? WithAlpha(ThemeColors.AccentB, 0x55) : WithAlpha(ThemeColors.AccentA, 0x55), 0),
-                new GradientStop(isB ? WithAlpha(ThemeColors.AccentB, 0x22) : WithAlpha(ThemeColors.AccentC, 0x22), 1),
-            }
-        };
-    }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotSupportedException();
-
-    internal static Color WithAlpha(Color c, byte a) => Color.FromArgb(a, c.R, c.G, c.B);
-}
-
-/// <summary>Border colour for the Camelot pill — accentB for B keys, accentA for A keys.</summary>
-public sealed class CamelotBorderBrushConverter : IValueConverter
-{
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        var s = value as string;
-        if (string.IsNullOrEmpty(s)) return Brushes.Transparent;
-        var isB = s.EndsWith("B", StringComparison.OrdinalIgnoreCase);
+        if (JustPlay.UI.Theming.CamelotPalette.ForCode(value as string) is not { } c)
+            return Brushes.Transparent;
         return new SolidColorBrush(
-            CamelotToBrushConverter.WithAlpha(isB ? ThemeColors.AccentB : ThemeColors.AccentA, 0x80));
+            ParseAlpha(parameter) is { } a ? Color.FromArgb(a, c.R, c.G, c.B) : c);
     }
+
+    private static byte? ParseAlpha(object? parameter) =>
+        parameter?.ToString() is { Length: > 0 } s &&
+        byte.TryParse(s, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var a) ? a : null;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();

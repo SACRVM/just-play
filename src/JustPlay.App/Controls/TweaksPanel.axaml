@@ -521,32 +521,10 @@
                                IsVisible="{Binding HasNoOutputDevices}"
                                Margin="0,2,0,0"/>
 
-                    <!-- Headphone output for the PRE-CUE (PFL) slot — lives HERE, not on the pre-cue
-                         tab (Chloe 2026-07-03: device setup belongs in Settings). The saved-by-name
-                         device still auto-rebinds while the pre-cue tab is open
-                         (MainWindowViewModel.PollPreCueDeviceRebind); the ↻ above rescans this list too. -->
-                    <TextBlock Classes="tweak-section" Text="PRE-CUE HEADPHONES" Margin="0,12,0,0"/>
-                    <ComboBox Classes="device-picker"
-                              ItemsSource="{Binding HeadphoneDevices}"
-                              SelectedItem="{Binding SelectedHeadphoneDevice}"
-                              PlaceholderText="Choose your headphone output…"
-                              PlaceholderForeground="#73FFFFFF">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:AudioOutputDevice">
-                                <TextBlock Text="{Binding Name}"
-                                           Foreground="#E6FFFFFF"
-                                           FontSize="12"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <TextBlock FontSize="10" Foreground="#73FFFFFF"
-                               Text="Pre-cue plays only on this device — never on the main output."
-                               Margin="0,2,0,0"/>
-                    <TextBlock FontSize="10" Foreground="#73FFFFFF"
-                               Text="No devices found."
-                               IsVisible="{Binding HasNoHeadphoneDevices}"
-                               Margin="0,2,0,0"/>
+                    <!-- PRE-CUE HEADPHONES device picker was removed here (Chloe 2026-07-07): the pre-cue
+                         device + volume now live in the Pre-Cue Finder's own settings flyout, so a second
+                         copy in the main Settings is redundant. The VM keeps HeadphoneDevices /
+                         SelectedHeadphoneDevice + the auto-rebind poll — the finder binds them there. -->
                 </StackPanel>
 
                 <!-- Bottom breathing room so the last control clears the transport bar the panel

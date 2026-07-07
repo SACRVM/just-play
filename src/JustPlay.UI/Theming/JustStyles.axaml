@@ -507,6 +507,15 @@
         <Setter Property="Width" Value="6"/>
         <Setter Property="MinWidth" Value="6"/>
         <Setter Property="Margin" Value="0,4,0,4"/>
+        <!-- Hidden by default; fades in only while the scroll area is hovered OR holds focus (Chloe
+             2026-07-07). Our own opacity-driven hide (the two selectors below), NOT Avalonia's AllowAutoHide,
+             so it works with this fully-custom template. -->
+        <Setter Property="Opacity" Value="0"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+            </Transitions>
+        </Setter>
         <Setter Property="Template">
             <ControlTemplate>
                 <Grid Background="Transparent">
@@ -549,5 +558,14 @@
     </Style>
     <Style Selector="ScrollBar:vertical /template/ Thumb:pressed">
         <Setter Property="Background" Value="#E6FFFFFF"/>
+    </Style>
+    <!-- Show the pill while the containing scroll area is moused-over or holds keyboard focus; it fades
+         back out otherwise (descendant selectors reach the ScrollBar inside any ScrollViewer, incl. the
+         ListBox's internal one, so folder/file lists + the INFO/FILTER panes all behave the same). -->
+    <Style Selector="ScrollViewer:pointerover ScrollBar:vertical">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="ScrollViewer:focus-within ScrollBar:vertical">
+        <Setter Property="Opacity" Value="1"/>
     </Style>
 </Styles>

@@ -15,8 +15,7 @@
                 <theming:JustPalette/>
             </ResourceDictionary.MergedDictionaries>
 
-        <conv:CamelotToBrushConverter x:Key="CamelotToBrush"/>
-        <conv:CamelotBorderBrushConverter x:Key="CamelotBorder"/>
+        <conv:CamelotWheelBrushConverter x:Key="CamelotWheelBrush"/>
         <conv:PlayPausePathConverter x:Key="PlayPausePath"/>
         <conv:EnergyBarColorConverter x:Key="EnergyBarColor"/>
         <conv:StringEqualsConverter x:Key="StringEquals"/>

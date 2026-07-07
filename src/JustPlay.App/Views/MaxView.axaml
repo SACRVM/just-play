@@ -935,10 +935,12 @@
                                                     <!-- KEY pill (+ conflict dot) -->
                                                     <Panel Width="58" Tag="Key" VerticalAlignment="Center"
                                                            IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowKey}">
+                                                        <!-- Same key badge as the pre-cue finder: shared wheel palette, coloured
+                                                             outline + ~18% wash, plain white text. One system, no per-view drift. -->
                                                         <Border CornerRadius="10" Padding="7,3" BorderThickness="1"
                                                                 HorizontalAlignment="Center"
-                                                                Background="{Binding KeyText, Converter={StaticResource CamelotToBrush}}"
-                                                                BorderBrush="{Binding KeyText, Converter={StaticResource CamelotBorder}}"
+                                                                Background="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
+                                                                BorderBrush="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}}"
                                                                 IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                             <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
                                                                        LetterSpacing="0.5" Foreground="White"/>

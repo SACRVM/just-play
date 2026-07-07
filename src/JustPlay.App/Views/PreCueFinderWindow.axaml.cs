@@ -117,11 +117,12 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     {
         if (ViewModel is not { } vm) return;
 
-        // Escape unwinds one layer at a time: help → settings → window.
+        // Escape unwinds one layer at a time: help → settings → filter search box → window.
         if (e.Key == Key.Escape)
         {
             if (vm.HelpOpen) vm.HelpOpen = false;
             else if (vm.SettingsOpen) vm.SettingsOpen = false;
+            else if (IsTextBoxFocused()) RestorePaneFocus(); // blur the FILTER search, don't close the window
             else Close();
             e.Handled = true;
             return;
@@ -159,8 +160,9 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         }
 
         // While an overlay is open the keyboard belongs to it (typing the library root, ComboBox
-        // arrows, the ✕ / Browse buttons). Nothing below runs until it's closed.
-        if (vm.SettingsOpen || vm.HelpOpen) return;
+        // arrows, the ✕ / Browse buttons) — and likewise while the FILTER search box has focus, so its
+        // letters/space/+ type normally instead of triggering finder nav. Nothing below runs then.
+        if (vm.SettingsOpen || vm.HelpOpen || IsTextBoxFocused()) return;
 
         // Two panes, Norton-Commander style: FOLDERS left, FILES right. ↑/↓ browse the active pane;
         // Enter descends / adds; Backspace goes up but ONLY in the folders pane (Chloe 2026-07-05).
@@ -298,8 +300,16 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     // their own Space/Enter (Browse, format radios, ✕).
     private void OnGlobalKeyUp(object? sender, KeyEventArgs e)
     {
-        if (ViewModel is not { } vm || vm.SettingsOpen || vm.HelpOpen) return;
+        if (ViewModel is not { } vm || vm.SettingsOpen || vm.HelpOpen || IsTextBoxFocused()) return;
         if (e.Key is Key.Space or Key.Enter) e.Handled = true;
+    }
+
+    /// <summary>A text-entry control (the FILTER search box, the settings library-root box) owns the
+    /// keyboard — the finder's global key routing + KeyUp swallow must stand down so it can type.</summary>
+    private bool IsTextBoxFocused()
+    {
+        var f = FocusManager?.GetFocusedElement();
+        return f is TextBox || (f as Visual)?.FindAncestorOfType<TextBox>() is not null;
     }
 
     // After any click that didn't land inside one of the two list panes (a caption / chrome / breadcrumb
@@ -311,6 +321,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         // not trigger the focus-bounce (which could fight the popup). Chloe 2026-07-07.
         if (e.InitialPressMouseButton != MouseButton.Left) return;
         if (ViewModel is not { } vm || vm.SettingsOpen || vm.HelpOpen) return;
+        if (IsTextBoxFocused()) return; // clicked into the FILTER search — keep focus there, don't bounce it away
         if (FocusManager?.GetFocusedElement() is Visual v && v.FindAncestorOfType<ListBox>() is not null) return;
         RestorePaneFocus();
     }
