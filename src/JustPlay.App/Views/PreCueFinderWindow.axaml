@@ -21,6 +21,18 @@
       resize grips. Everything themed via the shared DynamicResource keys.
     -->
 
+    <Window.Resources>
+        <!-- Bottom soft-fade for the folder + file lists — no hard cut at the bottom edge (Chloe 2026-07-07,
+             "unten 10-15px ausfaden"). Applied via an OpacityMask on a WRAPPER Border, NEVER on the ListBox:
+             masking the virtualising ListBox directly composites the whole list to transparent in Avalonia
+             12.0.3 (the same trap the JUST PLAY queue documents). ~3.5% of the list height ≈ 10-15px tall. -->
+        <LinearGradientBrush x:Key="FinderBottomFade" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0.0"   Color="White"/>
+            <GradientStop Offset="0.965" Color="White"/>
+            <GradientStop Offset="1.0"   Color="Transparent"/>
+        </LinearGradientBrush>
+    </Window.Resources>
+
     <Window.Styles>
         <!-- Maximized: card fills the screen — no shadow margin, no rounding (MainWindow pattern). -->
         <Style Selector="Border#RootCard.maximized">
@@ -202,6 +214,42 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
+        <!-- Player-bar transport buttons (seek / play-pause / add) — round, transparent, hover brighten,
+             dim when disabled. The glyphs are FILLED Path.xicon at a shared 9×10 box + Uniform stretch, so
+             play / pause / seek all render the exact same size (the text-glyph size trap, Chloe 2026-07-07). -->
+        <Style Selector="Button.xport">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="15"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="#D9FFFFFF"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.xport /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.xport:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#16FFFFFF"/>
+        </Style>
+        <Style Selector="Button.xport:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.xport:disabled">
+            <Setter Property="Foreground" Value="#4DFFFFFF"/>
+        </Style>
+        <Style Selector="Path.xicon">
+            <Setter Property="Fill" Value="{Binding $parent[Button].Foreground}"/>
+            <Setter Property="Stretch" Value="Uniform"/>
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="13"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
         <!-- Section headings inside the finder (settings flyout, detail panel). -->
         <Style Selector="TextBlock.finder-section">
             <Setter Property="Foreground" Value="#73FFFFFF"/>
@@ -321,39 +369,79 @@
                     <uic:KeyLegend DockPanel.Dock="Bottom" Margin="16,8,16,12"
                                    Hints="{Binding KeyHints}"/>
 
-                    <!-- ── Transport strip: what's auditioning + position ── -->
-                    <StackPanel DockPanel.Dock="Bottom" Margin="16,10,16,0" Spacing="5">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,7,0"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="▶" FontSize="11"
-                                           Foreground="{DynamicResource AccentABrush}"
-                                           IsVisible="{Binding IsCuePlaying}"/>
-                                <!-- Space paused the audition; it holds position until Space resumes it. -->
-                                <TextBlock Text="⏸ paused" FontSize="11"
-                                           Foreground="{DynamicResource MutedBrush}"
-                                           IsVisible="{Binding IsCuePaused}"/>
+                    <!-- ── Player bar (the FUVI-clan reference, adapted to JUST, Chloe 2026-07-07): transport +
+                         add buttons · title/artist · a big CLICKABLE waveform · time. No download buttons.
+                         The waveform is a shared control (WaveformView) the JUST SPIN decks will reuse — peaks
+                         in, progress in, a seek fraction out. ── -->
+                    <Border DockPanel.Dock="Bottom" Margin="16,8,16,2" Height="58"
+                            Background="#14000000" CornerRadius="10" Padding="10,0">
+                        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+                            <!-- Transport: seek-back · play/pause · seek-forward (buttons, not just Space/Shift+←→). -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                                <Button Classes="xport" Click="OnCueSeekBack" IsEnabled="{Binding HasCue}"
+                                        ToolTip.Tip="{Binding SeekLegendText}">
+                                    <Path Classes="xicon" Data="M9,0 L4.5,5 L9,10 Z M4.5,0 L0,5 L4.5,10 Z"/>
+                                </Button>
+                                <Button Classes="xport" Click="OnCuePlayPause" ToolTip.Tip="Play / pause (Space)">
+                                    <Panel>
+                                        <Path Classes="xicon" Data="M0,0 L0,10 L9,5 Z"
+                                              IsVisible="{Binding !IsCuePlaying}"/>
+                                        <Path Classes="xicon" Data="M0,0 L2.5,0 L2.5,10 L0,10 Z M6.5,0 L9,0 L9,10 L6.5,10 Z"
+                                              IsVisible="{Binding IsCuePlaying}"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="xport" Click="OnCueSeekForward" IsEnabled="{Binding HasCue}"
+                                        ToolTip.Tip="{Binding SeekLegendText}">
+                                    <Path Classes="xicon" Data="M0,0 L4.5,5 L0,10 Z M4.5,0 L9,5 L4.5,10 Z"/>
+                                </Button>
                             </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding NowPlayingText}"
-                                       Foreground="#E6FFFFFF" FontSize="12"
-                                       TextTrimming="CharacterEllipsis"
-                                       VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="{Binding PositionText}" FontSize="11"
+
+                            <!-- Add the selected song(s) to the current list (the FUVI list+ button). -->
+                            <Button Grid.Column="1" Classes="xport" Click="OnCueAdd" Margin="6,0,2,0"
+                                    ToolTip.Tip="Add the selected song(s) to the list (+ / A)">
+                                <Path Stretch="Uniform" Width="16" Height="14"
+                                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.6"
+                                      StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                      Data="M0,1 H11 M0,5 H11 M0,9 H6 M9,7 V13 M6,10 H12"/>
+                            </Button>
+
+                            <!-- Title / artist (two lines, FUVI: title white, artist accent). -->
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Width="176" Margin="6,0,10,0">
+                                <TextBlock Text="{Binding NowPlayingTitle}" Foreground="#F0FFFFFF" FontSize="12.5"
+                                           FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding NowPlayingArtist}" Foreground="{DynamicResource AccentABrush}"
+                                           FontSize="11" TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding NowPlayingArtist, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </StackPanel>
+
+                            <!-- The clickable waveform: played = accent, rest dim, playhead tracks position. -->
+                            <Panel Grid.Column="3" VerticalAlignment="Center" Height="44">
+                                <uic:WaveformView Name="CueWaveform"
+                                                  Peaks="{Binding WaveformPeaks}"
+                                                  Progress="{Binding PositionFraction}"
+                                                  SeekCommand="{Binding SeekToFractionCommand}"
+                                                  PlayedBrush="{DynamicResource AccentABrush}"
+                                                  UnplayedBrush="#2EFFFFFF"
+                                                  PlayheadBrush="{DynamicResource AccentBBrush}"/>
+                                <TextBlock Text="reading waveform…" FontSize="10.5"
+                                           Foreground="{DynamicResource MutedFaintBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           IsVisible="{Binding WaveformLoading}"/>
+                            </Panel>
+
+                            <!-- Time. PositionText is a FIXED-width, right-aligned cell: proportional digits
+                                 otherwise re-widen this Auto column as the number counts up / jumps on a seek,
+                                 which resizes the waveform's * column and visibly shifts its bars (Chloe 2026-07-07). -->
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="3"
+                                        VerticalAlignment="Center" Margin="10,0,0,0">
+                                <TextBlock Text="{Binding PositionText}" FontSize="11" Width="42" TextAlignment="Right"
                                            Foreground="{DynamicResource MutedBrush}"/>
-                                <TextBlock Text="/" FontSize="11"
-                                           Foreground="{DynamicResource MutedFaintBrush}"/>
-                                <TextBlock Text="{Binding DurationText}" FontSize="11"
+                                <TextBlock Text="/" FontSize="11" Foreground="{DynamicResource MutedFaintBrush}"/>
+                                <TextBlock Text="{Binding DurationText}" FontSize="11" Width="42" TextAlignment="Left"
                                            Foreground="{DynamicResource MutedDimBrush}"/>
                             </StackPanel>
                         </Grid>
-                        <ProgressBar Height="3" MinWidth="0" CornerRadius="2"
-                                     Background="#14FFFFFF"
-                                     Foreground="{DynamicResource AccentGradient}"
-                                     Maximum="1"
-                                     Value="{Binding PositionFraction}"/>
-                    </StackPanel>
+                    </Border>
 
                     <!-- ── Main area: FOLDERS | FILES | INFO — three panes, each a DockPanel whose
                          pane-head docks at the top so all three headers land on ONE line (LIBRARY ·
@@ -380,6 +468,7 @@
                                  leaf/playlist's tracks — "ein Mausklick ist wie Cursor hin + ENTER" (Chloe
                                  2026-07-06). A double-click raises DoubleTapped (not a 2nd Tapped), so it
                                  activates exactly once. pane-active drives the bright cursor highlight. -->
+                            <Border OpacityMask="{StaticResource FinderBottomFade}">
                             <ListBox Name="FolderList" Classes="finder-list"
                                      Classes.pane-active="{Binding FoldersActive}"
                                      ItemsSource="{Binding FolderEntries}"
@@ -403,6 +492,7 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+                            </Border>
                         </DockPanel>
 
                         <!-- Draggable divider between FOLDERS and FILES — transparent (no visible line, as
@@ -579,14 +669,33 @@
                                     </DockPanel>
                                 </Border>
 
+                                <Border OpacityMask="{StaticResource FinderBottomFade}">
                                 <ListBox Name="FinderList" Classes="finder-list"
                                          Classes.pane-active="{Binding FilesActive}"
                                          ItemsSource="{Binding Items}"
                                          SelectedItem="{Binding Selected}"
-                                         SelectionMode="Single"
+                                         SelectionMode="Multiple"
                                          Background="Transparent"
                                          GotFocus="OnFilesGotFocus"
-                                         DoubleTapped="OnListDoubleTapped">
+                                         DoubleTapped="OnListDoubleTapped"
+                                         SelectionChanged="OnFilesSelectionChanged"
+                                         ContextRequested="OnFilesContextRequested">
+                                    <!-- Multi-select (plain click = single cursor drives the cue/INFO; Ctrl/Shift-
+                                         click builds a set), then right-click for the bulk actions. Two entries only:
+                                         add the whole selection to the queue, and run the analyzer over it (through
+                                         the shell's shared pipeline — respects the write-on-analyse consent). "(N)"
+                                         appears when more than one row is selected. Chloe 2026-07-07. -->
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu x:DataType="vm:PreCueFinderViewModel">
+                                            <MenuItem Header="{Binding AddSelectionHeader}"
+                                                      Command="{Binding AddSelectionToQueueCommand}"
+                                                      IsVisible="{Binding HasFileSelection}"/>
+                                            <Separator IsVisible="{Binding HasFileSelection}"/>
+                                            <MenuItem Header="{Binding ReanalyzeSelectionHeader}"
+                                                      Command="{Binding ReanalyzeSelectionCommand}"
+                                                      IsVisible="{Binding HasFileSelection}"/>
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FinderItemViewModel">
                                             <!-- Row mirrors the header: left gutter, right-docked data cells
@@ -665,7 +774,10 @@
                                                     <Button Width="34" Classes="heart" Command="{Binding Track.ToggleFavoriteCommand}"
                                                             IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowLike}"
                                                             HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Like (L)">
-                                                        <Panel>
+                                                        <!-- Center the glyph: a bare TextBlock in a Panel stretches + left-aligns its
+                                                             text, pinning the heart to the left while the centered header ♥ stays put
+                                                             (Chloe 2026-07-07). Centering the Panel sizes it to the glyph + centers it. -->
+                                                        <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
                                                             <TextBlock Text="♥" FontSize="12" Foreground="{DynamicResource AccentBBrush}"
                                                                        IsVisible="{Binding Track.IsFavorite}"/>
                                                             <TextBlock Text="♡" FontSize="12" Foreground="{DynamicResource MutedDimBrush}"
@@ -682,6 +794,7 @@
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
+                                </Border>
                             </DockPanel>
 
                             <!-- Hints (mutually exclusive states) -->
@@ -864,7 +977,7 @@
                                     </StackPanel>
 
                                     <!-- No blob yet -->
-                                    <TextBlock Text="Not analyzed yet — no JUSTPLAY data in this file's tags. Re-analyse from the finder lands in the next phase."
+                                    <TextBlock Text="Not analyzed yet — no JUSTPLAY data in this file's tags. Right-click the row → Analyze to run it."
                                                IsVisible="{Binding ShowDetailUnanalyzed}"
                                                FontSize="10.5" Foreground="{DynamicResource MutedDimBrush}"
                                                TextWrapping="Wrap" Margin="0,10,0,0"/>
@@ -998,8 +1111,8 @@
                                 <TextBlock Grid.Row="0" Grid.Column="1" Classes="hk" Text="Files: play the selected song · Folders: open folder / playlist"/>
                                 <Border Grid.Row="1" Grid.Column="0" Classes="kbd"><TextBlock Text="Space"/></Border>
                                 <TextBlock Grid.Row="1" Grid.Column="1" Classes="hk" Text="Play / pause the audition"/>
-                                <Border Grid.Row="2" Grid.Column="0" Classes="kbd"><TextBlock Text="+"/></Border>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Classes="hk" Text="Add the selected song to the current list, then next"/>
+                                <Border Grid.Row="2" Grid.Column="0" Classes="kbd"><TextBlock Text="+ / A"/></Border>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Classes="hk" Text="Add the selected song(s) to the current list, then next"/>
                                 <Border Grid.Row="3" Grid.Column="0" Classes="kbd"><TextBlock Text="Tab"/></Border>
                                 <TextBlock Grid.Row="3" Grid.Column="1" Classes="hk" Text="Switch between the folders and files panes"/>
                                 <Border Grid.Row="4" Grid.Column="0" Classes="kbd"><TextBlock Text="↑ ↓"/></Border>
@@ -1017,7 +1130,7 @@
                                 <Border Grid.Row="10" Grid.Column="0" Classes="kbd"><TextBlock Text="Esc"/></Border>
                                 <TextBlock Grid.Row="10" Grid.Column="1" Classes="hk" Text="Close overlay / window"/>
                             </Grid>
-                            <TextBlock Text="Click a column header to sort (again to flip / reset) · right-click it to choose columns · Enter-to-play or auto-play in ⚙ settings."
+                            <TextBlock Text="Click the waveform to seek · Ctrl / Shift-click to multi-select, then right-click a row to add or (re-)analyze the whole selection · click a column header to sort (again to flip / reset) · right-click a header to choose columns · Enter-to-play or auto-play in ⚙ settings."
                                        FontSize="10" Foreground="{DynamicResource MutedFaintBrush}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>

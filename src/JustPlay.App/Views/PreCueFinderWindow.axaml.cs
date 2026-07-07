@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -191,7 +192,12 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
             case Key.Add:      // numpad +
             case Key.OemPlus:  // main-row + (Shift + =)
-                if (!inFolders) vm.ActivateSelected(); // "+" adds the selected song to the current list, then next
+            case Key.A when e.KeyModifiers == KeyModifiers.None:
+                // "+" adds the selected song(s) to the current list. A is a layout-safe alias: on French
+                // AZERTY / German QWERTZ the physical "+"/OemPlus key doesn't always map, and numpad + is
+                // absent on many laptops — the letter A is reachable without a modifier on every layout
+                // (Avalonia binds the letter, not the physical position). Chloe 2026-07-07.
+                if (!inFolders) vm.ActivateSelected();
                 e.Handled = true;
                 break;
 
@@ -257,6 +263,36 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     private void OnFoldersGotFocus(object? sender, RoutedEventArgs e) =>
         ViewModel?.SetActivePane(PreCueFinderViewModel.FinderPane.Folders);
 
+    // ── Multi-select in the file pane → keep the VM's SelectedItems in sync (JUST PLAY queue pattern) ──
+    // The cursor (SelectedItem → Selected) still drives the cue + INFO panel; this set drives the row
+    // right-click menu's bulk "Add to list" / "(Re-)analyze" actions.
+    private void OnFilesSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ViewModel is not { } vm || sender is not ListBox lb) return;
+        vm.SelectedItems.Clear();
+        foreach (var it in lb.SelectedItems!.OfType<FinderItemViewModel>())
+            vm.SelectedItems.Add(it);
+    }
+
+    // Right-click a file row: if it isn't part of the current multi-selection, select just it (standard
+    // explorer behaviour) so the bulk action targets what she pointed at, then refresh the menu headers.
+    private void OnFilesContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (ViewModel is not { } vm) return;
+        var lb = this.FindControl<ListBox>("FinderList");
+        if (lb is null) return;
+
+        var row = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext as FinderItemViewModel;
+        if (row is null) return; // click on empty space — keep the current selection
+
+        if (!lb.SelectedItems!.Contains(row))
+        {
+            lb.SelectedItems.Clear();
+            lb.SelectedItems.Add(row); // fires SelectionChanged → syncs vm.SelectedItems + the cursor
+        }
+        vm.RefreshFileMenuState(); // fresh "(N)" headers as the menu opens
+    }
+
     // KeyUp guard: our keys (Space/Enter) must never Click a focused button (Button.OnKeyUp fires
     // Click on Space release for any focused button). Swallow them in the main view; overlays keep
     // their own Space/Enter (Browse, format radios, ✕).
@@ -271,6 +307,9 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     // focus and hijack Space/Enter (Chloe 2026-07-06: "space löst die Aktion auch aus").
     private void OnWindowPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        // Only the LEFT button steals focus onto buttons; a right-click opens the row context menu and must
+        // not trigger the focus-bounce (which could fight the popup). Chloe 2026-07-07.
+        if (e.InitialPressMouseButton != MouseButton.Left) return;
         if (ViewModel is not { } vm || vm.SettingsOpen || vm.HelpOpen) return;
         if (FocusManager?.GetFocusedElement() is Visual v && v.FindAncestorOfType<ListBox>() is not null) return;
         RestorePaneFocus();
@@ -291,6 +330,14 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     {
         if ((sender as Control)?.Tag is string col) ViewModel?.SortByColumn(col);
     }
+
+    // ── Player-bar transport buttons (mirror the keyboard shortcuts as real UI buttons — Chloe 2026-07-07).
+    // After the click, OnWindowPointerReleased bounces focus back to the active pane, so Space/arrows keep
+    // working (the button never keeps focus and hijacks the keys).
+    private void OnCuePlayPause(object? sender, RoutedEventArgs e) => ViewModel?.TogglePlayPause();
+    private void OnCueSeekBack(object? sender, RoutedEventArgs e) => ViewModel?.SeekBack();
+    private void OnCueSeekForward(object? sender, RoutedEventArgs e) => ViewModel?.SeekForward();
+    private void OnCueAdd(object? sender, RoutedEventArgs e) => ViewModel?.ActivateSelected();
 
     private void OnSettingsBackdropPressed(object? sender, PointerPressedEventArgs e)
     {

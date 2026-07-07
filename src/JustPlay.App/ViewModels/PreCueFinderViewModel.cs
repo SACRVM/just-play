@@ -72,6 +72,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private readonly IFinderSettingsService _settings;
     private readonly IMetadataReader _metadata;
     private readonly IMetadataWriter _writer;
+    private readonly IWaveformService _waveform;
+
+    /// <summary>Compute resolution of the cue waveform envelope. The scrubber control resamples this to
+    /// its pixel width, so a fixed, generous value keeps the shape crisp at any window size.</summary>
+    private const int WaveformBuckets = 1600;
 
     /// <summary>Debounce between selection and cue playback in play mode: ~1 s, so holding ↓
     /// browses silently and only the row she actually settles on starts sounding.</summary>
@@ -99,13 +104,15 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         IPreListenEngine preListen,
         IFinderSettingsService settings,
         IMetadataReader metadata,
-        IMetadataWriter writer)
+        IMetadataWriter writer,
+        IWaveformService waveform)
     {
         _main = main;
         _preListen = preListen;
         _settings = settings;
         _metadata = metadata;
         _writer = writer;
+        _waveform = waveform;
 
         _playDebounce.Tick += (_, _) =>
         {
@@ -375,13 +382,70 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Selected = Items[Math.Clamp(index, 0, Items.Count - 1)];
     }
 
-    /// <summary>The "+" key / a queue action: add the selected track to the current queue + advance.
-    /// Chloe 2026-07-06: adding is "+", NOT Enter — Enter now PLAYS (see <see cref="PlaySelected"/>).</summary>
+    /// <summary>The "+" / A key: add to the current queue. With a multi-selection (Ctrl/Shift-click) it
+    /// adds ALL selected rows at once — the whole point of finder multi-select ("viele zur PL hinzufügen",
+    /// Chloe 2026-07-07). With a single cursor it adds that one row and advances, for fast one-handed queue
+    /// building. Chloe 2026-07-06: adding is "+", NOT Enter — Enter PLAYS (see <see cref="PlaySelected"/>).</summary>
     public void ActivateSelected()
     {
+        if (SelectedItems.Count > 1) { AddSelectionToQueue(); return; }
         if (Selected is not { } item) return;
         AddToQueue(item);
         AdvanceToNextTrackRow(item);
+    }
+
+    // ── Multi-select (Ctrl/Shift-click) → bulk right-click actions ───────────────────────────────
+    // Kept in sync by the window's SelectionChanged (same pattern as the JUST PLAY queue's SelectedTracks).
+    // The cursor (Selected) still drives the cue + INFO panel; this set drives the row context menu.
+
+    /// <summary>Every file row currently selected in the file pane, in no particular order (the commands
+    /// re-sort by list position). Mirrors <see cref="MainWindowViewModel.SelectedTracks"/>.</summary>
+    public ObservableCollection<FinderItemViewModel> SelectedItems { get; } = [];
+
+    public bool HasFileSelection => SelectedItems.Count > 0;
+
+    /// <summary>Row context-menu headers — carry "(N)" when more than one row is selected, exactly like the
+    /// queue's bulk headers. "Analyze" until every selected row already has a v9 blob, then "Re-analyze".</summary>
+    public string AddSelectionHeader => WithFileCount("Add to list");
+    public string ReanalyzeSelectionHeader =>
+        WithFileCount(SelectedItems.Count > 0 && SelectedItems.All(i => i.Track.HasAnalysis) ? "Re-analyze" : "Analyze");
+
+    private string WithFileCount(string verb) =>
+        SelectedItems.Count > 1 ? $"{verb} ({SelectedItems.Count})" : verb;
+
+    /// <summary>Refresh the row-menu headers + visibility as the menu opens (called from the window's
+    /// ContextRequested, after it has fixed up the selection) — mirrors the queue's RefreshMenuState.</summary>
+    public void RefreshFileMenuState()
+    {
+        OnPropertyChanged(nameof(HasFileSelection));
+        OnPropertyChanged(nameof(AddSelectionHeader));
+        OnPropertyChanged(nameof(ReanalyzeSelectionHeader));
+    }
+
+    /// <summary>The selected rows in on-screen (list) order — a set added to a playlist should land in the
+    /// order it reads, not the order it was clicked.</summary>
+    private List<FinderItemViewModel> SelectionInListOrder() =>
+        (SelectedItems.Count > 0 ? SelectedItems : (Selected is { } s ? [s] : []))
+            .OrderBy(Items.IndexOf).ToList();
+
+    /// <summary>Right-click → "Add to list": add every selected row to the current queue, in list order.</summary>
+    [RelayCommand]
+    private void AddSelectionToQueue()
+    {
+        var paths = SelectionInListOrder().Select(i => i.FullPath).ToList();
+        if (paths.Count == 0) return;
+        _ = AddPathsGuarded(paths);
+    }
+
+    /// <summary>Right-click → "(Re-)analyze": run the analyzer over every selected row through the shell's
+    /// shared pipeline (threads cap + the auto-write-on-analyse consent). Each finder row wraps its own
+    /// TrackViewModel, so the columns + INFO panel refresh in place as each track finishes.</summary>
+    [RelayCommand]
+    private void ReanalyzeSelection()
+    {
+        var targets = SelectionInListOrder().Select(i => i.Track).ToList();
+        if (targets.Count == 0) return;
+        _ = _main.AnalyzeExternalAsync(targets);
     }
 
     private void LoadFolderFiles(string folder)
@@ -579,6 +643,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         catch (Exception ex) { ErrorReporter.Report(ex, $"Adding to the queue from the finder: {path}"); }
     }
 
+    private async Task AddPathsGuarded(IReadOnlyList<string> paths)
+    {
+        try { await _main.AddPathsAsync(paths, preserveOrder: true); }
+        catch (Exception ex) { ErrorReporter.Report(ex, $"Adding {paths.Count} track(s) to the queue from the finder"); }
+    }
+
     private void AdvanceToNextTrackRow(FinderItemViewModel from)
     {
         var i = Items.IndexOf(from);
@@ -616,7 +686,13 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
         _loadedCuePath = null;
         if (_cuedItem is not null) { _cuedItem.IsCued = false; _cuedItem = null; }
+        _waveformCts?.Cancel();
+        WaveformPeaks = null;
+        WaveformLoading = false;
+        HasCue = false;
         NowPlayingText = "";
+        NowPlayingTitle = "";
+        NowPlayingArtist = "";
         PositionFraction = 0;
         PositionText = "–:––";
         DurationText = "–:––";
@@ -676,15 +752,40 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [ObservableProperty]
     private string _nowPlayingText = "";
 
+    /// <summary>Cued track title / artist, split for the two-line player-bar readout (title white, artist
+    /// accent — the FUVI layout).</summary>
+    [ObservableProperty]
+    private string _nowPlayingTitle = "";
+
+    [ObservableProperty]
+    private string _nowPlayingArtist = "";
+
+    /// <summary>True once a track is loaded in the cue slot — gates the seek buttons + waveform.</summary>
+    [ObservableProperty]
+    private bool _hasCue;
+
+    /// <summary>Normalised peak envelope of the cued track for the waveform scrubber (null = nothing loaded
+    /// yet / still decoding). Computed off-thread on cue, cleared on unload. See <see cref="IWaveformService"/>.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<float>? _waveformPeaks;
+
+    /// <summary>The decode for the cued track is in flight — the bar shows a faint "reading…" placeholder.</summary>
+    [ObservableProperty]
+    private bool _waveformLoading;
+
     [ObservableProperty]
     private string _positionText = "–:––";
 
     [ObservableProperty]
     private string _durationText = "–:––";
 
-    /// <summary>0..1 for the thin progress bar under the transport line.</summary>
+    /// <summary>0..1 — drives both the transport progress and the waveform playhead / played-fill.</summary>
     [ObservableProperty]
     private double _positionFraction;
+
+    /// <summary>Cancels an in-flight waveform decode when the cue changes (racing down a list must never
+    /// leave a stale waveform painting for the wrong track).</summary>
+    private CancellationTokenSource? _waveformCts;
 
     private void LoadCue(FinderItemViewModel item)
     {
@@ -702,11 +803,57 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _cuedItem = item;
         item.IsCued = true;
         IsCuePaused = false;
+        HasCue = true;
         _loadedCuePath = item.NormalizedPath;
         var tvm = item.Track;
         NowPlayingText = tvm.Artist == "—" ? tvm.Title : $"{tvm.Artist} — {tvm.Title}";
+        NowPlayingTitle = tvm.Title;
+        NowPlayingArtist = tvm.Artist == "—" ? "" : tvm.Artist;
+        StartWaveform(item.FullPath);
         UpdatePosition();
         FlushPendingLikes(); // the previously-held file is free now
+    }
+
+    /// <summary>Decode the cued track's waveform off-thread (cancelling any previous one), then paint it.
+    /// The strip shows a faint placeholder until the peaks land; a cancelled/failed decode leaves it empty
+    /// (the waveform is cosmetic — never worth an error dialog). ComputeAsync already offloads, and this is
+    /// called on the UI thread, so the await resumes on the UI thread to set the bound state.</summary>
+    private void StartWaveform(string fullPath)
+    {
+        _waveformCts?.Cancel();
+        var cts = _waveformCts = new CancellationTokenSource();
+        WaveformPeaks = null;
+        WaveformLoading = true;
+        _ = ComputeWaveformAsync(fullPath, cts);
+    }
+
+    private async Task ComputeWaveformAsync(string fullPath, CancellationTokenSource cts)
+    {
+        try
+        {
+            var peaks = await _waveform.ComputeAsync(fullPath, WaveformBuckets, cts.Token);
+            if (cts.Token.IsCancellationRequested) return;
+            WaveformPeaks = peaks;
+            WaveformLoading = false;
+        }
+        catch (OperationCanceledException) { /* cue moved on — the newer decode owns the strip */ }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Finder] waveform decode failed: {fullPath}: {ex.GetType().Name}: {ex.Message}");
+            if (!cts.Token.IsCancellationRequested) WaveformLoading = false;
+        }
+    }
+
+    /// <summary>Waveform click / drag → jump the cue playhead to that fraction (0..1) of the track.</summary>
+    [RelayCommand]
+    private void SeekToFraction(double fraction)
+    {
+        if (_loadedCuePath is null) return;
+        var dur = _preListen.Duration;
+        if (dur <= TimeSpan.Zero) return;
+        try { _preListen.Position = TimeSpan.FromSeconds(Math.Clamp(fraction, 0, 1) * dur.TotalSeconds); }
+        catch (Exception ex) { ErrorReporter.Report(ex, "Seeking the finder cue from the waveform"); }
+        UpdatePosition();
     }
 
     private void OnCueEnded()
@@ -894,7 +1041,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [
         new("Enter", "play / open"),
         new("Space", "play / pause"),
-        new("+", "add to list"),
+        new("+ / A", "add to list"),
         new("Tab", "folders / files"),
         new("↑ ↓", "browse"),
         new("⌫", "up"),

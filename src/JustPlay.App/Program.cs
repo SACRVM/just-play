@@ -208,6 +208,9 @@ sealed class Program
         services.AddSingleton<IBassMixerSource>(sp => sp.GetRequiredService<BassAudioEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
+        // Waveform overview (finder scrubber, later the JUST SPIN decks): decodes via IAudioDecoder →
+        // normalised peaks, platform-agnostic so it lives in Core. Cached by path for instant re-cue.
+        services.AddSingleton<IWaveformService, JustPlay.Core.Audio.WaveformService>();
         // Pre-listen (PFL) cue engine — structurally isolated from the main engine (separate
         // BASS mixer, separate device, no encoder). Singleton for the process lifetime.
         services.AddSingleton<IPreListenEngine, BassPreListenEngine>();

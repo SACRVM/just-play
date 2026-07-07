@@ -2080,6 +2080,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _ = AnalyzeTracksAsync(targets);
     }
 
+    /// <summary>Analyse tracks that live OUTSIDE the queue (the PRE CUE FINDER's rows) through the very
+    /// same bounded pipeline as the queue's Re-analyze — the AnalysisThreads cap, the Running→Done row
+    /// refresh, the ANALYZING badge, and the auto-write-on-analyse consent (Chloe 2026-07-07 chose "respect
+    /// the app's toggle", so the finder never writes a file unless that setting is already on). Reusing the
+    /// one pipeline keeps analysis behaviour identical everywhere instead of forking a second copy.</summary>
+    internal Task AnalyzeExternalAsync(IReadOnlyList<TrackViewModel> tracks) => AnalyzeTracksAsync(tracks);
+
     /// <summary>Analyse a set of tracks with bounded concurrency (the AnalysisThreads preference, default
     /// 4). Each row flips to Running (spinner) → Done/Failed and refreshes as it goes. Runs off the UI
     /// thread; <see cref="ITrackAnalysisService.AnalyzeAsync"/> already offloads to the pool, so this
