@@ -267,7 +267,7 @@ internal static class SpectrumCommand
     private const int MarginT  = 45;   // space for title
     private const int MarginB  = 52;   // space for freq labels + Hz label
     private const double DbMin = -36.0;
-    private const double DbMax =  18.0;
+    private const double DbMax =  36.0;  // was +18 — dark-techno sub sits far above the mid anchor (same field report as SpectrumView)
     private const double FMin  =  20.0;
     private const double FMax  = 20000.0;
 

@@ -1,0 +1,1040 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JustPlay.App.ViewModels"
+        xmlns:models="using:JustPlay.Core.Models"
+        xmlns:uic="using:JustPlay.UI.Controls"
+        xmlns:beh="using:JustPlay.UI.Behaviors"
+        x:Class="JustPlay.App.Views.PreCueFinderWindow"
+        x:DataType="vm:PreCueFinderViewModel"
+        Title="Pre Cue Finder"
+        Width="1080" Height="720"
+        MinWidth="860" MinHeight="560"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None"
+        beh:KeyboardNav.SuppressTab="False">
+
+    <!--
+      PRE CUE FINDER (N26 P1) — keyboard-first library audition explorer, a JUST PLAY sibling
+      window built from the canonical chrome recipe (MainWindow card + AboutWindow layers):
+      frameless rounded card, layered themed background, custom caption buttons, manual
+      resize grips. Everything themed via the shared DynamicResource keys.
+    -->
+
+    <Window.Styles>
+        <!-- Maximized: card fills the screen — no shadow margin, no rounding (MainWindow pattern). -->
+        <Style Selector="Border#RootCard.maximized">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
+        </Style>
+        <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
+            <Setter Property="RadiusX" Value="0"/>
+            <Setter Property="RadiusY" Value="0"/>
+        </Style>
+
+        <!-- Listing rows (BOTH panes — folders + files share ONE look via the finder-list class).
+             Flat, with the queue's hover/selected accent-gradient swipe (same design brushes as
+             MaxView's queue — one look across the suite). -->
+        <Style Selector="ListBox.finder-list ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,1"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.finder-list ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF"/>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <!-- SELECTED row in the INACTIVE pane: a subtle wash, no accent bar — the dual-pane cue is that
+             the hot pane's cursor is far brighter (below). Keyboard-first: the selection IS the cursor,
+             so it must never be "sehr schwer erkennbar" (Chloe 2026-07-06). -->
+        <Style Selector="ListBox.finder-list ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"   Color="{DynamicResource AccentCRow}"/>
+                    <GradientStop Offset="0.6" Color="{DynamicResource AccentBRow}"/>
+                    <GradientStop Offset="1"   Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <!-- SELECTED row in the ACTIVE pane (Classes.pane-active bound to Folders/FilesActive): the keyboard
+             cursor. A much stronger cyan→pink fill (both highlight colours) reads instantly which pane the
+             keyboard drives — NO left indent bar, colour alone is the cue (Chloe 2026-07-07). -->
+        <Style Selector="ListBox.finder-list.pane-active ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"    Color="{DynamicResource AccentARowStrong}"/>
+                    <GradientStop Offset="0.55" Color="{DynamicResource AccentBRowHover}"/>
+                    <GradientStop Offset="1"    Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.finder-list ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"   Color="{DynamicResource AccentCRowHover}"/>
+                    <GradientStop Offset="0.6" Color="{DynamicResource AccentBRowHover}"/>
+                    <GradientStop Offset="1"   Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+        <Style Selector="ListBox.finder-list.pane-active ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"    Color="{DynamicResource AccentARowStrong}"/>
+                    <GradientStop Offset="0.55" Color="{DynamicResource AccentBRowHover}"/>
+                    <GradientStop Offset="1"    Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="CornerRadius" Value="0"/>
+        </Style>
+
+        <!-- Pane header row (LIBRARY · file columns · INFO) — all three sit at the SAME height with
+             top+bottom hairlines. The two interactive panes light their header with the accent swipe
+             when focused (TAB / click), so it's obvious which pane the keyboard drives. Chloe 2026-07-05. -->
+        <Style Selector="Border.pane-head">
+            <Setter Property="BorderBrush" Value="{DynamicResource HairlineBrush}"/>
+            <Setter Property="BorderThickness" Value="0,1,0,1"/>
+            <Setter Property="Padding" Value="0,5"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <!-- Focused pane header: a clearly-coloured AccentA (cyan) → AccentB (pink) wash — the finder now
+             actually USES both highlight colours (Chloe 2026-07-06: "wir haben zwei und setzen sie nicht
+             wirklich ein"). Plus a bright accent underline so the hot pane's header really pops. -->
+        <Style Selector="Border.pane-head.active">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentABrush}"/>
+            <Setter Property="BorderThickness" Value="0,1,0,2"/>
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Offset="0"    Color="{DynamicResource AccentARowStrong}"/>
+                    <GradientStop Offset="0.55" Color="{DynamicResource AccentBRowHover}"/>
+                    <GradientStop Offset="1"    Color="#00000000"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <!-- Header labels — Foreground via STYLE (not inline) so the .active brighten wins the
+             precedence race (an inline LocalValue would beat a style Setter — the documented trap).
+             Base is brighter + a touch bigger than before so the column row reads as a real header. -->
+        <Style Selector="TextBlock.finderhead">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="Foreground" Value="#8CFFFFFF"/>
+        </Style>
+        <Style Selector="Border.pane-head.active TextBlock.finderhead">
+            <Setter Property="Foreground" Value="#F5FFFFFF"/>
+        </Style>
+        <!-- Active-sort arrow: smaller than the header label, snug against it, collapses when idle.
+             Mirrors MaxView's .sortarrow so the finder sorts look identical to the JUST PLAY queue. -->
+        <Style Selector="TextBlock.sortarrow">
+            <Setter Property="FontSize" Value="7"/>
+            <Setter Property="LetterSpacing" Value="0"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+            <Setter Property="IsVisible"
+                    Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </Style>
+
+        <!-- Codec badge in the left gutter (FLAC/MP3/OGG…): fills the old empty status column and
+             signals lossless vs lossy at a glance. Swapped for ▶ while auditioning. -->
+        <Style Selector="Border.codec">
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="3,1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Border.codec.lossless">
+            <Setter Property="Background">
+                <SolidColorBrush Color="{DynamicResource AccentARowStrong}"/>
+            </Setter>
+        </Style>
+        <Style Selector="Border.codec > TextBlock">
+            <Setter Property="FontSize" Value="8"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="0.3"/>
+            <Setter Property="Foreground" Value="#B0FFFFFF"/>
+        </Style>
+        <Style Selector="Border.codec.lossless > TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+
+        <!-- Clickable breadcrumb segment (chrome bar). Last = current, brighter + bold. -->
+        <Style Selector="Button.crumb">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        </Style>
+        <Style Selector="Button.crumb /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.crumb:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.crumb.current">
+            <Setter Property="Foreground" Value="#F0FFFFFF"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="TextBlock.crumbsep">
+            <Setter Property="Foreground" Value="{DynamicResource MutedFaintBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Heart cell button — transparent, no chrome, hand cursor; toggles the like. -->
+        <Style Selector="Button.heart">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.heart /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- Section headings inside the finder (settings flyout, detail panel). -->
+        <Style Selector="TextBlock.finder-section">
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="3"/>
+            <Setter Property="Margin" Value="0,8,0,4"/>
+        </Style>
+
+        <!-- Border.kbd / TextBlock.kbdlabel now live in the shared JustStyles (used by the shared
+             KeyLegend bar + this window's F1 help overlay) — nothing local here. -->
+
+        <!-- Vibe bars in the detail panel. -->
+        <Style Selector="ProgressBar.vibe">
+            <Setter Property="Height" Value="4"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="CornerRadius" Value="2"/>
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+            <Setter Property="Maximum" Value="1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+    </Window.Styles>
+
+    <Panel>
+        <Border Name="RootCard"
+                CornerRadius="14" ClipToBounds="False"
+                Margin="20,20,20,22"
+                BoxShadow="{DynamicResource WindowOuter}">
+            <Panel>
+                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+
+                <!-- Margin 0 so the CHROME is flush to the card edges (window icons in the corner,
+                     no phantom padding — Chloe 2026-07-05). Each content section below carries its own
+                     16px horizontal inset instead, exactly like the main window. -->
+                <DockPanel Margin="0">
+
+                    <!-- ── Chrome bar — the SAME recipe as the main window (MaxView): brand mark (white
+                         play glyph + name, opens the shared About) on the left; drawn cap-button glyphs +
+                         the shared WindowControls on the right. Chloe 2026-07-05: the Finder must look
+                         exactly like the main window, chrome to settings overlay. -->
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto"
+                          Height="36" Background="Transparent"
+                          PointerPressed="OnChromePressed">
+                        <!-- Brand → opens the shared About dialog, exactly like the main window's brand. -->
+                        <Button Grid.Column="0" Classes="brand" Click="OnAboutClick" Margin="14,0,0,0"
+                                VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" Background="Transparent">
+                                    <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="16" Height="16">
+                                        <Path.Effect>
+                                            <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                        </Path.Effect>
+                                    </Path>
+                                </Border>
+                                <TextBlock Text="PRE CUE FINDER" FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Clickable breadcrumb, right of the brand (Chloe 2026-07-05: "der pfad rechts
+                             neben PRE CUE FINDER … jedes segment anklickbar um mehrere ebenen hoch"). Each
+                             folder segment jumps straight to that level; clipped to its column so it can
+                             never overrun the caption buttons. -->
+                        <ItemsControl Grid.Column="1" ItemsSource="{Binding BreadcrumbSegments}"
+                                      VerticalAlignment="Center" Margin="14,0,10,0" ClipToBounds="True">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BreadcrumbSegment">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Classes="crumb" Classes.current="{Binding IsLast}"
+                                                Command="{Binding $parent[ItemsControl].((vm:PreCueFinderViewModel)DataContext).NavigateToPathCommand}"
+                                                CommandParameter="{Binding FolderPath}"
+                                                IsEnabled="{Binding FolderPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                                        </Button>
+                                        <TextBlock Classes="crumbsep" Text="›" IsVisible="{Binding !IsLast}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Cap icon buttons — drawn Path glyphs (Classes="cap"), same as the main window. -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                            <Button Classes="cap" Command="{Binding ToggleHelpCommand}" ToolTip.Tip="Keyboard help (F1)">
+                                <!-- Lucide "circle-help" (ISC), white stroke. -->
+                                <Path Stretch="Uniform" Width="17" Height="17"
+                                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
+                                      StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                      Data="M12 3 a9 9 0 1 0 0 18 a9 9 0 0 0 0 -18 Z
+                                            M9.09 9 a3 3 0 0 1 5.82 1 c0 2 -3 3 -3 3
+                                            M12 17 h.01"/>
+                            </Button>
+                            <Button Classes="cap" Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="Finder settings">
+                                <!-- Exact gear path from the main window's Tweaks button. -->
+                                <Path Stretch="Uniform" Width="17" Height="17"
+                                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2"
+                                      StrokeJoin="Round" Fill="Transparent"
+                                      Data="M 7,0 L 9,0 L 9.5,2 L 11.5,2.5 L 13,1.3 L 14.7,3 L 13.5,4.5 L 14,6.5 L 16,7 L 16,9 L 14,9.5 L 13.5,11.5 L 14.7,13 L 13,14.7 L 11.5,13.5 L 9.5,14 L 9,16 L 7,16 L 6.5,14 L 4.5,13.5 L 3,14.7 L 1.3,13 L 2.5,11.5 L 2,9.5 L 0,9 L 0,7 L 2,6.5 L 2.5,4.5 L 1.3,3 L 3,1.3 L 4.5,2.5 L 6.5,2 Z M 8,5.5 A 2.5,2.5 0 1 0 8,10.5 A 2.5,2.5 0 1 0 8,5.5 Z"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Shared caption buttons (min / max / close) — identical to every JUST window. -->
+                        <uic:WindowControls Grid.Column="3"/>
+                    </Grid>
+
+                    <!-- ── Footer: the SHARED keyboard-hint bar (KeyLegend, same control JUST STREAM uses).
+                         Hints come from the VM so the seek label tracks the configured step. ── -->
+                    <uic:KeyLegend DockPanel.Dock="Bottom" Margin="16,8,16,12"
+                                   Hints="{Binding KeyHints}"/>
+
+                    <!-- ── Transport strip: what's auditioning + position ── -->
+                    <StackPanel DockPanel.Dock="Bottom" Margin="16,10,16,0" Spacing="5">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,7,0"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="▶" FontSize="11"
+                                           Foreground="{DynamicResource AccentABrush}"
+                                           IsVisible="{Binding IsCuePlaying}"/>
+                                <!-- Space paused the audition; it holds position until Space resumes it. -->
+                                <TextBlock Text="⏸ paused" FontSize="11"
+                                           Foreground="{DynamicResource MutedBrush}"
+                                           IsVisible="{Binding IsCuePaused}"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding NowPlayingText}"
+                                       Foreground="#E6FFFFFF" FontSize="12"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PositionText}" FontSize="11"
+                                           Foreground="{DynamicResource MutedBrush}"/>
+                                <TextBlock Text="/" FontSize="11"
+                                           Foreground="{DynamicResource MutedFaintBrush}"/>
+                                <TextBlock Text="{Binding DurationText}" FontSize="11"
+                                           Foreground="{DynamicResource MutedDimBrush}"/>
+                            </StackPanel>
+                        </Grid>
+                        <ProgressBar Height="3" MinWidth="0" CornerRadius="2"
+                                     Background="#14FFFFFF"
+                                     Foreground="{DynamicResource AccentGradient}"
+                                     Maximum="1"
+                                     Value="{Binding PositionFraction}"/>
+                    </StackPanel>
+
+                    <!-- ── Main area: FOLDERS | FILES | INFO — three panes, each a DockPanel whose
+                         pane-head docks at the top so all three headers land on ONE line (LIBRARY ·
+                         NAME…TIME · INFO). No visible dividers — breathing room instead; the folder↔files
+                         gap is a DRAGGABLE GridSplitter (transparent, resize cursor is the affordance).
+                         The two interactive panes light their header when focused. Norton-Commander flat
+                         folders + playlists-as-virtual-folders, columns mirror JUST PLAY (Chloe 2026-07-05/06). ── -->
+                    <Grid Margin="16,4,16,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="216" MinWidth="150"/> <!-- FOLDERS (drag-resizable) -->
+                            <ColumnDefinition Width="16"/>                 <!-- splitter / gap -->
+                            <ColumnDefinition Width="*" MinWidth="300"/>   <!-- FILES -->
+                            <ColumnDefinition Width="22"/>                 <!-- gap -->
+                            <ColumnDefinition Width="262"/>                <!-- INFO -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- FOLDERS (left) — flat list: ".." + sub-folders (📁) + playlists (☰). -->
+                        <DockPanel Grid.Column="0">
+                            <Border DockPanel.Dock="Top" Classes="pane-head"
+                                    Classes.active="{Binding FoldersActive}" Margin="0,0,0,3">
+                                <TextBlock Classes="finderhead" Text="LIBRARY" Margin="8,0,0,0"/>
+                            </Border>
+                            <!-- Single click OPENS (activate): a click descends a container folder or opens a
+                                 leaf/playlist's tracks — "ein Mausklick ist wie Cursor hin + ENTER" (Chloe
+                                 2026-07-06). A double-click raises DoubleTapped (not a 2nd Tapped), so it
+                                 activates exactly once. pane-active drives the bright cursor highlight. -->
+                            <ListBox Name="FolderList" Classes="finder-list"
+                                     Classes.pane-active="{Binding FoldersActive}"
+                                     ItemsSource="{Binding FolderEntries}"
+                                     SelectedItem="{Binding SelectedEntry}"
+                                     SelectionMode="Single"
+                                     Background="Transparent"
+                                     GotFocus="OnFoldersGotFocus"
+                                     Tapped="OnFolderTapped">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:FinderEntryViewModel">
+                                        <!-- Grid (not StackPanel): the name lives in a * column so it's
+                                             width-constrained and TextTrimming actually ellipsises a long
+                                             folder/playlist name instead of hard-clipping (Chloe 2026-07-06). -->
+                                        <Grid ColumnDefinitions="Auto,*" Margin="8,0,10,0">
+                                            <TextBlock Grid.Column="0" Text="{Binding Glyph}" FontSize="11"
+                                                       Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12.5"
+                                                       Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+
+                        <!-- Draggable divider between FOLDERS and FILES — transparent (no visible line, as
+                             she asked earlier); the ↔ resize cursor on hover is the affordance. Resizes the
+                             folders pane against the files * column; INFO stays put. Chloe 2026-07-06. -->
+                        <GridSplitter Grid.Column="1" Background="Transparent"
+                                      ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+                                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+
+                        <!-- FILES (middle) — the audition list. Columns + row alignment mirror the JUST PLAY
+                             queue exactly (status · NAME · BPM · KEY · NRG · TIME · ♥); the 16-px row right
+                             margin is the gutter the shared pill scrollbar floats in. -->
+                        <Panel Grid.Column="2">
+                            <DockPanel>
+                                <!-- Header row: the SAME DockPanel column pattern as the JUST PLAY queue
+                                     (MaxView) — a fixed left gutter, toggleable data columns docked RIGHT
+                                     (hidden = 0 width, so space is reclaimed), NAME fills the middle. Each
+                                     column header is clickable to sort (asc → desc → default, arrow shown);
+                                     RIGHT-CLICK anywhere on the header row toggles which columns show. -->
+                                <Border DockPanel.Dock="Top" Classes="pane-head"
+                                        Classes.active="{Binding FilesActive}" Margin="0,0,0,3">
+                                    <Border.ContextFlyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="GENRE"        ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowGenre, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
+                                            <MenuItem Header="BPM"          ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowBpm, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
+                                            <MenuItem Header="KEY"          ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowKey, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="key"/>
+                                            <MenuItem Header="Energy (NRG)" ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowNrg, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="nrg"/>
+                                            <MenuItem Header="GAIN"         ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowGain, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="gain"/>
+                                            <MenuItem Header="LUFS"         ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowLufs, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="lufs"/>
+                                            <MenuItem Header="DARK"         ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowDark, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="dark"/>
+                                            <MenuItem Header="HYPNOTIC"     ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowHypnotic, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="hypnotic"/>
+                                            <MenuItem Header="GROOVE"       ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowGroove, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="groove"/>
+                                            <MenuItem Header="PUNCH"        ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowPunch, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="punch"/>
+                                            <MenuItem Header="HARSH"        ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowHarsh, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="harsh"/>
+                                            <MenuItem Header="TIME"         ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowDuration, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
+                                            <MenuItem Header="Like (♥)"     ToggleType="CheckBox"
+                                                      IsChecked="{Binding ShowLike, Mode=OneWay}"
+                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
+                                        </MenuFlyout>
+                                    </Border.ContextFlyout>
+                                    <DockPanel Margin="6,0,16,0">
+                                        <!-- Left gutter header (over the codec / ▶ / ✓ cell). -->
+                                        <Border DockPanel.Dock="Left" Width="40" Background="Transparent"/>
+                                        <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). -->
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Width="110" Background="Transparent" Tag="genre" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowGenre}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="GENRE"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding GenreSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="50" Background="Transparent" Tag="bpm" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowBpm}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="BPM"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding BpmSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="58" Background="Transparent" Tag="key" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowKey}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="KEY"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding KeySortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="42" Background="Transparent" Tag="nrg" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowNrg}"
+                                                    ToolTip.Tip="Energy">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="NRG"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding NrgSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="56" Background="Transparent" Tag="gain" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowGain}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="GAIN"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding GainSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="56" Background="Transparent" Tag="lufs" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowLufs}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="LUFS"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding LufsSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="42" Background="Transparent" Tag="dark" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowDark}"
+                                                    ToolTip.Tip="Darkness">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="DRK"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding DarkSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="42" Background="Transparent" Tag="hypnotic" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowHypnotic}"
+                                                    ToolTip.Tip="Hypnotic">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="HYP"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding HypnoticSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="42" Background="Transparent" Tag="groove" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowGroove}"
+                                                    ToolTip.Tip="Groove">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="GRV"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding GrooveSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="42" Background="Transparent" Tag="punch" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowPunch}"
+                                                    ToolTip.Tip="Punch">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="PUN"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding PunchSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="42" Background="Transparent" Tag="harsh" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowHarsh}"
+                                                    ToolTip.Tip="Harshness">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="HRS"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding HarshSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="62" Background="Transparent" Tag="duration" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowDuration}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="TIME"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding TimeSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Width="34" Background="Transparent" Tag="like" Cursor="Hand"
+                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowLike}">
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <TextBlock Classes="finderhead" Text="♥"/>
+                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding LikeSortGlyph}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        <!-- NAME fills the middle (last child), clickable to sort. -->
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                    Background="Transparent" Tag="title" Tapped="OnHeaderTapped" Cursor="Hand">
+                                            <TextBlock Classes="finderhead" Text="NAME"/>
+                                            <TextBlock Classes="finderhead sortarrow" Text="{Binding NameSortGlyph}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <ListBox Name="FinderList" Classes="finder-list"
+                                         Classes.pane-active="{Binding FilesActive}"
+                                         ItemsSource="{Binding Items}"
+                                         SelectedItem="{Binding Selected}"
+                                         SelectionMode="Single"
+                                         Background="Transparent"
+                                         GotFocus="OnFilesGotFocus"
+                                         DoubleTapped="OnListDoubleTapped">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:FinderItemViewModel">
+                                            <!-- Row mirrors the header: left gutter, right-docked data cells
+                                                 (same widths + IsVisible bindings so hidden columns collapse
+                                                 in lock-step with the header), NAME fills the middle. -->
+                                            <DockPanel Margin="6,0,16,0">
+                                                <!-- Left gutter: codec badge, swapped for ▶ (auditioning) / ✓ (queued). -->
+                                                <Panel DockPanel.Dock="Left" Width="40" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <!-- ▶ / ⏸ as VECTOR paths with the SAME 9×10 bounding box + same
+                                                         Width/Height + Stretch=Uniform, so they render at exactly the
+                                                         same size (text glyphs of these two chars don't — different
+                                                         fonts/metrics; Chloe 2026-07-07). -->
+                                                    <Path Data="M0,0 L0,10 L9,5 Z" Stretch="Uniform" Width="10" Height="11"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Fill="{DynamicResource AccentABrush}"
+                                                          IsVisible="{Binding ShowCuePlaying}"/>
+                                                    <Path Data="M0,0 L2.5,0 L2.5,10 L0,10 Z M6.5,0 L9,0 L9,10 L6.5,10 Z"
+                                                          Stretch="Uniform" Width="10" Height="11"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Fill="{DynamicResource MutedBrush}"
+                                                          IsVisible="{Binding ShowCuePaused}"/>
+                                                    <TextBlock Text="✓" FontSize="12"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="{DynamicResource AccentABrush}"
+                                                               IsVisible="{Binding ShowQueuedTick}"/>
+                                                    <Border Classes="codec" Classes.lossless="{Binding IsLossless}"
+                                                            IsVisible="{Binding ShowCodec}">
+                                                        <TextBlock Text="{Binding CodecLabel}"/>
+                                                    </Border>
+                                                </Panel>
+                                                <!-- Data columns, docked right (fixed widths; collapsed = 0). -->
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Width="110" Text="{Binding Track.GenreText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowGenre}"
+                                                               Foreground="{DynamicResource MutedBrush}" FontSize="11"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="50" Text="{Binding Track.BpmText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowBpm}"
+                                                               Foreground="{DynamicResource MutedBrush}" FontSize="11.5"
+                                                               TextAlignment="Right" VerticalAlignment="Center"/>
+                                                    <Panel Width="58" VerticalAlignment="Center" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowKey}">
+                                                        <Border CornerRadius="10" Padding="7,3" BorderThickness="1" HorizontalAlignment="Center"
+                                                                Background="{Binding Track.KeyText, Converter={StaticResource CamelotToBrush}}"
+                                                                BorderBrush="{Binding Track.KeyText, Converter={StaticResource CamelotBorder}}"
+                                                                IsVisible="{Binding Track.KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding Track.KeyText}" FontSize="10" FontWeight="Bold"
+                                                                       LetterSpacing="0.5" Foreground="White"/>
+                                                        </Border>
+                                                    </Panel>
+                                                    <TextBlock Width="42" Text="{Binding Track.EnergyText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowNrg}"
+                                                               Foreground="#CCFFFFFF" FontSize="11.5"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="56" Text="{Binding Track.GainText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowGain}"
+                                                               Foreground="{DynamicResource MutedBrush}" FontSize="11"
+                                                               ToolTip.Tip="{Binding Track.GainTooltip}"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="56" Text="{Binding Track.LufsText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowLufs}"
+                                                               Foreground="{DynamicResource MutedDimBrush}" FontSize="11"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="42" Text="{Binding Track.DarkText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowDark}"
+                                                               Foreground="#CCFFFFFF" FontSize="11"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="42" Text="{Binding Track.HypnoticText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowHypnotic}"
+                                                               Foreground="#CCFFFFFF" FontSize="11"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="42" Text="{Binding Track.GrooveText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowGroove}"
+                                                               Foreground="#CCFFFFFF" FontSize="11"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="42" Text="{Binding Track.PunchText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowPunch}"
+                                                               Foreground="#CCFFFFFF" FontSize="11"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="42" Text="{Binding Track.HarshText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowHarsh}"
+                                                               Foreground="#CCFFFFFF" FontSize="11"
+                                                               TextAlignment="Center" VerticalAlignment="Center"/>
+                                                    <TextBlock Width="62" Text="{Binding Track.DurationText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowDuration}"
+                                                               Foreground="{DynamicResource MutedDimBrush}" FontSize="11.5"
+                                                               TextAlignment="Right" VerticalAlignment="Center"/>
+                                                    <Button Width="34" Classes="heart" Command="{Binding Track.ToggleFavoriteCommand}"
+                                                            IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowLike}"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Like (L)">
+                                                        <Panel>
+                                                            <TextBlock Text="♥" FontSize="12" Foreground="{DynamicResource AccentBBrush}"
+                                                                       IsVisible="{Binding Track.IsFavorite}"/>
+                                                            <TextBlock Text="♡" FontSize="12" Foreground="{DynamicResource MutedDimBrush}"
+                                                                       IsVisible="{Binding !Track.IsFavorite}"/>
+                                                        </Panel>
+                                                    </Button>
+                                                </StackPanel>
+                                                <!-- NAME fills the middle (last child). -->
+                                                <TextBlock Text="{Binding Track.Title}"
+                                                           Foreground="#E6FFFFFF" FontSize="12.5"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+
+                            <!-- Hints (mutually exclusive states) -->
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Spacing="6" IsVisible="{Binding HasNoRoot}">
+                                <TextBlock Text="Welcome to the finder."
+                                           Foreground="{DynamicResource MutedBrush}" FontSize="13"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="Pick your music library root in the finder settings (⚙ top right)."
+                                           Foreground="{DynamicResource MutedDimBrush}" FontSize="11.5"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding LoadError}"
+                                       IsVisible="{Binding LoadError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                       Foreground="#FFB020" FontSize="11.5" TextWrapping="Wrap"
+                                       MaxWidth="420"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <TextBlock Text="Nothing to audition in this folder."
+                                       IsVisible="{Binding ShowEmptyFolderHint}"
+                                       Foreground="{DynamicResource MutedDimBrush}" FontSize="11.5"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Panel>
+
+                        <!-- ── INFO (right): everything the analyzer stored (v9 blob). Its header sits on
+                             the SAME line as LIBRARY + the file columns (Chloe 2026-07-05). ── -->
+                        <DockPanel Grid.Column="4">
+                            <Border DockPanel.Dock="Top" Classes="pane-head" Margin="0,0,0,3">
+                                <TextBlock Classes="finderhead" Text="INFO" Margin="2,0,0,0"/>
+                            </Border>
+                            <Panel>
+                            <TextBlock Text="Select a track to see its analysis."
+                                       IsVisible="{Binding !ShowDetail}"
+                                       Foreground="{DynamicResource MutedFaintBrush}" FontSize="11"
+                                       TextWrapping="Wrap" TextAlignment="Center" MaxWidth="180"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <ScrollViewer IsVisible="{Binding ShowDetail}"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <!-- Left edge aligns with the INFO header label (Margin left 2), with a bit
+                                     more breathing room on top (Chloe 2026-07-06). -->
+                                <StackPanel Margin="2,10,4,2" Spacing="4">
+                                    <TextBlock Text="{Binding Selected.Track.Title, FallbackValue=''}"
+                                               FontSize="14.5" FontWeight="SemiBold"
+                                               Foreground="#F0FFFFFF" TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding Selected.Track.Artist, FallbackValue=''}"
+                                               FontSize="12" Foreground="{DynamicResource MutedBrush}"
+                                               TextWrapping="Wrap"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding Selected.Track.GenreText, FallbackValue=''}"
+                                                   FontSize="10.5" Foreground="{DynamicResource MutedDimBrush}"/>
+                                        <TextBlock Text="{Binding Selected.Track.DurationText, FallbackValue=''}"
+                                                   FontSize="10.5" Foreground="{DynamicResource MutedDimBrush}"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,2,0,0"
+                                                IsVisible="{Binding Selected.IsOnPlaylist, FallbackValue=False}">
+                                        <TextBlock Text="✓" FontSize="11"
+                                                   Foreground="{DynamicResource AccentABrush}"/>
+                                        <TextBlock Text="on the current playlist" FontSize="10.5"
+                                                   Foreground="{DynamicResource MutedBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <Border Height="1" Background="{DynamicResource HairlineBrush}"
+                                            Margin="0,8"/>
+
+                                    <!-- Big three: KEY · BPM · NRG -->
+                                    <Grid ColumnDefinitions="*,*,*">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock Text="KEY" Classes="finder-section" Margin="0"/>
+                                            <TextBlock Text="{Binding Selected.Track.KeyText, FallbackValue='—'}"
+                                                       Foreground="#F0FFFFFF"
+                                                       FontSize="21" FontWeight="Bold"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <TextBlock Text="BPM" Classes="finder-section" Margin="0"/>
+                                            <TextBlock Text="{Binding Selected.Track.BpmText, FallbackValue='—'}"
+                                                       Foreground="#F0FFFFFF" FontSize="21" FontWeight="Bold"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="2">
+                                            <TextBlock Text="NRG" Classes="finder-section" Margin="0"/>
+                                            <TextBlock Text="{Binding Selected.Track.EnergyText, FallbackValue='—'}"
+                                                       Foreground="#F0FFFFFF" FontSize="21" FontWeight="Bold"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <TextBlock Text="key confidence" FontSize="10"
+                                                   Foreground="{DynamicResource MutedFaintBrush}"/>
+                                        <TextBlock Text="{Binding Selected.Track.KeyConfidenceText, FallbackValue=''}"
+                                                   FontSize="10" Foreground="{DynamicResource MutedDimBrush}"/>
+                                    </StackPanel>
+
+                                    <!-- Analysis block (only when the v9 blob is in the tags) -->
+                                    <StackPanel Spacing="4" IsVisible="{Binding ShowDetailAnalysis}">
+                                        <Border Height="1" Background="{DynamicResource HairlineBrush}"
+                                                Margin="0,8"/>
+
+                                        <Grid ColumnDefinitions="*,*">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="LUFS" Classes="finder-section" Margin="0"/>
+                                                <TextBlock Text="{Binding Selected.Track.LufsText, FallbackValue='—'}"
+                                                           Foreground="#E6FFFFFF" FontSize="14" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="GAIN dB" Classes="finder-section" Margin="0"/>
+                                                <TextBlock Text="{Binding Selected.Track.GainText, FallbackValue='—'}"
+                                                           Foreground="#E6FFFFFF" FontSize="14" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Same tight label→value grouping as LUFS/GAIN (Spacing 2, label Margin 0),
+                                             value at 14/SemiBold to match them (Chloe 2026-07-07). -->
+                                        <StackPanel Spacing="2" Margin="0,6,0,0">
+                                            <TextBlock Text="BEAT" Classes="finder-section" Margin="0"/>
+                                            <TextBlock Text="{Binding Selected.Track.BeatTypeText, FallbackValue='—'}"
+                                                       Foreground="#E6FFFFFF" FontSize="14" FontWeight="SemiBold"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,1,0,0">
+                                                <TextBlock Text="grid" FontSize="10.5"
+                                                           Foreground="{DynamicResource MutedFaintBrush}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Selected.Track.GridConfidenceText, FallbackValue='—'}"
+                                                           FontSize="10.5" Foreground="{DynamicResource MutedDimBrush}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="⚠ soft beatgrid" FontSize="10.5"
+                                                           Foreground="#FFB020"
+                                                           IsVisible="{Binding Selected.Track.GridSoft, FallbackValue=False}"
+                                                           ToolTip.Tip="DJ software will likely botch this track's beatgrid — verify before syncing."
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <TextBlock Text="VIBE" Classes="finder-section"/>
+                                        <Grid ColumnDefinitions="62,*,32" RowDefinitions="26,26,26,26,26">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="dark" FontSize="10.5"
+                                                       Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Row="0" Grid.Column="1" Classes="vibe"
+                                                         Value="{Binding Selected.Track.DarkScore, FallbackValue=0}"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="2"
+                                                       Text="{Binding Selected.Track.DarkScore, FallbackValue=0, StringFormat={}{0:0.00}}"
+                                                       FontSize="10" Foreground="{DynamicResource MutedDimBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="hypnotic" FontSize="10.5"
+                                                       Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Row="1" Grid.Column="1" Classes="vibe"
+                                                         Value="{Binding Selected.Track.HypnoticScore, FallbackValue=0}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="2"
+                                                       Text="{Binding Selected.Track.HypnoticScore, FallbackValue=0, StringFormat={}{0:0.00}}"
+                                                       FontSize="10" Foreground="{DynamicResource MutedDimBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="groove" FontSize="10.5"
+                                                       Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Row="2" Grid.Column="1" Classes="vibe"
+                                                         Value="{Binding Selected.Track.GrooveScore, FallbackValue=0}"/>
+                                            <TextBlock Grid.Row="2" Grid.Column="2"
+                                                       Text="{Binding Selected.Track.GrooveScore, FallbackValue=0, StringFormat={}{0:0.00}}"
+                                                       FontSize="10" Foreground="{DynamicResource MutedDimBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="punch" FontSize="10.5"
+                                                       Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Row="3" Grid.Column="1" Classes="vibe"
+                                                         Value="{Binding Selected.Track.PunchScore, FallbackValue=0}"/>
+                                            <TextBlock Grid.Row="3" Grid.Column="2"
+                                                       Text="{Binding Selected.Track.PunchScore, FallbackValue=0, StringFormat={}{0:0.00}}"
+                                                       FontSize="10" Foreground="{DynamicResource MutedDimBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+
+                                            <TextBlock Grid.Row="4" Grid.Column="0" Text="harsh" FontSize="10.5"
+                                                       Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                                            <ProgressBar Grid.Row="4" Grid.Column="1" Classes="vibe"
+                                                         Foreground="#FF6B81"
+                                                         Value="{Binding Selected.Track.HarshScore, FallbackValue=0}"/>
+                                            <TextBlock Grid.Row="4" Grid.Column="2"
+                                                       Text="{Binding Selected.Track.HarshScore, FallbackValue=0, StringFormat={}{0:0.00}}"
+                                                       FontSize="10" Foreground="{DynamicResource MutedDimBrush}"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <!-- No blob yet -->
+                                    <TextBlock Text="Not analyzed yet — no JUSTPLAY data in this file's tags. Re-analyse from the finder lands in the next phase."
+                                               IsVisible="{Binding ShowDetailUnanalyzed}"
+                                               FontSize="10.5" Foreground="{DynamicResource MutedDimBrush}"
+                                               TextWrapping="Wrap" Margin="0,10,0,0"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                            </Panel>
+                        </DockPanel>
+                    </Grid>
+                </DockPanel>
+
+                <!-- ── Settings overlay — the SAME slide-in as the main window's Tweaks panel: a right-
+                     docked themed panel (no dim backdrop), rounded on the outer edge only, with its OWN ✕
+                     close in the header (the caption buttons sit behind it, exactly like Tweaks). The
+                     content (library root, cue device, volume, seek) is unchanged. Chloe 2026-07-05. -->
+                <Panel IsVisible="{Binding SettingsOpen}">
+                    <Border Width="370" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                            Background="#F01a1828" CornerRadius="0,14,14,0"
+                            BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
+                        <ScrollViewer Padding="22,16,18,16"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      AllowAutoHide="False">
+                            <StackPanel Spacing="6" ClipToBounds="False" Width="326">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <TextBlock Text="FINDER SETTINGS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
+                                               Foreground="White" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="13"
+                                            Command="{Binding ToggleSettingsCommand}"/>
+                                </Grid>
+
+                                <TextBlock Text="LIBRARY ROOT" Classes="finder-section" Margin="0,10,0,4"/>
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Classes="seg" Content="Browse…"
+                                            Margin="6,0,0,0" Click="OnBrowseRoot"/>
+                                    <!-- LostFocus commit: typing a path per-keystroke would fire the setter
+                                         → RebuildTree on every partial (invalid) path, so it felt like it
+                                         "greift nicht". Now it applies once, when you leave the field (or via
+                                         Browse). Chloe 2026-07-05. -->
+                                    <TextBox Text="{Binding LibraryRoot, UpdateSourceTrigger=LostFocus}"
+                                             Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
+                                             BorderThickness="1" CornerRadius="6"
+                                             Foreground="#E6FFFFFF" FontSize="11" Padding="8,5"
+                                             PlaceholderText="Your music library folder"/>
+                                </DockPanel>
+
+                                <DockPanel Margin="0,10,0,0">
+                                    <Button DockPanel.Dock="Right" Classes="seg" Content="↻"
+                                            Command="{Binding Main.RefreshDevicesCommand}"
+                                            ToolTip.Tip="Rescan devices" MinWidth="30"/>
+                                    <TextBlock Classes="finder-section" Margin="0"
+                                               Text="CUE HEADPHONES" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <ComboBox Classes="device-picker"
+                                          ItemsSource="{Binding Main.HeadphoneDevices}"
+                                          SelectedItem="{Binding Main.SelectedHeadphoneDevice}"
+                                          PlaceholderText="Choose your headphone output…"
+                                          PlaceholderForeground="#73FFFFFF">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:AudioOutputDevice">
+                                            <TextBlock Text="{Binding Name}" Foreground="#E6FFFFFF"
+                                                       FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                                           Text="Shared with the pre-cue tab — cue audio plays only here, never on the main output."
+                                           TextWrapping="Wrap"/>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                                           Text="No devices found."
+                                           IsVisible="{Binding Main.HasNoHeadphoneDevices}"/>
+
+                                <TextBlock Text="CUE VOLUME" Classes="finder-section" Margin="0,10,0,0"/>
+                                <Slider Classes="fader" Minimum="0" Maximum="1"
+                                        Value="{Binding Main.PreCueVolume}"/>
+
+                                <TextBlock Text="AUTO-PLAY" Classes="finder-section" Margin="0,10,0,0"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="Play the selected song automatically"
+                                               FontSize="11.5" Foreground="#E6FFFFFF"
+                                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding AutoPlayOnSelect}"/>
+                                </Grid>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
+                                           Text="Off: browse silently, Enter plays the highlighted song. On: it auditions as soon as you land on it."/>
+
+                                <TextBlock Text="SEEK STEP" Classes="finder-section" Margin="0,10,0,0"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Classes="fmt-radio" Content="15 s"
+                                            Classes.active="{Binding IsStep15}"
+                                            Command="{Binding SetSeekStepCommand}" CommandParameter="15"/>
+                                    <Button Classes="fmt-radio" Content="20 s"
+                                            Classes.active="{Binding IsStep20}"
+                                            Command="{Binding SetSeekStepCommand}" CommandParameter="20"/>
+                                    <Button Classes="fmt-radio" Content="30 s"
+                                            Classes.active="{Binding IsStep30}"
+                                            Command="{Binding SetSeekStepCommand}" CommandParameter="30"/>
+                                </StackPanel>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                                           Text="How far Shift+← / Shift+→ jump inside the auditioning song."/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Panel>
+
+                <!-- ── Keyboard help overlay (F1) ── -->
+                <Panel IsVisible="{Binding HelpOpen}">
+                    <Border Background="#8C000000" PointerPressed="OnHelpBackdropPressed"/>
+                    <Border Width="600" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            CornerRadius="12"
+                            Background="#F01a1828" BorderBrush="#1FFFFFFF" BorderThickness="1"
+                            BoxShadow="0 10 34 0 #80000000">
+                        <StackPanel Margin="24,18" Spacing="9">
+                            <TextBlock Text="KEYBOARD" Classes="finder-section" FontSize="11"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                  Margin="0,4,0,0">
+                                <Grid.Styles>
+                                    <Style Selector="TextBlock.hk">
+                                        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+                                        <Setter Property="FontSize" Value="11.5"/>
+                                        <Setter Property="Margin" Value="0,0,0,8"/>
+                                        <Setter Property="VerticalAlignment" Value="Center"/>
+                                    </Style>
+                                    <Style Selector="Border.kbd">
+                                        <Setter Property="Margin" Value="0,0,14,8"/>
+                                        <Setter Property="HorizontalAlignment" Value="Left"/>
+                                    </Style>
+                                </Grid.Styles>
+                                <Border Grid.Row="0" Grid.Column="0" Classes="kbd"><TextBlock Text="Enter"/></Border>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Classes="hk" Text="Files: play the selected song · Folders: open folder / playlist"/>
+                                <Border Grid.Row="1" Grid.Column="0" Classes="kbd"><TextBlock Text="Space"/></Border>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="hk" Text="Play / pause the audition"/>
+                                <Border Grid.Row="2" Grid.Column="0" Classes="kbd"><TextBlock Text="+"/></Border>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Classes="hk" Text="Add the selected song to the current list, then next"/>
+                                <Border Grid.Row="3" Grid.Column="0" Classes="kbd"><TextBlock Text="Tab"/></Border>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Classes="hk" Text="Switch between the folders and files panes"/>
+                                <Border Grid.Row="4" Grid.Column="0" Classes="kbd"><TextBlock Text="↑ ↓"/></Border>
+                                <TextBlock Grid.Row="4" Grid.Column="1" Classes="hk" Text="Browse the active pane"/>
+                                <Border Grid.Row="5" Grid.Column="0" Classes="kbd"><TextBlock Text="PgUp/Dn · Home/End"/></Border>
+                                <TextBlock Grid.Row="5" Grid.Column="1" Classes="hk" Text="Jump a page, or to the top / bottom"/>
+                                <Border Grid.Row="6" Grid.Column="0" Classes="kbd"><TextBlock Text="Backspace"/></Border>
+                                <TextBlock Grid.Row="6" Grid.Column="1" Classes="hk" Text="Up one folder (while the folders pane is focused)"/>
+                                <Border Grid.Row="7" Grid.Column="0" Classes="kbd"><TextBlock Text="Shift ← →"/></Border>
+                                <TextBlock Grid.Row="7" Grid.Column="1" Classes="hk" Text="Jump back / forward inside the song"/>
+                                <Border Grid.Row="8" Grid.Column="0" Classes="kbd"><TextBlock Text="L"/></Border>
+                                <TextBlock Grid.Row="8" Grid.Column="1" Classes="hk" Text="Like — saves the ♥ into the file's tags"/>
+                                <Border Grid.Row="9" Grid.Column="0" Classes="kbd"><TextBlock Text="F1"/></Border>
+                                <TextBlock Grid.Row="9" Grid.Column="1" Classes="hk" Text="This help"/>
+                                <Border Grid.Row="10" Grid.Column="0" Classes="kbd"><TextBlock Text="Esc"/></Border>
+                                <TextBlock Grid.Row="10" Grid.Column="1" Classes="hk" Text="Close overlay / window"/>
+                            </Grid>
+                            <TextBlock Text="Click a column header to sort (again to flip / reset) · right-click it to choose columns · Enter-to-play or auto-play in ⚙ settings."
+                                       FontSize="10" Foreground="{DynamicResource MutedFaintBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </Panel>
+            </Panel>
+        </Border>
+
+        <!-- Edge/corner resize grips in the transparent shadow ring (shared behaviour). -->
+        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+            <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="#01000000" Cursor="LeftSide"          Tag="West"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="#01000000" Cursor="RightSide"         Tag="East"/>
+            <Border Grid.Row="2" Grid.Column="0" Background="#01000000" Cursor="BottomLeftCorner"  Tag="SouthWest"/>
+            <Border Grid.Row="2" Grid.Column="1" Background="#01000000" Cursor="BottomSide"        Tag="South"/>
+            <Border Grid.Row="2" Grid.Column="2" Background="#01000000" Cursor="BottomRightCorner" Tag="SouthEast"/>
+        </Grid>
+    </Panel>
+</Window>

@@ -18,8 +18,10 @@
 
     <!-- Frameless rounded floating card — SAME shell as JUST PLAY (MainWindow.axaml): no classic
          OS title bar, rounded card + drop shadow blooming into a transparent margin, custom caption
-         buttons, drag from the chrome bar. JUST STREAM is single-theme so the shadow is a literal
-         (JUST PLAY uses the theme-driven {DynamicResource WindowOuter}). -->
+         buttons, drag from the chrome bar. Shadow = the shared theme-driven WindowOuter: the old
+         "0 18 50 -12" literal (from the single-theme era) was LARGER than the transparent margin
+         and clipped hard at the window edge (Chloe 2026-07-05); WindowOuter is sized for exactly
+         these 20/22 margins — proven in JUST PLAY. -->
     <Window.Styles>
         <!-- Maximized: square off card (margin/corners/shadow) + the inner aurora rectangles. -->
         <Style Selector="Border#RootCard.maximized">
@@ -108,6 +110,32 @@
         <Style Selector="Button.limbtn.off.active /template/ ContentPresenter">
             <Setter Property="BorderBrush" Value="#66FF5C57"/>
         </Style>
+
+        <!-- REC — the compact sibling of the CONNECT cta: same quiet glass, narrower, MUTED when
+             idle (CONNECT stays the primary action), red while recording. The red dot is the
+             universal record mark; it gets a glow when live. Defined here (window styles come
+             after App.axaml) so .live re-states the cta red — same literals as Button.cta.live. -->
+        <Style Selector="Button.cta.recbtn">
+            <!-- 96 = just clears the widest label ("12:34:56" + dot) at the trimmed padding —
+                 Chloe 2026-07-05: REC + CONNECT ate ~50% of the mini bar, both narrowed. -->
+            <Setter Property="Width" Value="96"/>
+            <Setter Property="Padding" Value="6,11"/>
+            <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        </Style>
+        <Style Selector="Button.cta.recbtn.live">
+            <Setter Property="BorderBrush" Value="#FF6B6B"/>
+            <Setter Property="Foreground" Value="#FF8088"/>
+        </Style>
+        <Style Selector="Button.cta.recbtn Ellipse">
+            <Setter Property="Fill" Value="#B3E0524F"/>
+        </Style>
+        <Style Selector="Button.cta.recbtn.live Ellipse">
+            <Setter Property="Fill" Value="#FF5C57"/>
+            <Setter Property="Effect">
+                <DropShadowEffect Color="#FF5C57" BlurRadius="9" OffsetX="0" OffsetY="0" Opacity="0.95"/>
+            </Setter>
+        </Style>
     </Window.Styles>
 
     <Panel>
@@ -115,7 +143,7 @@
                 CornerRadius="14" ClipToBounds="False"
                 Margin="20,20,20,22"
                 Background="#40000000"
-                BoxShadow="0 18 50 -12 #B0000000">
+                BoxShadow="{DynamicResource WindowOuter}">
             <Panel>
                 <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
                 <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
@@ -172,7 +200,10 @@
                                      "Mini player"/picture-in-picture, MiniView shows "Expand"/box). STREAM is one
                                      resizing window, so the single slot flips on IsMini. -->
                                 <!-- FULL → go mini: Lucide picture-in-picture-2 -->
-                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player"
+                                <!-- Suite terminology (Chloe 2026-07-05): "Compact view" / "Expand to
+                                     full view" everywhere — "player" was wrong for STREAM (it broadcasts),
+                                     so both apps share the neutral pair now. -->
+                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Compact view"
                                         IsVisible="{Binding !IsMini}">
                                     <Path Stretch="Uniform" Width="17" Height="17"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -182,7 +213,7 @@
                                                 M14 13 h6 a2 2 0 0 1 2 2 v3 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-3 a2 2 0 0 1 2 -2 Z"/>
                                 </Button>
                                 <!-- MINI → expand back: same box glyph + "Expand" tooltip as JUST PLAY's MiniView -->
-                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand"
+                                <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand to full view"
                                         IsVisible="{Binding IsMini}">
                                     <Path Stretch="None" Width="14" Height="14"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -232,6 +263,13 @@
                         </Grid>
                     </Border>
 
+                    <!-- Keyboard-hint bar — the SHARED KeyLegend, the same control the PRE CUE FINDER uses
+                         (Chloe 2026-07-06: "ein Guss"). Docks to the BOTTOM so the body Grid stays the fill
+                         child; hidden via Settings → Look for pros (ShowKeyHints). -->
+                    <Border DockPanel.Dock="Bottom" IsVisible="{Binding ShowKeyHints}" Padding="18,4,18,10">
+                        <ui:KeyLegend Hints="{Binding KeyHints}" HorizontalAlignment="Center"/>
+                    </Border>
+
                     <!-- ─── BODY — de-boxed: sections sit directly on the aurora bg, divided by thin
                          hairlines (Border.sep), NOT nested card containers. The ON-AIR band is the one
                          framed element by design (the broadcast SIGNATURE). ── -->
@@ -252,7 +290,7 @@
 
                         <!-- ═══ SIGNATURE: ON-AIR band + CONNECT (kept framed — glows green on air) ═══ -->
                         <Border Grid.Row="1" Classes="onair" Classes.live="{Binding OnAir}" Margin="0,0,0,12">
-                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                                 <Border Grid.Column="0" Classes="tally" Classes.live="{Binding OnAir}"
                                         VerticalAlignment="Center" Margin="2,0,14,0"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1" Margin="0,0,12,0">
@@ -268,9 +306,30 @@
                                                HorizontalAlignment="Right"/>
                                     <TextBlock Classes="label" Text="ON-AIR TIME" HorizontalAlignment="Right"/>
                                 </StackPanel>
+                                <!-- REC — record the master bus to a local file (independent of the stream:
+                                     works off-air, survives reconnects; format/folder in Settings). Idle =
+                                     muted "● REC"; recording = red + elapsed time; click = stop (finalizes
+                                     the file). Stays visible in mini — recording is a while-mixing action. -->
+                                <Button Grid.Column="3" Classes="cta recbtn" Classes.live="{Binding IsRecording}"
+                                        Command="{Binding ToggleRecordCommand}"
+                                        ToolTip.Tip="{Binding RecordTooltip}"
+                                        VerticalAlignment="Center" Margin="0,0,10,0">
+                                    <!-- Right-click → jump to the recordings on disk. Click handler, not a
+                                         Command: a ContextMenu popup is outside the visual tree, so command
+                                         bindings resolve null (same pattern as the preset chips). -->
+                                    <Button.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Open recordings folder" Click="OnOpenRecordingsFolder"/>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Ellipse Width="9" Height="9" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding RecordLabel}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                                 <!-- CONNECT/DISCONNECT share ONE quiet-glass style (Button.cta), fixed width,
                                      differ only by colour + glyph (▶ accent / ■ red) — see App.axaml. -->
-                                <Button Grid.Column="3" Classes="cta" Classes.live="{Binding IsConnected}"
+                                <Button Grid.Column="4" Classes="cta" Classes.live="{Binding IsConnected}"
                                         Content="{Binding ConnectLabel}" Command="{Binding ToggleConnectCommand}"
                                         VerticalAlignment="Center"/>
                             </Grid>
@@ -447,9 +506,7 @@
                                      shared audio engine; an app driving its card via ASIO or exclusive mode
                                      bypasses that engine, so it appears in the list but delivers silence.
                                      Honest inline hint so a DJ knows WHY (Chloe 2026-07-02). -->
-                                <TextBlock IsVisible="{Binding IsAppSourceMode}"
-                                           FontSize="11" TextWrapping="Wrap" LineHeight="15"
-                                           Foreground="{StaticResource MutedFaintBrush}"
+                                <TextBlock IsVisible="{Binding IsAppSourceMode}" Classes="hint"
                                            Text="No sound from an app? If it drives your DJ card via ASIO or WASAPI-exclusive it bypasses Windows and can't be captured here — set that app's output to a normal Windows device (shared mode), or use a Device source."/>
 
                                 <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">

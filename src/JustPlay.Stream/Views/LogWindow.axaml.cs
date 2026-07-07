@@ -5,6 +5,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using JustPlay.Stream.ViewModels;
+using JustPlay.UI.Behaviors;
 
 namespace JustPlay.Stream.Views;
 
@@ -19,6 +20,8 @@ public partial class LogWindow : Window
     public LogWindow()
     {
         InitializeComponent();
+
+        WindowPlacement.Track(this, "JustStream.Log");
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();

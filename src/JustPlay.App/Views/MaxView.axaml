@@ -100,52 +100,12 @@
         <!-- The underline-tab styles (Button.tab / Border.tabline) moved to App.axaml so the Tweaks
              panel can reuse them. The UP NEXT strip below still uses them unchanged (now global). -->
 
-        <!--
-          PRE-CUE headphone device ComboBox — dark-frosted look matching TweaksPanel's device-picker.
-          Class is "precue-device-picker" to keep it scoped here rather than polluting the global namespace.
-          Copied from TweaksPanel.axaml (ComboBox.device-picker) — keep in sync if the Tweaks style changes.
-        -->
-        <Style Selector="ComboBox.precue-device-picker">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Foreground" Value="#E6FFFFFF"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="PlaceholderForeground" Value="#73FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker:pointerover /template/ Border#Background">
-            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker:focus /template/ Border#Background">
-            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker /template/ Popup Border">
-            <Setter Property="Background" Value="#F01a1828"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker ComboBoxItem">
-            <Setter Property="Foreground" Value="#E6FFFFFF"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker ComboBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker ComboBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.precue-device-picker ComboBoxItem:selected:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#22FFFFFF"/>
-        </Style>
+        <!-- (The headphone device ComboBox moved to TweaksPanel → AUDIO — device setup lives in
+             Settings, not on the pre-cue tab. Chloe 2026-07-03. The duplicated precue-device-picker
+             styles went with it; TweaksPanel's ComboBox.device-picker is the one source of truth.) -->
 
         <!--
-          PRE-CUE v2 transport pills — Load track… / −30s / +30s / Add / Kick. A rounded Border
+          PRE-CUE v2 transport pills — −30s / +30s / Add / Kick. A rounded Border
           carries the background+border (proven pattern, copied from TweaksPanel.axaml's preset
           chips) around a Classes="ghost" Button (transparent, borderless) so there's no FluentTheme
           Background/BorderBrush-leaks-onto-ContentPresenter fight to have (see CLAUDE.md "FluentTheme
@@ -167,80 +127,9 @@
             <Setter Property="BorderBrush" Value="#4DFF8A80"/>
         </Style>
 
-        <!--
-          Queue scrollbar — FULL CUSTOM TEMPLATE (FluentTheme overrides via `/template/`
-          selectors were not winning reliably; the dark track background, square thumb
-          and template setters all slipped through). With our own ControlTemplate we
-          own the entire visual tree end-to-end:
-
-          • Root Grid: transparent — no painted background, no track strip.
-          • Track: standard Avalonia primitive, scrollbar logic intact.
-          • DecreaseButton / IncreaseButton (page-up/-down click area inside the track):
-            full-opacity-0 RepeatButtons. Still clickable to page-scroll, just invisible.
-          • Thumb: has its OWN inline ControlTemplate — a single Border with CornerRadius=3
-            (= half-width on a 6-px bar = perfect pill, rounded top AND bottom).
-          • NO line buttons (the top/bottom chevrons) at all — we just don't put them in
-            the template, so they can't appear.
-          • Bar floats at the right edge of the list area (NO horizontal Margin) — the
-            visual gap between scrollbar and content comes from the row Grid's right
-            margin (see the ListBox DataTemplate).
-        -->
-        <Style Selector="ScrollBar">
-            <Setter Property="AllowAutoHide" Value="False"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        <Style Selector="ScrollBar:vertical">
-            <Setter Property="Width" Value="6"/>
-            <Setter Property="MinWidth" Value="6"/>
-            <!-- Top+bottom inset only — keeps the pill caps from butting into the panel
-                 edges. NO right inset: the bar lives flush at the right (which is what
-                 you actually want — moving it inward shrinks the gap to content). -->
-            <Setter Property="Margin" Value="0,4,0,4"/>
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Grid Background="Transparent">
-                        <Track Name="PART_Track"
-                               Minimum="{TemplateBinding Minimum}"
-                               Maximum="{TemplateBinding Maximum}"
-                               Value="{TemplateBinding Value, Mode=TwoWay}"
-                               ViewportSize="{TemplateBinding ViewportSize}"
-                               IsDirectionReversed="True"
-                               Orientation="Vertical">
-                            <Track.DecreaseButton>
-                                <RepeatButton Background="Transparent"
-                                              BorderThickness="0"
-                                              Focusable="False"
-                                              Opacity="0"/>
-                            </Track.DecreaseButton>
-                            <Track.IncreaseButton>
-                                <RepeatButton Background="Transparent"
-                                              BorderThickness="0"
-                                              Focusable="False"
-                                              Opacity="0"/>
-                            </Track.IncreaseButton>
-                            <Track.Thumb>
-                                <Thumb MinHeight="32" Background="#80FFFFFF">
-                                    <Thumb.Template>
-                                        <ControlTemplate>
-                                            <Border Background="{TemplateBinding Background}"
-                                                    CornerRadius="3"/>
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                            </Track.Thumb>
-                        </Track>
-                    </Grid>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-        <!-- Hover / press states act on the Thumb directly (inside the new template). -->
-        <Style Selector="ScrollBar:vertical /template/ Thumb:pointerover">
-            <Setter Property="Background" Value="#BFFFFFFF"/>
-        </Style>
-        <Style Selector="ScrollBar:vertical /template/ Thumb:pressed">
-            <Setter Property="Background" Value="#E6FFFFFF"/>
-        </Style>
+        <!-- Queue scrollbar: the thin white pill now lives ONCE in the shared JustStyles
+             (JustPlay.UI) as the suite-wide ScrollBar:vertical template, so the queue, the
+             PRE CUE FINDER and JUST STREAM all share the identical bar. Nothing local here. -->
 
         <!-- Now-playing 3-bar indicator: each bar pulses independently. -->
         <Style Selector="Rectangle.pbar">
@@ -408,7 +297,7 @@
                         <!-- Mini player: Lucide "picture-in-picture-2" (ISC) — the standard mini-player
                              glyph (screen + small screen in the corner). Verbatim path values, separators
                              normalised. 24×24 viewBox, Uniform-scaled to match the radio/gear at 17. -->
-                        <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Mini player">
+                        <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Compact view">
                             <Path Stretch="Uniform" Width="17" Height="17"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
@@ -600,7 +489,24 @@
                                       "Open playlist…" REPLACES the queue with the set.
                                       Click handlers for the dialog-backed items; Save uses a command.
                                     -->
-                                    <MenuItem Header="{Binding LoadedPlaylistName}" IsEnabled="False" IsVisible="{Binding HasLoadedPlaylist}"/>
+                                    <!--
+                                      Header is an explicit TextBlock, NOT a raw string binding: MenuItem's
+                                      Fluent template sets RecognizesAccessKey="True" on PART_HeaderPresenter
+                                      (Avalonia 12.0.3 Avalonia.Themes.Fluent/Controls/MenuItem.xaml), so a
+                                      bare string Header is built through FuncDataTemplate.Access (see
+                                      ContentPresenter.CreateChild in Avalonia.Controls/Presenters/
+                                      ContentPresenter.cs) which treats a single "_" as an access-key mnemonic
+                                      and drops it — playlist names like "Hard_Techno" rendered as "HardTechno"
+                                      with the next letter underlined. A TextBlock is already a Control, so
+                                      ContentPresenter.CreateChild uses it as-is and never builds an AccessText.
+                                      Display-only: the underlying LoadedPlaylistName / playlist file name is
+                                      untouched.
+                                    -->
+                                    <MenuItem IsEnabled="False" IsVisible="{Binding HasLoadedPlaylist}">
+                                        <MenuItem.Header>
+                                            <TextBlock Text="{Binding LoadedPlaylistName}"/>
+                                        </MenuItem.Header>
+                                    </MenuItem>
                                     <MenuItem Header="Save" Command="{Binding SavePlaylistCommand}" IsVisible="{Binding HasLoadedPlaylist}"/>
                                     <MenuItem Header="Save as…" Click="OnExportPlaylist"/>
                                     <MenuItem Header="Open playlist…" Click="OnOpenPlaylist"/>
@@ -764,9 +670,13 @@
                                         <Border Classes="tabline"/>
                                     </Panel>
                                 </Button>
-                                <Button Classes="tab" Classes.active="{Binding IsPreCueTab}"
-                                        IsVisible="{Binding ShowExperimentalUi}"
-                                        Command="{Binding SetRightColumnTabCommand}" CommandParameter="PreCue">
+                                <!-- PRE-CUE is a LAUNCHER, not a tab (Chloe 2026-07-05): a click opens the
+                                     dedicated Pre-Cue Finder window instead of switching the right column.
+                                     Always visible now — the old experimental single-slot panel was retired.
+                                     No active-underline (it never activates a panel); UP NEXT keeps the
+                                     signature underline. -->
+                                <Button Classes="tab" Click="OnOpenFinderClicked"
+                                        ToolTip.Tip="Open the Pre-Cue Finder — browse &amp; audition your library on headphones">
                                     <Panel>
                                         <TextBlock Text="PRE-CUE" FontSize="12" FontWeight="Bold" LetterSpacing="2"
                                                    VerticalAlignment="Top"/>
@@ -921,6 +831,14 @@
                                 -->
                                 <ListBox.ContextMenu>
                                     <ContextMenu x:DataType="vm:MainWindowViewModel">
+                                        <!-- Pre-cue: THE way a track enters the PFL slot — right-click,
+                                             straight to headphones (no file picker; you cue from the list —
+                                             Chloe 2026-07-03). Single right-clicked row only; gated like the
+                                             PRE-CUE tab (ShowPreCueEntry = experimental + ContextTarget). -->
+                                        <MenuItem Header="Pre-cue on headphones"
+                                                  Command="{Binding ContextTarget.PlayInPreCueCommand}"
+                                                  IsVisible="{Binding ShowPreCueEntry}"/>
+                                        <Separator IsVisible="{Binding ShowPreCueEntry}"/>
                                         <!-- Analyze first: the primary action — produces the values everything
                                              else writes. "Analyze" until done, then "Re-analyze". -->
                                         <MenuItem Header="{Binding ReanalyzeHeader}" Command="{Binding ReanalyzeCommand}"
@@ -1088,125 +1006,9 @@
                             </StackPanel>
                         </Panel>
 
-                        <!-- ═══════════════════════════════════════════════════════════════════
-                             PRE-CUE PANEL — v2: ONE fast-scout song slot, not an audition list.
-                             Visible only when IsPreCueTab. Shares the right-column panel host
-                             with the queue list. Theming: DynamicResource accent brushes.
-
-                             "es muss schnell gehen" — loading a track REPLACES the slot and
-                             autoplays immediately; there is no pause. Add pushes the cued track
-                             into the main queue; Kick discards it. ±30s jumps around inside it.
-
-                             STRUCTURAL ISOLATION: cue audio routes through IPreListenEngine
-                             (BassPreListenEngine) on a separate BASS device. There is NO
-                             connection from this engine to the main engine or the Icecast
-                             encoder. The panel merely provides UI; the isolation is
-                             in the architecture (see BassPreListenEngine.cs).
-                             ═══════════════════════════════════════════════════════════════════ -->
-                        <DockPanel Name="PreCuePanel" IsVisible="{Binding IsPreCueTab}" LastChildFill="True">
-
-                            <!-- Bottom control strip: transport + Add/Kick/±30s + volume + device + load-track -->
-                            <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="0,8,0,0">
-
-                                <!-- Compact cue transport: position slider + time labels -->
-                                <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                                    <TextBlock Grid.Column="0" Text="{Binding PreCuePositionText}"
-                                               FontSize="11" Foreground="#73FFFFFF" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                    <Slider Grid.Column="1" Minimum="0" Maximum="{Binding PreCueDurationSeconds}"
-                                            Value="{Binding PreCuePositionSeconds}"
-                                            behaviors:SliderWheel.Enabled="True"/>
-                                    <TextBlock Grid.Column="2" Text="{Binding PreCueDurationText}"
-                                               FontSize="11" Foreground="#73FFFFFF" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                </Grid>
-
-                                <!-- Add · Kick · −30s · +30s — autoplay, no pause. CanExecute (HasPreCueCurrent)
-                                     auto-disables/dims these when the slot is empty. -->
-                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <Border Classes="precue-pill">
-                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="SemiBold"
-                                                Foreground="#D9FFFFFF" Content="−30s"
-                                                Command="{Binding CueJumpBackCommand}"
-                                                ToolTip.Tip="Jump back 30 seconds"/>
-                                    </Border>
-                                    <Border Classes="precue-pill">
-                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="SemiBold"
-                                                Foreground="#D9FFFFFF" Content="+30s"
-                                                Command="{Binding CueJumpForwardCommand}"
-                                                ToolTip.Tip="Jump forward 30 seconds"/>
-                                    </Border>
-                                    <Border Classes="precue-pill precue-add">
-                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="Bold"
-                                                Foreground="{DynamicResource AccentBBrush}" Content="Add"
-                                                Command="{Binding CueAddCommand}"
-                                                ToolTip.Tip="Add this track to the main queue"/>
-                                    </Border>
-                                    <Border Classes="precue-pill precue-kick">
-                                        <Button Classes="ghost" Padding="14,6" FontSize="12" FontWeight="Bold"
-                                                Foreground="#FF8A80" Content="Kick"
-                                                Command="{Binding CueKickCommand}"
-                                                ToolTip.Tip="Discard this track and clear the slot"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- Cue volume slider -->
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Text="CUE" FontSize="10" FontWeight="Bold"
-                                               LetterSpacing="1" Foreground="#73FFFFFF"
-                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                    <Slider Grid.Column="1" Minimum="0" Maximum="1"
-                                            Value="{Binding PreCueVolume}"
-                                            behaviors:SliderWheel.Enabled="True"/>
-                                </Grid>
-
-                                <!-- "Load track…" button + headphone device ComboBox. The ComboBox auto-rebinds
-                                     the saved-by-name device when it (re)appears while this tab is open — see
-                                     MainWindowViewModel.PollPreCueDeviceRebind — no Settings detour needed. -->
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <Border Grid.Column="0" Classes="precue-pill" Margin="0,0,8,0">
-                                        <Button Classes="ghost" Padding="10,4" FontSize="11"
-                                                Foreground="#D9FFFFFF" Content="Load track…"
-                                                Click="OnAddPreCueFilesClicked"
-                                                ToolTip.Tip="Load an audio file into the pre-cue slot"/>
-                                    </Border>
-                                    <!-- Dark-frosted headphone device ComboBox (styles defined in MaxView's local styles). -->
-                                    <ComboBox Grid.Column="1" Classes="precue-device-picker"
-                                              ItemsSource="{Binding HeadphoneDevices}"
-                                              SelectedItem="{Binding SelectedHeadphoneDevice}"
-                                              PlaceholderText="Headphone output…">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:AudioOutputDevice">
-                                                <TextBlock Text="{Binding Name}" FontSize="11"
-                                                           Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </Grid>
-
-                                <!-- "Choose a headphone device" hint — shown when no device is selected. -->
-                                <TextBlock IsVisible="{Binding HeadphoneDeviceNotSelected}"
-                                           Text="Choose a headphone output above to enable monitoring."
-                                           FontSize="10" Foreground="#59FFFFFF" TextWrapping="Wrap"
-                                           HorizontalAlignment="Center" TextAlignment="Center"/>
-
-                            </StackPanel>
-                            <!-- /bottom strip -->
-
-                            <!-- The one now-playing cue slot fills the remaining space. FallbackValue text
-                                 doubles as the "nothing cued" hint (same pattern as the main transport's
-                                 Current.Title, FallbackValue='Drop a track to begin' — see line ~641). -->
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-                                <TextBlock Text="{Binding PreCueCurrent.Title, FallbackValue='No track cued'}"
-                                           FontSize="16" FontWeight="SemiBold" Foreground="White"
-                                           TextTrimming="CharacterEllipsis" MaxWidth="240"
-                                           HorizontalAlignment="Center" TextAlignment="Center"/>
-                                <TextBlock Text="{Binding PreCueCurrent.Artist, FallbackValue='Load a track to audition on headphones'}"
-                                           FontSize="12" Foreground="#73FFFFFF"
-                                           TextTrimming="CharacterEllipsis" MaxWidth="240"
-                                           HorizontalAlignment="Center" TextAlignment="Center"/>
-                            </StackPanel>
-
-                        </DockPanel>
-                        <!-- /PreCuePanel -->
+                        <!-- The old single-slot PRE-CUE panel (transport + Add/Kick/±30s + one cue slot)
+                             was RETIRED here 2026-07-05: the PRE-CUE tab now opens the dedicated Pre-Cue
+                             Finder window instead. The outer Panel above is left hosting just the queue list. -->
 
                     </Panel>
                 </DockPanel>

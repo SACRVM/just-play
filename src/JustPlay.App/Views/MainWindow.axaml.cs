@@ -9,6 +9,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using JustPlay.App.ViewModels;
 using JustPlay.UI;
+using JustPlay.UI.Behaviors;
 
 namespace JustPlay.App.Views;
 
@@ -42,6 +43,9 @@ public partial class MainWindow : Window, IFramelessWindow
         // TUNNEL phase so it fires BEFORE the focused control — otherwise a focused button (e.g. the "…"
         // list-menu button) would treat Space as a click and open its flyout. See OnSpaceKey.
         AddHandler(KeyDownEvent, OnSpaceKey, RoutingStrategies.Tunnel);
+
+        // Don't persist bounds while in mini mode (fixed compact size, not a "restorable" layout).
+        WindowPlacement.Track(this, "JustPlay.Main", () => ViewModel is not { IsMini: true });
     }
 
     // Global Space → play/pause. Dialog windows (About/Transfer/Input) are separate focus roots and an
@@ -120,6 +124,9 @@ public partial class MainWindow : Window, IFramelessWindow
     // ourselves and keep the window fully custom.
     private bool _isMaxed;
     private PixelRect _restoreBounds;
+
+    /// <summary>True while the custom work-area maximize is active (for WindowPlacement).</summary>
+    public bool IsMaximized => _isMaxed;
 
     /// <summary>Toggle a custom maximize that fills the current screen's work area (respects the
     /// taskbar) and squares off the card (margin/corners/shadow via the "maximized" class),

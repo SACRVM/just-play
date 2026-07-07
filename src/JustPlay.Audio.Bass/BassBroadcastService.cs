@@ -99,6 +99,17 @@ public sealed class BassBroadcastService : IBroadcastService
     // (CallbackOnCollectedDelegate risk — same pattern as BassAudioEngine._endSync.)
     private EncodeNotifyProcedure? _notifyProc;
 
+    // ── Auto-reconnect (the Advanced-tab promise, built 2026-07-05) ───────────────────────
+    // When the cast connection (or the encoder feeding it) dies, we retry the LAST profile
+    // with exponential backoff — 2/4/8/16 s, then capped at 30 s (Chloe: 60 was too slow for
+    // the club case) — INDEFINITELY, until a retry succeeds or the user hits DISCONNECT. Between attempts the public state stays
+    // Reconnecting (no Error flicker); every attempt is visible in the console log. A running
+    // set recording is a separate encoder on the mixer and is never touched by any of this.
+    private StreamServerProfile? _lastProfile;
+    private CancellationTokenSource? _reconnectCts;
+    private readonly object _reconnectSync = new(); // guards _reconnectCts start/cancel
+    private readonly object _connectSync = new();   // serializes ConnectCore/StopEncoder across threads
+
     public BassBroadcastService(IBassMixerSource source)
     {
         _source = source;
@@ -119,6 +130,21 @@ public sealed class BassBroadcastService : IBroadcastService
     /// </remarks>
     public Task ConnectAsync(StreamServerProfile profile, CancellationToken ct = default)
     {
+        CancelReconnect();      // a user-initiated (re)connect supersedes any pending auto-retry
+        _lastProfile = profile; // remembered for auto-reconnect after a dropped connection
+        lock (_connectSync)
+            ConnectCore(profile, ct, fromReconnect: false);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The actual connect sequence (encoder → notify → CastInit). Returns true when Connected.
+    /// <paramref name="fromReconnect"/> suppresses the Error state on failure: during
+    /// auto-reconnect the public state stays <see cref="BroadcastState.Reconnecting"/> between
+    /// attempts (no Error flicker in the UI); the failure detail still goes to the console log.
+    /// </summary>
+    private bool ConnectCore(StreamServerProfile profile, CancellationToken ct, bool fromReconnect)
+    {
         // Ensure we start clean.
         if (_encoder != 0)
             StopEncoder();
@@ -133,15 +159,15 @@ public sealed class BassBroadcastService : IBroadcastService
             // start for JUST STREAM). Connecting before there is any audio is a rare edge case;
             // surface it as an error.
             _lastError = "No audio source yet — start playback (JustPlay) or capture (JUST STREAM) before connecting.";
-            SetState(BroadcastState.Error);
+            if (!fromReconnect) SetState(BroadcastState.Error);
             Console.WriteLine("[Broadcast] " + _lastError);
-            return Task.CompletedTask;
+            return false;
         }
 
         if (ct.IsCancellationRequested)
         {
             SetState(BroadcastState.Disconnected);
-            return Task.CompletedTask;
+            return false;
         }
 
         // ── Step 1: Start the encoder — MP3 (LAME) or Ogg/Opus ─────────────
@@ -159,9 +185,9 @@ public sealed class BassBroadcastService : IBroadcastService
             if (_encoder == 0)
             {
                 _lastError = $"Opus encoder failed to start ({ManagedBass.Bass.LastError}). Check bassenc_opus.dll.";
-                SetState(BroadcastState.Error);
+                if (!fromReconnect) SetState(BroadcastState.Error);
                 Console.WriteLine("[Broadcast] " + _lastError);
-                return Task.CompletedTask;
+                return false;
             }
         }
         else
@@ -172,9 +198,9 @@ public sealed class BassBroadcastService : IBroadcastService
             if (_encoder == 0)
             {
                 _lastError = $"MP3 encoder failed to start ({ManagedBass.Bass.LastError}). Check bassenc_mp3.dll.";
-                SetState(BroadcastState.Error);
+                if (!fromReconnect) SetState(BroadcastState.Error);
                 Console.WriteLine("[Broadcast] " + _lastError);
-                return Task.CompletedTask;
+                return false;
             }
         }
 
@@ -189,7 +215,10 @@ public sealed class BassBroadcastService : IBroadcastService
             {
                 _lastError = $"Connection lost ({status}).";
                 Console.WriteLine("[Broadcast] " + _lastError);
-                SetState(BroadcastState.Error);
+                // Auto-reconnect instead of giving up: EncoderDied is included deliberately —
+                // the retry rebuilds encoder + cast from scratch either way, and a permanent
+                // local failure just keeps backing off at 60 s until the user disconnects.
+                BeginReconnect();
             }
         };
         BassEnc.EncodeSetNotify(_encoder, _notifyProc);
@@ -263,22 +292,82 @@ public sealed class BassBroadcastService : IBroadcastService
             _lastError = err.ToString() == "CastDenied"
                 ? $"Denied by {server}: wrong source password, or mount '{profile.Mount}' is already in use (disconnect any other encoder first)."
                 : $"Cast to {server} failed: {err}";
-            SetState(BroadcastState.Error);
+            if (!fromReconnect) SetState(BroadcastState.Error);
             Console.WriteLine("[Broadcast] " + _lastError);
-            return Task.CompletedTask;
+            return false;
         }
 
         SetState(BroadcastState.Connected);
         Console.WriteLine($"[Broadcast] Connected to {server}");
-        return Task.CompletedTask;
+        return true;
     }
 
     /// <inheritdoc/>
     public Task DisconnectAsync()
     {
-        StopEncoder();
+        CancelReconnect(); // user says stop — that includes any pending auto-retry
+        lock (_connectSync)
+            StopEncoder();
         SetState(BroadcastState.Disconnected);
         return Task.CompletedTask;
+    }
+
+    // ── Auto-reconnect machinery ─────────────────────────────────────────
+
+    /// <summary>Enter Reconnecting and start the retry loop (no-op if one is already running).
+    /// Called from the BASS notify thread — must not block.</summary>
+    private void BeginReconnect()
+    {
+        lock (_reconnectSync)
+        {
+            if (_reconnectCts is { IsCancellationRequested: false })
+                return; // a loop is already at work
+            if (_lastProfile is null)
+            {
+                SetState(BroadcastState.Error); // nothing to reconnect TO — shouldn't happen
+                return;
+            }
+            var cts = new CancellationTokenSource();
+            _reconnectCts = cts;
+            SetState(BroadcastState.Reconnecting);
+            _ = Task.Run(() => ReconnectLoopAsync(_lastProfile, cts.Token));
+        }
+    }
+
+    /// <summary>
+    /// Retry with exponential backoff — 2/4/8/16 s, then capped at 30 s — indefinitely,
+    /// until an attempt succeeds or <see cref="CancelReconnect"/> (user CONNECT/DISCONNECT)
+    /// stops the loop. Failed attempts stay in Reconnecting; details go to the console log.
+    /// </summary>
+    private async Task ReconnectLoopAsync(StreamServerProfile profile, CancellationToken ct)
+    {
+        for (var attempt = 1; !ct.IsCancellationRequested; attempt++)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt)));
+            Console.WriteLine($"[Broadcast] Reconnect attempt {attempt} in {delay.TotalSeconds:0} s…");
+            try { await Task.Delay(delay, ct); }
+            catch (OperationCanceledException) { return; }
+            if (ct.IsCancellationRequested) return;
+
+            bool ok;
+            lock (_connectSync)
+                ok = ConnectCore(profile, ct, fromReconnect: true);
+            if (ok)
+            {
+                Console.WriteLine("[Broadcast] Reconnected.");
+                return;
+            }
+            SetState(BroadcastState.Reconnecting); // stay visibly reconnecting between attempts
+        }
+    }
+
+    private void CancelReconnect()
+    {
+        lock (_reconnectSync)
+        {
+            _reconnectCts?.Cancel();
+            _reconnectCts = null;
+        }
     }
 
     /// <inheritdoc/>

@@ -95,11 +95,12 @@
         <GradientStop Offset="1" Color="#00000000"/>
     </RadialGradientBrush>
 
-    <!-- Text ramp -->
+    <!-- Text ramp — muted ladder lifted one notch 2026-07-05 (Chloe: explainer texts were
+         hard to read against the glow, worst on the green theme): .65→.75, .45→.50, .25→.35. -->
     <SolidColorBrush x:Key="TextBrush" Color="White"/>
-    <SolidColorBrush x:Key="MutedBrush" Color="#A6FFFFFF"/>        <!-- white .65 -->
-    <SolidColorBrush x:Key="MutedDimBrush" Color="#73FFFFFF"/>     <!-- white .45 -->
-    <SolidColorBrush x:Key="MutedFaintBrush" Color="#40FFFFFF"/>   <!-- white .25 -->
+    <SolidColorBrush x:Key="MutedBrush" Color="#BFFFFFFF"/>        <!-- white .75 -->
+    <SolidColorBrush x:Key="MutedDimBrush" Color="#80FFFFFF"/>     <!-- white .50 -->
+    <SolidColorBrush x:Key="MutedFaintBrush" Color="#59FFFFFF"/>   <!-- white .35 -->
     <SolidColorBrush x:Key="HairlineBrush" Color="#14FFFFFF"/>     <!-- white .08 -->
 
     <!--

@@ -304,6 +304,46 @@ public sealed partial class TrackViewModel : ObservableObject
         return Math.Abs(ra - rb) <= 1 || Math.Abs(ra - 2 * rb) <= 1 || Math.Abs(2 * ra - rb) <= 1;
     }
 
+    // ── Analyzer detail (PRE CUE FINDER detail panel; groundwork for a future FEEL lens) ────
+    // Same live-analysis-or-stored-blob fallback as the PREP lens above, bundled once. The bar
+    // scores default to 0 instead of null so ProgressBar bindings never see a nullable — the
+    // detail panel hides the whole vibe section while HasAnalysis is false anyway.
+
+    private AnalysisResult? DetailAnalysis => Model.Analysis ?? StoredCurrent?.Detected;
+
+    public double DarkScore     => DetailAnalysis?.Dark ?? 0;
+    public double HypnoticScore => DetailAnalysis?.Hypnotic ?? 0;
+    public double GrooveScore   => DetailAnalysis?.BassGroove ?? 0;
+    public double PunchScore    => DetailAnalysis?.BassPunch ?? 0;
+    public double HarshScore    => DetailAnalysis?.Harshness ?? 0;
+
+    // Same scores as "0.00" text for the finder's optional vibe columns — blank (not "0.00") when the
+    // track carries no analysis, so an un-analysed row reads as empty like BPM/KEY do. Uses the non-null
+    // *Score properties (the AnalysisResult fields themselves are double?).
+    public string DarkText     => DetailAnalysis is not null ? DarkScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
+    public string HypnoticText => DetailAnalysis is not null ? HypnoticScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
+    public string GrooveText   => DetailAnalysis is not null ? GrooveScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
+    public string PunchText    => DetailAnalysis is not null ? PunchScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
+    public string HarshText    => DetailAnalysis is not null ? HarshScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
+
+    /// <summary>Rhythm label from the fingerprint, e.g. "4x4-driving"; em-dash until analysed.</summary>
+    public string BeatTypeText => DetailAnalysis?.Rhythm?.BeatType ?? "—";
+
+    public double? GridConfidence => DetailAnalysis?.GridConfidence;
+
+    public string GridConfidenceText =>
+        GridConfidence is { } gc ? gc.ToString("0.00", CultureInfo.InvariantCulture) : "—";
+
+    /// <summary>Beatgrid-confidence warning: below 0.45 external DJ software (Traktor et al.) is
+    /// likely to botch the beatgrid — the gig-validated threshold from the composite score.</summary>
+    public bool GridSoft => GridConfidence is < 0.45;
+
+    /// <summary>Key detection confidence as "82%"; empty until analysed.</summary>
+    public string KeyConfidenceText =>
+        (Model.Analysis?.KeyConfidence ?? StoredCurrent?.Detected.KeyConfidence) is { } kc
+            ? $"{(int)Math.Round(kc * 100)}%"
+            : "";
+
     public Bitmap? Cover
     {
         get

@@ -120,6 +120,11 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["OnAirWashTop"]      = WithAlpha(accentB, 0x33);
         app.Resources["OnAirWashBottom"]   = WithAlpha(accentB, 0x14);
 
+        // AccentA-derived (the cyan highlight — used by the PRE CUE FINDER's focused-pane header wash
+        // and its selected-row accent bar so BOTH accents actually earn their keep there. Chloe 2026-07-06).
+        app.Resources["AccentARow"]        = WithAlpha(accentA, 0x22);
+        app.Resources["AccentARowStrong"]  = WithAlpha(accentA, 0x40);
+
         // AccentC-derived
         app.Resources["AccentCRow"]        = WithAlpha(accentC, 0x22);
         app.Resources["AccentCRowHover"]   = WithAlpha(accentC, 0x33);

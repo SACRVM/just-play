@@ -40,6 +40,10 @@ public partial class App : Application
                 Dispatcher.UIThread.Post(() => window.Icon = ThemedWindowIcon.Render(theme, BrandGlyphs.RadioTower));
 
             desktop.MainWindow = window;
+
+            // Dispose the VM on shutdown — it finalizes a running set recording (EncodeStop
+            // completes the WAV/AIFF/FLAC headers; dying mid-write leaves an unplayable file).
+            desktop.Exit += (_, _) => (window.DataContext as StreamViewModel)?.Dispose();
         }
 
         base.OnFrameworkInitializationCompleted();

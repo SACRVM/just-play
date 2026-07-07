@@ -119,11 +119,70 @@
   </section>
 
   <section class="doc-section prose">
+    <h2>Record your set</h2>
+    <p>
+      A <b>REC</b> button sits next to <b>CONNECT</b>. Recording is independent of streaming — you can
+      record without ever going on air, and a stream reconnect never breaks the file.
+    </p>
+    <p>
+      Pick the format in <b>Settings → Recording</b>. <b>Same as stream</b> is the default: the file
+      mirrors your live codec and bitrate, so you hear exactly what your listeners get — artifacts
+      included, the honest self-check. Or choose MP3 320, FLAC, AIFF or WAV; the lossless options are
+      16-bit.
+    </p>
+    <p>
+      Files land in <code>Music\JUST STREAM Recordings</code> by default (the folder is configurable),
+      named by date and time plus the server profile name, so they sort chronologically.
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Auto-record while on air</h3>
+        <p>
+          A Settings toggle for anyone who never remembers to hit record at gig start: recording starts
+          with CONNECT and the file is saved on DISCONNECT. If the connection drops, the recording
+          keeps running regardless — the set is never lost.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Auto-trim silence</h3>
+        <p>
+          On by default. You usually go on air first and start the music later — the dead air never
+          reaches the file. REC arms the recorder (the button reads ARMED) and the file starts on the
+          first beat and ends on the last. Short breaks in the mix, up to 30 seconds, are preserved
+          exactly; only silence longer than that gets cut. A recording that never saw any audio is
+          discarded automatically.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      A recording problem — disk full, an unreachable folder — can never interrupt the broadcast. The
+      recorder fails on its own and says so in the event log; the stream keeps going.
+    </p>
+
+    <div class="callout">
+      <b>Coming next:</b> set recording ships with the next release (0.5).
+    </div>
+  </section>
+
+  <section class="doc-section prose">
     <h2>Server profiles</h2>
     <p>
       Save as many Icecast servers as you like — host, mount, login and optional TLS — and switch between
       them from the dropdown at the top. The codec (MP3 or Opus) and bitrate aren't part of these
       per-server settings; you pick those on the main console, next to the meters — see above.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>If the connection drops</h2>
+    <p>
+      JUST STREAM reconnects on its own — first after a couple of seconds, then with growing
+      pauses (at most half a minute between tries) until the server is back or you hit DISCONNECT.
+      Your on-air time keeps counting, the now-playing title is re-sent, and a running set
+      recording is never interrupted.
     </p>
   </section>
 
@@ -137,7 +196,7 @@
   </section>
 
   <section class="doc-section prose">
-    <h2>Mini mode</h2>
+    <h2>Compact view</h2>
     <p>
       Shrink JUST STREAM to a compact on-air strip that stays out of the way while you mix.
     </p>

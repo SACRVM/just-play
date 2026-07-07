@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using JustPlay.Core.Audio;
+using JustPlay.Core.Models;
 
 namespace JustPlay.Stream.ViewModels;
 
@@ -61,6 +62,32 @@ public sealed class AppChannelsLabelConverter : IValueConverter
             AppCaptureChannels.Master34 => "Channels 3-4",
             AppCaptureChannels.FullMix => "Full mix (stereo)",
             _ => "Channels 1-2", // Master12 (the default) + any fallback
+        };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
+/// Maps a <see cref="RecordingFormat"/> to its friendly label for the Settings → Recording
+/// FORMAT ComboBox. "Same as stream" is the self-check default: the file mirrors the live
+/// codec + bitrate, artifacts included (Chloe, 2026-07-04).
+/// </summary>
+public sealed class RecordingFormatLabelConverter : IValueConverter
+{
+    public static readonly RecordingFormatLabelConverter Instance = new();
+
+    private RecordingFormatLabelConverter() { }
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value switch
+        {
+            RecordingFormat.SameAsStream => "Same as stream (self-check)",
+            RecordingFormat.Mp3_320 => "MP3 320 kbps",
+            RecordingFormat.Flac => "FLAC (lossless)",
+            RecordingFormat.Aiff => "AIFF (lossless, 16-bit)",
+            RecordingFormat.Wav => "WAV (lossless, 16-bit)",
+            _ => "—",
         };
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

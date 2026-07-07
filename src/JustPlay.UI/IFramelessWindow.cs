@@ -10,4 +10,8 @@ public interface IFramelessWindow
 {
     /// <summary>Toggle the custom work-area maximize (a borderless window has no OS maximize).</summary>
     void ToggleMaximize();
+
+    /// <summary>True while the custom maximize is active. Lets <see cref="Behaviors.WindowPlacement"/>
+    /// avoid persisting the work-area-filling bounds as if they were the window's normal size.</summary>
+    bool IsMaximized { get; }
 }

@@ -15,53 +15,9 @@
       design's tweaks-panel.jsx: Theme palette · Stage toggles · Right-panel default.
     -->
     <UserControl.Styles>
-        <!--
-          ComboBox for output-device selection — dark frosted look matching the panel.
-          We override the key template parts so the default Fluent light popup doesn't bleed through.
-
-          Strategy: style the outer ComboBox control + the popup's presenter and items so
-          everything is dark. Belt-and-braces overrides keep Fluent from painting light boxes.
-        -->
-        <Style Selector="ComboBox.device-picker">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Foreground" Value="#E6FFFFFF"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="PlaceholderForeground" Value="#73FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.device-picker:pointerover /template/ Border#Background">
-            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.device-picker:focus /template/ Border#Background">
-            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
-        </Style>
-        <!-- Popup background: dark frosted, matching the panel itself -->
-        <Style Selector="ComboBox.device-picker /template/ Popup Border">
-            <Setter Property="Background" Value="#F01a1828"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-        </Style>
-        <!-- Each item in the dropdown -->
-        <Style Selector="ComboBox.device-picker ComboBoxItem">
-            <Setter Property="Foreground" Value="#E6FFFFFF"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="ComboBox.device-picker ComboBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.device-picker ComboBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-        </Style>
-        <Style Selector="ComboBox.device-picker ComboBoxItem:selected:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#22FFFFFF"/>
-        </Style>
+        <!-- ComboBox.device-picker moved to App.axaml (app-wide styles): the PRE CUE FINDER
+             window's settings flyout uses the same picker, and a Window can't see styles that
+             are local to this UserControl. One source of truth, per extract-shared-view-controls. -->
 
         <!-- Section heading + row label -->
         <Style Selector="TextBlock.tweak-section">
@@ -334,12 +290,21 @@
                                                     <MenuItem Header="Delete" Click="OnPresetDelete"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>
+                                            <!--
+                                              Content is an explicit TextBlock, NOT a raw string binding: Button's
+                                              Fluent template sets RecognizesAccessKey="True" on PART_ContentPresenter
+                                              (Avalonia 12.0.3 Avalonia.Themes.Fluent/Controls/Button.xaml), same
+                                              access-key-mnemonic pitfall as the "…" playlist menu above — a preset
+                                              named "grid-solid_dark" would render as "grid-soliddark". A TextBlock
+                                              is already a Control so ContentPresenter.CreateChild uses it as-is.
+                                            -->
                                             <Button Classes="ghost" Padding="12,5" FontSize="12" FontWeight="SemiBold"
                                                     Foreground="#E6FFFFFF"
-                                                    Content="{Binding Name}"
                                                     Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip.Tip="Apply this preset · right-click to replace / delete"/>
+                                                    ToolTip.Tip="Apply this preset · right-click to replace / delete">
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </Button>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -554,6 +519,33 @@
                     <TextBlock FontSize="10" Foreground="#73FFFFFF"
                                Text="No output devices found."
                                IsVisible="{Binding HasNoOutputDevices}"
+                               Margin="0,2,0,0"/>
+
+                    <!-- Headphone output for the PRE-CUE (PFL) slot — lives HERE, not on the pre-cue
+                         tab (Chloe 2026-07-03: device setup belongs in Settings). The saved-by-name
+                         device still auto-rebinds while the pre-cue tab is open
+                         (MainWindowViewModel.PollPreCueDeviceRebind); the ↻ above rescans this list too. -->
+                    <TextBlock Classes="tweak-section" Text="PRE-CUE HEADPHONES" Margin="0,12,0,0"/>
+                    <ComboBox Classes="device-picker"
+                              ItemsSource="{Binding HeadphoneDevices}"
+                              SelectedItem="{Binding SelectedHeadphoneDevice}"
+                              PlaceholderText="Choose your headphone output…"
+                              PlaceholderForeground="#73FFFFFF">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:AudioOutputDevice">
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="#E6FFFFFF"
+                                           FontSize="12"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                               Text="Pre-cue plays only on this device — never on the main output."
+                               Margin="0,2,0,0"/>
+                    <TextBlock FontSize="10" Foreground="#73FFFFFF"
+                               Text="No devices found."
+                               IsVisible="{Binding HasNoHeadphoneDevices}"
                                Margin="0,2,0,0"/>
                 </StackPanel>
 

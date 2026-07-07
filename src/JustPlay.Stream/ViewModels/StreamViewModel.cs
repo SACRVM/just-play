@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -9,7 +11,9 @@ using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Audio;
 using JustPlay.Core.Models;
+using JustPlay.Stream.Logging;
 using JustPlay.Stream.Settings;
+using JustPlay.UI.Controls;
 using JustPlay.UI.Views;
 
 namespace JustPlay.Stream.ViewModels;
@@ -27,8 +31,11 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 {
     private readonly IAudioInputEngine _engine;
     private readonly IBroadcastService _broadcast;
+    private readonly IRecordingService _recording;
     private readonly JsonStreamSettingsService _settings;
+    private readonly SessionLog _sessionLog;
     private readonly Stopwatch _streamClock = new();
+    private bool _recAutoStarted; // recording was started BY auto-record → auto-stop on disconnect
     private bool _loading; // suppress persistence/engine writes while hydrating from settings
 
     /// <summary>Limiter drive options for the DSP strip ComboBox (maps in <see cref="ApplyLimiter"/>).</summary>
@@ -42,6 +49,17 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     /// <summary>Sample rate options for the RATE dropdown. 48 kHz = Opus native; 44.1 kHz = most DJ software.</summary>
     public int[] SampleRates { get; } = { 44100, 48000 };
+
+    /// <summary>Format options for the Settings → Recording FORMAT dropdown
+    /// (labels via <see cref="RecordingFormatLabelConverter"/>).</summary>
+    public RecordingFormat[] RecordingFormats { get; } =
+    {
+        Core.Models.RecordingFormat.SameAsStream,
+        Core.Models.RecordingFormat.Mp3_320,
+        Core.Models.RecordingFormat.Flac,
+        Core.Models.RecordingFormat.Aiff,
+        Core.Models.RecordingFormat.Wav,
+    };
 
     // ── Server profiles ──────────────────────────────────────────────────
     public ObservableCollection<StreamServerProfile> Profiles { get; } = new();
@@ -146,6 +164,61 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
             SelectedProfile is { } s ? $"→ {s.Name} · {CodecLabel} {SelectedProfileBitrateKbps} kbps" : "No server selected",
     };
 
+    // ── Recording ("record your set" — second, independent encoder on the master bus) ────
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRecording))]
+    [NotifyPropertyChangedFor(nameof(RecordTooltip))]
+    private RecordingState _recState = RecordingState.Idle;
+
+    public bool IsRecording => RecState == RecordingState.Recording;
+
+    /// <summary>REC-pill text: "REC" when idle, "ARMED" while the auto-trim gate waits for the
+    /// first signal, then the recorded duration (updated per frame in <see cref="PumpFrame"/> —
+    /// the setter's equality check keeps PropertyChanged at 1/s, same pattern as
+    /// <see cref="StreamTimeText"/>). The clock counts what's actually IN THE FILE (the
+    /// service's gated stopwatch), so a DJ can SEE the trim working: it doesn't tick until
+    /// the music does.</summary>
+    [ObservableProperty] private string _recordLabel = "REC";
+
+    public string RecordTooltip => IsRecording
+        ? _recording.IsWaitingForSignal
+            ? $"Armed — recording starts with the first signal. Click to cancel.\n{_recording.CurrentFilePath}"
+            : $"Recording — click to stop.\n{_recording.CurrentFilePath}"
+        : "Record your set to a local file (format & folder in Settings) · right-click: open the recordings folder";
+
+    /// <summary>Auto-trim silence (Settings → Recording; default ON) — see StreamSettings.TrimSilence.</summary>
+    [ObservableProperty] private bool _trimSilence = true;
+
+    /// <summary>Persisted recording format (policy; resolved to a concrete codec at record start).</summary>
+    [ObservableProperty] private RecordingFormat _recordingFormat = Core.Models.RecordingFormat.SameAsStream;
+
+    /// <summary>Persisted recording folder override; null/empty = <see cref="DefaultRecordingFolder"/>.</summary>
+    [ObservableProperty] private string? _recordingFolder;
+
+    /// <summary>Start/stop the recorder automatically with the broadcast connection.</summary>
+    [ObservableProperty] private bool _autoRecord;
+
+    /// <summary>Where recordings land when no folder is configured — shown as the folder box's placeholder.</summary>
+    public string DefaultRecordingFolder { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "JUST STREAM Recordings");
+
+    /// <summary>The folder recordings actually go to right now: the override if set, else the
+    /// default. Public — the Settings window's Browse… starts the folder picker here.</summary>
+    public string EffectiveRecordingFolder =>
+        string.IsNullOrWhiteSpace(RecordingFolder) ? DefaultRecordingFolder : RecordingFolder!;
+
+    // ── Interface ─────────────────────────────────────────────────────────
+    /// <summary>Show the bottom keyboard-hint bar. Off = pros hide it (Settings → Look). Chloe 2026-07-06.</summary>
+    [ObservableProperty] private bool _showKeyHints = true;
+
+    /// <summary>The keyboard-hint bar entries — rendered by the shared <see cref="KeyLegend"/> (the SAME
+    /// control the PRE CUE FINDER uses). Static: the two in-app hotkeys handled in MainWindow.</summary>
+    public IReadOnlyList<KeyHint> KeyHints { get; } =
+    [
+        new("C", "on air / off air"),
+        new("R", "record / stop"),
+    ];
+
     // ── Live readouts (direct fields, never the log — §3a) ────────────────
     [ObservableProperty] private string _codecText = "MP3";
     [ObservableProperty] private string _bitrateText = "—";
@@ -214,16 +287,26 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     /// <summary>All log lines joined — bound read-only by the LogWindow's selectable text box + Copy button.</summary>
     public string LogText => string.Join(System.Environment.NewLine, LogEntries);
 
-    public StreamViewModel(IAudioInputEngine engine, IBroadcastService broadcast, JsonStreamSettingsService settings)
+    public StreamViewModel(IAudioInputEngine engine, IBroadcastService broadcast,
+        IRecordingService recording, JsonStreamSettingsService settings, SessionLog sessionLog)
     {
         _engine = engine;
         _broadcast = broadcast;
+        _recording = recording;
         _settings = settings;
+        _sessionLog = sessionLog;
 
         // Keep the selectable LogText in sync as entries are added/cleared (UI thread — Log() is marshalled).
         LogEntries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(LogText));
 
         _broadcast.StateChanged += OnBroadcastStateChanged;
+        _recording.StateChanged += OnRecordingStateChanged;
+
+        // Storage-never-crashes rule: if writing the session log or settings.json fails (disk full,
+        // denied path), it must NOT die silently — surface it in the log WINDOW only (LogToWindowOnly
+        // does NOT re-persist, so the very failure we're reporting can't recurse). Both report once.
+        _sessionLog.OnWriteFailed = LogToWindowOnly;
+        _settings.OnSaveFailed = LogToWindowOnly;
 
         Hydrate();
         // No meter timer: the View pumps meters/lamp/time once per render frame (vsync-synced) via
@@ -281,6 +364,14 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         MonitorVolume = s.MonitorVolume;
         SendSongInfo = s.SendSongInfo;
         LogVisible = s.LogVisible;
+        ShowKeyHints = s.ShowKeyHints;
+
+        // Recording prefs — the format string round-trips the enum name; unknown → SameAsStream.
+        RecordingFolder = s.RecordingFolder;
+        RecordingFormat = Enum.TryParse<RecordingFormat>(s.RecordingFormat, out var recFmt)
+            ? recFmt : Core.Models.RecordingFormat.SameAsStream;
+        AutoRecord = s.AutoRecord;
+        TrimSilence = s.TrimSilence;
 
         // Sound presets: restore the user's saved presets, then TOP UP any missing built-in genre
         // starting points (DspPreset.StreamDefaults — same tonal identity as JUST PLAY, broadcast-
@@ -408,6 +499,11 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         s.MonitorVolume = MonitorVolume;
         s.SendSongInfo = SendSongInfo;
         s.LogVisible = LogVisible;
+        s.ShowKeyHints = ShowKeyHints;
+        s.RecordingFolder = RecordingFolder;
+        s.RecordingFormat = RecordingFormat.ToString();
+        s.AutoRecord = AutoRecord;
+        s.TrimSilence = TrimSilence;
         s.SoundPresets = SoundPresets.ToList();
         s.SoundPresetsSeeded = true;
         s.SoundPresetsSeedVersion = DspPreset.BuiltInSeedVersion;
@@ -496,6 +592,11 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     partial void OnMonitorVolumeChanged(double value) { ApplyMonitor(); Persist(); }
     partial void OnSendSongInfoChanged(bool value) => Persist();
     partial void OnLogVisibleChanged(bool value) => Persist();
+    partial void OnShowKeyHintsChanged(bool value) => Persist();
+    partial void OnRecordingFormatChanged(RecordingFormat value) => Persist();
+    partial void OnRecordingFolderChanged(string? value) => Persist();
+    partial void OnAutoRecordChanged(bool value) => Persist();
+    partial void OnTrimSilenceChanged(bool value) => Persist();
 
     /// <summary>
     /// Sample-rate change: rebuild the engine at the new rate, restart capture if it was active,
@@ -505,6 +606,18 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     partial void OnSelectedSampleRateChanged(int value)
     {
         if (_loading) return;
+
+        // The rate switch frees + rebuilds the mixer — a recording encoder attached to the old
+        // mixer would die mid-file. Stop cleanly first (finalizes the headers) and say why.
+        if (IsRecording)
+        {
+            _recording.StopAsync().GetAwaiter().GetResult(); // completes synchronously (BASS EncodeStop)
+            _recAutoStarted = false;
+            Log(_recording.CurrentFilePath is { } recPath
+                ? $"Recording stopped by the sample-rate change — saved: {recPath}"
+                : "Recording stopped by the sample-rate change — discarded (no audio ever arrived).");
+        }
+
         var wasCapturing = _engine.IsCapturing;
         var dev = SelectedInputDevice;
         _engine.SampleRate = value; // tears down mixer + capture internally
@@ -658,7 +771,9 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanToggleConnect))]
     private async Task ToggleConnectAsync()
     {
-        if (State is BroadcastState.Connected or BroadcastState.Connecting)
+        // Reconnecting counts as "live" here: one click while RECONNECTING… stops the
+        // auto-retry loop cleanly (instead of accidentally racing a fresh manual connect).
+        if (State is BroadcastState.Connected or BroadcastState.Connecting or BroadcastState.Reconnecting)
         {
             await _broadcast.DisconnectAsync();
             return;
@@ -679,10 +794,74 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         MountText = profile.Mount;
 
         await _broadcast.ConnectAsync(profile);
+        // Now-playing push happens in OnBroadcastStateChanged(Connected) — one code path for
+        // manual connects AND auto-reconnects (Icecast forgets the title either way).
+    }
 
-        // On success, push the station/now-playing title if allowed.
-        if (State == BroadcastState.Connected && SendSongInfo && !string.IsNullOrWhiteSpace(NowPlayingText))
-            await _broadcast.UpdateNowPlayingAsync(NowPlayingText);
+    // ── Recording ────────────────────────────────────────────────────────
+    // A SECOND, independent encoder on the same post-DSP master bus the broadcast taps —
+    // NOT a tee of the cast encoder (design: Chloe 2026-07-04). So: record off-air, survive
+    // stream reconnects, choose your own format. "Same as stream" mirrors the live codec +
+    // bitrate for the honest self-check. Its failure NEVER touches the broadcast.
+
+    [RelayCommand]
+    private async Task ToggleRecordAsync()
+    {
+        if (IsRecording)
+        {
+            await _recording.StopAsync();
+            _recAutoStarted = false;
+            // The service nulls CurrentFilePath when an armed-but-never-opened (all-silence)
+            // recording was discarded — report honestly which of the two happened.
+            Log(_recording.CurrentFilePath is { } saved
+                ? $"Recording saved: {saved}"
+                : "Recording discarded — no audio ever arrived.");
+            return;
+        }
+        await StartRecordingAsync(auto: false);
+    }
+
+    private async Task StartRecordingAsync(bool auto)
+    {
+        if (!_engine.IsCapturing)
+        {
+            Log("Select an input source before recording — there is no audio to record yet.");
+            return;
+        }
+
+        var (codec, kbps) = Recording.Resolve(RecordingFormat, SelectedProfileFormat, SelectedProfileBitrateKbps);
+        var path = Path.Combine(EffectiveRecordingFolder,
+            Recording.BuildFileName(DateTime.Now, SelectedProfile?.Name, codec));
+
+        await _recording.StartAsync(new RecordingJob(codec, kbps, path, TrimSilence));
+        // Remember auto-started ONLY if the start actually succeeded, so a failed auto-start
+        // can't later auto-stop a recording the DJ started by hand.
+        _recAutoStarted = auto && _recording.State == RecordingState.Recording;
+    }
+
+    private void OnRecordingStateChanged(object? sender, RecordingState state)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            RecState = state;
+            switch (state)
+            {
+                case RecordingState.Recording:
+                    // PumpFrame drives the label from here on (ARMED → recorded duration).
+                    RecordLabel = _recording.IsWaitingForSignal ? "ARMED" : "0:00:00";
+                    Log(_recording.IsWaitingForSignal
+                        ? $"Recording armed — starts with the first signal: {_recording.CurrentFilePath}"
+                        : $"Recording to {_recording.CurrentFilePath}");
+                    break;
+                case RecordingState.Idle:
+                    RecordLabel = "REC";
+                    break;
+                case RecordingState.Error:
+                    RecordLabel = "REC";
+                    if (_recording.LastError is { } err) Log(err);
+                    break;
+            }
+        });
     }
 
     [RelayCommand]
@@ -704,19 +883,56 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
             switch (state)
             {
                 case BroadcastState.Connected:
-                    _streamClock.Restart();
-                    Log("Connected.");
+                    // Cumulative on-air time: after an auto-reconnect the clock is still
+                    // running — don't reset the session to 00:00:00 over a router hiccup.
+                    if (_streamClock.IsRunning)
+                    {
+                        Log("Reconnected — stream is back.");
+                    }
+                    else
+                    {
+                        _streamClock.Restart();
+                        Log("Connected.");
+                    }
+                    // (Re-)push the now-playing title — Icecast forgets it with a dropped
+                    // connection, and this also covers the manual-connect case.
+                    if (SendSongInfo && CanBroadcastSongInfo && !string.IsNullOrWhiteSpace(NowPlayingText))
+                        _ = _broadcast.UpdateNowPlayingAsync(NowPlayingText);
+                    // Auto-record: arm the recorder with the connection — nobody remembers to
+                    // hit record at gig start. Never touches a recording started by hand.
+                    if (AutoRecord && !IsRecording)
+                        _ = StartRecordingAsync(auto: true);
+                    break;
+                case BroadcastState.Reconnecting:
+                    // Keep the clock running (see Connected) and keep recording — a network
+                    // hiccup must never cost the DJ their set recording.
+                    Log($"{_broadcast.LastError ?? "Connection lost."} Auto-reconnecting…");
                     break;
                 case BroadcastState.Disconnected:
                     _streamClock.Reset();
                     StreamTimeText = "00:00:00";
+                    // Auto-stop ONLY what auto-record started (a manual recording outlives the
+                    // stream on purpose), and only on a CLEAN disconnect — see the Error case.
+                    if (_recAutoStarted && IsRecording)
+                        _ = StopAutoRecordingAsync();
                     break;
                 case BroadcastState.Error:
                     _streamClock.Reset();
                     if (_broadcast.LastError is { } e) Log(e);
+                    // Deliberately KEEP recording on a connection error: the music is still
+                    // playing — a network hiccup must never cost the DJ their set recording.
                     break;
             }
         });
+    }
+
+    private async Task StopAutoRecordingAsync()
+    {
+        await _recording.StopAsync();
+        _recAutoStarted = false;
+        Log(_recording.CurrentFilePath is { } saved
+            ? $"Recording saved: {saved}"
+            : "Recording discarded — no audio ever arrived.");
     }
 
     // (Meter ballistics moved into the shared JustPlay.UI LevelMeter control — it owns attack/release +
@@ -776,6 +992,22 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
             var t = _streamClock.Elapsed;
             StreamTimeText = $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00}";
         }
+
+        // Recording time on the REC pill — the service's GATED duration (what's actually in
+        // the file), so with auto-trim the clock visibly doesn't tick until the music does.
+        // Setter equality-checks → PropertyChanged only on the 1/s tick, same as StreamTimeText.
+        if (IsRecording)
+        {
+            if (_recording.IsWaitingForSignal)
+            {
+                RecordLabel = "ARMED";
+            }
+            else
+            {
+                var rt = _recording.RecordedDuration;
+                RecordLabel = $"{(int)rt.TotalHours:0}:{rt.Minutes:00}:{rt.Seconds:00}";
+            }
+        }
     }
 
     // ── Log (errors/warnings only — §3a) ─────────────────────────────────
@@ -787,6 +1019,25 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         if (LogEntries.Count > 200) LogEntries.RemoveAt(0);
         HasUnreadLogs = true; // light up the chrome log button marker
         Console.WriteLine("[JUST STREAM] " + line);
+        _sessionLog.Append(line); // persist to the daily session file (kept 7 days) for post-gig review
+    }
+
+    /// <summary>
+    /// Log to the in-memory window ONLY — no session-file persist. Used to report a STORAGE failure
+    /// (the session log or settings.json couldn't be written): re-persisting here would hit the very
+    /// same full disk and could recurse, so this path is deliberately memory-only. Marshals to the UI
+    /// thread since the failure may be reported from a background writer.
+    /// </summary>
+    private void LogToWindowOnly(string message)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var line = $"{DateTime.Now:HH:mm:ss}  {message}";
+            LogEntries.Add(line);
+            if (LogEntries.Count > 200) LogEntries.RemoveAt(0);
+            HasUnreadLogs = true;
+            Console.WriteLine("[JUST STREAM] " + line);
+        });
     }
 
     /// <summary>Called by the LogWindow on open — clears the unread marker.</summary>
@@ -802,5 +1053,16 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _broadcast.StateChanged -= OnBroadcastStateChanged;
+        _recording.StateChanged -= OnRecordingStateChanged;
+
+        // Finalize a running recording on exit — EncodeStop completes the WAV/AIFF/FLAC headers;
+        // killing the process mid-write would leave an unplayable file. Completes synchronously.
+        // (An armed recording that never saw audio is discarded by the service instead.)
+        if (_recording.State == RecordingState.Recording)
+        {
+            _recording.StopAsync().GetAwaiter().GetResult();
+            if (_recording.CurrentFilePath is { } path)
+                Console.WriteLine($"[JUST STREAM] Recording finalized on exit: {path}");
+        }
     }
 }

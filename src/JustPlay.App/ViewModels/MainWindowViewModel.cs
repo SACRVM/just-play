@@ -24,11 +24,6 @@ public enum AnalysisField { Bpm, Key, Energy }
 
 public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
-    private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".wma", ".aiff", ".aif"
-    };
-
     private readonly PlaybackController _controller;
     private readonly IAudioEngine _engine;
     private readonly IPreListenEngine _preListen;
@@ -265,11 +260,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool ShowFieldSeparator =>
         ShowBpmField || ShowKeyField || ShowEnergyField || ShowRestoreBpm || ShowRestoreKey || ShowRestoreEnergy;
 
+    /// <summary>Row context-menu "Pre-cue on headphones" — shown for a single right-clicked row only
+    /// (ContextTarget null under multi-select, same rule as the per-field entries), and only while
+    /// the experimental PRE-CUE tab exists in this build (mirrors the tab's own gate).</summary>
+    public bool ShowPreCueEntry => ShowExperimentalUi && ContextTarget is not null;
+
     partial void OnContextTargetChanged(TrackViewModel? value) => RaiseFieldVisibility();
     partial void OnContextFieldChanged(string? value) => RaiseFieldVisibility();
 
     private void RaiseFieldVisibility()
     {
+        OnPropertyChanged(nameof(ShowPreCueEntry));
         OnPropertyChanged(nameof(ShowBpmField));
         OnPropertyChanged(nameof(ShowKeyField));
         OnPropertyChanged(nameof(ShowEnergyField));
@@ -1321,7 +1322,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Never overrides an already-bound device, and never falls back to the system default (cue
     /// audio must never land on the speakers) — see <see cref="PreCueTransport.TryAutoRebind"/>.
     /// </summary>
-    private void PollPreCueDeviceRebind()
+    internal void PollPreCueDeviceRebind()
     {
         var fresh = _preListen.GetOutputDevices();
         var pick = PreCueTransport.TryAutoRebind(SelectedHeadphoneDevice, _savedHeadphoneDeviceName, fresh);
@@ -1479,11 +1480,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // ── Pre-cue commands (v2: single slot, autoplay, no pause) ─────────────────
 
     /// <summary>Load ONE file into the pre-cue slot and autoplay it immediately — replaces whatever
-    /// was cued before ("es muss schnell gehen": no confirmation, no pause). Called from the
-    /// file-picker code-behind (<c>OnAddPreCueFilesClicked</c>) or a queue row's
-    /// <see cref="TrackViewModel.PlayInPreCueCommand"/> (wired in <see cref="AddPathsAsync"/>).</summary>
+    /// was cued before ("es muss schnell gehen": no confirmation, no pause). Entry point is the
+    /// track-row context menu ("Pre-cue on headphones") via <see cref="TrackViewModel.PlayInPreCueCommand"/>
+    /// (wired in <see cref="AddPathsAsync"/>) — you cue from the list, not a file picker
+    /// (Chloe 2026-07-03: the "Load track…" picker was removed, nobody works like that).</summary>
     public async Task LoadPreCueTrackAsync(string filePath)
     {
+        // Cueing from a row should land the eye on the slot — flip the right column to PRE-CUE.
+        // Deliberately BEFORE the no-device guard: with no headphone device selected the tab shows
+        // the "choose one in Tweaks → Audio" hint, so the click visibly explains itself instead of
+        // silently doing nothing.
+        RightColumnTab = "PreCue";
+
         if (SelectedHeadphoneDevice is null) return; // no device → ignore (never routes to speakers)
 
         var tvm = new TrackViewModel(new Track(filePath));
@@ -2116,7 +2124,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// never freezes the UI — mirrors the same pattern as WriteTags / FillMissing.
     /// On success the metadata is re-read and the VM refreshed via Dispatcher.Post.
     /// </summary>
-    private Task ToggleFavoriteForTrack(TrackViewModel tvm, bool liked)
+    internal Task ToggleFavoriteForTrack(TrackViewModel tvm, bool liked)
         => Task.Run(() =>
         {
             var write = new TagWrite { Favorite = liked };
@@ -2588,45 +2596,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return artist.Length > 0 ? $"{artist} - {title}" : title;
     }
 
-    private static bool IsAudio(string path) => AudioExtensions.Contains(Path.GetExtension(path));
-
-    /// <summary>Explorer-style natural/logical string ordering: compares digit runs by numeric value
-    /// ("track2" &lt; "track10") and the rest case-insensitively. Managed (no P/Invoke) so it stays
-    /// portable and trim/AOT-safe.</summary>
-    private sealed class NaturalComparer : IComparer<string>
-    {
-        public static readonly NaturalComparer Instance = new();
-
-        public int Compare(string? a, string? b)
-        {
-            if (ReferenceEquals(a, b)) return 0;
-            if (a is null) return -1;
-            if (b is null) return 1;
-
-            int i = 0, j = 0;
-            while (i < a.Length && j < b.Length)
-            {
-                if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
-                {
-                    int si = i, sj = j;
-                    while (i < a.Length && char.IsDigit(a[i])) i++;
-                    while (j < b.Length && char.IsDigit(b[j])) j++;
-                    var na = a.AsSpan(si, i - si).TrimStart('0');
-                    var nb = b.AsSpan(sj, j - sj).TrimStart('0');
-                    if (na.Length != nb.Length) return na.Length - nb.Length;   // longer number = larger
-                    var cmp = na.CompareTo(nb, StringComparison.Ordinal);
-                    if (cmp != 0) return cmp;
-                }
-                else
-                {
-                    var cmp = char.ToUpperInvariant(a[i]).CompareTo(char.ToUpperInvariant(b[j]));
-                    if (cmp != 0) return cmp;
-                    i++; j++;
-                }
-            }
-            return (a.Length - i) - (b.Length - j);
-        }
-    }
+    private static bool IsAudio(string path) => AudioFileTypes.IsAudio(path);
 
     // ---- Internals ------------------------------------------------------
 

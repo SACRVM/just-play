@@ -39,6 +39,12 @@ public partial class MaxView : UserControl
         // keys like Delete / type-ahead).
         this.FindControl<ListBox>("TrackList")?.AddHandler(
             InputElement.KeyDownEvent, OnTrackListKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
+
+        // OS-level file-copy drag-out (N24): press-drag a row past a small threshold and drop it on
+        // Explorer/Traktor/another app to receive the real audio file, like an Explorer drag. See
+        // RowDragOutBehavior for the Avalonia-12-source-verified mechanics.
+        if (this.FindControl<ListBox>("TrackList") is { } trackList)
+            RowDragOutBehavior.Attach(trackList);
     }
 
     private void OnChromePressed(object? sender, PointerPressedEventArgs e)
@@ -359,33 +365,13 @@ public partial class MaxView : UserControl
     /// <summary>Default export name: JustPlay_YEAR-MONTH-DAY_HH-MM (no extension — pickers add it).</summary>
     private static string DefaultSetName() => $"JustPlay_{DateTime.Now:yyyy-MM-dd_HH-mm}";
 
-    // ── PRE-CUE: "Load track…" button ─────────────────────────────────────────
-    // Opens a SINGLE-select file picker then hands the chosen path to the ViewModel, which loads
-    // it straight into the one pre-cue slot and autoplays it (v2: single slot, no audition list).
-    // Lives in code-behind because file pickers require the window's StorageProvider.
-    private async void OnAddPreCueFilesClicked(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel vm) return;
-        if (TopLevel.GetTopLevel(this) is not { } top) return;
+    // (The pre-cue "Load track…" file picker was removed 2026-07-03 — cueing happens from the
+    // track list via the row context menu; see LoadPreCueTrackAsync in MainWindowViewModel.)
 
-        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Load a track into the pre-cue slot",
-            AllowMultiple = false,
-            FileTypeFilter =
-            [
-                new FilePickerFileType("Audio files")
-                {
-                    Patterns = ["*.mp3", "*.flac", "*.wav", "*.aiff", "*.aif", "*.ogg", "*.m4a", "*.opus", "*.wma"],
-                }
-            ],
-        });
-
-        if (files.Count == 0) return; // user cancelled
-        if (files[0].TryGetLocalPath() is not { } path) return;
-
-        await vm.LoadPreCueTrackAsync(path);
-    }
+    /// <summary>Open (or surface) the PRE CUE FINDER — the keyboard-first library audition
+    /// explorer window. Singleton window + singleton VM: reopening resumes where she left off.</summary>
+    private void OnOpenFinderClicked(object? sender, RoutedEventArgs e)
+        => PreCueFinderWindow.ShowOrActivate();
 
     // Window min/max/close now live in the shared WindowControls control.
 }

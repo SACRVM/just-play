@@ -47,7 +47,7 @@
         <Border CornerRadius="14" ClipToBounds="False"
                 Margin="20,20,20,22"
                 Background="#40000000"
-                BoxShadow="0 18 50 -12 #B0000000">
+                BoxShadow="{DynamicResource WindowOuter}">
             <Panel>
                 <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
                 <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>

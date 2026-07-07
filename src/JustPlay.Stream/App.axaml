@@ -184,10 +184,11 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="LetterSpacing" Value="0.6"/>
             <Setter Property="CornerRadius" Value="11"/>
-            <Setter Property="Padding" Value="20,11"/>
+            <Setter Property="Padding" Value="14,11"/>
             <!-- Fixed width = both states identical, no rumspringen. Sized to clear the longest label
-                 ("RECONNECTING…"). -->
-            <Setter Property="Width" Value="184"/>
+                 ("RECONNECTING…"); padding trimmed with it. 184→164: Chloe 2026-07-05 — REC + CONNECT
+                 ate ~50% of the mini bar. -->
+            <Setter Property="Width" Value="164"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">

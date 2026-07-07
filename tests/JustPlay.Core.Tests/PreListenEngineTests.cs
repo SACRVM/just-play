@@ -77,10 +77,37 @@ public class PreListenEngineTests
     }
 
     // =========================================================================
-    // 3. Play → Stop → Stopped and position rewinds
-    //    (v2 dropped Pause entirely — IPreListenEngine has no Pause() any more; autoplay-on-load,
-    //    no pause, "es muss schnell gehen".)
+    // 3. Play → Pause → Stop transitions
+    //    (v2 dropped Pause; N26 P1.1 brought it back for the PRE CUE FINDER's play/pause
+    //    browsing mode — Pause keeps the position, Play resumes, Stop rewinds.)
     // =========================================================================
+
+    [Fact]
+    public void Pause_KeepsPosition_AndPlayResumes()
+    {
+        var engine = new FakePreListenEngine { OutputDevice = 0 };
+        engine.Load("track.mp3");
+        engine.Play();
+        engine.Position = TimeSpan.FromSeconds(42);
+        engine.Pause();
+
+        Assert.Equal(PlaybackState.Paused, engine.State);
+        Assert.Equal(TimeSpan.FromSeconds(42), engine.Position);
+
+        engine.Play();
+        Assert.Equal(PlaybackState.Playing, engine.State);
+        Assert.Equal(TimeSpan.FromSeconds(42), engine.Position);
+    }
+
+    [Fact]
+    public void Pause_WhenNotPlaying_IsNoOp()
+    {
+        var engine = new FakePreListenEngine { OutputDevice = 0 };
+        engine.Load("track.mp3");
+        engine.Pause(); // never played — must stay Stopped, not flip to Paused
+
+        Assert.Equal(PlaybackState.Stopped, engine.State);
+    }
 
     [Fact]
     public void Stop_ResetsPositionAndStatesToStopped()
@@ -451,6 +478,12 @@ file sealed class FakePreListenEngine : IPreListenEngine
     {
         if (OutputDevice == -1 || !_loaded) return;
         SetState(PlaybackState.Playing);
+    }
+
+    public void Pause()
+    {
+        if (_state != PlaybackState.Playing) return;
+        SetState(PlaybackState.Paused); // position kept — Play() resumes
     }
 
     public void Stop()

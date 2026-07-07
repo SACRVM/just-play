@@ -239,6 +239,8 @@ sealed class Program
         // singletons so MainWindowViewModel and App.OnFrameworkInitialization
         // can share the same instance.
         services.AddSingleton<ISettingsService, JsonSettingsService>();
+        // PRE CUE FINDER add-on settings — separate file (finder.settings.json), source-gen JSON.
+        services.AddSingleton<IFinderSettingsService, FinderSettingsService>();
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
 
         // Auto-update (v0.2). One shared HttpClient backs both the API check and the installer
@@ -258,8 +260,10 @@ sealed class Program
         // Core logic.
         services.AddSingleton<PlaybackController>();
 
-        // ViewModels.
+        // ViewModels. The finder VM is a singleton on purpose: closing and reopening the
+        // finder window keeps the browse position, cue device and pending like-writes.
         services.AddSingleton<MainWindowViewModel>();
+        services.AddSingleton<PreCueFinderViewModel>();
 
         return services.BuildServiceProvider();
     }

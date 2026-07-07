@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
+using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 
 namespace JustPlay.UI.Views;
@@ -57,6 +58,8 @@ public partial class SpectrumWindow : Window
         // Host opted out of the OUT meter — collapse the whole column (its Auto width goes to 0).
         if (!showOutputLevels && this.FindControl<Control>("OutColumn") is { } outCol)
             outCol.IsVisible = false;
+
+        WindowPlacement.Track(this, "JustPlay.Spectrum");
     }
 
     protected override void OnOpened(EventArgs e)

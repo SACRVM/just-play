@@ -33,6 +33,18 @@
     </Style>
 
     <!--
+      Kill the default TAB focus traversal + keyboard focus ring in EVERY window of the suite.
+      Avalonia's built-in navigation moves focus on Tab before any handler we add and ignores
+      e.Handled, so we suppress it via the KeyboardNav behavior (restores focus on Tab → no-op).
+      A view that REPURPOSES Tab (the PRE CUE FINDER's folders/files switch) opts out with
+      beh:KeyboardNav.SuppressTab="False". :is(Window) so it also matches every derived window
+      (MainWindow, dialogs, …). Chloe 2026-07-06: "default Tab raus, aus allen Apps/Sichten."
+    -->
+    <Style Selector=":is(Window)">
+        <Setter Property="(beh:KeyboardNav.SuppressTab)" Value="True"/>
+    </Style>
+
+    <!--
       Hand cursor on everything clickable — web-style affordance. Covers the control
       types that represent a click action; clickable TextBlocks set Cursor="Hand"
       inline where they live.
@@ -343,6 +355,23 @@
         <Setter Property="Padding" Value="11,8,11,5"/>
     </Style>
 
+    <!--
+      Fluent gives a FOCUSED TextBox a bold accent border (TextControlBorderBrushFocused) — which on
+      the red-accent Hardcore theme reads as a harsh RED outline — and an ERRORED one a hard red border
+      (SystemControlErrorTextForegroundBrush). Both clash with our calm hairline fields. Replace them,
+      suite-wide, with a subtle brighter hairline that just lifts a touch on focus (Chloe 2026-07-05:
+      "focus suchfeld - roter rand" — UI is mine to own). Part verified = PART_BorderElement against the
+      Avalonia 12.0.3 Fluent TextBox template.
+    -->
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="#59FFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="TextBox:error /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+
     <!-- Segmented / compact action button (limiter-drive segments, the device-rescan ↻, log show/clear)
          — SHARED so JUST PLAY + STREAM use the IDENTICAL control. Moved here from STREAM's App.axaml
          ("lens-seg"); theme brushes via DynamicResource so it tracks live theme switches. -->
@@ -414,5 +443,111 @@
                 </Panel>
             </ControlTemplate>
         </Setter>
+    </Style>
+
+    <!-- ═══ Hint / explainer text (shared) ═══
+         The small description paragraphs under settings controls. A subtle 1-px drop shadow
+         lifts the text off the aurora glow — readability fix for the bright/green themes
+         (Chloe 2026-07-05: "mehr weiß, weniger durchsichtig + text drop shadow"). -->
+    <Style Selector="TextBlock.hint">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="15"/>
+        <Setter Property="Foreground" Value="{StaticResource MutedFaintBrush}"/>
+        <Setter Property="Effect">
+            <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.55"/>
+        </Setter>
+    </Style>
+
+    <!-- ═══ Keyboard-hint chip + label (shared) ═══
+         The little key-cap + its action label, used by the shared KeyLegend bar (PRE CUE FINDER +
+         JUST STREAM) and the finder's F1 help overlay. Lifted here so there's ONE definition
+         (Chloe 2026-07-06: "ein Guss — reused funktionality"). -->
+    <Style Selector="Border.kbd">
+        <Setter Property="Background" Value="#14FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="5,1"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.kbd &gt; TextBlock">
+        <Setter Property="Foreground" Value="#BFFFFFFF"/>
+        <Setter Property="FontSize" Value="10"/>
+    </Style>
+    <Style Selector="TextBlock.kbdlabel">
+        <Setter Property="Foreground" Value="{DynamicResource MutedDimBrush}"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!--
+      ═══ Vertical scrollbar — the SUITE pill (shared) ═══
+      The JUST PLAY queue scrollbar, lifted VERBATIM from MaxView so every JUST window (the
+      queue, the PRE CUE FINDER, JUST STREAM's log/settings) shows the identical thin white
+      pill instead of the fat grey Fluent bar (Chloe 2026-07-05: "einfach wie die liste in
+      JUST PLAY … immer so machen wie immer"). FULL CUSTOM TEMPLATE because `/template/`
+      overrides of the Fluent scrollbar didn't win reliably (dark track, square thumb, line
+      buttons all slipped through). With our own ControlTemplate we own the tree end-to-end:
+
+      • Root Grid transparent — no painted track strip.
+      • DecreaseButton / IncreaseButton: opacity-0 RepeatButtons (still page-scrollable, invisible).
+      • Thumb: its OWN template — one Border, CornerRadius 3 (= half of the 6-px width → a pill).
+      • NO line buttons (top/bottom chevrons) — simply absent from the template.
+      • Bar floats FLUSH at the right edge (no horizontal margin); the gap to content comes from
+        each list's row right-margin (16 in the queue + finder). Only vertical is themed; a
+        horizontal bar (rare) keeps the Fluent default.
+    -->
+    <Style Selector="ScrollBar">
+        <Setter Property="AllowAutoHide" Value="False"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="ScrollBar:vertical">
+        <Setter Property="Width" Value="6"/>
+        <Setter Property="MinWidth" Value="6"/>
+        <Setter Property="Margin" Value="0,4,0,4"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Background="Transparent">
+                    <Track Name="PART_Track"
+                           Minimum="{TemplateBinding Minimum}"
+                           Maximum="{TemplateBinding Maximum}"
+                           Value="{TemplateBinding Value, Mode=TwoWay}"
+                           ViewportSize="{TemplateBinding ViewportSize}"
+                           IsDirectionReversed="True"
+                           Orientation="Vertical">
+                        <Track.DecreaseButton>
+                            <RepeatButton Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          Opacity="0"/>
+                        </Track.DecreaseButton>
+                        <Track.IncreaseButton>
+                            <RepeatButton Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          Opacity="0"/>
+                        </Track.IncreaseButton>
+                        <Track.Thumb>
+                            <Thumb MinHeight="32" Background="#80FFFFFF">
+                                <Thumb.Template>
+                                    <ControlTemplate>
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="3"/>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Track.Thumb>
+                    </Track>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ScrollBar:vertical /template/ Thumb:pointerover">
+        <Setter Property="Background" Value="#BFFFFFFF"/>
+    </Style>
+    <Style Selector="ScrollBar:vertical /template/ Thumb:pressed">
+        <Setter Property="Background" Value="#E6FFFFFF"/>
     </Style>
 </Styles>

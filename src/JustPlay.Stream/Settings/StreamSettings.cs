@@ -72,12 +72,37 @@ public sealed class StreamSettings
     public string? MonitorDeviceName { get; set; }
     public double MonitorVolume { get; set; } = 0.8;
 
+    // ── Recording ("record your set") ────────────────────────────────────
+    /// <summary>Target folder for set recordings. Null/empty = the default
+    /// (Music\JUST STREAM Recordings), resolved at record start.</summary>
+    public string? RecordingFolder { get; set; }
+
+    /// <summary>Recording format — a <see cref="JustPlay.Core.Models.RecordingFormat"/> member name
+    /// ("SameAsStream" | "Mp3_320" | "Flac" | "Aiff" | "Wav"). Stored as a string like
+    /// <see cref="LimiterDrive"/>/<see cref="Theme"/> so the JSON stays readable; an unknown
+    /// value falls back to SameAsStream on load.</summary>
+    public string RecordingFormat { get; set; } = "SameAsStream";
+
+    /// <summary>Start the recorder with CONNECT and save the file on DISCONNECT — nobody
+    /// remembers to hit record at gig start.</summary>
+    public bool AutoRecord { get; set; }
+
+    /// <summary>Auto-trim silence (default ON): REC only ARMS the recorder — the file starts
+    /// on the first beat and ends on the last, with zero dead air at either end (look-behind
+    /// gate; short breaks ≤30 s are kept 1:1, longer gaps are cut). Kills the "went on air
+    /// 15 minutes before the music" silence, and the tail nobody remembers to stop.</summary>
+    public bool TrimSilence { get; set; } = true;
+
     // ── Stream / privacy ─────────────────────────────────────────────────
     /// <summary>U7 — send now-playing/station title to the server (default on). Off = privacy mode.</summary>
     public bool SendSongInfo { get; set; } = true;
 
     /// <summary>Whether the bottom error-log strip is expanded.</summary>
     public bool LogVisible { get; set; } = false;
+
+    /// <summary>Show the bottom keyboard-hint bar (C = on air / off air, R = record / stop). Default on;
+    /// pros switch it off once the keys are muscle memory (Chloe 2026-07-06).</summary>
+    public bool ShowKeyHints { get; set; } = true;
 
     /// <summary>Name of the active theme palette (see <see cref="JustPlay.Core.Theming.Themes"/>). Defaults to Aurora.</summary>
     public string Theme { get; set; } = "Aurora";

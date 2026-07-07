@@ -50,10 +50,6 @@ public partial class AboutWindow : Window
             Height = box,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            Effect = new DropShadowEffect
-            {
-                Color = Colors.Black, BlurRadius = 3, OffsetX = 0, OffsetY = 1.5, Opacity = 0.5,
-            },
         };
 
         if (g.Stroked)
@@ -72,7 +68,24 @@ public partial class AboutWindow : Window
         if (g.TranslateX != 0)
             path.RenderTransform = new TranslateTransform(chip * g.TranslateX, 0);
 
-        return path;
+        // Stretch.Uniform sizes the glyph to its FILL bounds and ignores the stroke, so on the
+        // stretch-limiting axis the stroke pokes half-its-thickness past the Path's layout bounds.
+        // A DropShadowEffect rasterises its target to a layer sized to those layout bounds and
+        // clips that overflow — which sliced STREAM's wider-than-tall radio-tower glyph on the left
+        // and right in the About card (Chloe 2026-07-06). The taskbar icon dodges it only because
+        // its glyph sits with far more slack in a 512px chip. Host the glyph in a padded container
+        // and hang the shadow THERE, so the effect layer is always larger than the stroke.
+        return new Border
+        {
+            Padding = new Thickness(chip * 0.06),   // comfortably ≥ half the max stroke thickness
+            Child = path,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Effect = new DropShadowEffect
+            {
+                Color = Colors.Black, BlurRadius = 3, OffsetX = 0, OffsetY = 1.5, Opacity = 0.5,
+            },
+        };
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();

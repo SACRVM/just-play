@@ -6,7 +6,7 @@
         x:Class="JustPlay.Stream.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="JUST STREAM — Settings"
-        Width="784" Height="544"
+        Width="784" Height="549"
         CanResize="False"
         Background="#00000000"
         TransparencyLevelHint="Transparent,Mica,Blur"
@@ -55,7 +55,7 @@
         <Border CornerRadius="14" ClipToBounds="False"
                 Margin="20,20,20,22"
                 Background="#40000000"
-                BoxShadow="0 18 50 -12 #B0000000">
+                BoxShadow="{DynamicResource WindowOuter}">
             <Panel>
                 <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
                 <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
@@ -69,21 +69,17 @@
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                                         Margin="14,0,0,0" VerticalAlignment="Center">
-                                <Border Width="18" Height="18" CornerRadius="5"
-                                        Background="{StaticResource AccentGradient}">
-                                    <Path Stretch="Uniform" Width="11" Height="11"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Stroke="White" StrokeThickness="1.8"
-                                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
-                                          Data="M4.9 16.1 C1 12.2 1 5.8 4.9 1.9
-                                                M7.8 4.7 a6.14 6.14 0 0 0 -.8 7.5
-                                                M10 9 A2 2 0 1 0 14 9 A2 2 0 1 0 10 9
-                                                M16.2 4.8 c2 2 2.26 5.11 .8 7.47
-                                                M19.1 1.9 a9.96 9.96 0 0 1 0 14.1
-                                                M9.5 18 h5
-                                                M8 22 l4 -11 l4 11"/>
-                                </Border>
-                                <TextBlock Classes="brand" Text="SETTINGS" VerticalAlignment="Center"/>
+                                <!-- Tool-window chrome convention (Chloe 2026-07-05): each secondary
+                                     window leads with ITS OWN glyph, plain white on transparent — like
+                                     SpectrumWindow (bars + "SPECTRUM") — NOT the app brand chip. Same
+                                     gear path as the main chrome's settings button. -->
+                                <Path Stretch="Uniform" Width="15" Height="15"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Stroke="White" StrokeThickness="1.2"
+                                      StrokeJoin="Round" Fill="Transparent"
+                                      Data="M 7,0 L 9,0 L 9.5,2 L 11.5,2.5 L 13,1.3 L 14.7,3 L 13.5,4.5 L 14,6.5 L 16,7 L 16,9 L 14,9.5 L 13.5,11.5 L 14.7,13 L 13,14.7 L 11.5,13.5 L 9.5,14 L 9,16 L 7,16 L 6.5,14 L 4.5,13.5 L 3,14.7 L 1.3,13 L 2.5,11.5 L 2,9.5 L 0,9 L 0,7 L 2,6.5 L 2.5,4.5 L 1.3,3 L 3,1.3 L 4.5,2.5 L 6.5,2 Z M 8,5.5 A 2.5,2.5 0 1 0 8,10.5 A 2.5,2.5 0 1 0 8,5.5 Z"/>
+                                <TextBlock Text="SETTINGS" FontSize="11" FontWeight="SemiBold" LetterSpacing="2"
+                                           Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
                                 <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="2,0"/>
                                 <TextBlock Classes="label" Text="JUST STREAM" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -115,6 +111,14 @@
                                         Command="{Binding SetSettingsTabCommand}" CommandParameter="Look">
                                     <Panel>
                                         <TextBlock Text="Look" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab"
+                                        Classes.active="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Recording}"
+                                        Command="{Binding SetSettingsTabCommand}" CommandParameter="Recording">
+                                    <Panel>
+                                        <TextBlock Text="Recording" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Top"/>
                                         <Border Classes="tabline"/>
                                     </Panel>
                                 </Button>
@@ -232,6 +236,69 @@
                                 <TextBlock Text="{DynamicResource DisplayThemeName}" FontSize="10"
                                            Foreground="#73FFFFFF" LetterSpacing="2"/>
                             </StackPanel>
+
+                            <Border Classes="sep"/>
+
+                            <!-- Bottom keyboard-hint bar (the C/R legend) — on by default, off for pros. -->
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ToggleSwitch IsChecked="{Binding Stream.ShowKeyHints}" OnContent="" OffContent=""/>
+                                    <TextBlock Classes="label" Text="KEYBOARD HINTS" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Classes="hint"
+                                           Text="The bottom shortcut bar. Hide it once the keys stick."/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- ═══ RECORDING — format / folder / auto-record ("record your set") ═══ -->
+                        <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"
+                                    IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Recording}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="label" Text="FORMAT"/>
+                                <!-- x:CompileBindings=False: SelectedItem binds an enum VM property (same
+                                     pattern as the CODEC ComboBox on the main page). -->
+                                <ComboBox x:CompileBindings="False" HorizontalAlignment="Left" MinWidth="280"
+                                          ItemsSource="{Binding Stream.RecordingFormats}"
+                                          SelectedItem="{Binding Stream.RecordingFormat}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={x:Static vm:RecordingFormatLabelConverter.Instance}}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Classes="hint"
+                                           Text="Same as stream mirrors the live codec + bitrate — the honest self-check: the file sounds exactly like your broadcast, artifacts included. Pick MP3 320 or a lossless format for a keeper copy."/>
+                            </StackPanel>
+                            <Border Classes="sep"/>
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="label" Text="FOLDER"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <!-- Empty box = the default folder (shown as the placeholder). -->
+                                    <TextBox Grid.Column="0"
+                                             Text="{Binding Stream.RecordingFolder, UpdateSourceTrigger=LostFocus}"
+                                             PlaceholderText="{Binding Stream.DefaultRecordingFolder}"/>
+                                    <Button Grid.Column="1" Classes="seg" Content="BROWSE…" Margin="8,0,0,0"
+                                            Click="OnBrowseRecordingFolder" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                            <Border Classes="sep"/>
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ToggleSwitch IsChecked="{Binding Stream.TrimSilence}" OnContent="" OffContent=""/>
+                                    <TextBlock Classes="label" Text="AUTO-TRIM SILENCE" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Classes="hint"
+                                           Text="You usually go on air first and start the music later — this keeps the dead air out of the file entirely. REC arms the recorder; the file starts on the first beat and ends on the last, with zero silence at either end. Short breaks (up to 30 s) stay in the mix untouched; anything longer is cut. A recording that never saw any audio is discarded."/>
+                            </StackPanel>
+                            <Border Classes="sep"/>
+                            <StackPanel Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ToggleSwitch IsChecked="{Binding Stream.AutoRecord}" OnContent="" OffContent=""/>
+                                    <TextBlock Classes="label" Text="AUTO-RECORD WHILE ON AIR" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Classes="hint"
+                                           Text="Starts the recorder with CONNECT and saves the file on DISCONNECT — nobody remembers to hit record at gig start. If the connection drops, the recording keeps running so the set is never lost."/>
+                            </StackPanel>
                         </StackPanel>
 
                         <!-- ═══ ADVANCED — de-boxed, hairline-separated rows ═══ -->
@@ -239,14 +306,25 @@
                                     IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}">
                             <StackPanel Spacing="3">
                                 <TextBlock Classes="label" Text="AUTO-RECONNECT"/>
-                                <TextBlock Classes="value" Text="Planned — exponential backoff on dropped connections."
-                                           Foreground="{StaticResource MutedBrush}" FontWeight="Normal"/>
+                                <TextBlock Classes="hint"
+                                           Text="Automatic. If the connection drops, JUST STREAM retries with exponential backoff (2 s → 30 s) until the stream is back — or you hit DISCONNECT. On-air time keeps counting and a running set recording is never interrupted."/>
                             </StackPanel>
                             <Border Classes="sep"/>
-                            <StackPanel Spacing="3">
+                            <!-- Background=Transparent makes the WHOLE row a right-click target (a
+                                 backgroundless panel doesn't hit-test its empty space). Mirrors the REC
+                                 button's "Open recordings folder" (Chloe 2026-07-05). -->
+                            <StackPanel Spacing="3" Background="Transparent"
+                                        ToolTip.Tip="Right-click to open this folder in Explorer">
+                                <StackPanel.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open in Explorer" Click="OnOpenSettingsFolder"/>
+                                    </ContextMenu>
+                                </StackPanel.ContextMenu>
                                 <TextBlock Classes="label" Text="SETTINGS &amp; LOG FOLDER"/>
                                 <TextBlock Classes="mono" FontSize="12" Text="%LOCALAPPDATA%\JustStream"
                                            Foreground="{StaticResource MutedBrush}"/>
+                                <TextBlock Classes="hint" Margin="0,4,0,0"
+                                           Text="The event log is saved here as a daily file (session-YYYY-MM-DD.log) and kept for 7 days, so you can look back at a set — when the stream dropped and reconnected, what was recorded. settings.json and any crash logs live here too."/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>

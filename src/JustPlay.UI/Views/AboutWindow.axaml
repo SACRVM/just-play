@@ -21,8 +21,10 @@
       tagline, version, glyph) comes from the AboutInfo DataContext; the brand glyph is built in
       code-behind with the same logic as ThemedWindowIcon so it matches the taskbar mark.
     -->
-    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
-            BoxShadow="0 18 54 0 #B3000000"
+    <!-- Shared WindowOuter shadow + the suite-standard 20/22 transparent margin — the old
+         "0 18 54 0" literal at Margin 14 clipped hard at the window edge (Chloe 2026-07-05). -->
+    <Border CornerRadius="16" Margin="20,20,20,22" ClipToBounds="True"
+            BoxShadow="{DynamicResource WindowOuter}"
             PointerPressed="OnCardPressed">
         <Panel>
             <!-- Themed background layers (same recipe as the main windows). -->
@@ -67,6 +69,12 @@
                 <!-- Suite brand: J.U.S.T. = "Just Useful Sound Tools". -->
                 <TextBlock Text="{Binding SuiteLine}" FontSize="11"
                            Foreground="{DynamicResource MutedBrush}"
+                           HorizontalAlignment="Center" Margin="0,0,0,6"/>
+
+                <!-- The maker credo — every JUST app carries it. -->
+                <TextBlock Text="{Binding Motto}" FontSize="10" FontWeight="SemiBold"
+                           LetterSpacing="2.4"
+                           Foreground="{DynamicResource AccentABrush}" Opacity="0.85"
                            HorizontalAlignment="Center" Margin="0,0,0,12"/>
 
                 <TextBlock Text="{Binding By}" FontSize="12"

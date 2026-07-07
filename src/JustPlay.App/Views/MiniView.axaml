@@ -48,7 +48,7 @@
                                   Data="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/>
                         </Button>
                         <!-- Expand back to Max — single big box, centered 14×14 -->
-                        <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand">
+                        <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand to full view">
                             <Path Stretch="None" Width="14" Height="14"
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.4"
                                   StrokeJoin="Round" Fill="Transparent"

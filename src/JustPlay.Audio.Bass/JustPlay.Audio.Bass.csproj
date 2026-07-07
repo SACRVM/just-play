@@ -36,6 +36,9 @@
                          across track changes so the Icecast stream never drops. PLAYBACK-CRITICAL.
       bassenc.dll      — BASSenc: Icecast source-client casting via BASS_Encode_CastInit.
       bassenc_mp3.dll  — BASSenc_MP3: in-process LAME MP3 encoder (BASS_Encode_MP3_Start).
+      bassenc_opus.dll — BASSenc_OPUS: in-process libopus encoder (streaming + recording).
+      bassenc_flac.dll — BASSenc_FLAC: in-process FLAC encoder, RECORDING ONLY
+                         (BASS_Encode_FLAC_StartFile). Added 2026-07-04 for "record your set".
     No external lame.exe is needed — MP3 is encoded in-process via bassenc_mp3.dll.
   -->
 

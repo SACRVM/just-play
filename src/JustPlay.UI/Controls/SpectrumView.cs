@@ -21,9 +21,10 @@ public sealed class SpectrumView : Control
     private const int Bands = SpectralProfile.BandCount; // 60
 
     private const double FMin = 20.0, FMax = 20000.0;
-    // +24 dB top so a bass-heavy track's sub/bass (often well above +12 relative to the mids) isn't
-    // clipped at the ceiling; −36 floor covers rolled-off air. Grid labels land every 12 dB.
-    private const double DbMin = -36.0, DbMax = 24.0;
+    // +36 dB top: dark techno / club-limited material pushes the sub WAY above the mid anchor — +24
+    // pinned the curve to the ceiling permanently (first field report, JUST STREAM tester 2026-07-04).
+    // −36 floor covers rolled-off air. Grid labels land every 12 dB.
+    private const double DbMin = -36.0, DbMax = 36.0;
     private const double AnchorLo = 200.0, AnchorHi = 2000.0;
 
     // Smoothed per-band POWER (linear). EMA so the live curve isn't jittery.
@@ -69,7 +70,9 @@ public sealed class SpectrumView : Control
         if (b.Width <= 2 || b.Height <= 2) return;
 
         // ── plot rect (margins for labels) ──
-        double mL = 40, mR = 12, mT = 24, mB = 26; // taller top margin = feather room for the spill-over fade
+        // mT clears the 36px chrome bar above (the plot GRID + labels sit below it); over-ceiling
+        // PEAKS spill above this line, over the SPECTRUM title, up to the window edge (Chloe 2026-07-05).
+        double mL = 40, mR = 12, mT = 44, mB = 26;
         double pX = mL, pY = mT, pW = b.Width - mL - mR, pH = b.Height - mT - mB;
         if (pW <= 4 || pH <= 4) return;
         double pX2 = pX + pW, pY2 = pY + pH;
@@ -139,26 +142,12 @@ public sealed class SpectrumView : Control
         double dryAnchor = MidMean(dryDb);
         double wetAnchor = MidMean(wetDb);
 
-        // Let the curves spill OVER the top plot border (over-ceiling peaks) for a lively "no-limit" look —
-        // but instead of a hard chop at the edge, FADE them out as they rise toward the title: an opacity
-        // mask that's fully opaque over the plot and ramps to transparent at the control top. Peaks dissolve
-        // over the edge (no visible cut, never painting over the title — they're transparent long before it).
-        // PushClip still hard-bounds width + bottom so nothing spills onto the freq/dB labels.
-        double fadeEnd = pY2 > 0 ? pY / pY2 : 0.0; // solid by the plot ceiling, feathers to nothing above it
-        var spillFade = new LinearGradientBrush
-        {
-            StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
-            GradientStops =
-            {
-                new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.0),     // top edge → invisible
-                new GradientStop(Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), fadeEnd), // plot ceiling → solid
-                new GradientStop(Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF), 1.0),
-            },
-        };
-
+        // Let the over-ceiling peaks spill OVER the top plot border and rise ALL THE WAY to the
+        // window's top edge — painting straight over the SPECTRUM title — clipping ONLY there
+        // (Chloe 2026-07-05: "über den titel bis zum fensterrand malen ... sieht cool aus"). The clip
+        // runs from y=0 (control top = card top) to the plot bottom, so peaks reach the edge and cut
+        // clean, while the freq/dB labels below stay protected. No opacity fade — a hard edge cut.
         using (ctx.PushClip(new Rect(pX, 0, pW, pY2)))
-        using (ctx.PushOpacityMask(spillFade, new Rect(pX, 0, pW, pY2)))
         {
             if (_showDry && !double.IsNaN(dryAnchor))
             {

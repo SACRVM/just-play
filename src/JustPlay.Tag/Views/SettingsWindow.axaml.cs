@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 
 namespace JustPlay.Tag.Views;
@@ -24,6 +25,8 @@ public partial class SettingsWindow : Window
             WindowTransparencyLevel.Mica,
             WindowTransparencyLevel.Blur,
         };
+
+        WindowPlacement.Track(this, "JustTag.Settings");
     }
 
     // Drag the frameless dialog from the chrome bar (but not from interactive controls) — shared predicate.

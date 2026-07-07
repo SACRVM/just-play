@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:JustPlay.UI.Controls"
+             x:Class="JustPlay.UI.Controls.KeyLegend">
+
+    <!--
+      Shared J.U.S.T. keyboard-hint bar — the chip+label legend row used at the bottom of the
+      PRE CUE FINDER and JUST STREAM. ONE implementation, one look (Chloe 2026-07-06: "ein Guss —
+      reused funktionality"). The host passes its own Hints and owns visibility (e.g. a Settings
+      toggle). Chip styling comes from the shared Border.kbd / TextBlock.kbdlabel classes in
+      JustStyles; the WrapPanel lets a long legend flow onto a second line on a narrow window.
+    -->
+    <ItemsControl ItemsSource="{Binding $parent[c:KeyLegend].Hints}" HorizontalAlignment="Center">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="c:KeyHint">
+                <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,2,5,2">
+                    <Border Classes="kbd"><TextBlock Text="{Binding Key}"/></Border>
+                    <TextBlock Classes="kbdlabel" Text="{Binding Label}"/>
+                </StackPanel>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Windows.Input;
 using Avalonia;
@@ -11,6 +13,7 @@ using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI;
+using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
 using JustPlay.UI.Views;
@@ -30,8 +33,8 @@ public partial class MainWindow : Window, IFramelessWindow
     private LogWindow? _log;
     private SpectrumWindow? _spectrum;
 
-    // Mini-player view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
-    private const double MiniWidth = 700;   // Chloe: 450 was too small, 700 fits the mini content
+    // Compact view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
+    private const double MiniWidth = 750;   // Chloe: 450 too small, 700 still too narrow overall → 750 (2026-07-05)
     private const double MiniHeight = 320;  // compact, explicit (runtime SizeToContent left dead space below)
     private PixelPoint _fullPosition;    // restore position when leaving mini
     private bool _isMini;
@@ -56,6 +59,35 @@ public partial class MainWindow : Window, IFramelessWindow
 
         _meterL = this.FindControl<LevelMeter>("MeterL");
         _meterR = this.FindControl<LevelMeter>("MeterR");
+
+        // In-app keyboard hotkeys (Chloe/Torres 2026-07-06: keyboard-only broadcaster — you're already
+        // IN JUST STREAM to go on air, so this saves the reach for the mouse). TUNNEL so a focused
+        // button/slider doesn't eat the key; the handler guards against the profile ComboBox's
+        // type-ahead. C = on air / off air, R = record / stop (shown in the bottom hint bar).
+        AddHandler(KeyDownEvent, OnHotkeyDown, RoutingStrategies.Tunnel);
+
+        WindowPlacement.Track(this, "JustStream.Main");
+    }
+
+    // C = connect toggle, R = record toggle. Plain keys only (no modifier), and never while a text
+    // field or a ComboBox has focus (so its type-ahead / editing still works).
+    private void OnHotkeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.None) return;
+        if (DataContext is not StreamViewModel vm) return;
+        if (FocusManager?.GetFocusedElement() is TextBox or ComboBox) return;
+
+        switch (e.Key)
+        {
+            case Key.C:
+                if (vm.ToggleConnectCommand.CanExecute(null)) vm.ToggleConnectCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.R:
+                if (vm.ToggleRecordCommand.CanExecute(null)) vm.ToggleRecordCommand.Execute(null);
+                e.Handled = true;
+                break;
+        }
     }
 
     protected override void OnOpened(EventArgs e)
@@ -151,6 +183,9 @@ public partial class MainWindow : Window, IFramelessWindow
     // ── Custom maximize (borderless window has no OS maximize) ───────────────
     private bool _isMaxed;
     private PixelRect _restoreBounds;
+
+    /// <summary>True while the custom work-area maximize is active (for WindowPlacement).</summary>
+    public bool IsMaximized => _isMaxed;
 
     public void ToggleMaximize()
     {
@@ -305,6 +340,26 @@ public partial class MainWindow : Window, IFramelessWindow
         _log.Closed += (_, _) => _log = null;
         _log.Show(this);
         vm?.MarkLogsRead();
+    }
+
+    // ── REC right-click → "Open recordings folder" ──────────────────────────────
+    // Creates the folder if it doesn't exist yet (it's created lazily on first record start,
+    // but if you're asking to SEE it, making it is clearly the intent) and opens it in the
+    // OS file manager. UseShellExecute so Windows resolves the folder to an Explorer window.
+    private void OnOpenRecordingsFolder(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not StreamViewModel vm) return;
+        try
+        {
+            var folder = vm.EffectiveRecordingFolder;
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            // never-crash rule: a missing drive / denied path must not take the window down.
+            Console.WriteLine($"[JUST STREAM] Open recordings folder failed: {ex.Message}");
+        }
     }
 
     // ── Preset right-click menu (Replace / Rename / Delete) ─────────────────────

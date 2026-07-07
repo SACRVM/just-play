@@ -63,8 +63,13 @@ internal sealed class Program
         services.AddSingleton<IAudioInputEngine>(sp => sp.GetRequiredService<BassInputCaptureEngine>());
         services.AddSingleton<IBassMixerSource>(sp => sp.GetRequiredService<BassInputCaptureEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
+        // "Record your set": a SECOND, independent encoder on the same post-DSP mixer the
+        // broadcast taps — its failure (disk full etc.) can never touch the stream.
+        services.AddSingleton<IRecordingService, BassRecordingService>();
 
         services.AddSingleton<JsonStreamSettingsService>();
+        // Persists the event log to a daily session file (7-day retention); pruning runs in its ctor.
+        services.AddSingleton<Logging.SessionLog>();
 
         // Shared J.U.S.T. live-theme engine (JustPlay.UI) — same palettes as JUST PLAY, applied at
         // startup so the design system + brand icon track the active theme (and can switch live).

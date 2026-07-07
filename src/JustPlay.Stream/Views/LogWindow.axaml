@@ -42,8 +42,10 @@
     <!-- Frameless rounded themed card — same shell as the shared AboutWindow (JustPlay.UI). The
          event log lives here now instead of cluttering the main console; the chrome log button
          (with the unread marker) opens it. DataContext = the main StreamViewModel. -->
-    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
-            BoxShadow="0 18 54 0 #B3000000"
+    <!-- Shared WindowOuter shadow + the suite-standard 20/22 transparent margin — the old
+         "0 18 54 0" literal at Margin 14 clipped hard at the window edge (Chloe 2026-07-05). -->
+    <Border CornerRadius="16" Margin="20,20,20,22" ClipToBounds="True"
+            BoxShadow="{DynamicResource WindowOuter}"
             PointerPressed="OnCardPressed">
         <Panel>
             <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>

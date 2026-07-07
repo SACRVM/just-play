@@ -9,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using JustPlay.Tag.ViewModels;
+using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
 using JustPlay.UI.Views;
@@ -40,6 +41,8 @@ public partial class MainWindow : Window
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
+
+        WindowPlacement.Track(this, "JustTag.Main");
     }
 
     // Adaptive window: a bare drop-zone when empty, grows to the editor once a file is loaded

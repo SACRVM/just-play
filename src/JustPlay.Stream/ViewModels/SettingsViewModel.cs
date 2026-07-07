@@ -117,6 +117,14 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         var updated = Editing.ToProfile();
 
+        // Does the MAIN window currently point at the profile being edited? Capture this BEFORE the
+        // replace below. Swapping Servers[idx] removes the old record from the SHARED Profiles
+        // collection, which makes the main-window ComboBox null its SelectedItem (→ SelectedProfile =
+        // null) SYNCHRONOUSLY. Testing the condition afterwards would always see null and skip the
+        // restore — that's the "renaming the active profile deselects it in the main window" bug
+        // (Chloe 2026-07-05). Captured up front, we can put the selection back on the renamed record.
+        var mainWindowFollows = Stream.SelectedProfile?.Id == updated.Id;
+
         // Guard the WHOLE mutation. Replacing Servers[idx] makes the ListBox re-evaluate its
         // SelectedItem (the old record is gone) and push a selection change back SYNCHRONOUSLY —
         // which, if the guard were set after the replace, would re-enter OnSelectedServerChanged →
@@ -125,8 +133,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _syncingSelection = true;
         Servers[idx] = updated;
         SelectedServer = updated;
-        if (Stream.SelectedProfile?.Id == updated.Id)
-            Stream.SelectedProfile = updated; // keep the main window pointing at the edited profile
+        if (mainWindowFollows)
+            Stream.SelectedProfile = updated; // keep the main window pointing at the (renamed) profile
         _syncingSelection = false;
 
         Stream.SaveSettings();

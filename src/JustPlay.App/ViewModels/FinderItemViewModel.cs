@@ -1,0 +1,99 @@
+using System;
+using System.IO;
+using CommunityToolkit.Mvvm.ComponentModel;
+using JustPlay.Core.Models;
+
+namespace JustPlay.App.ViewModels;
+
+/// <summary>
+/// One FILE row in the PRE CUE FINDER listing (folders live in the separate directory tree
+/// since P1.1 — hard separation, DJ-software style). Wraps a <see cref="TrackViewModel"/>
+/// (metadata arrives lazily in the background, same as queue rows) so Key/BPM/NRG cells and
+/// the detail panel reuse the exact display logic the queue already has.
+/// </summary>
+public sealed partial class FinderItemViewModel : ObservableObject
+{
+    public FinderItemViewModel(string fullPath)
+    {
+        FullPath = fullPath;
+        NormalizedPath = PreCueFinderViewModel.NormalizePath(fullPath);
+        Track = new TrackViewModel(new Track(fullPath));
+        CodecLabel = CodecLabelFor(fullPath);
+        IsLossless = IsLosslessExt(Path.GetExtension(fullPath));
+    }
+
+    public string FullPath { get; }
+
+    /// <summary>Load-order index (natural / playlist order). Restores the "default" (unsorted) order
+    /// when column sorting is toggled off — mirrors <see cref="TrackViewModel.AddOrder"/>.</summary>
+    public int Order { get; set; }
+
+    /// <summary>Short codec badge shown in the left gutter (FLAC/MP3/OGG/WAV…), so the row never has
+    /// a big empty status column — it's swapped for ▶ while auditioning (Chloe 2026-07-06).</summary>
+    public string CodecLabel { get; }
+
+    /// <summary>Lossless container (FLAC/WAV/AIFF) — tints the codec badge apart from lossy formats.</summary>
+    public bool IsLossless { get; }
+
+    /// <summary>Codec badge shows only when this row isn't auditioning (▶) or already queued (✓) — the
+    /// 28-px cell carries exactly one glyph, priority ▶ &gt; ✓ &gt; codec.</summary>
+    public bool ShowCodec => !IsCued && !IsOnPlaylist;
+
+    /// <summary>ext → uppercase badge; the few that aren't just the extension are mapped by hand.</summary>
+    private static string CodecLabelFor(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".mp3" => "MP3",
+        ".flac" => "FLAC",
+        ".wav" => "WAV",
+        ".m4a" => "M4A",
+        ".aac" => "AAC",
+        ".ogg" => "OGG",
+        ".opus" => "OPUS",
+        ".wma" => "WMA",
+        ".aiff" or ".aif" => "AIFF",
+        var e => e.TrimStart('.').ToUpperInvariant(),
+    };
+
+    private static bool IsLosslessExt(string ext) =>
+        ext.Equals(".flac", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".wav", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".aiff", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".aif", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Cached normalised path for playlist-membership matching (see
+    /// <see cref="PreCueFinderViewModel.NormalizePath"/>).</summary>
+    public string NormalizedPath { get; }
+
+    public TrackViewModel Track { get; }
+
+    /// <summary>✓ — this file is on the CURRENT queue (live: appears the moment + adds it).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowQueuedTick))]
+    [NotifyPropertyChangedFor(nameof(ShowCodec))]
+    private bool _isOnPlaylist;
+
+    /// <summary>This row is the one currently auditioning on the cue device.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowQueuedTick))]
+    [NotifyPropertyChangedFor(nameof(ShowCodec))]
+    [NotifyPropertyChangedFor(nameof(ShowCuePlaying))]
+    [NotifyPropertyChangedFor(nameof(ShowCuePaused))]
+    private bool _isCued;
+
+    /// <summary>This (cued) row is paused (Space) rather than sounding — kept in sync by the VM so the
+    /// status glyph flips ▶ ↔ ⏸ (Chloe 2026-07-06).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCuePlaying))]
+    [NotifyPropertyChangedFor(nameof(ShowCuePaused))]
+    private bool _paused;
+
+    /// <summary>▶ — this row is cued AND sounding.</summary>
+    public bool ShowCuePlaying => IsCued && !Paused;
+
+    /// <summary>⏸ — this row is cued but paused.</summary>
+    public bool ShowCuePaused => IsCued && Paused;
+
+    /// <summary>The status cell shows ONE glyph: the cue transport (▶ / ⏸) takes priority, otherwise the
+    /// ✓ queue tick — so they never overlap in the gutter.</summary>
+    public bool ShowQueuedTick => IsOnPlaylist && !IsCued;
+}

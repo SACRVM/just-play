@@ -31,6 +31,52 @@
              below layer after this and may extend these classes (e.g. Button.cap.streaming). -->
         <theming:JustStyles/>
 
+        <!--
+          ComboBox for device selection — dark frosted look. Shared by TweaksPanel (output +
+          pre-cue headphone pickers) and the PRE CUE FINDER settings flyout, so it lives here
+          app-wide rather than local to either view. We override the key template parts so the
+          default Fluent light popup doesn't bleed through (belt-and-braces, the documented quirk).
+        -->
+        <Style Selector="ComboBox.device-picker">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="PlaceholderForeground" Value="#73FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker:pointerover /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#66FFFFFF"/>
+        </Style>
+        <!-- Popup background: dark frosted, matching the panels -->
+        <Style Selector="ComboBox.device-picker /template/ Popup Border">
+            <Setter Property="Background" Value="#F01a1828"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <!-- Each item in the dropdown -->
+        <Style Selector="ComboBox.device-picker ComboBoxItem">
+            <Setter Property="Foreground" Value="#E6FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker ComboBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker ComboBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.device-picker ComboBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF"/>
+        </Style>
 
         <!--
           "Live" state for the streaming/broadcast cap button: when connected or

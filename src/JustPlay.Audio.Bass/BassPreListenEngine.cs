@@ -238,6 +238,16 @@ public sealed class BassPreListenEngine : IPreListenEngine
         SetState(CorePlaybackState.Playing);
     }
 
+    public void Pause()
+    {
+        if (_source == 0) return;
+        if (_state != CorePlaybackState.Playing) return;
+        // Same MixerChanPause bit Load() uses for the start-paused trick — position is kept,
+        // Play() clears the bit and resumes exactly where the song stopped.
+        BassMix.ChannelFlags(_source, BassFlags.MixerChanPause, BassFlags.MixerChanPause);
+        SetState(CorePlaybackState.Paused);
+    }
+
     public void Stop()
     {
         if (_source == 0) return;

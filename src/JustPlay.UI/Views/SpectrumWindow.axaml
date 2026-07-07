@@ -32,17 +32,22 @@
         <Border CornerRadius="14" ClipToBounds="False"
                 Margin="20,20,20,22"
                 Background="#40000000"
-                BoxShadow="0 18 50 -12 #B0000000">
+                BoxShadow="{DynamicResource WindowOuter}">
             <Panel>
                 <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
                 <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
                 <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
                 <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
 
-                <DockPanel LastChildFill="True">
+                <!-- LAYERED (Chloe 2026-07-05): the spectrum fills the whole card and its peaks paint
+                     UP over the SPECTRUM title to the window edge, clipping only there. The chrome sits
+                     BELOW the curves; the SpectrumView on top is IsHitTestVisible=False, so drag + the
+                     legend + close still receive clicks straight through it. Order = chrome, then the
+                     spectrum/meters grid (on top). -->
+                <Panel>
 
-                    <!-- ─── CHROME / TITLE BAR ── -->
-                    <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
+                    <!-- ─── CHROME / TITLE BAR (under the curves now) ── -->
+                    <Border VerticalAlignment="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
@@ -85,17 +90,20 @@
                         </Grid>
                     </Border>
 
-                    <!-- ─── LIVE SPECTRUM + LIMITER GAIN-REDUCTION METER ── -->
-                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="16,6,14,14">
-                        <controls:SpectrumView Name="View" Grid.Column="0"/>
-                        <Grid Grid.Column="1" Width="60" Margin="14,0,0,0" RowDefinitions="Auto,*">
+                    <!-- ─── LIVE SPECTRUM + LIMITER GAIN-REDUCTION METER ──
+                         Fills the card top-to-bottom (over the chrome). IsHitTestVisible=False on the
+                         plot lets clicks fall through to the chrome underneath. The meters keep a top
+                         margin so their LIMITER/OUT labels clear the 36px chrome. -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="16,0,14,14">
+                        <controls:SpectrumView Name="View" Grid.Column="0" IsHitTestVisible="False"/>
+                        <Grid Grid.Column="1" Width="60" Margin="14,40,0,0" RowDefinitions="Auto,*">
                             <TextBlock Grid.Row="0" Text="LIMITER" FontSize="9" FontWeight="Bold"
                                        LetterSpacing="1.5" Foreground="#73FFFFFF"
                                        HorizontalAlignment="Center" Margin="0,2,0,6"/>
                             <controls:GainReductionMeter Grid.Row="1" Name="GrMeter"/>
                         </Grid>
                         <!-- OUT column — host can hide it (e.g. JUST STREAM already has its own L/R meter). -->
-                        <Grid Grid.Column="2" Name="OutColumn" Width="58" Margin="10,0,0,0" RowDefinitions="Auto,*,Auto">
+                        <Grid Grid.Column="2" Name="OutColumn" Width="58" Margin="10,40,0,0" RowDefinitions="Auto,*,Auto">
                             <TextBlock Grid.Row="0" Text="OUT" FontSize="9" FontWeight="Bold"
                                        LetterSpacing="1.5" Foreground="#73FFFFFF"
                                        HorizontalAlignment="Center" Margin="0,2,0,6"/>
@@ -110,7 +118,7 @@
                             </Grid>
                         </Grid>
                     </Grid>
-                </DockPanel>
+                </Panel>
             </Panel>
         </Border>
     </Panel>
