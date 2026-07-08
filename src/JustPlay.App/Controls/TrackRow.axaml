@@ -5,27 +5,29 @@
              x:Class="JustPlay.App.Controls.TrackRow"
              x:DataType="vm:TrackViewModel">
 
-    <!-- The shared row: NAME + artist fill the middle; the toggleable data columns dock right (fixed widths,
-         collapsed = 0). Cell content binds to the TrackViewModel DataContext; each cell's visibility reads the
-         shared TrackColumns via $parent[TrackRow].Columns. Styling is the JUST PLAY (MaxView) reference. -->
+    <!-- The shared row: NAME + artist fill the middle; the toggleable data columns dock right at fixed
+         widths taken from the shared ColW* resources (App.axaml). The queue HEADER (MaxView) binds the
+         SAME resource keys, so header ↔ content share ONE width/margin definition and can't drift.
+         Cell content binds the TrackViewModel DataContext; each cell's visibility reads the shared
+         TrackColumns via $parent[TrackRow].Columns. Styling is the JUST PLAY (MaxView) reference. -->
     <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
 
             <!-- GENRE -->
-            <TextBlock Width="110" Text="{Binding GenreText}" FontSize="12" Foreground="#B3FFFFFF"
+            <TextBlock Width="{DynamicResource ColWGenre}" Text="{Binding GenreText}" FontSize="12" Foreground="#B3FFFFFF"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGenre}"/>
 
             <!-- BPM (bold + bright when detected ≠ claimed tag). Tag="Bpm" so the queue's right-click
                  ClickedField can resolve which value cell was clicked (ignored by the finder). -->
-            <TextBlock Width="50" Text="{Binding BpmText}" Tag="Bpm" FontSize="12"
+            <TextBlock Width="{DynamicResource ColWBpm}" Text="{Binding BpmText}" Tag="Bpm" FontSize="12"
                        Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
                        FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
                        TextAlignment="Right" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowBpm}"/>
 
             <!-- KEY pill (+ conflict dot) — shared wheel palette: coloured outline + ~18% wash, white text -->
-            <Panel Width="58" Tag="Key" VerticalAlignment="Center"
+            <Panel Width="{DynamicResource ColWKey}" Tag="Key" VerticalAlignment="Center"
                    IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowKey}">
                 <Border CornerRadius="10" Padding="7,3" BorderThickness="1" HorizontalAlignment="Center"
                         Background="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
@@ -40,7 +42,7 @@
             </Panel>
 
             <!-- NRG — centered number (+ conflict dot) -->
-            <Panel Width="42" VerticalAlignment="Center"
+            <Panel Width="{DynamicResource ColWNrg}" VerticalAlignment="Center"
                    IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowNrg}">
                 <TextBlock Text="{Binding EnergyText}" Tag="Energy" FontSize="12" Foreground="#CCFFFFFF"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -50,41 +52,41 @@
             </Panel>
 
             <!-- GAIN (red via gain-cell.gain-clip; no inline Foreground) -->
-            <TextBlock Width="56" Text="{Binding GainText}" ToolTip.Tip="{Binding GainTooltip}"
+            <TextBlock Width="{DynamicResource ColWGain}" Text="{Binding GainText}" ToolTip.Tip="{Binding GainTooltip}"
                        Classes="gain-cell" Classes.gain-clip="{Binding GainClips}"
                        FontSize="12" TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGain}"/>
 
             <!-- LUFS -->
-            <TextBlock Width="56" Text="{Binding LufsText}" ToolTip.Tip="Integrated loudness (LUFS)"
+            <TextBlock Width="{DynamicResource ColWLufs}" Text="{Binding LufsText}" ToolTip.Tip="Integrated loudness (LUFS)"
                        FontSize="12" Foreground="#CCFFFFFF" TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowLufs}"/>
 
             <!-- Vibe scores (finder only enables these; the queue leaves them collapsed) -->
-            <TextBlock Width="42" Text="{Binding DarkText}" FontSize="12" Foreground="#CCFFFFFF"
+            <TextBlock Width="{DynamicResource ColWVibe}" Text="{Binding DarkText}" FontSize="12" Foreground="#CCFFFFFF"
                        TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowDark}"/>
-            <TextBlock Width="42" Text="{Binding HypnoticText}" FontSize="12" Foreground="#CCFFFFFF"
+            <TextBlock Width="{DynamicResource ColWVibe}" Text="{Binding HypnoticText}" FontSize="12" Foreground="#CCFFFFFF"
                        TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowHypnotic}"/>
-            <TextBlock Width="42" Text="{Binding GrooveText}" FontSize="12" Foreground="#CCFFFFFF"
+            <TextBlock Width="{DynamicResource ColWVibe}" Text="{Binding GrooveText}" FontSize="12" Foreground="#CCFFFFFF"
                        TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGroove}"/>
-            <TextBlock Width="42" Text="{Binding PunchText}" FontSize="12" Foreground="#CCFFFFFF"
+            <TextBlock Width="{DynamicResource ColWVibe}" Text="{Binding PunchText}" FontSize="12" Foreground="#CCFFFFFF"
                        TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowPunch}"/>
-            <TextBlock Width="42" Text="{Binding HarshText}" FontSize="12" Foreground="#CCFFFFFF"
+            <TextBlock Width="{DynamicResource ColWVibe}" Text="{Binding HarshText}" FontSize="12" Foreground="#CCFFFFFF"
                        TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowHarsh}"/>
 
             <!-- DURATION -->
-            <TextBlock Width="62" Text="{Binding DurationText}" FontSize="12" Foreground="#B3FFFFFF"
+            <TextBlock Width="{DynamicResource ColWDuration}" Text="{Binding DurationText}" FontSize="12" Foreground="#B3FFFFFF"
                        TextAlignment="Right" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowDuration}"/>
 
-            <!-- LIKE — MaxView-style heart (dim ♥ → accent when favorited), now clickable in BOTH lists.
-                 Padding 0 + centred content so the ♥ sits dead-centre in the 34px cell, matching the header. -->
-            <Button Width="34" Classes="heartcell" Command="{Binding ToggleFavoriteCommand}"
+            <!-- LIKE — MaxView-style heart (dim ♥ → accent when favorited), clickable in BOTH lists.
+                 Padding 0 + centred content so the ♥ sits dead-centre in the cell, matching the header. -->
+            <Button Width="{DynamicResource ColWLike}" Classes="heartcell" Command="{Binding ToggleFavoriteCommand}"
                     Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                     HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Like (L)"
                     IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowLike}">
@@ -93,8 +95,8 @@
             </Button>
         </StackPanel>
 
-        <!-- NAME + artist — fills the remaining middle (last child) -->
-        <StackPanel VerticalAlignment="Center" Margin="4,0,8,0">
+        <!-- NAME + artist — fills the remaining middle (last child); shared TrackNameMargin -->
+        <StackPanel VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
             <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
                        Foreground="White" TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{Binding Artist}" FontSize="11"

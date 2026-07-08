@@ -21,6 +21,26 @@
         <conv:StringEqualsConverter x:Key="StringEquals"/>
         <conv:ConflictWeightConverter x:Key="ConflictWeight"/>
         <conv:ConflictForegroundConverter x:Key="ConflictForeground"/>
+
+        <!-- ══ Track table layout — ONE source of truth ══════════════════════════════════════════
+             Column widths + the two shared margins for the queue's track table. The header (MaxView)
+             AND the content row (Controls/TrackRow) both reference these SAME keys via DynamicResource,
+             so a column's width/margin is defined in exactly ONE place and header ↔ content can never
+             drift again. (Chloe 2026-07-08 — drift-proofing the shared row.) -->
+        <x:Double x:Key="ColWIndex">28</x:Double>
+        <x:Double x:Key="ColWGenre">110</x:Double>
+        <x:Double x:Key="ColWBpm">50</x:Double>
+        <x:Double x:Key="ColWKey">58</x:Double>
+        <x:Double x:Key="ColWNrg">42</x:Double>
+        <x:Double x:Key="ColWGain">56</x:Double>
+        <x:Double x:Key="ColWLufs">56</x:Double>
+        <x:Double x:Key="ColWVibe">42</x:Double>
+        <x:Double x:Key="ColWDuration">62</x:Double>
+        <x:Double x:Key="ColWLike">34</x:Double>
+        <!-- Outer row margin (also on the header DockPanel) — the 16 right = scrollbar gap; and the
+             name/title fill-middle margin. Both were duplicated literals; now single-sourced. -->
+        <Thickness x:Key="TrackRowMargin">6,0,16,0</Thickness>
+        <Thickness x:Key="TrackNameMargin">4,0,8,0</Thickness>
         </ResourceDictionary>
     </Application.Resources>
 
