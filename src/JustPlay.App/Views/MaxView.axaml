@@ -761,7 +761,11 @@
                                 <Border Width="{DynamicResource ColWDuration}" Background="Transparent" Tag="duration" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowDuration}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="{Binding TotalDurationText}"/>
+                                        <!-- The total is a VALUE, not a label: LetterSpacing="0" (override colhead's tracking)
+                                             so there is no trailing space → it sits flush-right, exactly like the row
+                                             DurationText values. The only label↔arrow gap is the sortarrow's own margin,
+                                             so unsorted = flush, sorted = gap-from-the-arrow. -->
+                                        <TextBlock Classes="colhead" LetterSpacing="0" Text="{Binding TotalDurationText}"/>
                                         <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DurationSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
