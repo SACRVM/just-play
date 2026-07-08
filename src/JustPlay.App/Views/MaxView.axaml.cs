@@ -180,11 +180,12 @@ public partial class MaxView : UserControl
         _ => null,
     };
 
-    // Clickable table headers → sort by that column (Tag carries the column name).
+    // Clickable table headers → sort by that column (Tag carries the lowercase TrackColumns id). The
+    // asc → desc → off cycle lives in the shared Columns; its SortRequested re-orders the queue.
     private void OnHeaderTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is MainWindowViewModel vm && sender is Control { Tag: string col })
-            vm.SortByColumn(col);
+            vm.Columns.SortBy(col);
     }
 
     // Right-click: if the clicked row isn't part of the current multi-selection, select just it

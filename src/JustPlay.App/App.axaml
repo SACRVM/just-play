@@ -146,6 +146,25 @@
         <Style Selector="TextBlock.gain-cell.gain-clip">
             <Setter Property="Foreground" Value="#FF6B6B"/>
         </Style>
+
+        <!-- LIKE-column heart, shared by the queue + finder rows (the TrackRow control): dim by default,
+             accent when the track is favorited. Moved here from MaxView so there is one definition. -->
+        <Style Selector="TextBlock.likecell">
+            <Setter Property="Foreground" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="TextBlock.likecell.active">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+        </Style>
+        <!-- Transparent, no-chrome, hand-cursor heart button so the ♥ cell is clickable in the row. -->
+        <Style Selector="Button.heartcell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.heartcell /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
         <!--
           Title-bar brand button (opens About). Chrome-less: no background/border/padding in any
           state, so it reads as the plain brand mark, not a button. ContentPresenter background is

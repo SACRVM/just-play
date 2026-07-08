@@ -1,0 +1,104 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustPlay.App.ViewModels"
+             xmlns:controls="using:JustPlay.App.Controls"
+             x:Class="JustPlay.App.Controls.TrackRow"
+             x:DataType="vm:TrackViewModel">
+
+    <!-- The shared row: NAME + artist fill the middle; the toggleable data columns dock right (fixed widths,
+         collapsed = 0). Cell content binds to the TrackViewModel DataContext; each cell's visibility reads the
+         shared TrackColumns via $parent[TrackRow].Columns. Styling is the JUST PLAY (MaxView) reference. -->
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+
+            <!-- GENRE -->
+            <TextBlock Width="110" Text="{Binding GenreText}" FontSize="12" Foreground="#B3FFFFFF"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGenre}"/>
+
+            <!-- BPM (bold + bright when detected ≠ claimed tag). Tag="Bpm" so the queue's right-click
+                 ClickedField can resolve which value cell was clicked (ignored by the finder). -->
+            <TextBlock Width="50" Text="{Binding BpmText}" Tag="Bpm" FontSize="12"
+                       Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
+                       FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
+                       TextAlignment="Right" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowBpm}"/>
+
+            <!-- KEY pill (+ conflict dot) — shared wheel palette: coloured outline + ~18% wash, white text -->
+            <Panel Width="58" Tag="Key" VerticalAlignment="Center"
+                   IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowKey}">
+                <Border CornerRadius="10" Padding="7,3" BorderThickness="1" HorizontalAlignment="Center"
+                        Background="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
+                        BorderBrush="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}}"
+                        IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
+                               LetterSpacing="0.5" Foreground="White"/>
+                </Border>
+                <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
+                         Margin="0,-2,8,0" Fill="{DynamicResource AccentB}"
+                         IsVisible="{Binding KeyConflict}"/>
+            </Panel>
+
+            <!-- NRG — centered number (+ conflict dot) -->
+            <Panel Width="42" VerticalAlignment="Center"
+                   IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowNrg}">
+                <TextBlock Text="{Binding EnergyText}" Tag="Energy" FontSize="12" Foreground="#CCFFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
+                         Margin="0,-2,2,0" Fill="{DynamicResource AccentB}"
+                         IsVisible="{Binding EnergyConflict}"/>
+            </Panel>
+
+            <!-- GAIN (red via gain-cell.gain-clip; no inline Foreground) -->
+            <TextBlock Width="56" Text="{Binding GainText}" ToolTip.Tip="{Binding GainTooltip}"
+                       Classes="gain-cell" Classes.gain-clip="{Binding GainClips}"
+                       FontSize="12" TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGain}"/>
+
+            <!-- LUFS -->
+            <TextBlock Width="56" Text="{Binding LufsText}" ToolTip.Tip="Integrated loudness (LUFS)"
+                       FontSize="12" Foreground="#CCFFFFFF" TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowLufs}"/>
+
+            <!-- Vibe scores (finder only enables these; the queue leaves them collapsed) -->
+            <TextBlock Width="42" Text="{Binding DarkText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowDark}"/>
+            <TextBlock Width="42" Text="{Binding HypnoticText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowHypnotic}"/>
+            <TextBlock Width="42" Text="{Binding GrooveText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGroove}"/>
+            <TextBlock Width="42" Text="{Binding PunchText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowPunch}"/>
+            <TextBlock Width="42" Text="{Binding HarshText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowHarsh}"/>
+
+            <!-- DURATION -->
+            <TextBlock Width="62" Text="{Binding DurationText}" FontSize="12" Foreground="#B3FFFFFF"
+                       TextAlignment="Right" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowDuration}"/>
+
+            <!-- LIKE — MaxView-style heart (dim ♥ → accent when favorited), now clickable in BOTH lists.
+                 Padding 0 + centred content so the ♥ sits dead-centre in the 34px cell, matching the header. -->
+            <Button Width="34" Classes="heartcell" Command="{Binding ToggleFavoriteCommand}"
+                    Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Like (L)"
+                    IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowLike}">
+                <TextBlock Text="♥" Classes="likecell" Classes.active="{Binding IsFavorite}"
+                           FontSize="13" TextAlignment="Center" HorizontalAlignment="Center"/>
+            </Button>
+        </StackPanel>
+
+        <!-- NAME + artist — fills the remaining middle (last child) -->
+        <StackPanel VerticalAlignment="Center" Margin="4,0,8,0">
+            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                       Foreground="White" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Text="{Binding Artist}" FontSize="11"
+                       Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+    </DockPanel>
+</UserControl>

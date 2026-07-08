@@ -89,13 +89,7 @@
                     Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
         </Style>
 
-        <!-- Like-column heart: dim by default, accent + glow when the track is favorited. -->
-        <Style Selector="TextBlock.likecell">
-            <Setter Property="Foreground" Value="#33FFFFFF"/>
-        </Style>
-        <Style Selector="TextBlock.likecell.active">
-            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
-        </Style>
+<!-- likecell heart styles moved to App.axaml (shared with the finder via the TrackRow control). -->
 
         <!-- The underline-tab styles (Button.tab / Border.tabline) moved to App.axaml so the Tweaks
              panel can reuse them. The UP NEXT strip below still uses them unchanged (now global). -->
@@ -601,28 +595,28 @@
                                 <Border.ContextFlyout>
                                     <MenuFlyout>
                                         <MenuItem Header="GENRE"          ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowGenre, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowGenre, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
                                         <MenuItem Header="BPM"            ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowBpm, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowBpm, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
                                         <MenuItem Header="KEY"            ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowKey, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowKey, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="key"/>
                                         <MenuItem Header="Energy (NRG)"   ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowNrg, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowNrg, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="nrg"/>
                                         <MenuItem Header="GAIN"           ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowGain, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowGain, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="gain"/>
                                         <MenuItem Header="LUFS"           ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowLufs, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowLufs, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="lufs"/>
                                         <MenuItem Header="DURATION"       ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowDuration, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
                                         <MenuItem Header="Like (♥)"       ToggleType="CheckBox"
-                                                  IsChecked="{Binding ShowLike, Mode=OneWay}"
+                                                  IsChecked="{Binding Columns.ShowLike, Mode=OneWay}"
                                                   Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
                                     </MenuFlyout>
                                 </Border.ContextFlyout>
@@ -711,74 +705,80 @@
                             <TextBlock DockPanel.Dock="Left" Classes="colhead" Text="#" Width="28"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-                            <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). -->
+                            <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). Tags are the
+                                 lowercase TrackColumns ids; a header tap routes through Columns.SortBy (see
+                                 OnHeaderTapped) and the arrows read Columns.*SortGlyph. -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border Width="110" Background="Transparent" Tag="Genre" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowGenre}">
+                                <Border Width="110" Background="Transparent" Tag="genre" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGenre}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="GENRE"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding GenreSortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GenreSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="50" Background="Transparent" Tag="Bpm" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowBpm}">
+                                <Border Width="50" Background="Transparent" Tag="bpm" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowBpm}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="BPM"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding BpmSortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.BpmSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="58" Background="Transparent" Tag="Key" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowKey}">
+                                <Border Width="58" Background="Transparent" Tag="key" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowKey}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="KEY"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding KeySortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.KeySortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="42" Background="Transparent" Tag="Nrg" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowNrg}">
+                                <Border Width="42" Background="Transparent" Tag="nrg" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowNrg}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="NRG"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding NrgSortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.NrgSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="56" Background="Transparent" Tag="Gain" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowGain}">
+                                <Border Width="56" Background="Transparent" Tag="gain" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGain}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="GAIN"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding GainSortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GainSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="56" Background="Transparent" Tag="Lufs" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowLufs}">
+                                <Border Width="56" Background="Transparent" Tag="lufs" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowLufs}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="LUFS"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding LufsSortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LufsSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="62" Background="Transparent" Tag="Duration" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowDuration}">
+                                <Border Width="62" Background="Transparent" Tag="duration" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowDuration}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="{Binding TotalDurationText}"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding DurationSortGlyph}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DurationSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
-                                <Border Width="34" Background="Transparent" Tag="Like" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding ShowLike}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="♥"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding LikeSortGlyph}"/>
-                                    </StackPanel>
+                                <Border Width="34" Background="Transparent" Tag="like" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowLike}">
+                                    <!-- ♥ dead-centred in the 34px cell (Panel, not StackPanel) so it lines up with
+                                         the row heart; the sort arrow overlays at the right and never shifts the glyph. -->
+                                    <Panel>
+                                        <TextBlock Classes="colhead" Text="♥"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LikeSortGlyph}"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Panel>
                                 </Border>
                             </StackPanel>
 
                             <!-- UP NEXT / loaded-playlist name — fills the remaining middle (last child). -->
                             <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="4,0,8,0">
-                                <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="Title"
+                                <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="title"
                                            Tapped="OnHeaderTapped" Cursor="Hand"/>
                                 <!-- Dirty dot: shown when the loaded playlist has unsaved edits. -->
                                 <TextBlock Classes="colhead" Text="•" IsVisible="{Binding PlaylistDirty}"
                                            Foreground="{DynamicResource AccentABrush}" Margin="4,0,0,0" VerticalAlignment="Center"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding TitleSortGlyph}"/>
+                                <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
                                 <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" Margin="10,0,4,0" VerticalAlignment="Center"/>
                                 <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
                                            Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
@@ -831,14 +831,9 @@
                                 -->
                                 <ListBox.ContextMenu>
                                     <ContextMenu x:DataType="vm:MainWindowViewModel">
-                                        <!-- Pre-cue: THE way a track enters the PFL slot — right-click,
-                                             straight to headphones (no file picker; you cue from the list —
-                                             Chloe 2026-07-03). Single right-clicked row only; gated like the
-                                             PRE-CUE tab (ShowPreCueEntry = experimental + ContextTarget). -->
-                                        <MenuItem Header="Pre-cue on headphones"
-                                                  Command="{Binding ContextTarget.PlayInPreCueCommand}"
-                                                  IsVisible="{Binding ShowPreCueEntry}"/>
-                                        <Separator IsVisible="{Binding ShowPreCueEntry}"/>
+                                        <!-- "Pre-cue on headphones" removed from the queue's right-click
+                                             (Chloe 2026-07-07): pre-cueing lives in the dedicated Pre-Cue
+                                             Finder window now, not the main track list. -->
                                         <!-- Analyze first: the primary action — produces the values everything
                                              else writes. "Analyze" until done, then "Re-analyze". -->
                                         <MenuItem Header="{Binding ReanalyzeHeader}" Command="{Binding ReanalyzeCommand}"
@@ -918,78 +913,12 @@
                                                           IsVisible="{Binding IsAnalyzing}"/>
                                                 </Grid>
 
-                                                <!-- Toggleable data cells, docked right (fixed widths; collapsed = 0). -->
-                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <!-- GENRE -->
-                                                    <TextBlock Width="110" Text="{Binding GenreText}"
-                                                               FontSize="12" Foreground="#B3FFFFFF" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowGenre}"/>
-                                                    <!-- BPM -->
-                                                    <TextBlock Width="50" Text="{Binding BpmText}" Tag="Bpm"
-                                                               FontSize="12"
-                                                               Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
-                                                               FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
-                                                               TextAlignment="Right" VerticalAlignment="Center"
-                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowBpm}"/>
-                                                    <!-- KEY pill (+ conflict dot) -->
-                                                    <Panel Width="58" Tag="Key" VerticalAlignment="Center"
-                                                           IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowKey}">
-                                                        <!-- Same key badge as the pre-cue finder: shared wheel palette, coloured
-                                                             outline + ~18% wash, plain white text. One system, no per-view drift. -->
-                                                        <Border CornerRadius="10" Padding="7,3" BorderThickness="1"
-                                                                HorizontalAlignment="Center"
-                                                                Background="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
-                                                                BorderBrush="{Binding KeyText, Converter={StaticResource CamelotWheelBrush}}"
-                                                                IsVisible="{Binding KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding KeyText}" FontSize="10" FontWeight="Bold"
-                                                                       LetterSpacing="0.5" Foreground="White"/>
-                                                        </Border>
-                                                        <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                                 Margin="0,-2,8,0" Fill="{DynamicResource AccentB}"
-                                                                 IsVisible="{Binding KeyConflict}"/>
-                                                    </Panel>
-                                                    <!-- NRG — centered number (+ conflict dot). Bars dropped for compactness. -->
-                                                    <Panel Width="42" VerticalAlignment="Center"
-                                                           IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowNrg}">
-                                                        <TextBlock Tag="Energy" Text="{Binding EnergyText}"
-                                                                   FontSize="12" Foreground="#CCFFFFFF"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                        <Ellipse Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                                 Margin="0,-2,2,0" Fill="{DynamicResource AccentB}"
-                                                                 IsVisible="{Binding EnergyConflict}"/>
-                                                    </Panel>
-                                                    <!-- GAIN (red via gain-cell.gain-clip style; no inline Foreground) -->
-                                                    <TextBlock Width="56" Tag="Gain" Text="{Binding GainText}"
-                                                               ToolTip.Tip="{Binding GainTooltip}"
-                                                               Classes="gain-cell" Classes.gain-clip="{Binding GainClips}"
-                                                               FontSize="12" TextAlignment="Center" VerticalAlignment="Center"
-                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowGain}"/>
-                                                    <!-- LUFS -->
-                                                    <TextBlock Width="56" Tag="Lufs" Text="{Binding LufsText}"
-                                                               ToolTip.Tip="Integrated loudness (LUFS)"
-                                                               FontSize="12" Foreground="#CCFFFFFF"
-                                                               TextAlignment="Center" VerticalAlignment="Center"
-                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowLufs}"/>
-                                                    <!-- DURATION -->
-                                                    <TextBlock Width="62" Text="{Binding DurationText}"
-                                                               FontSize="12" Foreground="#B3FFFFFF"
-                                                               TextAlignment="Right" VerticalAlignment="Center"
-                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowDuration}"/>
-                                                    <!-- LIKE — heart: accent when favorited, dim otherwise (via likecell.active) -->
-                                                    <TextBlock Width="34" Tag="Like" Text="♥" Classes="likecell"
-                                                               Classes.active="{Binding IsFavorite}"
-                                                               FontSize="13" TextAlignment="Center" VerticalAlignment="Center"
-                                                               IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).ShowLike}"/>
-                                                </StackPanel>
-
-                                                <!-- Title + artist — fills the remaining middle (last child). -->
-                                                <StackPanel VerticalAlignment="Center" Margin="4,0,8,0">
-                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                                               Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{Binding Artist}" FontSize="11"
-                                                               Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
+                                                <!-- The shared track row (JustPlay.App.Controls.TrackRow): name+artist fill
+                                                     the middle, all toggleable data cells dock right at the SAME fixed widths
+                                                     as the header, and the like heart is clickable. Column visibility + sort
+                                                     read the queue's Columns; the index gutter (left, above) stays host-side.
+                                                     ONE row definition shared with the Pre-Cue Finder — no per-list drift. -->
+                                                <controls:TrackRow Columns="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).Columns}"/>
                                             </DockPanel>
                                         </Panel>
                                     </DataTemplate>

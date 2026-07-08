@@ -151,6 +151,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _viewC = new HashSet<string>(s.ColumnViewC);
         _activeColumnView = s.ActiveColumnView is "A" or "B" or "C" ? s.ActiveColumnView : "A";
 
+        // Shared column-visibility + sort state for the queue's TrackRow rows and header — the ONE source
+        // of truth (see TrackColumns), seeded from the active lens. The A/B/C switch and per-column toggles
+        // push the active set into it (RaiseColumnViewProps → SetEnabled); its SortRequested drives ApplySort.
+        Columns = new TrackColumns(ActiveSet);
+        Columns.SortRequested += () => { ApplySort(); MarkPlaylistEdited(); };
+
         // Seed streaming profiles from persisted settings.
         foreach (var p in s.StreamServers)
             StreamServers.Add(p);
@@ -300,14 +306,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool IsViewB => ActiveColumnView == "B";
     public bool IsViewC => ActiveColumnView == "C";
 
-    public bool ShowGenre    => ActiveSet.Contains("genre");
-    public bool ShowBpm      => ActiveSet.Contains("bpm");
-    public bool ShowKey      => ActiveSet.Contains("key");
-    public bool ShowNrg      => ActiveSet.Contains("nrg");
-    public bool ShowGain     => ActiveSet.Contains("gain");
-    public bool ShowLufs     => ActiveSet.Contains("lufs");
-    public bool ShowDuration => ActiveSet.Contains("duration");
-    public bool ShowLike     => ActiveSet.Contains("like");
+    /// <summary>Shared column visibility + sort state, bound by the queue's TrackRow rows and header
+    /// (see <see cref="TrackColumns"/>). The queue owns the A/B/C lens above and pushes the active set
+    /// into this via SetEnabled; the finder keeps its own instance. Assigned in the constructor.</summary>
+    public TrackColumns Columns { get; }
 
     partial void OnActiveColumnViewChanged(string value)
     {
@@ -320,14 +322,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsViewA));
         OnPropertyChanged(nameof(IsViewB));
         OnPropertyChanged(nameof(IsViewC));
-        OnPropertyChanged(nameof(ShowGenre));
-        OnPropertyChanged(nameof(ShowBpm));
-        OnPropertyChanged(nameof(ShowKey));
-        OnPropertyChanged(nameof(ShowNrg));
-        OnPropertyChanged(nameof(ShowGain));
-        OnPropertyChanged(nameof(ShowLufs));
-        OnPropertyChanged(nameof(ShowDuration));
-        OnPropertyChanged(nameof(ShowLike));
+        Columns.SetEnabled(ActiveSet);   // push the active lens into the shared column state (raises its ShowX)
     }
 
     /// <summary>Switch to a named column view. CommandParameter is "A", "B", or "C".</summary>
@@ -344,66 +339,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_settingsHydrated) PersistSettings();
     }
 
-    // ── Column sorting (click a header to sort; click again to flip direction) ──
-    [ObservableProperty] private string? _sortColumn;
-    [ObservableProperty] private bool _sortDescending;
-
-    // Per-column sort arrow (its own small TextBlock in the header, so it can be sized/spaced
-    // independently of the label). Empty unless that column is the active sort.
-    private string Glyph(string col) => SortColumn == col ? (SortDescending ? "▼" : "▲") : "";
-    public string TitleSortGlyph => Glyph("Title");
-    public string GenreSortGlyph => Glyph("Genre");
-    public string BpmSortGlyph => Glyph("Bpm");
-    public string KeySortGlyph => Glyph("Key");
-    public string NrgSortGlyph => Glyph("Nrg");
-    public string GainSortGlyph => Glyph("Gain");
-    public string LufsSortGlyph => Glyph("Lufs");
-    public string DurationSortGlyph => Glyph("Duration");
-    public string LikeSortGlyph => Glyph("Like");
-
-    partial void OnSortColumnChanged(string? value) => RaiseSortHeaders();
-    partial void OnSortDescendingChanged(bool value) => RaiseSortHeaders();
-
-    private void RaiseSortHeaders()
-    {
-        OnPropertyChanged(nameof(TitleSortGlyph));
-        OnPropertyChanged(nameof(GenreSortGlyph));
-        OnPropertyChanged(nameof(BpmSortGlyph));
-        OnPropertyChanged(nameof(KeySortGlyph));
-        OnPropertyChanged(nameof(NrgSortGlyph));
-        OnPropertyChanged(nameof(GainSortGlyph));
-        OnPropertyChanged(nameof(LufsSortGlyph));
-        OnPropertyChanged(nameof(DurationSortGlyph));
-        OnPropertyChanged(nameof(LikeSortGlyph));
-    }
-
-    /// <summary>Sort the queue by a column (toggles asc/desc when the same column is clicked again).
-    /// Invoked from the clickable table headers.</summary>
-    public void SortByColumn(string? column)
-    {
-        if (string.IsNullOrEmpty(column)) return;
-        if (SortColumn == column)
-        {
-            // Same column: ascending → descending → off (back to the drop order).
-            if (!SortDescending) SortDescending = true;
-            else { SortColumn = null; SortDescending = false; }
-        }
-        else
-        {
-            SortColumn = column;
-            SortDescending = false;
-        }
-        ApplySort();
-        MarkPlaylistEdited();
-    }
-
+    // ── Column sorting ──────────────────────────────────────────────────────────
+    // Sort STATE + the header click cycle (asc → desc → off) live in the shared Columns (TrackColumns);
+    // the queue only owns the actual re-order of its Tracks collection. Columns.SortRequested — wired in
+    // the constructor — calls ApplySort, which reads Columns.SortColumn/SortDescending (lowercase ids).
     private void ApplySort()
     {
         if (Tracks.Count < 2) return;
-        var d = SortDescending;
+        var d = Columns.SortDescending;
+        var col = Columns.SortColumn;
         var snap = Tracks.ToList();
 
-        if (SortColumn is null)
+        if (col is null)
         {
             // Unsorted: restore the original natural/Explorer drop order.
             snap.Sort((a, b) => a.AddOrder.CompareTo(b.AddOrder));
@@ -412,18 +359,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             snap.Sort((a, b) =>
             {
-                var c = SortColumn switch
+                var c = col switch
                 {
-                    "Title"    => NaturalComparer.Instance.Compare(a.Title, b.Title),
-                    "Genre"    => NaturalComparer.Instance.Compare(a.Model.Metadata?.Genre ?? "", b.Model.Metadata?.Genre ?? ""),
-                    "Key"      => NaturalComparer.Instance.Compare(a.KeyText, b.KeyText),
-                    "Bpm"      => Nullable.Compare(a.Bpm, b.Bpm),
-                    "Nrg"      => Nullable.Compare(a.Energy, b.Energy),
-                    "Gain"     => Nullable.Compare(a.ReplayGainDb, b.ReplayGainDb),
-                    "Lufs"     => Nullable.Compare(a.LoudnessLufs, b.LoudnessLufs),
-                    "Duration" => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
-                    "Like"     => a.IsFavorite.CompareTo(b.IsFavorite),
-                    _          => 0,
+                    TrackColumns.Title    => NaturalComparer.Instance.Compare(a.Title, b.Title),
+                    TrackColumns.Genre    => NaturalComparer.Instance.Compare(a.Model.Metadata?.Genre ?? "", b.Model.Metadata?.Genre ?? ""),
+                    TrackColumns.Key      => NaturalComparer.Instance.Compare(a.KeyText, b.KeyText),
+                    TrackColumns.Bpm      => Nullable.Compare(a.Bpm, b.Bpm),
+                    TrackColumns.Nrg      => Nullable.Compare(a.Energy, b.Energy),
+                    TrackColumns.Gain     => Nullable.Compare(a.ReplayGainDb, b.ReplayGainDb),
+                    TrackColumns.Lufs     => Nullable.Compare(a.LoudnessLufs, b.LoudnessLufs),
+                    TrackColumns.Duration => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
+                    TrackColumns.Like     => a.IsFavorite.CompareTo(b.IsFavorite),
+                    _                     => 0,
                 };
                 return d ? -c : c;
             });
