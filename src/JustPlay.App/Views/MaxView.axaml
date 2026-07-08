@@ -708,16 +708,13 @@
                             <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). Tags are the
                                  lowercase TrackColumns ids; a header tap routes through Columns.SortBy (see
                                  OnHeaderTapped) and the arrows read Columns.*SortGlyph. -->
-                            <!--
-                              SORT-ARROW RULE (so the arrow NEVER moves the value → header stays aligned with the rows):
-                                • right-aligned cols (bpm, duration): arrow goes BEFORE the value in the right-docked
-                                  StackPanel → the value's right edge stays put whether or not the arrow shows.
-                                • centered cols (key, nrg, gain, lufs, like): arrow is a RIGHT overlay in a Panel →
-                                  the centered label doesn't move.
-                                • left-aligned (genre): arrow after the label is fine (left edge doesn't move).
-                              All widths come from the shared ColW* resources (App.axaml) — the content row (TrackRow)
-                              binds the SAME keys, so header ↔ content can't drift.
-                            -->
+                            <!-- Toggleable data columns, docked right (fixed widths from the shared ColW* resources;
+                                 collapsed = 0). Tags are the lowercase TrackColumns ids; a header tap routes through
+                                 Columns.SortBy (OnHeaderTapped); the arrows read Columns.*SortGlyph.
+                                 NOTE: sort arrow currently sits AFTER the label (reverted 2026-07-08). On the DURATION
+                                 header (a value = TotalDurationText) that still nudges the total left of the row values
+                                 when duration is the active sort — the proper fix (a shared right-side arrow gutter so
+                                 the value stays put AND the arrow sits on the right) is pending Chloe's on-screen check. -->
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Border Width="{DynamicResource ColWGenre}" Background="Transparent" Tag="genre" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGenre}">
@@ -729,48 +726,43 @@
                                 <Border Width="{DynamicResource ColWBpm}" Background="Transparent" Tag="bpm" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowBpm}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.BpmSortGlyph}" Margin="0,0,3,0"/>
                                         <TextBlock Classes="colhead" Text="BPM"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.BpmSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Width="{DynamicResource ColWKey}" Background="Transparent" Tag="key" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowKey}">
-                                    <Panel>
-                                        <TextBlock Classes="colhead" Text="KEY" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.KeySortGlyph}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    </Panel>
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="KEY"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.KeySortGlyph}"/>
+                                    </StackPanel>
                                 </Border>
                                 <Border Width="{DynamicResource ColWNrg}" Background="Transparent" Tag="nrg" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowNrg}">
-                                    <Panel>
-                                        <TextBlock Classes="colhead" Text="NRG" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.NrgSortGlyph}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    </Panel>
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="NRG"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.NrgSortGlyph}"/>
+                                    </StackPanel>
                                 </Border>
                                 <Border Width="{DynamicResource ColWGain}" Background="Transparent" Tag="gain" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGain}">
-                                    <Panel>
-                                        <TextBlock Classes="colhead" Text="GAIN" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GainSortGlyph}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    </Panel>
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="GAIN"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GainSortGlyph}"/>
+                                    </StackPanel>
                                 </Border>
                                 <Border Width="{DynamicResource ColWLufs}" Background="Transparent" Tag="lufs" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowLufs}">
-                                    <Panel>
-                                        <TextBlock Classes="colhead" Text="LUFS" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LufsSortGlyph}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    </Panel>
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="LUFS"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LufsSortGlyph}"/>
+                                    </StackPanel>
                                 </Border>
-                                <!-- DURATION header = total runtime (TotalDurationText); arrow BEFORE keeps its right edge fixed. -->
                                 <Border Width="{DynamicResource ColWDuration}" Background="Transparent" Tag="duration" Cursor="Hand"
                                         Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowDuration}">
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DurationSortGlyph}" Margin="0,0,3,0"/>
                                         <TextBlock Classes="colhead" Text="{Binding TotalDurationText}"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DurationSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Width="{DynamicResource ColWLike}" Background="Transparent" Tag="like" Cursor="Hand"
