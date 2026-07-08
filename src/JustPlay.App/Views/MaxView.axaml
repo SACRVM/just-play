@@ -8,6 +8,30 @@
              x:Class="JustPlay.App.Views.MaxView"
              x:DataType="vm:MainWindowViewModel">
 
+    <UserControl.Resources>
+        <!-- Column picker — ONE menu, opened from BOTH the A|B|C bar right-click AND a right-click on the
+             table header (same menu, different trigger). Toggling saves into the ACTIVE A/B/C view via
+             ToggleColumnCommand. x:DataType is required here because a resource is outside the root's
+             compiled-binding scope. Order matches the row cells: genre..lufs · vibe · duration · like. -->
+        <MenuFlyout x:Key="ColumnPickerFlyout" x:DataType="vm:MainWindowViewModel">
+            <MenuItem Header="GENRE" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowGenre, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
+            <MenuItem Header="BPM" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowBpm, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
+            <MenuItem Header="KEY" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowKey, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="key"/>
+            <MenuItem Header="Energy (NRG)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowNrg, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="nrg"/>
+            <MenuItem Header="GAIN" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowGain, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="gain"/>
+            <MenuItem Header="LUFS" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowLufs, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="lufs"/>
+            <Separator/>
+            <MenuItem Header="Dark (DRK)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowDark, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="dark"/>
+            <MenuItem Header="Hypnotic (HYP)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowHypnotic, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="hypnotic"/>
+            <MenuItem Header="Groove (GRV)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowGroove, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="groove"/>
+            <MenuItem Header="Punch (PUN)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowPunch, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="punch"/>
+            <MenuItem Header="Harsh (HRS)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowHarsh, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="harsh"/>
+            <Separator/>
+            <MenuItem Header="DURATION" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
+            <MenuItem Header="Like (♥)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowLike, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
+        </MenuFlyout>
+    </UserControl.Resources>
+
     <UserControl.Styles>
         <!-- Queue rows -->
         <Style Selector="ListBoxItem">
@@ -591,35 +615,8 @@
                                  Hidden until there are tracks AND the queue tab is active. -->
                             <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,0,6"
                                     Background="#14FFFFFF" CornerRadius="8" Padding="2" Height="24"
-                                    IsVisible="{Binding ShowQueueHeader}">
-                                <Border.ContextFlyout>
-                                    <MenuFlyout>
-                                        <MenuItem Header="GENRE"          ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowGenre, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
-                                        <MenuItem Header="BPM"            ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowBpm, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
-                                        <MenuItem Header="KEY"            ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowKey, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="key"/>
-                                        <MenuItem Header="Energy (NRG)"   ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowNrg, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="nrg"/>
-                                        <MenuItem Header="GAIN"           ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowGain, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="gain"/>
-                                        <MenuItem Header="LUFS"           ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowLufs, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="lufs"/>
-                                        <MenuItem Header="DURATION"       ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
-                                        <MenuItem Header="Like (♥)"       ToggleType="CheckBox"
-                                                  IsChecked="{Binding Columns.ShowLike, Mode=OneWay}"
-                                                  Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
-                                    </MenuFlyout>
-                                </Border.ContextFlyout>
+                                    IsVisible="{Binding ShowQueueHeader}"
+                                    ContextFlyout="{StaticResource ColumnPickerFlyout}">
                                 <!-- Flush segmented control: outer corners rounded, middle joint square. -->
                                 <StackPanel Orientation="Horizontal" Spacing="0">
                                     <Button Classes="lens-seg" Classes.active="{Binding IsViewA}"
@@ -701,7 +698,8 @@
                           needed; a +6 "scrollbar" margin shifted the whole header 6px left of the
                           rows (visible as a column offset, worst at GENRE).
                         -->
-                        <DockPanel Margin="{DynamicResource TrackRowMargin}">
+                        <DockPanel Margin="{DynamicResource TrackRowMargin}"
+                                   ContextFlyout="{StaticResource ColumnPickerFlyout}">
                             <TextBlock DockPanel.Dock="Left" Classes="colhead" Text="#" Width="{DynamicResource ColWIndex}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
@@ -756,6 +754,43 @@
                                     <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <TextBlock Classes="colhead" Text="LUFS"/>
                                         <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LufsSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <!-- Vibe scores (DRK/HYP/GRV/PUN/HRS) — off by default; enable via the column picker.
+                                     Same ColWVibe width as the TrackRow vibe cells, so they line up automatically. -->
+                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="dark" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowDark}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="DRK"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DarkSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="hypnotic" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowHypnotic}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="HYP"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.HypnoticSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="groove" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGroove}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="GRV"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GrooveSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="punch" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowPunch}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="PUN"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.PunchSortGlyph}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="harsh" Cursor="Hand"
+                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowHarsh}">
+                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Classes="colhead" Text="HRS"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.HarshSortGlyph}"/>
                                     </StackPanel>
                                 </Border>
                                 <Border Width="{DynamicResource ColWDuration}" Background="Transparent" Tag="duration" Cursor="Hand"
