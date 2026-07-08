@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -8,15 +9,17 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
-using JustPlay.App.ViewModels;
 
 namespace JustPlay.App.Controls;
 
 /// <summary>
-/// Wires an OS-level outgoing file-copy drag onto every row of a <see cref="ListBox"/> of
-/// <see cref="TrackViewModel"/> items — press a row, drag past a small threshold, and Windows'
-/// real OLE drag-drop takes over: dropping on Explorer/Traktor/anywhere else that accepts
-/// CF_HDROP copies the actual audio file, exactly like dragging a file out of Explorer.
+/// Wires an OS-level outgoing file/folder-copy drag onto every row of a <see cref="ListBox"/> — press a
+/// row, drag past a small threshold, and Windows' real OLE drag-drop takes over: dropping on
+/// Explorer/Traktor/an editor/an AI-agent chat window (anywhere that accepts CF_HDROP) hands over the
+/// actual file or folder path, exactly like dragging out of Explorer. The <c>pathOf</c> selector maps a
+/// row's DataContext to its local path, so the SAME behaviour serves the queue (<see cref="TrackViewModel"/>),
+/// the finder's file list, and the finder's folder tree — a folder path drags the whole folder. Chloe
+/// 2026-07-08: "wichtig wenn man mal einen KI-Agenten auf ein file aufmerksam machen will."
 /// </summary>
 /// <remarks>
 /// <para>
@@ -65,47 +68,49 @@ public static class RowDragOutBehavior
     private sealed class State
     {
         public PointerPressedEventArgs? PressArgs;
-        public TrackViewModel? PressedRow;
+        public string? PressedPath;
         public Point StartPoint;
 
         public void Reset()
         {
             PressArgs = null;
-            PressedRow = null;
+            PressedPath = null;
         }
     }
 
-    /// <summary>Call once per list (e.g. from the view's constructor) to enable OS file-copy
-    /// drag-out on its rows. Does not interfere with selection, double-click-to-play, arrow-key
-    /// navigation + Enter, the context menu, or drag-INTO the app.</summary>
-    public static void Attach(ListBox list)
+    /// <summary>Call once per list (e.g. from the view's constructor) to enable OS file/folder-copy
+    /// drag-out on its rows. <paramref name="pathOf"/> maps a row's DataContext to its local path (return
+    /// null/empty for a non-draggable row, e.g. the finder's ".." hop). Does not interfere with selection,
+    /// double-click-to-play/enter, arrow-key navigation + Enter, the context menu, or drag-INTO the app.</summary>
+    public static void Attach(ListBox list, Func<object?, string?> pathOf)
     {
         var state = new State();
 
         list.AddHandler(InputElement.PointerPressedEvent,
-            (_, e) => OnPressed(list, state, e), RoutingStrategies.Bubble, handledEventsToo: true);
+            (_, e) => OnPressed(list, state, pathOf, e), RoutingStrategies.Bubble, handledEventsToo: true);
         list.AddHandler(InputElement.PointerMovedEvent,
-            (_, e) => OnMoved(list, state, e), RoutingStrategies.Bubble, handledEventsToo: true);
+            (_, e) => OnMoved(list, state, pathOf, e), RoutingStrategies.Bubble, handledEventsToo: true);
         list.AddHandler(InputElement.PointerReleasedEvent,
             (_, _) => state.Reset(), RoutingStrategies.Bubble, handledEventsToo: true);
         list.AddHandler(InputElement.PointerCaptureLostEvent,
             (_, _) => state.Reset(), RoutingStrategies.Bubble);
     }
 
-    private static void OnPressed(ListBox list, State state, PointerPressedEventArgs e)
+    private static void OnPressed(ListBox list, State state, Func<object?, string?> pathOf, PointerPressedEventArgs e)
     {
         state.Reset();
         if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) return;
-        if ((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext is not TrackViewModel row) return;
+        var dc = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext;
+        if (pathOf(dc) is not { Length: > 0 } path) return; // row has no draggable path (e.g. the ".." hop)
 
         state.PressArgs = e;
-        state.PressedRow = row;
+        state.PressedPath = path;
         state.StartPoint = e.GetPosition(list);
     }
 
-    private static void OnMoved(ListBox list, State state, PointerEventArgs e)
+    private static void OnMoved(ListBox list, State state, Func<object?, string?> pathOf, PointerEventArgs e)
     {
-        if (state.PressArgs is null || state.PressedRow is null) return;
+        if (state.PressArgs is null || state.PressedPath is null) return;
         if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) { state.Reset(); return; }
 
         var pos = e.GetPosition(list);
@@ -115,13 +120,17 @@ public static class RowDragOutBehavior
 
         // Multi-select drag: if the pressed row is part of a multi-row selection, carry the whole
         // selection (mirrors Explorer). Otherwise just the single row that was pressed.
-        var row = state.PressedRow;
+        var pressedPath = state.PressedPath;
         var pressArgs = state.PressArgs;
         var selected = list.SelectedItems;
-        IReadOnlyList<TrackViewModel> dragSet =
-            selected is { Count: > 1 } && selected.Contains(row)
-                ? selected.OfType<TrackViewModel>().ToList()
-                : [row];
+        IReadOnlyList<string> dragSet;
+        if (selected is { Count: > 1 })
+        {
+            var paths = selected.Cast<object?>().Select(pathOf)
+                                .Where(p => !string.IsNullOrEmpty(p)).Select(p => p!).Distinct().ToList();
+            dragSet = paths.Contains(pressedPath) ? paths : [pressedPath];
+        }
+        else dragSet = [pressedPath];
 
         // Reset BEFORE the OS drag loop takes over the message pump, so a stray pointer event that
         // sneaks through doesn't re-enter with a stale/consumed PointerPressedEventArgs.
@@ -129,7 +138,7 @@ public static class RowDragOutBehavior
         _ = StartDragAsync(list, pressArgs, dragSet);
     }
 
-    private static async Task StartDragAsync(ListBox list, PointerPressedEventArgs pressArgs, IReadOnlyList<TrackViewModel> tracks)
+    private static async Task StartDragAsync(ListBox list, PointerPressedEventArgs pressArgs, IReadOnlyList<string> paths)
     {
         try
         {
@@ -137,13 +146,16 @@ public static class RowDragOutBehavior
             if (storageProvider is null) return;
 
             var dataTransfer = new DataTransfer();
-            foreach (var track in tracks)
+            foreach (var path in paths)
             {
-                // Skip tracks whose file can't be resolved (e.g. a NAS path that just went offline)
-                // instead of failing the whole drag — never block dragging the rest of the selection.
-                var file = await storageProvider.TryGetFileFromPathAsync(track.Model.FilePath);
-                if (file is not null)
-                    dataTransfer.Add(DataTransferItem.CreateFile(file));
+                // Resolve to a folder OR a file storage item (both are IStorageItem → CF_HDROP). Skip
+                // anything that can't be resolved (e.g. a NAS path that just went offline) instead of
+                // failing the whole drag — never block dragging the rest of the selection.
+                IStorageItem? item = Directory.Exists(path)
+                    ? await storageProvider.TryGetFolderFromPathAsync(path)
+                    : await storageProvider.TryGetFileFromPathAsync(path);
+                if (item is not null)
+                    dataTransfer.Add(DataTransferItem.CreateFile(item));
             }
 
             if (dataTransfer.Items.Count == 0) return; // nothing resolvable — silently no-op the drag
@@ -154,7 +166,7 @@ public static class RowDragOutBehavior
         }
         catch (Exception ex)
         {
-            JustPlay.App.ErrorReporter.Report(ex, "Row drag-out (file copy to external app)");
+            JustPlay.App.ErrorReporter.Report(ex, "Row drag-out (file/folder copy to external app)");
         }
     }
 }

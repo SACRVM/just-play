@@ -1,0 +1,187 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:JustPlay.App.Controls"
+             x:Class="JustPlay.App.Controls.TrackDataHeader">
+
+    <!-- The shared data-column header strip (docked right by the host). Every cell: fixed ColW* width (SAME
+         resource as the TrackRow cell), Tag = lowercase column id (drives the sort click), IsVisible off the
+         shared Columns, a label + a sort arrow that collapses when the column isn't the active sort. Column
+         order + alignment are defined ONCE here and shared by both lists. -->
+    <UserControl.Styles>
+        <!-- Header label — tracked caps. FlushTrailing reclaims the trailing letter-spacing so right/centre
+             labels sit flush with the untracked row values below (single-source: derived from LetterSpacing). -->
+        <Style Selector="TextBlock.colhead">
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="controls:HeaderText.FlushTrailing" Value="True"/>
+        </Style>
+        <!-- Active-sort arrow: smaller, snug, no tracking. Defined after .colhead so it wins on the shared cells.
+             Collapses (IsVisible off the glyph) when unsorted, so unsorted headers reserve no arrow gap → flush;
+             when sorted, its left margin is the gap that hangs on the arrow. -->
+        <Style Selector="TextBlock.sortarrow">
+            <Setter Property="FontSize" Value="7"/>
+            <Setter Property="LetterSpacing" Value="0"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+        <!-- ARTIST (left) — finder-only sortable column -->
+        <Border Width="{DynamicResource ColWArtist}" Background="Transparent" Tag="artist" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowArtist}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="ARTIST"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.ArtistSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ArtistSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- GENRE (left) -->
+        <Border Width="{DynamicResource ColWGenre}" Background="Transparent" Tag="genre" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowGenre}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="GENRE"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.GenreSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.GenreSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- BPM (centre) -->
+        <Border Width="{DynamicResource ColWBpm}" Background="Transparent" Tag="bpm" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowBpm}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="BPM"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.BpmSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.BpmSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- KEY (centre) -->
+        <Border Width="{DynamicResource ColWKey}" Background="Transparent" Tag="key" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowKey}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="KEY"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.KeySortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.KeySortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- NRG (centre) -->
+        <Border Width="{DynamicResource ColWNrg}" Background="Transparent" Tag="nrg" Cursor="Hand" ToolTip.Tip="Energy"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowNrg}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="NRG"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.NrgSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.NrgSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- GAIN (centre) -->
+        <Border Width="{DynamicResource ColWGain}" Background="Transparent" Tag="gain" Cursor="Hand" ToolTip.Tip="Replay gain (dB)"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowGain}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="GAIN"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.GainSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.GainSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- LUFS (centre) -->
+        <Border Width="{DynamicResource ColWLufs}" Background="Transparent" Tag="lufs" Cursor="Hand" ToolTip.Tip="Integrated loudness (LUFS)"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowLufs}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="LUFS"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.LufsSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.LufsSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- DRK (centre) -->
+        <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="dark" Cursor="Hand" ToolTip.Tip="Darkness"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowDark}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="DRK"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.DarkSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.DarkSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- HYP (centre) -->
+        <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="hypnotic" Cursor="Hand" ToolTip.Tip="Hypnotic"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowHypnotic}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="HYP"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.HypnoticSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.HypnoticSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- GRV (centre) -->
+        <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="groove" Cursor="Hand" ToolTip.Tip="Groove"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowGroove}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="GRV"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.GrooveSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.GrooveSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- PUN (centre) -->
+        <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="punch" Cursor="Hand" ToolTip.Tip="Punch"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowPunch}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="PUN"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.PunchSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.PunchSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- HRS (centre) -->
+        <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="harsh" Cursor="Hand" ToolTip.Tip="Harshness"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowHarsh}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="HRS"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.HarshSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.HarshSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- COMMENT (left) — the DJ-software COMM field -->
+        <Border Width="{DynamicResource ColWComment}" Background="Transparent" Tag="comment" Cursor="Hand" ToolTip.Tip="Comment tag (what DJ software reads)"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowComment}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="COMMENT"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.CommentSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.CommentSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- DURATION (right) — the one host-specific label: queue = set total (LS 0), finder = "TIME" (LS 2). -->
+        <Border Width="{DynamicResource ColWDuration}" Background="Transparent" Tag="duration" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowDuration}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Classes="colhead"
+                           LetterSpacing="{Binding $parent[controls:TrackDataHeader].DurationHeaderLetterSpacing}"
+                           Text="{Binding $parent[controls:TrackDataHeader].DurationHeader}"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.DurationSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.DurationSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- LIKE (centre) -->
+        <Border Width="{DynamicResource ColWLike}" Background="Transparent" Tag="like" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowLike}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="♥"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.LikeSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.LikeSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

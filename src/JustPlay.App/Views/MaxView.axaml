@@ -27,6 +27,7 @@
             <MenuItem Header="Punch (PUN)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowPunch, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="punch"/>
             <MenuItem Header="Harsh (HRS)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowHarsh, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="harsh"/>
             <Separator/>
+            <MenuItem Header="Comment" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowComment, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="comment"/>
             <MenuItem Header="DURATION" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
             <MenuItem Header="Like (♥)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowLike, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
         </MenuFlyout>
@@ -703,140 +704,44 @@
                             <TextBlock DockPanel.Dock="Left" Classes="colhead" Text="#" Width="{DynamicResource ColWIndex}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-                            <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). Tags are the
-                                 lowercase TrackColumns ids; a header tap routes through Columns.SortBy (see
-                                 OnHeaderTapped) and the arrows read Columns.*SortGlyph. -->
-                            <!-- Toggleable data columns, docked right (fixed widths from the shared ColW* resources;
-                                 collapsed = 0). Tags are the lowercase TrackColumns ids; a header tap routes through
-                                 Columns.SortBy (OnHeaderTapped); the arrows read Columns.*SortGlyph.
-                                 NOTE: sort arrow currently sits AFTER the label (reverted 2026-07-08). On the DURATION
-                                 header (a value = TotalDurationText) that still nudges the total left of the row values
-                                 when duration is the active sort — the proper fix (a shared right-side arrow gutter so
-                                 the value stays put AND the arrow sits on the right) is pending Chloe's on-screen check. -->
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border Width="{DynamicResource ColWGenre}" Background="Transparent" Tag="genre" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGenre}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="GENRE"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GenreSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWBpm}" Background="Transparent" Tag="bpm" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowBpm}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="BPM"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.BpmSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWKey}" Background="Transparent" Tag="key" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowKey}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="KEY"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.KeySortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWNrg}" Background="Transparent" Tag="nrg" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowNrg}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="NRG"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.NrgSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWGain}" Background="Transparent" Tag="gain" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGain}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="GAIN"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GainSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWLufs}" Background="Transparent" Tag="lufs" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowLufs}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="LUFS"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LufsSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <!-- Vibe scores (DRK/HYP/GRV/PUN/HRS) — off by default; enable via the column picker.
-                                     Same ColWVibe width as the TrackRow vibe cells, so they line up automatically. -->
-                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="dark" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowDark}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="DRK"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DarkSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="hypnotic" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowHypnotic}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="HYP"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.HypnoticSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="groove" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowGroove}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="GRV"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.GrooveSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="punch" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowPunch}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="PUN"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.PunchSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWVibe}" Background="Transparent" Tag="harsh" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowHarsh}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <TextBlock Classes="colhead" Text="HRS"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.HarshSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWDuration}" Background="Transparent" Tag="duration" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowDuration}">
-                                    <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <!-- The total is a VALUE, not a label: LetterSpacing="0" (override colhead's tracking)
-                                             so there is no trailing space → it sits flush-right, exactly like the row
-                                             DurationText values. The only label↔arrow gap is the sortarrow's own margin,
-                                             so unsorted = flush, sorted = gap-from-the-arrow. -->
-                                        <TextBlock Classes="colhead" LetterSpacing="0" Text="{Binding TotalDurationText}"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.DurationSortGlyph}"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border Width="{DynamicResource ColWLike}" Background="Transparent" Tag="like" Cursor="Hand"
-                                        Tapped="OnHeaderTapped" IsVisible="{Binding Columns.ShowLike}">
-                                    <!-- ♥ dead-centred (Panel) so it lines up with the row heart; arrow overlays at the right. -->
-                                    <Panel>
-                                        <TextBlock Classes="colhead" Text="♥"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.LikeSortGlyph}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                                    </Panel>
-                                </Border>
-                            </StackPanel>
+                            <!-- Title-priority + clip, mirroring TrackRow: UP NEXT is the * column (MinWidth 150 so it
+                                 stays readable) and the shared data-header strip is the Auto column that clips off the
+                                 right when the queue is too narrow. Keep the 150 in sync with TrackRow + finder header. -->
+                            <Grid ClipToBounds="True">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" MinWidth="150"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <!-- UP NEXT / loaded-playlist name — fills the remaining middle (last child). -->
-                            <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
-                                <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="title"
-                                           Tapped="OnHeaderTapped" Cursor="Hand"/>
-                                <!-- Dirty dot: shown when the loaded playlist has unsaved edits. -->
-                                <TextBlock Classes="colhead" Text="•" IsVisible="{Binding PlaylistDirty}"
-                                           Foreground="{DynamicResource AccentABrush}" Margin="4,0,0,0" VerticalAlignment="Center"/>
-                                <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
-                                <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" Margin="10,0,4,0" VerticalAlignment="Center"/>
-                                <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
-                                           Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
-                                           VerticalAlignment="Center"/>
-                                <!-- Live-analysis badge: only while DSP analysis is in flight (IsAnalyzing). -->
-                                <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·"
-                                           Margin="10,0,4,0" VerticalAlignment="Center"
-                                           IsVisible="{Binding IsAnalyzing}"/>
-                                <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
-                                           Foreground="{DynamicResource AccentABrush}"
-                                           Text="{Binding AnalyzingText}" VerticalAlignment="Center"
-                                           IsVisible="{Binding IsAnalyzing}"/>
-                            </StackPanel>
+                                <!-- UP NEXT / loaded-playlist name — the * column with MinWidth. -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
+                                    <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="title"
+                                               Tapped="OnHeaderTapped" Cursor="Hand"/>
+                                    <!-- Dirty dot: shown when the loaded playlist has unsaved edits. -->
+                                    <TextBlock Classes="colhead" Text="•" IsVisible="{Binding PlaylistDirty}"
+                                               Foreground="{DynamicResource AccentABrush}" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
+                                    <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" Margin="10,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
+                                               Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
+                                               VerticalAlignment="Center"/>
+                                    <!-- Live-analysis badge: only while DSP analysis is in flight (IsAnalyzing). -->
+                                    <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·"
+                                               Margin="10,0,4,0" VerticalAlignment="Center"
+                                               IsVisible="{Binding IsAnalyzing}"/>
+                                    <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
+                                               Foreground="{DynamicResource AccentABrush}"
+                                               Text="{Binding AnalyzingText}" VerticalAlignment="Center"
+                                               IsVisible="{Binding IsAnalyzing}"/>
+                                </StackPanel>
+
+                                <!-- Toggleable data columns — the shared header strip (Controls/TrackDataHeader): the SAME
+                                     ColW* widths + sort glyphs + flush fix as the finder, defined once. The DURATION header
+                                     carries the queue's set total (LetterSpacing 0 = tight digits, flush-right). -->
+                                <controls:TrackDataHeader Grid.Column="1" Columns="{Binding Columns}"
+                                                          DurationHeader="{Binding TotalDurationText}"
+                                                          DurationHeaderLetterSpacing="0"/>
+                            </Grid>
                         </DockPanel>
                     </Border>
 

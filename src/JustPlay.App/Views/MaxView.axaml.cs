@@ -44,7 +44,7 @@ public partial class MaxView : UserControl
         // Explorer/Traktor/another app to receive the real audio file, like an Explorer drag. See
         // RowDragOutBehavior for the Avalonia-12-source-verified mechanics.
         if (this.FindControl<ListBox>("TrackList") is { } trackList)
-            RowDragOutBehavior.Attach(trackList);
+            RowDragOutBehavior.Attach(trackList, dc => (dc as TrackViewModel)?.Model.FilePath);
     }
 
     private void OnChromePressed(object? sender, PointerPressedEventArgs e)

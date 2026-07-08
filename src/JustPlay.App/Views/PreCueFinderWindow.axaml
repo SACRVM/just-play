@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:JustPlay.App.ViewModels"
         xmlns:models="using:JustPlay.Core.Models"
+        xmlns:controls="using:JustPlay.App.Controls"
         xmlns:uic="using:JustPlay.UI.Controls"
         xmlns:beh="using:JustPlay.UI.Behaviors"
         x:Class="JustPlay.App.Views.PreCueFinderWindow"
@@ -549,156 +550,74 @@
                                         Classes.active="{Binding FilesActive}" Margin="0,0,0,3">
                                     <Border.ContextFlyout>
                                         <MenuFlyout>
+                                            <MenuItem Header="ARTIST"       ToggleType="CheckBox"
+                                                      IsChecked="{Binding Columns.ShowArtist, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="artist"/>
                                             <MenuItem Header="GENRE"        ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowGenre, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
+                                                      IsChecked="{Binding Columns.ShowGenre, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="genre"/>
                                             <MenuItem Header="BPM"          ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowBpm, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
+                                                      IsChecked="{Binding Columns.ShowBpm, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="bpm"/>
                                             <MenuItem Header="KEY"          ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowKey, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="key"/>
+                                                      IsChecked="{Binding Columns.ShowKey, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="key"/>
                                             <MenuItem Header="Energy (NRG)" ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowNrg, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="nrg"/>
+                                                      IsChecked="{Binding Columns.ShowNrg, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="nrg"/>
                                             <MenuItem Header="GAIN"         ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowGain, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="gain"/>
+                                                      IsChecked="{Binding Columns.ShowGain, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="gain"/>
                                             <MenuItem Header="LUFS"         ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowLufs, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="lufs"/>
+                                                      IsChecked="{Binding Columns.ShowLufs, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="lufs"/>
                                             <MenuItem Header="DARK"         ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowDark, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="dark"/>
+                                                      IsChecked="{Binding Columns.ShowDark, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="dark"/>
                                             <MenuItem Header="HYPNOTIC"     ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowHypnotic, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="hypnotic"/>
+                                                      IsChecked="{Binding Columns.ShowHypnotic, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="hypnotic"/>
                                             <MenuItem Header="GROOVE"       ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowGroove, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="groove"/>
+                                                      IsChecked="{Binding Columns.ShowGroove, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="groove"/>
                                             <MenuItem Header="PUNCH"        ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowPunch, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="punch"/>
+                                                      IsChecked="{Binding Columns.ShowPunch, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="punch"/>
                                             <MenuItem Header="HARSH"        ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowHarsh, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="harsh"/>
+                                                      IsChecked="{Binding Columns.ShowHarsh, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="harsh"/>
+                                            <MenuItem Header="Comment"      ToggleType="CheckBox"
+                                                      IsChecked="{Binding Columns.ShowComment, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="comment"/>
                                             <MenuItem Header="TIME"         ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowDuration, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
+                                                      IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="duration"/>
                                             <MenuItem Header="Like (♥)"     ToggleType="CheckBox"
-                                                      IsChecked="{Binding ShowLike, Mode=OneWay}"
-                                                      Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
+                                                      IsChecked="{Binding Columns.ShowLike, Mode=OneWay}"
+                                                      Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="like"/>
                                         </MenuFlyout>
                                     </Border.ContextFlyout>
                                     <DockPanel Margin="6,0,16,0">
                                         <!-- Left gutter header (over the codec / ▶ / ✓ cell). -->
                                         <Border DockPanel.Dock="Left" Width="40" Background="Transparent"/>
-                                        <!-- Toggleable data columns, docked right (fixed widths; collapsed = 0). -->
-                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Border Width="110" Background="Transparent" Tag="genre" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowGenre}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="GENRE"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding GenreSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="50" Background="Transparent" Tag="bpm" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowBpm}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="BPM"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding BpmSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="58" Background="Transparent" Tag="key" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowKey}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="KEY"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding KeySortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="42" Background="Transparent" Tag="nrg" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowNrg}"
-                                                    ToolTip.Tip="Energy">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="NRG"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding NrgSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="56" Background="Transparent" Tag="gain" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowGain}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="GAIN"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding GainSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="56" Background="Transparent" Tag="lufs" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowLufs}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="LUFS"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding LufsSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="42" Background="Transparent" Tag="dark" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowDark}"
-                                                    ToolTip.Tip="Darkness">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="DRK"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding DarkSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="42" Background="Transparent" Tag="hypnotic" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowHypnotic}"
-                                                    ToolTip.Tip="Hypnotic">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="HYP"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding HypnoticSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="42" Background="Transparent" Tag="groove" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowGroove}"
-                                                    ToolTip.Tip="Groove">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="GRV"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding GrooveSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="42" Background="Transparent" Tag="punch" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowPunch}"
-                                                    ToolTip.Tip="Punch">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="PUN"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding PunchSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="42" Background="Transparent" Tag="harsh" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowHarsh}"
-                                                    ToolTip.Tip="Harshness">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="HRS"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding HarshSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="62" Background="Transparent" Tag="duration" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowDuration}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="TIME"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding TimeSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                            <Border Width="34" Background="Transparent" Tag="like" Cursor="Hand"
-                                                    Tapped="OnHeaderTapped" IsVisible="{Binding ShowLike}">
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <TextBlock Classes="finderhead" Text="♥"/>
-                                                    <TextBlock Classes="finderhead sortarrow" Text="{Binding LikeSortGlyph}"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </StackPanel>
-                                        <!-- NAME fills the middle (last child), clickable to sort. -->
-                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                                    Background="Transparent" Tag="title" Tapped="OnHeaderTapped" Cursor="Hand">
-                                            <TextBlock Classes="finderhead" Text="NAME"/>
-                                            <TextBlock Classes="finderhead sortarrow" Text="{Binding NameSortGlyph}"/>
-                                        </StackPanel>
+                                        <!-- Title-priority + clip, mirroring TrackRow: NAME is the * column (MinWidth 150 so
+                                             the title stays readable) and the shared data-header strip is the Auto column that
+                                             clips off the right when the pane is too narrow. The shared TrackDataHeader carries
+                                             the SAME ColW* widths + sort glyphs + flush + comment as the queue; a data-header
+                                             tap cycles that column's sort. Keep the 150 in sync with TrackRow + queue header. -->
+                                        <Grid ClipToBounds="True">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" MinWidth="150"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- NAME — the * column with MinWidth, clickable to sort. -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                                                        Background="Transparent" Tag="title" Tapped="OnHeaderTapped" Cursor="Hand">
+                                                <TextBlock Classes="finderhead" Text="NAME"/>
+                                                <TextBlock Classes="finderhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
+                                            </StackPanel>
+                                            <controls:TrackDataHeader Grid.Column="1" Columns="{Binding Columns}"/>
+                                        </Grid>
                                     </DockPanel>
                                 </Border>
 
@@ -759,73 +678,12 @@
                                                         <TextBlock Text="{Binding CodecLabel}"/>
                                                     </Border>
                                                 </Panel>
-                                                <!-- Data columns, docked right (fixed widths; collapsed = 0). -->
-                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Width="110" Text="{Binding Track.GenreText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowGenre}"
-                                                               Foreground="{DynamicResource MutedBrush}" FontSize="11"
-                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="50" Text="{Binding Track.BpmText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowBpm}"
-                                                               Foreground="{DynamicResource MutedBrush}" FontSize="11.5"
-                                                               TextAlignment="Right" VerticalAlignment="Center"/>
-                                                    <Panel Width="58" VerticalAlignment="Center" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowKey}">
-                                                        <Border CornerRadius="10" Padding="7,3" BorderThickness="1" HorizontalAlignment="Center"
-                                                                Background="{Binding Track.KeyText, Converter={StaticResource CamelotWheelBrush}, ConverterParameter=2E}"
-                                                                BorderBrush="{Binding Track.KeyText, Converter={StaticResource CamelotWheelBrush}}"
-                                                                IsVisible="{Binding Track.KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <!-- Coloured outline + a ~18% hue wash behind plain white text — the classier
-                                                                 read Chloe preferred over a solid fill; hue from the shared wheel palette
-                                                                 (Chloe 2026-07-07). -->
-                                                            <TextBlock Text="{Binding Track.KeyText}" FontSize="10" FontWeight="Bold"
-                                                                       LetterSpacing="0.5" Foreground="White"/>
-                                                        </Border>
-                                                    </Panel>
-                                                    <TextBlock Width="42" Text="{Binding Track.EnergyText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowNrg}"
-                                                               Foreground="#CCFFFFFF" FontSize="11.5"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="56" Text="{Binding Track.GainText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowGain}"
-                                                               Foreground="{DynamicResource MutedBrush}" FontSize="11"
-                                                               ToolTip.Tip="{Binding Track.GainTooltip}"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="56" Text="{Binding Track.LufsText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowLufs}"
-                                                               Foreground="{DynamicResource MutedDimBrush}" FontSize="11"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="42" Text="{Binding Track.DarkText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowDark}"
-                                                               Foreground="#CCFFFFFF" FontSize="11"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="42" Text="{Binding Track.HypnoticText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowHypnotic}"
-                                                               Foreground="#CCFFFFFF" FontSize="11"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="42" Text="{Binding Track.GrooveText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowGroove}"
-                                                               Foreground="#CCFFFFFF" FontSize="11"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="42" Text="{Binding Track.PunchText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowPunch}"
-                                                               Foreground="#CCFFFFFF" FontSize="11"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="42" Text="{Binding Track.HarshText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowHarsh}"
-                                                               Foreground="#CCFFFFFF" FontSize="11"
-                                                               TextAlignment="Center" VerticalAlignment="Center"/>
-                                                    <TextBlock Width="62" Text="{Binding Track.DurationText}" IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowDuration}"
-                                                               Foreground="{DynamicResource MutedDimBrush}" FontSize="11.5"
-                                                               TextAlignment="Right" VerticalAlignment="Center"/>
-                                                    <Button Width="34" Classes="heart" Command="{Binding Track.ToggleFavoriteCommand}"
-                                                            IsVisible="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).ShowLike}"
-                                                            HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="Like (L)">
-                                                        <!-- Center the glyph: a bare TextBlock in a Panel stretches + left-aligns its
-                                                             text, pinning the heart to the left while the centered header ♥ stays put
-                                                             (Chloe 2026-07-07). Centering the Panel sizes it to the glyph + centers it. -->
-                                                        <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                            <TextBlock Text="♥" FontSize="12" Foreground="{DynamicResource AccentBBrush}"
-                                                                       IsVisible="{Binding Track.IsFavorite}"/>
-                                                            <TextBlock Text="♡" FontSize="12" Foreground="{DynamicResource MutedDimBrush}"
-                                                                       IsVisible="{Binding !Track.IsFavorite}"/>
-                                                        </Panel>
-                                                    </Button>
-                                                </StackPanel>
-                                                <!-- NAME fills the middle (last child). -->
-                                                <TextBlock Text="{Binding Track.Title}"
-                                                           Foreground="#E6FFFFFF" FontSize="12.5"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <!-- Data columns + NAME/artist — the shared row (Controls/TrackRow): the
+                                                     SAME ColW* widths + cells + comment + like heart as the JUST PLAY
+                                                     queue, defined once. DataContext = the item's Track; the codec/cue
+                                                     gutter (left, above) stays host-side. Artist now shows (2nd line). -->
+                                                <controls:TrackRow DataContext="{Binding Track}" ArtistUnderName="False"
+                                                                   Columns="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).Columns}"/>
                                             </DockPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -1061,7 +919,7 @@
                                                  Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
                                                  BorderThickness="1" CornerRadius="6"
                                                  Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
-                                                 Watermark="song or artist…"/>
+                                                 PlaceholderText="song or artist…"/>
                                     </StackPanel>
 
                                     <!-- Camelot key wheel + harmonic toggle -->

@@ -122,8 +122,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         };
         _tick.Tick += (_, _) => OnTick();
 
-        // Hydrate the visible-column set from finder.settings.json (mirrors the JUST PLAY queue).
-        _columns = new HashSet<string>(_settings.Current.VisibleColumns, StringComparer.OrdinalIgnoreCase);
+        // Shared column visibility + sort state (see TrackColumns) — the SAME object the queue uses, so the
+        // finder's TrackDataHeader + TrackRow bind straight to it and can't drift. Hydrated from
+        // finder.settings.json; a toggle persists there, a header click re-sorts the current view.
+        Columns = new TrackColumns(_settings.Current.VisibleColumns);
+        Columns.VisibilityChanged += () => _settings.Save(_settings.Current with { Columns = Columns.Enabled.ToArray() });
+        Columns.SortRequested += RebuildView;
 
         // Engine events fire on BASS's playback thread — marshal (CLAUDE.md threading rule).
         _preListen.StateChanged += (_, s) =>
@@ -1108,70 +1112,18 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
     }
 
-    // ── Column sorting (click a header; asc → desc → default) — mirrors JUST PLAY ─────────────
-    [ObservableProperty] private string? _sortColumn;
-    [ObservableProperty] private bool _sortDescending;
-
-    private string SortGlyphFor(string col) => SortColumn == col ? (SortDescending ? "▼" : "▲") : "";
-    public string NameSortGlyph => SortGlyphFor("title");
-    public string GenreSortGlyph => SortGlyphFor("genre");
-    public string BpmSortGlyph => SortGlyphFor("bpm");
-    public string KeySortGlyph => SortGlyphFor("key");
-    public string NrgSortGlyph => SortGlyphFor("nrg");
-    public string GainSortGlyph => SortGlyphFor("gain");
-    public string LufsSortGlyph => SortGlyphFor("lufs");
-    public string TimeSortGlyph => SortGlyphFor("duration");
-    public string LikeSortGlyph => SortGlyphFor("like");
-    public string DarkSortGlyph => SortGlyphFor("dark");
-    public string HypnoticSortGlyph => SortGlyphFor("hypnotic");
-    public string GrooveSortGlyph => SortGlyphFor("groove");
-    public string PunchSortGlyph => SortGlyphFor("punch");
-    public string HarshSortGlyph => SortGlyphFor("harsh");
-
-    partial void OnSortColumnChanged(string? value) => RaiseSortHeaders();
-    partial void OnSortDescendingChanged(bool value) => RaiseSortHeaders();
-
-    private void RaiseSortHeaders()
-    {
-        OnPropertyChanged(nameof(NameSortGlyph));
-        OnPropertyChanged(nameof(GenreSortGlyph));
-        OnPropertyChanged(nameof(BpmSortGlyph));
-        OnPropertyChanged(nameof(KeySortGlyph));
-        OnPropertyChanged(nameof(NrgSortGlyph));
-        OnPropertyChanged(nameof(GainSortGlyph));
-        OnPropertyChanged(nameof(LufsSortGlyph));
-        OnPropertyChanged(nameof(TimeSortGlyph));
-        OnPropertyChanged(nameof(LikeSortGlyph));
-        OnPropertyChanged(nameof(DarkSortGlyph));
-        OnPropertyChanged(nameof(HypnoticSortGlyph));
-        OnPropertyChanged(nameof(GrooveSortGlyph));
-        OnPropertyChanged(nameof(PunchSortGlyph));
-        OnPropertyChanged(nameof(HarshSortGlyph));
-    }
-
-    /// <summary>Sort the file list by a column; clicking the active column flips asc → desc → default
-    /// (original load order). Invoked from the clickable table headers.</summary>
-    public void SortByColumn(string? column)
-    {
-        if (string.IsNullOrEmpty(column)) return;
-        if (SortColumn == column)
-        {
-            if (!SortDescending) SortDescending = true;
-            else { SortColumn = null; SortDescending = false; }
-        }
-        else { SortColumn = column; SortDescending = false; }
-
-        RebuildView(); // re-sort the current (filtered) view; RebuildView keeps the cursor on the same row
-    }
+    // ── Column sorting — the STATE + the asc → desc → off cycle + the sort glyphs all live in the shared
+    // Columns (TrackColumns); a header tap calls Columns.SortBy, which fires SortRequested → RebuildView
+    // (wired in the constructor). The finder only owns the actual re-order (SortList, below).
 
     /// <summary>Reorder <see cref="Items"/> to the active sort (or back to load order). Same comparators
     /// as the JUST PLAY queue's <c>ApplySort</c> (NaturalComparer for text, Nullable.Compare for numbers).</summary>
     private void SortList(List<FinderItemViewModel> list)
     {
         if (list.Count < 2) return;
-        var d = SortDescending;
+        var d = Columns.SortDescending;
 
-        if (SortColumn is null)
+        if (Columns.SortColumn is null)
         {
             list.Sort((a, b) => a.Order.CompareTo(b.Order));
         }
@@ -1180,15 +1132,17 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             list.Sort((a, b) =>
             {
                 var (ta, tb) = (a.Track, b.Track);
-                var c = SortColumn switch
+                var c = Columns.SortColumn switch
                 {
                     "title"    => NaturalComparer.Instance.Compare(ta.Title, tb.Title),
+                    "artist"   => NaturalComparer.Instance.Compare(ta.Artist, tb.Artist),
                     "genre"    => NaturalComparer.Instance.Compare(ta.GenreText, tb.GenreText),
                     "key"      => NaturalComparer.Instance.Compare(ta.KeyText, tb.KeyText),
                     "bpm"      => Nullable.Compare(ta.Bpm, tb.Bpm),
                     "nrg"      => Nullable.Compare(ta.Energy, tb.Energy),
                     "gain"     => Nullable.Compare(ta.ReplayGainDb, tb.ReplayGainDb),
                     "lufs"     => Nullable.Compare(ta.LoudnessLufs, tb.LoudnessLufs),
+                    "comment"  => NaturalComparer.Instance.Compare(ta.CommentText, tb.CommentText),
                     "duration" => Nullable.Compare(ta.Model.Metadata?.Duration, tb.Model.Metadata?.Duration),
                     "like"     => ta.IsFavorite.CompareTo(tb.IsFavorite),
                     "dark"     => ta.DarkScore.CompareTo(tb.DarkScore),
@@ -1203,49 +1157,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
     }
 
-    // ── Column visibility (right-click the header; persisted) — mirrors JUST PLAY ─────────────
-    private readonly HashSet<string> _columns;
-
-    public bool ShowGenre    => _columns.Contains("genre");
-    public bool ShowBpm      => _columns.Contains("bpm");
-    public bool ShowKey      => _columns.Contains("key");
-    public bool ShowNrg      => _columns.Contains("nrg");
-    public bool ShowGain     => _columns.Contains("gain");
-    public bool ShowLufs     => _columns.Contains("lufs");
-    public bool ShowDark     => _columns.Contains("dark");
-    public bool ShowHypnotic => _columns.Contains("hypnotic");
-    public bool ShowGroove   => _columns.Contains("groove");
-    public bool ShowPunch    => _columns.Contains("punch");
-    public bool ShowHarsh    => _columns.Contains("harsh");
-    public bool ShowDuration => _columns.Contains("duration");
-    public bool ShowLike     => _columns.Contains("like");
-
-    /// <summary>Toggle a single column id (genre/bpm/key/nrg/gain/lufs/duration/like) and persist it.</summary>
-    [RelayCommand]
-    private void ToggleColumn(string? id)
-    {
-        if (string.IsNullOrEmpty(id)) return;
-        if (!_columns.Remove(id)) _columns.Add(id);
-        _settings.Save(_settings.Current with { Columns = _columns.ToArray() });
-        RaiseColumnProps();
-    }
-
-    private void RaiseColumnProps()
-    {
-        OnPropertyChanged(nameof(ShowGenre));
-        OnPropertyChanged(nameof(ShowBpm));
-        OnPropertyChanged(nameof(ShowKey));
-        OnPropertyChanged(nameof(ShowNrg));
-        OnPropertyChanged(nameof(ShowGain));
-        OnPropertyChanged(nameof(ShowLufs));
-        OnPropertyChanged(nameof(ShowDark));
-        OnPropertyChanged(nameof(ShowHypnotic));
-        OnPropertyChanged(nameof(ShowGroove));
-        OnPropertyChanged(nameof(ShowPunch));
-        OnPropertyChanged(nameof(ShowHarsh));
-        OnPropertyChanged(nameof(ShowDuration));
-        OnPropertyChanged(nameof(ShowLike));
-    }
+    // ── Column visibility + sort state — the shared TrackColumns (right-click the header toggles a column
+    // via Columns.ToggleColumnCommand → VisibilityChanged persists it; the TrackDataHeader + TrackRow bind
+    // their cell IsVisible + sort glyphs straight to this). ONE definition, shared with the JUST PLAY queue.
+    public TrackColumns Columns { get; }
 
     [RelayCommand]
     private void SetSeekStep(string? step)
@@ -1303,7 +1218,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     {
         _effectiveKeys.Clear();
         foreach (var k in _selectedKeys) _effectiveKeys.Add(k);
-        if (_harmonicKeys)
+        if (HarmonicKeys)
             foreach (var k in _selectedKeys)
                 foreach (var nb in KeyNeighbors(k)) _effectiveKeys.Add(nb);
 
@@ -1338,7 +1253,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>Any filter is narrowing the view (drives the FILTER-tab dot + the Clear button).</summary>
     public bool HasActiveFilter =>
-        _filterName.Length > 0 || _selectedKeys.Count > 0 || Ranges.Any(r => r.IsActive);
+        FilterName.Length > 0 || _selectedKeys.Count > 0 || Ranges.Any(r => r.IsActive);
 
     [RelayCommand]
     private void ClearFilters()
@@ -1355,9 +1270,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private bool PassesFilter(FinderItemViewModel item)
     {
         var t = item.Track;
-        if (_filterName.Length > 0
-            && t.Title.IndexOf(_filterName, StringComparison.OrdinalIgnoreCase) < 0
-            && t.Artist.IndexOf(_filterName, StringComparison.OrdinalIgnoreCase) < 0)
+        if (FilterName.Length > 0
+            && t.Title.IndexOf(FilterName, StringComparison.OrdinalIgnoreCase) < 0
+            && t.Artist.IndexOf(FilterName, StringComparison.OrdinalIgnoreCase) < 0)
             return false;
 
         foreach (var r in Ranges)

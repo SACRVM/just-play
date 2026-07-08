@@ -17,9 +17,9 @@ public sealed partial class TrackColumns : ObservableObject
 {
     // Canonical column ids (lowercase) — the SUPERSET across all track tables. A given list enables a subset;
     // the queue never enables the vibe columns, the finder can enable all of them.
-    public const string Title = "title", Genre = "genre", Bpm = "bpm", Key = "key", Nrg = "nrg",
+    public const string Title = "title", Artist = "artist", Genre = "genre", Bpm = "bpm", Key = "key", Nrg = "nrg",
         Gain = "gain", Lufs = "lufs", Dark = "dark", Hypnotic = "hypnotic", Groove = "groove",
-        Punch = "punch", Harsh = "harsh", Duration = "duration", Like = "like";
+        Punch = "punch", Harsh = "harsh", Comment = "comment", Duration = "duration", Like = "like";
 
     private HashSet<string> _enabled;
 
@@ -37,6 +37,7 @@ public sealed partial class TrackColumns : ObservableObject
         RaiseVisibility();
     }
 
+    public bool ShowArtist   => _enabled.Contains(Artist);
     public bool ShowGenre    => _enabled.Contains(Genre);
     public bool ShowBpm      => _enabled.Contains(Bpm);
     public bool ShowKey      => _enabled.Contains(Key);
@@ -48,6 +49,7 @@ public sealed partial class TrackColumns : ObservableObject
     public bool ShowGroove   => _enabled.Contains(Groove);
     public bool ShowPunch    => _enabled.Contains(Punch);
     public bool ShowHarsh    => _enabled.Contains(Harsh);
+    public bool ShowComment  => _enabled.Contains(Comment);
     public bool ShowDuration => _enabled.Contains(Duration);
     public bool ShowLike     => _enabled.Contains(Like);
 
@@ -67,6 +69,7 @@ public sealed partial class TrackColumns : ObservableObject
 
     private void RaiseVisibility()
     {
+        OnPropertyChanged(nameof(ShowArtist));
         OnPropertyChanged(nameof(ShowGenre));
         OnPropertyChanged(nameof(ShowBpm));
         OnPropertyChanged(nameof(ShowKey));
@@ -78,6 +81,7 @@ public sealed partial class TrackColumns : ObservableObject
         OnPropertyChanged(nameof(ShowGroove));
         OnPropertyChanged(nameof(ShowPunch));
         OnPropertyChanged(nameof(ShowHarsh));
+        OnPropertyChanged(nameof(ShowComment));
         OnPropertyChanged(nameof(ShowDuration));
         OnPropertyChanged(nameof(ShowLike));
     }
@@ -93,6 +97,7 @@ public sealed partial class TrackColumns : ObservableObject
         string.Equals(SortColumn, col, StringComparison.OrdinalIgnoreCase) ? (SortDescending ? "▼" : "▲") : "";
 
     public string TitleSortGlyph    => Glyph(Title);
+    public string ArtistSortGlyph   => Glyph(Artist);
     public string GenreSortGlyph    => Glyph(Genre);
     public string BpmSortGlyph      => Glyph(Bpm);
     public string KeySortGlyph      => Glyph(Key);
@@ -104,6 +109,7 @@ public sealed partial class TrackColumns : ObservableObject
     public string GrooveSortGlyph   => Glyph(Groove);
     public string PunchSortGlyph    => Glyph(Punch);
     public string HarshSortGlyph    => Glyph(Harsh);
+    public string CommentSortGlyph  => Glyph(Comment);
     public string DurationSortGlyph => Glyph(Duration);
     public string LikeSortGlyph     => Glyph(Like);
 
@@ -113,6 +119,7 @@ public sealed partial class TrackColumns : ObservableObject
     private void RaiseSortGlyphs()
     {
         OnPropertyChanged(nameof(TitleSortGlyph));
+        OnPropertyChanged(nameof(ArtistSortGlyph));
         OnPropertyChanged(nameof(GenreSortGlyph));
         OnPropertyChanged(nameof(BpmSortGlyph));
         OnPropertyChanged(nameof(KeySortGlyph));
@@ -124,6 +131,7 @@ public sealed partial class TrackColumns : ObservableObject
         OnPropertyChanged(nameof(GrooveSortGlyph));
         OnPropertyChanged(nameof(PunchSortGlyph));
         OnPropertyChanged(nameof(HarshSortGlyph));
+        OnPropertyChanged(nameof(CommentSortGlyph));
         OnPropertyChanged(nameof(DurationSortGlyph));
         OnPropertyChanged(nameof(LikeSortGlyph));
     }

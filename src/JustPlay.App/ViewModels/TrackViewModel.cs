@@ -91,6 +91,11 @@ public sealed partial class TrackViewModel : ObservableObject
     /// virtualization, so genre appeared to "lazy load" while title/artist showed immediately.</summary>
     public string GenreText => Model.Metadata?.Genre ?? "";
 
+    /// <summary>The file's comment tag (ID3 COMM / Vorbis COMMENT) verbatim — this is the field DJ software
+    /// reads, so the finder/queue can surface it as a control column to eyeball what a track carries. Same
+    /// Refresh()-driven pattern as <see cref="GenreText"/>.</summary>
+    public string CommentText => Model.Metadata?.Comment ?? "";
+
     /// <summary>True while a BPM/key/energy analysis pass is in flight for this row — drives the
     /// rotating spinner in the index column (in place of the number / play-bars).</summary>
     public bool IsAnalyzing => Model.AnalysisStatus == AnalysisStatus.Running;

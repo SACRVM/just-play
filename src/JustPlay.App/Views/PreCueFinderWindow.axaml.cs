@@ -8,6 +8,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using JustPlay.App.Controls;
 using JustPlay.App.ViewModels;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Theming;
@@ -39,6 +40,15 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     public PreCueFinderWindow()
     {
         InitializeComponent();
+
+        // OS file/folder-copy drag-out (same mechanics as the queue — see RowDragOutBehavior): press-drag a
+        // FILE row or a FOLDER row past a small threshold and drop it on Explorer / an editor / an AI-agent
+        // chat window to hand over the real path — "einen KI-Agenten auf ein file aufmerksam machen" (Chloe
+        // 2026-07-08). A folder drags the whole folder; the ".." hop isn't draggable.
+        if (this.FindControl<ListBox>("FinderList") is { } fileList)
+            RowDragOutBehavior.Attach(fileList, dc => (dc as FinderItemViewModel)?.FullPath);
+        if (this.FindControl<ListBox>("FolderList") is { } folderList)
+            RowDragOutBehavior.Attach(folderList, dc => dc is FinderEntryViewModel { IsUp: false } fe ? fe.FullPath : null);
 
         // Belt-and-braces: the XAML TypeConverter for the hint list isn't reliable on
         // every Avalonia minor version (same guard as MainWindow).
@@ -336,10 +346,11 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     /// second Tapped, so it activates exactly once.</summary>
     private void OnFolderTapped(object? sender, TappedEventArgs e) => ViewModel?.ActivateEntry();
 
-    /// <summary>Click a file-column header = sort by it (asc → desc → default). Tag carries the column id.</summary>
+    /// <summary>Click the NAME header = sort by title (asc → desc → default). The data columns sort themselves
+    /// inside the shared TrackDataHeader; this only serves the host-side NAME cell. Tag carries the column id.</summary>
     private void OnHeaderTapped(object? sender, TappedEventArgs e)
     {
-        if ((sender as Control)?.Tag is string col) ViewModel?.SortByColumn(col);
+        if ((sender as Control)?.Tag is string col) ViewModel?.Columns.SortBy(col);
     }
 
     // ── Player-bar transport buttons (mirror the keyboard shortcuts as real UI buttons — Chloe 2026-07-07).

@@ -10,8 +10,23 @@
          SAME resource keys, so header ↔ content share ONE width/margin definition and can't drift.
          Cell content binds the TrackViewModel DataContext; each cell's visibility reads the shared
          TrackColumns via $parent[TrackRow].Columns. Styling is the JUST PLAY (MaxView) reference. -->
-    <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+    <!-- Title-priority layout: NAME is a * column with a MinWidth so the title stays readable; the data columns
+         live in an Auto column that CLIPS off the right edge when the row gets too narrow (Chloe 2026-07-08 —
+         never lose the title). ClipToBounds hides that overflow. The queue HEADER + finder HEADER mirror this
+         exact Grid so header ↔ row stay aligned as they clip. The 150 MinWidth is repeated in those two headers
+         (a Grid ColumnDefinition can't read a DynamicResource) — keep the three in sync. -->
+    <Grid ClipToBounds="True">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="150"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+
+            <!-- ARTIST — a finder-only SORTABLE column (the queue stacks the artist under the title instead;
+                 gated by ShowArtist, which the queue never enables). Chloe 2026-07-08. -->
+            <TextBlock Width="{DynamicResource ColWArtist}" Text="{Binding Artist}" FontSize="12" Foreground="#B3FFFFFF"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowArtist}"/>
 
             <!-- GENRE -->
             <TextBlock Width="{DynamicResource ColWGenre}" Text="{Binding GenreText}" FontSize="12" Foreground="#B3FFFFFF"
@@ -23,7 +38,7 @@
             <TextBlock Width="{DynamicResource ColWBpm}" Text="{Binding BpmText}" Tag="Bpm" FontSize="12"
                        Foreground="{Binding BpmConflict, Converter={StaticResource ConflictForeground}}"
                        FontWeight="{Binding BpmConflict, Converter={StaticResource ConflictWeight}}"
-                       TextAlignment="Right" VerticalAlignment="Center"
+                       TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowBpm}"/>
 
             <!-- KEY pill (+ conflict dot) — shared wheel palette: coloured outline + ~18% wash, white text -->
@@ -79,6 +94,12 @@
                        TextAlignment="Center" VerticalAlignment="Center"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowHarsh}"/>
 
+            <!-- COMMENT — the DJ-software COMM field, left-aligned + ellipsised (a control column so you can
+                 eyeball what a track carries for DJ software). Off by default; enable via the picker. -->
+            <TextBlock Width="{DynamicResource ColWComment}" Text="{Binding CommentText}" FontSize="12" Foreground="#B3FFFFFF"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CommentText}"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowComment}"/>
+
             <!-- DURATION -->
             <TextBlock Width="{DynamicResource ColWDuration}" Text="{Binding DurationText}" FontSize="12" Foreground="#B3FFFFFF"
                        TextAlignment="Right" VerticalAlignment="Center"
@@ -95,12 +116,15 @@
             </Button>
         </StackPanel>
 
-        <!-- NAME + artist — fills the remaining middle (last child); shared TrackNameMargin -->
-        <StackPanel VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
+        <!-- NAME (+ artist under it in the queue; the finder sets ArtistUnderName=False and shows the artist
+             as its own column instead) — the * column with MinWidth, so it holds a readable width and the data
+             columns clip instead. Shared TrackNameMargin. -->
+        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
             <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
                        Foreground="White" TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{Binding Artist}" FontSize="11"
-                       Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"/>
+                       Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"
+                       IsVisible="{Binding $parent[controls:TrackRow].ArtistUnderName}"/>
         </StackPanel>
-    </DockPanel>
+    </Grid>
 </UserControl>

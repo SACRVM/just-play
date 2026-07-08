@@ -41,11 +41,12 @@ public sealed record FinderSettings
     /// <summary>Column ids the finder can show/hide, in display order (JUST PLAY columns + the finder-only
     /// vibe scores dark/hypnotic/groove/punch/harsh, which the finder exposes as the analyzer showcase).</summary>
     public static readonly string[] AllColumns =
-        ["genre", "bpm", "key", "nrg", "gain", "lufs", "dark", "hypnotic", "groove", "punch", "harsh", "duration", "like"];
+        ["artist", "genre", "bpm", "key", "nrg", "gain", "lufs", "dark", "hypnotic", "groove", "punch", "harsh", "comment", "duration", "like"];
 
-    /// <summary>The out-of-the-box visible set: the audition essentials + genre. GAIN/LUFS start
+    /// <summary>The out-of-the-box visible set: the audition essentials + artist + genre. The finder shows the
+    /// artist as its OWN sortable column (unlike the main UI, which stacks it under the title). GAIN/LUFS start
     /// hidden (niche) but are one right-click away.</summary>
-    public static readonly string[] DefaultColumns = ["genre", "bpm", "key", "nrg", "duration", "like"];
+    public static readonly string[] DefaultColumns = ["artist", "genre", "bpm", "key", "nrg", "duration", "like"];
 
     /// <summary>The effective visible-column set (falls back to <see cref="DefaultColumns"/>).</summary>
     public string[] VisibleColumns => Columns ?? DefaultColumns;

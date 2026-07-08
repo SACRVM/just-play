@@ -362,6 +362,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 var c = col switch
                 {
                     TrackColumns.Title    => NaturalComparer.Instance.Compare(a.Title, b.Title),
+                    TrackColumns.Artist   => NaturalComparer.Instance.Compare(a.Artist, b.Artist),
                     TrackColumns.Genre    => NaturalComparer.Instance.Compare(a.Model.Metadata?.Genre ?? "", b.Model.Metadata?.Genre ?? ""),
                     TrackColumns.Key      => NaturalComparer.Instance.Compare(a.KeyText, b.KeyText),
                     TrackColumns.Bpm      => Nullable.Compare(a.Bpm, b.Bpm),
@@ -373,6 +374,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     TrackColumns.Groove   => a.GrooveScore.CompareTo(b.GrooveScore),
                     TrackColumns.Punch    => a.PunchScore.CompareTo(b.PunchScore),
                     TrackColumns.Harsh    => a.HarshScore.CompareTo(b.HarshScore),
+                    TrackColumns.Comment  => NaturalComparer.Instance.Compare(a.CommentText, b.CommentText),
                     TrackColumns.Duration => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
                     TrackColumns.Like     => a.IsFavorite.CompareTo(b.IsFavorite),
                     _                     => 0,

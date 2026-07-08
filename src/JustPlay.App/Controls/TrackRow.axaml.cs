@@ -25,5 +25,17 @@ public partial class TrackRow : UserControl
         set => SetValue(ColumnsProperty, value);
     }
 
+    /// <summary>How the artist is shown. True (default, the JUST PLAY queue) = a second line under the title.
+    /// False (the Pre-Cue Finder) = suppressed here, because the finder shows the artist as its own SORTABLE
+    /// column instead (Chloe 2026-07-08: the finder must let you sort by artist, the main UI stacks it).</summary>
+    public static readonly StyledProperty<bool> ArtistUnderNameProperty =
+        AvaloniaProperty.Register<TrackRow, bool>(nameof(ArtistUnderName), defaultValue: true);
+
+    public bool ArtistUnderName
+    {
+        get => GetValue(ArtistUnderNameProperty);
+        set => SetValue(ArtistUnderNameProperty, value);
+    }
+
     public TrackRow() => InitializeComponent();
 }
