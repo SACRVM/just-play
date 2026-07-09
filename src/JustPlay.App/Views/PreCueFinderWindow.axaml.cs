@@ -108,7 +108,14 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
-        if (ViewModel is { } vm) vm.RequestFocusFiles = FocusFiles; // VM opens playlists/leaf folders into the file pane
+        if (ViewModel is { } vm)
+        {
+            vm.RequestFocusFiles = FocusFiles; // VM opens playlists/leaf folders into the file pane
+            // Clear the file ListBox's full selection right before the VM resets Items — Avalonia's
+            // SelectionModel crashes if the bound source resets while a (multi-)selection is live.
+            var fileList = this.FindControl<ListBox>("FinderList");
+            vm.ClearFileSelection = () => fileList?.Selection?.Clear();
+        }
         ViewModel?.OnWindowOpened();
         FocusFolders(); // land in the folders pane — the Norton-Commander entry point
     }

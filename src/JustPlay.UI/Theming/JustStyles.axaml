@@ -495,8 +495,8 @@
       • Thumb: its OWN template — one Border, CornerRadius 3 (= half of the 6-px width → a pill).
       • NO line buttons (top/bottom chevrons) — simply absent from the template.
       • Bar floats FLUSH at the right edge (no horizontal margin); the gap to content comes from
-        each list's row right-margin (16 in the queue + finder). Only vertical is themed; a
-        horizontal bar (rare) keeps the Fluent default.
+        each list's row right-margin (16 in the queue + finder). BOTH orientations are themed the
+        same way (the horizontal one shows e.g. in the Event Log's no-wrap text box).
     -->
     <Style Selector="ScrollBar">
         <Setter Property="AllowAutoHide" Value="False"/>
@@ -566,6 +566,67 @@
         <Setter Property="Opacity" Value="1"/>
     </Style>
     <Style Selector="ScrollViewer:focus-within ScrollBar:vertical">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <!-- Horizontal bar — same slim pill as vertical, laid on its side (Height 6, Orientation Horizontal,
+         Thumb MinWidth). Shows in no-wrap scroll areas like the Event Log. Chloe 2026-07-08. -->
+    <Style Selector="ScrollBar:horizontal">
+        <Setter Property="Height" Value="6"/>
+        <Setter Property="MinHeight" Value="6"/>
+        <Setter Property="Margin" Value="4,0,4,0"/>
+        <Setter Property="Opacity" Value="0"/>
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+            </Transitions>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Grid Background="Transparent">
+                    <Track Name="PART_Track"
+                           Minimum="{TemplateBinding Minimum}"
+                           Maximum="{TemplateBinding Maximum}"
+                           Value="{TemplateBinding Value, Mode=TwoWay}"
+                           ViewportSize="{TemplateBinding ViewportSize}"
+                           Orientation="Horizontal">
+                        <Track.DecreaseButton>
+                            <RepeatButton Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          Opacity="0"/>
+                        </Track.DecreaseButton>
+                        <Track.IncreaseButton>
+                            <RepeatButton Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          Opacity="0"/>
+                        </Track.IncreaseButton>
+                        <Track.Thumb>
+                            <Thumb MinWidth="32" Background="#80FFFFFF">
+                                <Thumb.Template>
+                                    <ControlTemplate>
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="3"/>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Track.Thumb>
+                    </Track>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ScrollBar:horizontal /template/ Thumb:pointerover">
+        <Setter Property="Background" Value="#BFFFFFFF"/>
+    </Style>
+    <Style Selector="ScrollBar:horizontal /template/ Thumb:pressed">
+        <Setter Property="Background" Value="#E6FFFFFF"/>
+    </Style>
+    <Style Selector="ScrollViewer:pointerover ScrollBar:horizontal">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="ScrollViewer:focus-within ScrollBar:horizontal">
         <Setter Property="Opacity" Value="1"/>
     </Style>
 </Styles>

@@ -329,17 +329,18 @@ public partial class MainWindow : Window, IFramelessWindow
         if (_log is { } w)
         {
             w.Activate();
-            vm?.MarkLogsRead();
+            vm?.EventLog.MarkRead();
             return;
         }
         _log = new LogWindow
         {
-            DataContext = vm,
+            DataContext = vm?.EventLog, // the shared log feed
             Icon = Icon, // reuse the main window's rendered brand icon
         };
+        WindowPlacement.Track(_log, "JustStream.Log"); // the shared window can't hard-code the key
         _log.Closed += (_, _) => _log = null;
         _log.Show(this);
-        vm?.MarkLogsRead();
+        vm?.EventLog.MarkRead();
     }
 
     // ── REC right-click → "Open recordings folder" ──────────────────────────────

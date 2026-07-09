@@ -246,7 +246,7 @@
                                     <Border Width="9" Height="9" CornerRadius="5"
                                             Background="#F2FFFFFF"
                                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,3,0"
-                                            IsHitTestVisible="False" IsVisible="{Binding HasUnreadLogs}"/>
+                                            IsHitTestVisible="False" IsVisible="{Binding EventLog.HasUnread}"/>
                                 </Panel>
                                 <!-- Settings gear — also stays in mini (separate window, can open). -->
                                 <Button Classes="cap" Click="OpenSettings" ToolTip.Tip="Settings">

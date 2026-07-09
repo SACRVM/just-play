@@ -436,6 +436,13 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// re-sort by list position). Mirrors <see cref="MainWindowViewModel.SelectedTracks"/>.</summary>
     public ObservableCollection<FinderItemViewModel> SelectedItems { get; } = [];
 
+    /// <summary>Set by the window: clears the file ListBox's live (multi-)selection. Invoked right before
+    /// <see cref="Items"/> is reset, because Avalonia's SelectionModel throws (ArgumentOutOfRangeException,
+    /// enumerating SelectedItems against stale indices) when the bound source resets while a selection is
+    /// live — and setting <see cref="Selected"/>=null alone can't reach a Ctrl-click MULTI-selection.
+    /// Chloe 2026-07-08 (the KeyWheel-click crash).</summary>
+    public Action? ClearFileSelection { get; set; }
+
     public bool HasFileSelection => SelectedItems.Count > 0;
 
     /// <summary>Row context-menu headers — carry "(N)" when more than one row is selected, exactly like the
@@ -994,7 +1001,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[Finder like FAIL] {item.FullPath}: {ex.GetType().Name}: {ex.Message}");
+                        _main.EventLog.Append($"Finder like write failed — \"{System.IO.Path.GetFileName(item.FullPath)}\": {ex.Message}");
                         // Revert the optimistic flip, same contract as the queue's toggle path.
                         Dispatcher.UIThread.Post(() => item.Track.IsFavorite = !liked);
                     }
@@ -1301,6 +1308,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         // the old selection was over the old view anyway. Chloe 2026-07-07.
         var keep = Selected;
         Selected = null;
+        ClearFileSelection?.Invoke(); // clear the ListBox's FULL selection (multi included) before the Reset
         Items.ReplaceAll(filtered);
         Selected = keep is not null && filtered.Contains(keep) ? keep : filtered.FirstOrDefault();
 

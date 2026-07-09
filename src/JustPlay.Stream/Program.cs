@@ -69,7 +69,8 @@ internal sealed class Program
 
         services.AddSingleton<JsonStreamSettingsService>();
         // Persists the event log to a daily session file (7-day retention); pruning runs in its ctor.
-        services.AddSingleton<Logging.SessionLog>();
+        // Shared SessionLog (JustPlay.Core), parameterised with this app's LocalAppData folder.
+        services.AddSingleton<JustPlay.Core.Logging.ISessionLog>(_ => new JustPlay.Core.Logging.SessionLog("JustStream"));
 
         // Shared J.U.S.T. live-theme engine (JustPlay.UI) — same palettes as JUST PLAY, applied at
         // startup so the design system + brand icon track the active theme (and can switch live).

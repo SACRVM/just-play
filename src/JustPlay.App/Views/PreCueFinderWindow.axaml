@@ -414,29 +414,41 @@
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
                                 <Button Classes="xport" Click="OnCueSeekBack" IsEnabled="{Binding HasCue}"
                                         ToolTip.Tip="{Binding SeekLegendText}">
-                                    <Path Classes="xicon" Data="M9,0 L4.5,5 L9,10 Z M4.5,0 L0,5 L4.5,10 Z"/>
+                                    <!-- Optical-centre nudge: the ◀◀ mass leans right of the box centre → shift left. -->
+                                    <Path Classes="xicon" Data="M9,0 L4.5,5 L9,10 Z M4.5,0 L0,5 L4.5,10 Z"
+                                          RenderTransform="translate(-1px, 0)"/>
                                 </Button>
                                 <Button Classes="xport" Click="OnCuePlayPause" ToolTip.Tip="Play / pause (Space)">
                                     <Panel>
+                                        <!-- Optical-centre nudge: a right-pointing play triangle is left-heavy → shift right.
+                                             (The pause bars are symmetric, so they stay put.) -->
                                         <Path Classes="xicon" Data="M0,0 L0,10 L9,5 Z"
-                                              IsVisible="{Binding !IsCuePlaying}"/>
+                                              IsVisible="{Binding !IsCuePlaying}"
+                                              RenderTransform="translate(1.5px, 0)"/>
                                         <Path Classes="xicon" Data="M0,0 L2.5,0 L2.5,10 L0,10 Z M6.5,0 L9,0 L9,10 L6.5,10 Z"
                                               IsVisible="{Binding IsCuePlaying}"/>
                                     </Panel>
                                 </Button>
                                 <Button Classes="xport" Click="OnCueSeekForward" IsEnabled="{Binding HasCue}"
                                         ToolTip.Tip="{Binding SeekLegendText}">
-                                    <Path Classes="xicon" Data="M0,0 L4.5,5 L0,10 Z M4.5,0 L9,5 L4.5,10 Z"/>
+                                    <!-- Optical-centre nudge: the ▶▶ mass leans left of the box centre → shift right. -->
+                                    <Path Classes="xicon" Data="M0,0 L4.5,5 L0,10 Z M4.5,0 L9,5 L4.5,10 Z"
+                                          RenderTransform="translate(1px, 0)"/>
                                 </Button>
                             </StackPanel>
 
                             <!-- Add the selected song(s) to the current list (the FUVI list+ button). -->
                             <Button Grid.Column="1" Classes="xport" Click="OnCueAdd" Margin="6,0,2,0"
                                     ToolTip.Tip="Add the selected song(s) to the list (+ / A)">
-                                <Path Stretch="Uniform" Width="16" Height="14"
+                                <!-- Centred like its seek/play siblings: a SQUARE box tight to the 12×12 glyph + explicit
+                                     Center alignment, so it needs NO translate nudge. The "+" is pushed into the bottom-right
+                                     corner and line 3 is trimmed short, leaving a deliberate ~1.6px moat between the plus and
+                                     every list line (they used to merge at the corner). Chloe 2026-07-08. -->
+                                <Path Stretch="Uniform" Width="14" Height="14"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.6"
                                       StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
-                                      Data="M0,1 H11 M0,5 H11 M0,9 H6 M9,7 V13 M6,10 H12"/>
+                                      Data="M0,1 H9 M0,5 H9 M0,9 H4 M9.5,8 V13 M7,10.5 H12"/>
                             </Button>
 
                             <!-- Title / artist (two lines, FUVI: title white, artist accent). -->

@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:logging="using:JustPlay.UI.Logging"
+        x:Class="JustPlay.UI.Views.LogWindow"
+        x:DataType="logging:LogViewModel"
+        Title="Event Log"
+        Width="760" Height="480"
+        MinWidth="440" MinHeight="280"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <Window.Styles>
+        <!-- Read-only selectable log box (mirrors OopsDialog): themed border + selection so the
+             system accent colour can't bleed onto the focus border / text highlight. -->
+        <Style Selector="TextBox.log">
+            <Setter Property="Background" Value="#99000000"/>
+            <Setter Property="Foreground" Value="#D9FFFFFF"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="SelectionBrush" Value="#448a5fff"/>
+            <Setter Property="CaretBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBox.log /template/ Border#PART_BorderElement">
+            <!-- The dark fill MUST live on PART_BorderElement — Fluent's TextBox paints its bg here, so a
+                 Transparent here just shows the window's aurora through (why it wasn't darkening). -->
+            <Setter Property="Background" Value="#99000000"/>
+            <Setter Property="BorderBrush" Value="#26FFFFFF"/>
+            <Setter Property="CornerRadius" Value="9"/>
+        </Style>
+        <Style Selector="TextBox.log:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="TextBox.log:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#59FFFFFF"/>
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <!-- Frameless rounded themed card — same shell as the shared AboutWindow (JustPlay.UI). The event
+             log lives here now instead of cluttering the main console; the chrome log button (with the unread
+             marker) opens it. DataContext = a shared LogViewModel, owned by each app's main view-model. -->
+        <Border CornerRadius="16" Margin="20,20,20,22" ClipToBounds="True"
+                BoxShadow="{DynamicResource WindowOuter}"
+                PointerPressed="OnCardPressed">
+            <Panel>
+                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
+                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
+                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+
+                <!-- Close (×) in the rounded top-right corner (shared Button.cap.close). -->
+                <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close"
+                        HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <TextBlock Text="✕" FontSize="13"/>
+                </Button>
+
+                <DockPanel Margin="24,22,24,22">
+                    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,30,12">
+                        <TextBlock Grid.Column="0" Classes="label" Text="EVENT LOG" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" x:Name="CopiedHint" Text="Copied ✓" IsVisible="False"
+                                   VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,12,0"
+                                   Foreground="{DynamicResource AccentABrush}" FontSize="11"/>
+                        <Button Grid.Column="2" Classes="seg" Content="COPY" Click="OnCopyAll" Margin="0,0,6,0"
+                                ToolTip.Tip="Copy the whole log"/>
+                        <Button Grid.Column="3" Classes="seg" Content="CLEAR" Click="OnClearClick"/>
+                    </Grid>
+                    <Border DockPanel.Dock="Top" Classes="sep" Margin="0,0,0,10"/>
+                    <!-- Read-only, selectable: drag to highlight any line(s) + Ctrl+C; COPY grabs everything. -->
+                    <TextBox Classes="log" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                             Text="{Binding Text, Mode=OneWay}"
+                             FontFamily="Consolas, Menlo, monospace" FontSize="11.5"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                </DockPanel>
+            </Panel>
+        </Border>
+
+        <!-- Edge/corner resize grips in the transparent shadow ring (shared FramelessResizeBehavior). -->
+        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+            <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="#01000000" Cursor="LeftSide"          Tag="West"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="#01000000" Cursor="RightSide"         Tag="East"/>
+            <Border Grid.Row="2" Grid.Column="0" Background="#01000000" Cursor="BottomLeftCorner"  Tag="SouthWest"/>
+            <Border Grid.Row="2" Grid.Column="1" Background="#01000000" Cursor="BottomSide"        Tag="South"/>
+            <Border Grid.Row="2" Grid.Column="2" Background="#01000000" Cursor="BottomRightCorner" Tag="SouthEast"/>
+        </Grid>
+    </Panel>
+</Window>

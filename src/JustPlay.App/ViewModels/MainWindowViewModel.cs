@@ -10,11 +10,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Logging;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
 using JustPlay.Core.Playlists;
 using JustPlay.Core.Theming;
 using JustPlay.Metadata;
+using JustPlay.UI.Logging;
 using BroadcastState = JustPlay.Core.Abstractions.BroadcastState;
 
 namespace JustPlay.App.ViewModels;
@@ -88,6 +90,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // partial that writes the just-loaded value straight back to disk — an
     // unnecessary save on every cold start.
     private bool _settingsHydrated;
+
+    /// <summary>The in-app event log (shared LogWindow, JustPlay.UI) — the "surface, don't swallow" channel.
+    /// File-lock / tag-write failures land here (+ the daily %LOCALAPPDATA%\JustPlay\session-*.log) instead of
+    /// a lost Console line; the chrome log button opens it. The finder reaches it via its _main reference.</summary>
+    public LogViewModel EventLog { get; } = new(new SessionLog("JustPlay"));
 
     public MainWindowViewModel(
         PlaybackController controller,
@@ -506,7 +513,31 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         BroadcastState == BroadcastState.Reconnecting;
 
     private void OnBroadcastServiceStateChanged(object? sender, BroadcastState state)
-        => Dispatcher.UIThread.Post(() => BroadcastState = state);
+        => Dispatcher.UIThread.Post(() =>
+        {
+            var prev = BroadcastState;
+            BroadcastState = state;
+            if (state == prev) return;
+
+            // Surface the radio/broadcast lifecycle in the event log (like JUST STREAM does) — the
+            // "nothing lands in the log" fix: connect / fail (with the real reason, e.g. mount busy) /
+            // reconnect / disconnect. Chloe 2026-07-08.
+            switch (state)
+            {
+                case BroadcastState.Connected:
+                    EventLog.Append($"Radio connected — {SelectedStreamServer?.Host ?? "server"}");
+                    break;
+                case BroadcastState.Error:
+                    EventLog.Append($"Radio connection failed — {(string.IsNullOrEmpty(_broadcast.LastError) ? "check host / credentials" : _broadcast.LastError)}");
+                    break;
+                case BroadcastState.Reconnecting:
+                    EventLog.Append("Radio connection dropped — reconnecting…");
+                    break;
+                case BroadcastState.Disconnected when prev is BroadcastState.Connected or BroadcastState.Reconnecting:
+                    EventLog.Append("Radio disconnected");
+                    break;
+            }
+        });
 
     // ── Tweaks-panel state (mirrors TWEAK_DEFAULTS in the design's app.jsx) ─
     [ObservableProperty] private bool _isTweaksOpen;
@@ -1318,7 +1349,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (value is not null) _savedHeadphoneDeviceName = value.Name;
 
         if (!_settingsHydrated) return;
-        _preListen.OutputDevice = value?.Index ?? -1;
+
+        // Do NOT tear the cue engine down on a transient null. Refreshing the device list clears the
+        // bound collection, which briefly nulls this selection (the ComboBox drops the removed item);
+        // routing OutputDevice = -1 here frees the cue mixer + source, so a PLAYING cue stops and then
+        // can't be restarted (its source is gone — only loading a different track rebuilds it). The cue
+        // mixer is meant to persist for the process lifetime; a real "stop" goes through Unload, not a
+        // null device. Chloe 2026-07-08: refresh-while-cueing killed the current cue.
+        if (value is null) return;
+
+        _preListen.OutputDevice = value.Index;
         PersistSettings();
     }
 
@@ -1930,7 +1970,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Tag write FAIL] {tvm.Model.FilePath}: {ex.GetType().Name}: {ex.Message}");
+                EventLog.Append($"Tag write failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
             }
         });
 
@@ -2002,7 +2042,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Undo FAIL] {tvm.Model.FilePath}: {ex.Message}");
+                    EventLog.Append($"Undo failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
                 }
             });
         }
@@ -2066,7 +2106,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             catch (Exception ex)
             {
                 tvm.Model.AnalysisStatus = AnalysisStatus.Failed;
-                Console.WriteLine($"[Analyze FAIL] {tvm.Model.FilePath}: {ex.Message}");
+                EventLog.Append($"Analyze failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
             }
             Dispatcher.UIThread.Post(() => { tvm.Refresh(); AnalyzingCount--; });
 
@@ -2099,7 +2139,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Favorite write FAIL] {tvm.Model.FilePath}: {ex.GetType().Name}: {ex.Message}");
+                    EventLog.Append($"Like write failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
                     // Revert the optimistic flip the command applied in TrackViewModel.ToggleFavorite.
                     Dispatcher.UIThread.Post(() => tvm.IsFavorite = !liked);
                 }

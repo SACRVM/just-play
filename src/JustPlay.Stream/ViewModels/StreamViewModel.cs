@@ -10,10 +10,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Audio;
+using JustPlay.Core.Logging;
 using JustPlay.Core.Models;
-using JustPlay.Stream.Logging;
 using JustPlay.Stream.Settings;
 using JustPlay.UI.Controls;
+using JustPlay.UI.Logging;
 using JustPlay.UI.Views;
 
 namespace JustPlay.Stream.ViewModels;
@@ -33,7 +34,6 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     private readonly IBroadcastService _broadcast;
     private readonly IRecordingService _recording;
     private readonly JsonStreamSettingsService _settings;
-    private readonly SessionLog _sessionLog;
     private readonly Stopwatch _streamClock = new();
     private bool _recAutoStarted; // recording was started BY auto-record → auto-stop on disconnect
     private bool _loading; // suppress persistence/engine writes while hydrating from settings
@@ -278,35 +278,30 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     // ── Log (now in its own LogWindow) ───────────────────────────────────
     [ObservableProperty] private bool _logVisible;         // kept for settings back-compat
-    [ObservableProperty] private bool _hasUnreadLogs;      // drives the unread marker on the chrome log button
 
     /// <summary>Mini-player view (mirrors JUST PLAY): only server-select + ON-AIR + output level, narrower.</summary>
     [ObservableProperty] private bool _isMini;
-    public ObservableCollection<string> LogEntries { get; } = new();
-
-    /// <summary>All log lines joined — bound read-only by the LogWindow's selectable text box + Copy button.</summary>
-    public string LogText => string.Join(System.Environment.NewLine, LogEntries);
+    /// <summary>The SHARED event log (JustPlay.UI) — the LogWindow binds to this; <see cref="Log"/> feeds it.</summary>
+    public LogViewModel EventLog { get; }
 
     public StreamViewModel(IAudioInputEngine engine, IBroadcastService broadcast,
-        IRecordingService recording, JsonStreamSettingsService settings, SessionLog sessionLog)
+        IRecordingService recording, JsonStreamSettingsService settings, ISessionLog sessionLog)
     {
         _engine = engine;
         _broadcast = broadcast;
         _recording = recording;
         _settings = settings;
-        _sessionLog = sessionLog;
 
-        // Keep the selectable LogText in sync as entries are added/cleared (UI thread — Log() is marshalled).
-        LogEntries.CollectionChanged += (_, _) => OnPropertyChanged(nameof(LogText));
+        // The shared event log (JustPlay.UI) persists to the daily session file and wires its own
+        // OnWriteFailed → window-only reporting.
+        EventLog = new LogViewModel(sessionLog);
 
         _broadcast.StateChanged += OnBroadcastStateChanged;
         _recording.StateChanged += OnRecordingStateChanged;
 
-        // Storage-never-crashes rule: if writing the session log or settings.json fails (disk full,
-        // denied path), it must NOT die silently — surface it in the log WINDOW only (LogToWindowOnly
-        // does NOT re-persist, so the very failure we're reporting can't recurse). Both report once.
-        _sessionLog.OnWriteFailed = LogToWindowOnly;
-        _settings.OnSaveFailed = LogToWindowOnly;
+        // Storage-never-crashes rule: a settings.json save failure must NOT die silently — surface it in
+        // the log WINDOW only (AppendMemoryOnly does NOT re-persist, so the very failure can't recurse).
+        _settings.OnSaveFailed = EventLog.AppendMemoryOnly;
 
         Hydrate();
         // No meter timer: the View pumps meters/lamp/time once per render frame (vsync-synced) via
@@ -1010,45 +1005,14 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         }
     }
 
-    // ── Log (errors/warnings only — §3a) ─────────────────────────────────
+    // ── Log (errors/warnings only — §3a) — feeds the shared EventLog (JustPlay.UI) ────────
 
-    private void Log(string message)
-    {
-        var line = $"{DateTime.Now:HH:mm:ss}  {message}";
-        LogEntries.Add(line);
-        if (LogEntries.Count > 200) LogEntries.RemoveAt(0);
-        HasUnreadLogs = true; // light up the chrome log button marker
-        Console.WriteLine("[JUST STREAM] " + line);
-        _sessionLog.Append(line); // persist to the daily session file (kept 7 days) for post-gig review
-    }
-
-    /// <summary>
-    /// Log to the in-memory window ONLY — no session-file persist. Used to report a STORAGE failure
-    /// (the session log or settings.json couldn't be written): re-persisting here would hit the very
-    /// same full disk and could recurse, so this path is deliberately memory-only. Marshals to the UI
-    /// thread since the failure may be reported from a background writer.
-    /// </summary>
-    private void LogToWindowOnly(string message)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            var line = $"{DateTime.Now:HH:mm:ss}  {message}";
-            LogEntries.Add(line);
-            if (LogEntries.Count > 200) LogEntries.RemoveAt(0);
-            HasUnreadLogs = true;
-            Console.WriteLine("[JUST STREAM] " + line);
-        });
-    }
-
-    /// <summary>Called by the LogWindow on open — clears the unread marker.</summary>
-    public void MarkLogsRead() => HasUnreadLogs = false;
+    /// <summary>Append one broadcast event to the shared log window + session file (thread-safe).</summary>
+    private void Log(string message) => EventLog.Append(message);
 
     /// <summary>Toggle the mini-player view (mirrors JUST PLAY's ToggleViewMode).</summary>
     [RelayCommand]
     private void ToggleViewMode() => IsMini = !IsMini;
-
-    [RelayCommand]
-    private void ClearLog() => LogEntries.Clear();
 
     public void Dispose()
     {

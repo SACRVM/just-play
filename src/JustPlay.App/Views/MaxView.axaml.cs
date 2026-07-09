@@ -82,6 +82,21 @@ public partial class MaxView : UserControl
         _spectrumWindow.Show(owner);
     }
 
+    // Event-log button → open the shared LogWindow (JustPlay.UI). Single instance, NON-modal; opening clears
+    // the unread marker. DataContext = the VM's shared EventLog feed (file-lock / tag-write failures land there).
+    private JustPlay.UI.Views.LogWindow? _logWindow;
+    private void OnOpenLog(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (_logWindow is not null) { _logWindow.Activate(); vm.EventLog.MarkRead(); return; }
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        _logWindow = new JustPlay.UI.Views.LogWindow { DataContext = vm.EventLog };
+        JustPlay.UI.Behaviors.WindowPlacement.Track(_logWindow, "JustPlay.Log"); // shared window: opener sets the key
+        _logWindow.Closed += (_, _) => _logWindow = null;
+        _logWindow.Show(owner);
+        vm.EventLog.MarkRead();
+    }
+
     // Title-bar update badge → show the update dialog, then install / ignore / dismiss.
     private async void OnUpdateBadge(object? sender, RoutedEventArgs e)
     {
