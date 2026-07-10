@@ -35,7 +35,9 @@ public partial class MainWindow : Window, IFramelessWindow
 
     // Compact view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
     private const double MiniWidth = 750;   // Chloe: 450 too small, 700 still too narrow overall → 750 (2026-07-05)
-    private const double MiniHeight = 320;  // compact, explicit (runtime SizeToContent left dead space below)
+    private const double MiniHeight = 350;  // compact, explicit. Budgets the bottom KeyLegend hint bar
+                                            // (added 2026-07-06, after 320 was tuned) so it can't clip the
+                                            // output meters. Any slack lands as a gap ABOVE the hint bar, not a clip.
     private PixelPoint _fullPosition;    // restore position when leaving mini
     private bool _isMini;
 
