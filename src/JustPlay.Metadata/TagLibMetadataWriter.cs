@@ -119,22 +119,27 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         // Comment — reuse the single-COMM-frame helper (same de-dup logic as Write).
         ApplyCleanComment(file, tags.Comment);
 
-        // Cover art.
+        // Cover art. NEVER assign a fresh array without carrying the NotAPicture
+        // attachments over: Serato / Mixed In Key store cues, beatgrids and energy as
+        // GEOB frames that TagLib# surfaces in Pictures[] with Type=NotAPicture —
+        // a blind clear-all would silently destroy a DJ's performance data (the golden
+        // interop rule: never clear-all-rewrite foreign frames).
         switch (coverAction)
         {
             case CoverAction.Remove:
-                tag.Pictures = [];
+                tag.Pictures = KeepNonPictureAttachments(tag.Pictures);
                 break;
 
             case CoverAction.Replace when newCover is { Length: > 0 }:
                 tag.Pictures =
                 [
+                    .. KeepNonPictureAttachments(tag.Pictures),
                     new TagLib.Picture(new TagLib.ByteVector(newCover))
                     {
                         Type        = TagLib.PictureType.FrontCover,
                         MimeType    = coverMimeType ?? "image/jpeg",
                         Description = string.Empty,
-                    }
+                    },
                 ];
                 break;
 
@@ -245,4 +250,14 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         }
         // Other formats (MP4/AAC, WMA, …): no standard rating tag — silently do nothing.
     }
+
+    /// <summary>
+    /// The Pictures[] entries that are NOT pictures: GEOB attachments (Serato Markers,
+    /// Mixed In Key Key/Energy, beatgrids, cue points) that must survive every cover
+    /// operation. See the cover-art switch in <see cref="WriteEditable"/>.
+    /// </summary>
+    private static TagLib.IPicture[] KeepNonPictureAttachments(TagLib.IPicture[]? pics)
+        => pics is null
+            ? []
+            : Array.FindAll(pics, static p => p.Type == TagLib.PictureType.NotAPicture);
 }

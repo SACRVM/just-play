@@ -90,8 +90,35 @@ public sealed class TagLibMetadataReader : IMetadataReader
     {
         var pics = tag.Pictures;
         if (pics is null || pics.Length == 0) return null;
-        var data = pics[0].Data;
-        return data.Count > 0 ? data.Data : null;
+
+        // Serato / Mixed In Key store performance data (Key, Energy, Serato Markers2,
+        // CuePoints, BeatGrid, …) as GEOB attachment frames, which TagLib# surfaces in
+        // Pictures[] with Type=NotAPicture (mime application/json). Taking pics[0]
+        // blindly hands the UI a JSON blob instead of the cover — on MIK/Serato-processed
+        // files the real FrontCover sits BEHIND up to six such frames. Prefer the
+        // designated FrontCover, then any actual picture type.
+        TagLib.IPicture? best = null;
+        foreach (var p in pics)
+        {
+            if (p.Type == TagLib.PictureType.FrontCover) { best = p; break; }
+            best ??= p.Type != TagLib.PictureType.NotAPicture ? p : null;
+        }
+
+        // Last resort: an image-mime attachment mislabelled NotAPicture (some taggers).
+        if (best is null)
+        {
+            foreach (var p in pics)
+            {
+                if (p.MimeType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    best = p;
+                    break;
+                }
+            }
+        }
+
+        var data = best?.Data;
+        return data is { Count: > 0 } ? data.Data : null;
     }
 
     /// <summary>
