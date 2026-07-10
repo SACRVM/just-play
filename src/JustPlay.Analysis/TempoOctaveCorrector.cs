@@ -46,9 +46,8 @@ namespace JustPlay.Analysis;
 /// </summary>
 public sealed class TempoOctaveCorrector
 {
-    // ---- Onset envelope FFT parameters ----
-    private const int OnsetFrameSize = 512;
-    private const int OnsetHopSize   = OnsetFrameSize / 4;
+    // ---- Onset envelope framing (canonical shared parameters, see OnsetEnvelope) ----
+    private const int OnsetHopSize = OnsetEnvelope.HopSize;
 
     // ---- Prior parameters (Ellis 2007 / librosa parameterisation) ----
     private const double PriorCentreSeconds = 0.5;   // 120 BPM
@@ -128,8 +127,8 @@ public sealed class TempoOctaveCorrector
         if (rawBpm <= 0 || samples is null || samples.Length == 0 || sampleRate <= 0)
             return (rawBpm, 0.0);
 
-        // ---- 1. Build onset-strength envelope ----
-        var envelope = BuildOnsetEnvelope(samples, ct);
+        // ---- 1. Build onset-strength envelope (shared canonical implementation) ----
+        var envelope = OnsetEnvelope.Build(samples, ct);
         if (envelope is null || envelope.Length < 4)
             return (rawBpm, 0.0);
 
@@ -326,59 +325,6 @@ public sealed class TempoOctaveCorrector
     }
 
     // -------------------------------------------------------------------------
-    // Onset-strength envelope
-    // -------------------------------------------------------------------------
-
-    private static double[]? BuildOnsetEnvelope(float[] samples, CancellationToken ct)
-    {
-        if (samples.Length < OnsetFrameSize)
-            return null;
-
-        var hann     = BuildHannWindow(OnsetFrameSize);
-        var re       = new float[OnsetFrameSize];
-        var im       = new float[OnsetFrameSize];
-        var halfBins = OnsetFrameSize / 2;
-
-        var prevMag  = new double[halfBins];
-        var havePrev = false;
-
-        var frameCount = (samples.Length - OnsetFrameSize) / OnsetHopSize + 1;
-        var envelope   = new double[frameCount];
-        var envIdx     = 0;
-
-        for (var start = 0; start + OnsetFrameSize <= samples.Length; start += OnsetHopSize)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            for (var n = 0; n < OnsetFrameSize; n++)
-            {
-                re[n] = samples[start + n] * hann[n];
-                im[n] = 0f;
-            }
-            Fft.Forward(re, im);
-
-            double flux = 0.0;
-            for (var k = 0; k < halfBins; k++)
-            {
-                var mag = Math.Sqrt((double)re[k] * re[k] + (double)im[k] * im[k]);
-                if (havePrev)
-                {
-                    var diff = mag - prevMag[k];
-                    if (diff > 0.0) flux += diff;
-                }
-                prevMag[k] = mag;
-            }
-
-            if (envIdx < envelope.Length)
-                envelope[envIdx++] = havePrev ? flux : 0.0;
-
-            havePrev = true;
-        }
-
-        return envelope;
-    }
-
-    // -------------------------------------------------------------------------
     // Biased autocorrelation
     // -------------------------------------------------------------------------
 
@@ -412,15 +358,4 @@ public sealed class TempoOctaveCorrector
         return Math.Exp(-0.5 * z * z);
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private static float[] BuildHannWindow(int size)
-    {
-        var w = new float[size];
-        for (var n = 0; n < size; n++)
-            w[n] = (float)(0.5 * (1.0 - Math.Cos(2.0 * Math.PI * n / (size - 1))));
-        return w;
-    }
 }

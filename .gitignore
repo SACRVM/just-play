@@ -45,3 +45,6 @@ HANDOVER-*.md
 # ── ML calibration data (DEAM: CC BY-NC, research-only, never ship) ─────────
 # Audio excerpts downloaded for energy-scale calibration — must stay local.
 ml/_deam/
+
+# ── Local test audio (beatbed POC corpus — purchased tracks, never commit) ──
+testdata/
