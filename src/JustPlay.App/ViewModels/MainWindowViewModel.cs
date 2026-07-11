@@ -395,6 +395,45 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         RecalcIndexes();
     }
 
+    /// <summary>
+    /// Manual drag-reorder from the queue list — the set-building gesture (Chloe 2026-07-11).
+    /// Moves <paramref name="items"/> as one block (kept in their current visual order) so it sits at
+    /// <paramref name="insertIndex"/>, the index in <see cref="Tracks"/> BEFORE removal (as computed
+    /// by the drop indicator); items above the target are compensated here.
+    ///
+    /// <para>Hand order beats machine order: an active column sort is CLEARED (glyph off, no resort —
+    /// only <see cref="TrackColumns.SortBy"/> fires SortRequested), and AddOrder is re-based to the
+    /// new order so toggling a sort on and off later restores THIS hand order, not the historical
+    /// add order.</para>
+    /// </summary>
+    public void MoveTracks(IReadOnlyList<TrackViewModel> items, int insertIndex)
+    {
+        if (items.Count == 0 || Tracks.Count < 2) return;
+
+        var set = new HashSet<TrackViewModel>(items);
+        var moving = Tracks.Where(set.Contains).ToList();   // current visual order
+        if (moving.Count == 0) return;
+
+        // Compensate for moving rows that currently sit above the insertion point.
+        var target = insertIndex - Tracks.Take(Math.Clamp(insertIndex, 0, Tracks.Count)).Count(set.Contains);
+
+        foreach (var t in moving) Tracks.Remove(t);
+        target = Math.Clamp(target, 0, Tracks.Count);
+        for (var i = 0; i < moving.Count; i++) Tracks.Insert(target + i, moving[i]);
+
+        // The hand order is the natural order now.
+        for (var i = 0; i < Tracks.Count; i++) Tracks[i].AddOrder = i;
+        _addSeq = Tracks.Count;
+        if (Columns.SortColumn is not null)
+        {
+            Columns.SortColumn = null;
+            Columns.SortDescending = false;
+        }
+
+        RecalcIndexes();
+        MarkPlaylistEdited();
+    }
+
     private void RaiseSelectionHeaders()
     {
         OnPropertyChanged(nameof(WriteTagsHeader));

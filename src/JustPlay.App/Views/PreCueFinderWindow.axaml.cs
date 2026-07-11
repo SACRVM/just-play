@@ -41,14 +41,16 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
     {
         InitializeComponent();
 
-        // OS file/folder-copy drag-out (same mechanics as the queue — see RowDragOutBehavior): press-drag a
-        // FILE row or a FOLDER row past a small threshold and drop it on Explorer / an editor / an AI-agent
-        // chat window to hand over the real path — "einen KI-Agenten auf ein file aufmerksam machen" (Chloe
-        // 2026-07-08). A folder drags the whole folder; the ".." hop isn't draggable.
+        // OS file/folder-copy drag-out (drag-out-only mode of RowDragBehavior; the queue additionally
+        // reorders): press-drag a FILE row or a FOLDER row past a small threshold and drop it on
+        // Explorer / an editor / an AI-agent chat window to hand over the real path — "einen KI-Agenten
+        // auf ein file aufmerksam machen" (Chloe 2026-07-08). The finder lists deliberately do NOT
+        // reorder: they are sorted browse views, not a hand-ordered set. A folder drags the whole
+        // folder; the ".." hop isn't draggable.
         if (this.FindControl<ListBox>("FinderList") is { } fileList)
-            RowDragOutBehavior.Attach(fileList, dc => (dc as FinderItemViewModel)?.FullPath);
+            RowDragBehavior.Attach(fileList, dc => (dc as FinderItemViewModel)?.FullPath);
         if (this.FindControl<ListBox>("FolderList") is { } folderList)
-            RowDragOutBehavior.Attach(folderList, dc => dc is FinderEntryViewModel { IsUp: false } fe ? fe.FullPath : null);
+            RowDragBehavior.Attach(folderList, dc => dc is FinderEntryViewModel { IsUp: false } fe ? fe.FullPath : null);
 
         // Belt-and-braces: the XAML TypeConverter for the hint list isn't reliable on
         // every Avalonia minor version (same guard as MainWindow).

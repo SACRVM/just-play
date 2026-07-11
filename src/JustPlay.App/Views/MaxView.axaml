@@ -763,6 +763,22 @@
                     <!-- Queue list / PRE-CUE panel — the two tabs share this host. -->
                     <Panel Name="RightPanelHost">
                         <Panel Name="QueuePanel" IsVisible="{Binding IsQueueTab}">
+                            <!-- Drag-reorder insertion line (RowDragBehavior): a layout-neutral overlay —
+                                 positioned purely via TranslateTransform.Y onto the row boundary under the
+                                 pointer, so rows never shift while dragging. Side margins match TrackRowMargin.
+                                 Declared FIRST so the list renders above it is irrelevant: the line only shows
+                                 during a drag and is never hit-testable. -->
+                            <!-- 1px hairline, flush with the row edges: side margins = TrackRowMargin (6/16)
+                                 (Chloe 2026-07-11: "dünner + linksbündig mit der Liste"). -->
+                            <Border Name="QueueDropIndicator" ZIndex="1"
+                                    Height="1" Margin="6,0,16,0"
+                                    VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                                    Background="{DynamicResource AccentABrush}"
+                                    IsVisible="False" IsHitTestVisible="False">
+                                <Border.RenderTransform>
+                                    <TranslateTransform/>
+                                </Border.RenderTransform>
+                            </Border>
                             <!--
                               Soft edge fade: the list content fades to transparent over a few px at
                               the TOP and BOTTOM (revealing the Aurora background) instead of a hard

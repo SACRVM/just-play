@@ -40,11 +40,29 @@ public partial class MaxView : UserControl
         this.FindControl<ListBox>("TrackList")?.AddHandler(
             InputElement.KeyDownEvent, OnTrackListKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        // OS-level file-copy drag-out (N24): press-drag a row past a small threshold and drop it on
-        // Explorer/Traktor/another app to receive the real audio file, like an Explorer drag. See
-        // RowDragOutBehavior for the Avalonia-12-source-verified mechanics.
-        if (this.FindControl<ListBox>("TrackList") is { } trackList)
-            RowDragOutBehavior.Attach(trackList, dc => (dc as TrackViewModel)?.Model.FilePath);
+        // Row drag, combined mode (Chloe 2026-07-11, option A): drag INSIDE the list = hand-reorder
+        // the queue (the set-building gesture — accent insertion line, edge autoscroll, multi-select
+        // moves the block); drag OUT sideways = the OS file-copy drag to Explorer/Traktor/an
+        // AI-agent chat (N24). See RowDragBehavior for the Avalonia-12-source-verified mechanics.
+        if (this.FindControl<ListBox>("TrackList") is { } trackList &&
+            this.FindControl<Border>("QueueDropIndicator") is { } dropIndicator)
+        {
+            RowDragBehavior.Attach(trackList,
+                dc => (dc as TrackViewModel)?.Model.FilePath,
+                new RowReorder
+                {
+                    Indicator = dropIndicator,
+                    // Dragging while a column sort is active is allowed and ADOPTS the sorted order
+                    // as the new hand order (sort glyph clears — MoveTracks handles it). Chloe
+                    // 2026-07-11: implicit beats a dead gesture ("rafft es jemand?"); sort-then-
+                    // hand-tune is a real set-building flow.
+                    Move = (items, insertIndex) =>
+                    {
+                        if (DataContext is MainWindowViewModel vm)
+                            vm.MoveTracks(items.OfType<TrackViewModel>().ToList(), insertIndex);
+                    },
+                });
+        }
     }
 
     private void OnChromePressed(object? sender, PointerPressedEventArgs e)
