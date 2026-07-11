@@ -42,10 +42,22 @@ public sealed class WaveformView : Control
     public static readonly StyledProperty<ICommand?> SeekCommandProperty =
         AvaloniaProperty.Register<WaveformView, ICommand?>(nameof(SeekCommand));
 
+    /// <summary>Start of the visible view window as a 0..1 track fraction (zoom support: the control
+    /// renders only [ViewStart, ViewEnd] across its width). Defaults 0..1 = whole track, so existing
+    /// hosts (finder player bar) are untouched. Progress and seek fractions stay in TRACK space —
+    /// the window only changes what is painted where. JUST SPIN's decks share this.</summary>
+    public static readonly StyledProperty<double> ViewStartProperty =
+        AvaloniaProperty.Register<WaveformView, double>(nameof(ViewStart), 0.0);
+
+    /// <summary>End of the visible view window as a 0..1 track fraction (see <see cref="ViewStart"/>).</summary>
+    public static readonly StyledProperty<double> ViewEndProperty =
+        AvaloniaProperty.Register<WaveformView, double>(nameof(ViewEnd), 1.0);
+
     static WaveformView()
     {
         AffectsRender<WaveformView>(PeaksProperty, ProgressProperty,
-            PlayedBrushProperty, UnplayedBrushProperty, PlayheadBrushProperty);
+            PlayedBrushProperty, UnplayedBrushProperty, PlayheadBrushProperty,
+            ViewStartProperty, ViewEndProperty);
     }
 
     public WaveformView() => Cursor = new Cursor(StandardCursorType.Hand);
@@ -86,6 +98,26 @@ public sealed class WaveformView : Control
         set => SetValue(SeekCommandProperty, value);
     }
 
+    public double ViewStart
+    {
+        get => GetValue(ViewStartProperty);
+        set => SetValue(ViewStartProperty, value);
+    }
+
+    public double ViewEnd
+    {
+        get => GetValue(ViewEndProperty);
+        set => SetValue(ViewEndProperty, value);
+    }
+
+    /// <summary>The sanitised view window — degenerate values fall back to the whole track.</summary>
+    private (double Start, double Span) View()
+    {
+        var vs = Math.Clamp(ViewStart, 0.0, 1.0);
+        var ve = Math.Clamp(ViewEnd, 0.0, 1.0);
+        return ve > vs ? (vs, ve - vs) : (0.0, 1.0);
+    }
+
     // ── Click / drag to seek ─────────────────────────────────────────────────
     private bool _scrubbing;
 
@@ -118,7 +150,8 @@ public sealed class WaveformView : Control
     {
         var w = Bounds.Width;
         if (w <= 0) return;
-        var frac = Math.Clamp(e.GetPosition(this).X / w, 0.0, 1.0);
+        var (vs, span) = View();
+        var frac = Math.Clamp(vs + e.GetPosition(this).X / w * span, 0.0, 1.0);
         if (SeekCommand is { } cmd && cmd.CanExecute(frac)) cmd.Execute(frac);
     }
 
@@ -146,29 +179,31 @@ public sealed class WaveformView : Control
         var centreY = h / 2;
         var maxBar = centreY - 1;             // leave a hairline top/bottom margin
         var bars = Math.Max(1, (int)(w / Pitch));
-        var progressX = Math.Clamp(Progress, 0.0, 1.0) * w;
+        var (vs, span) = View();
+        var progressX = (Math.Clamp(Progress, 0.0, 1.0) - vs) / span * w;
 
         for (var i = 0; i < bars; i++)
         {
-            var amp = SampleAmp(peaks, i, bars);
+            var amp = SampleAmp(peaks, vs + (double)i / bars * span, vs + (double)(i + 1) / bars * span);
             var barH = Math.Max(1.0, amp * maxBar);         // 1 px hairline even in silence
             var x = i * Pitch;
             var brush = (x + BarWidth / 2) <= progressX ? played : unplayed;
             ctx.FillRectangle(brush, new Rect(x, centreY - barH, BarWidth, barH * 2));
         }
 
-        // Playhead — only once there's a real track loaded.
-        if (peaks is { Count: > 0 })
+        // Playhead — only once there's a real track loaded AND it is inside the view window.
+        if (peaks is { Count: > 0 } && progressX >= -1 && progressX <= w + 1)
             ctx.FillRectangle(PlayheadBrush ?? played, new Rect(progressX - 0.75, 0, 1.5, h));
     }
 
-    /// <summary>Peak of the compute-resolution buckets that fall under on-screen bar <paramref name="i"/>
-    /// (so more bars than buckets simply repeats, fewer bars averages down) — keeps the shape at any width.</summary>
-    private static float SampleAmp(IReadOnlyList<float>? peaks, int i, int bars)
+    /// <summary>Peak of the compute-resolution buckets between the track fractions
+    /// <paramref name="fracStart"/>..<paramref name="fracEnd"/> — the on-screen bar's slice of the
+    /// (possibly zoomed) view window. More bars than buckets repeats, fewer averages down.</summary>
+    private static float SampleAmp(IReadOnlyList<float>? peaks, double fracStart, double fracEnd)
     {
         if (peaks is not { Count: > 0 }) return 0f;
-        var start = (int)((long)i * peaks.Count / bars);
-        var end = (int)((long)(i + 1) * peaks.Count / bars);
+        var start = Math.Clamp((int)(fracStart * peaks.Count), 0, peaks.Count - 1);
+        var end = Math.Clamp((int)(fracEnd * peaks.Count), 0, peaks.Count);
         if (end <= start) end = Math.Min(start + 1, peaks.Count);
         float m = 0f;
         for (var k = start; k < end; k++)
