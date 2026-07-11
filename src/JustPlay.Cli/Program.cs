@@ -15,7 +15,6 @@ using JustPlay.Cli.Commands;
 //             [--eq-low x] [--eq-mid x] [--eq-high x]
 //             [--tilt x] [--punch x]
 //             [--limiter off|soft|club|loud]
-//   justplay beatbed <audiofile> [--out path.wav] [--bpm x]
 //
 // All commands are READ-ONLY on the audio library (except analyze which writes the
 // sidecar index file, "tag write --apply" which writes tags into audio files, and
@@ -43,7 +42,6 @@ return verb switch
     "promote"  => RunPromote(args[1..]),
     "squeeze"  => RunSqueeze(args[1..]),
     "spectrum" => RunSpectrum(args[1..]),
-    "beatbed"  => RunBeatbed(args[1..]),
     _ => Fail($"Unknown command '{args[0]}'. Run 'justplay --help' for usage."),
 };
 
@@ -204,19 +202,6 @@ static int RunSpectrum(string[] args)
     };
 
     return SpectrumCommand.Run(file, outPath, opts);
-}
-
-// ── Beatbed ──────────────────────────────────────────────────────────────────
-static int RunBeatbed(string[] args)
-{
-    if (args.Length == 0)
-        return Fail("beatbed requires an <audiofile> path.");
-
-    var file    = args[0];
-    var outPath = ParseStringFlag(args[1..], "--out");
-    var bpm     = ParseDoubleFlag(args[1..], "--bpm", 0.0);
-
-    return BeatbedCommand.Run(file, outPath, bpm);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -380,19 +365,5 @@ static void PrintHelp()
           EXAMPLES
           justplay spectrum C:\music\track.flac
           justplay spectrum C:\music\track.flac --eq-low 1.5 --limiter club --out C:\tmp\plot.png
-
-          beatbed <audiofile> [--out path.wav] [--bpm x]
-              POC of the beat-carrier feature. Measures the track's FULL drifting beat
-              map (every beat instant, following the drummer — not a rigid grid) and
-              renders a click-check WAV: the original plus a pip on every tracked beat.
-              HIGH pip = real tracked hit; LOW pip = interpolated (bridged) beat.
-              Ear test: PASS when the pips stay on the drummer for the whole track.
-              --out <path.wav>  Output path (default: <file>.beatcheck.wav next to input).
-              --bpm <x>         Seed BPM override (skips the detector; use when the
-                                stored/detected BPM is octave-wrong).
-
-          EXAMPLES
-          justplay beatbed "C:\music\Joachim Witt - Goldener Reiter.flac"
-          justplay beatbed C:\music\classic.flac --bpm 132 --out C:\tmp\check.wav
         """);
 }

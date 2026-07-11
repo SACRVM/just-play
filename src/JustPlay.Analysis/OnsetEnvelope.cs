@@ -9,8 +9,8 @@ namespace JustPlay.Analysis;
 /// usual analysis rate of 11 025 Hz one envelope frame ≈ 11.6 ms.</para>
 ///
 /// <para>This is the single shared implementation (extracted verbatim from
-/// <see cref="TempoOctaveCorrector"/>, which now consumes it, as does
-/// <see cref="BeatMapTracker"/>). <see cref="BeatFingerprintExtractor"/> and
+/// <see cref="TempoOctaveCorrector"/>, which now consumes it; external tooling may
+/// build on it too). <see cref="BeatFingerprintExtractor"/> and
 /// <see cref="RhythmPatternDetector"/> still carry their own MATCHING private copies
 /// (the latter a band-split variant producing low/mid envelopes from one FFT pass) —
 /// folding those in is a follow-up; until then any parameter change here must be
