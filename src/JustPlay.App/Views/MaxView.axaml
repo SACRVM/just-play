@@ -31,6 +31,14 @@
             <MenuItem Header="DURATION" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
             <MenuItem Header="Like (♥)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowLike, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
         </MenuFlyout>
+
+        <!-- FluentTheme's MenuFlyoutPresenter never template-binds the control's Padding —
+             the visible top/bottom inset is this ItemsPresenter margin resource (default
+             0,4,0,4: vertical only; verified against Avalonia 12.0.3
+             Themes.Fluent/Controls/MenuFlyoutPresenter.xaml). 0 = the first/last item's
+             hover highlight sits flush against the flyout edge (Chloe 2026-07-12, decided
+             on JUST BOOTLEG's PROJECT menu — the suite's list menus stay identical). -->
+        <Thickness x:Key="MenuFlyoutScrollerMargin">0</Thickness>
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -222,7 +230,8 @@
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="4"/>
+            <!-- No Padding setter: the template ignores the control's Padding entirely;
+                 the real inset is the MenuFlyoutScrollerMargin resource (Resources above). -->
         </Style>
         <!-- MenuItem inside a flyout presenter: light text, generous hit area. -->
         <Style Selector="MenuFlyoutPresenter MenuItem">
