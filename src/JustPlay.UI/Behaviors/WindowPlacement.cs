@@ -73,8 +73,14 @@ public static class WindowPlacement
     private static void Apply(Window w, WindowBounds b)
     {
         w.WindowStartupLocation = WindowStartupLocation.Manual; // otherwise the platform re-centres
-        w.Width = b.W;
-        w.Height = b.H;
+        // Fixed-size windows: the DESIGN owns the size — restoring a stale saved size would
+        // squash a newer, taller layout (JUST BOOTLEG grew 640→860 and reopened crushed,
+        // 2026-07-12). For them only the position is history; the size never is.
+        if (w.CanResize)
+        {
+            w.Width = b.W;
+            w.Height = b.H;
+        }
         w.Position = new PixelPoint(b.X, b.Y);
     }
 
