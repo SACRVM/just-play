@@ -245,6 +245,50 @@
     </Style>
 
     <!--
+      Round transparent transport buttons + filled icon glyphs (seek / play / pause / add …).
+      Born in the Pre-Cue Finder's player bar, lifted here (2026-07-12) so every JUST app uses
+      the SAME transport buttons instead of re-inventing them (JUST BOOTLEG was the second
+      consumer). Glyphs are FILLED Path.xicon in a shared ~9×10 box + Uniform stretch, so
+      play / pause / seek all render the exact same size (the text-glyph size trap, 2026-07-07).
+
+      Classes to apply:
+        Button Classes="xport"  — the round hover-brightening button (30×30)
+        Path   Classes="xicon"  — the glyph inside (Fill follows the button's Foreground)
+    -->
+    <Style Selector="Button.xport">
+        <Setter Property="Width" Value="30"/>
+        <Setter Property="Height" Value="30"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="15"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="#D9FFFFFF"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.xport /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.xport:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#16FFFFFF"/>
+    </Style>
+    <Style Selector="Button.xport:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.xport:disabled">
+        <Setter Property="Foreground" Value="#4DFFFFFF"/>
+    </Style>
+    <Style Selector="Path.xicon">
+        <Setter Property="Fill" Value="{Binding $parent[Button].Foreground}"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="13"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!--
       Palette swatch (chip) — coloured ring + accent glow when active. Used by JUST PLAY's
       TweaksPanel and JUST STREAM's SettingsWindow Look tab. Defined here (shared) so the two
       products stay visually identical without duplicating the swatch/swatchbtn styles.

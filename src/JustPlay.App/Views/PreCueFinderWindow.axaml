@@ -248,41 +248,9 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <!-- Player-bar transport buttons (seek / play-pause / add) — round, transparent, hover brighten,
-             dim when disabled. The glyphs are FILLED Path.xicon at a shared 9×10 box + Uniform stretch, so
-             play / pause / seek all render the exact same size (the text-glyph size trap, Chloe 2026-07-07). -->
-        <Style Selector="Button.xport">
-            <Setter Property="Width" Value="30"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="15"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="#D9FFFFFF"/>
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-        <Style Selector="Button.xport /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.xport:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#16FFFFFF"/>
-        </Style>
-        <Style Selector="Button.xport:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-        </Style>
-        <Style Selector="Button.xport:disabled">
-            <Setter Property="Foreground" Value="#4DFFFFFF"/>
-        </Style>
-        <Style Selector="Path.xicon">
-            <Setter Property="Fill" Value="{Binding $parent[Button].Foreground}"/>
-            <Setter Property="Stretch" Value="Uniform"/>
-            <Setter Property="Width" Value="12"/>
-            <Setter Property="Height" Value="13"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
+        <!-- Player-bar transport buttons (Button.xport + Path.xicon) come from the SHARED
+             JustStyles (lifted there 2026-07-12 — every JUST app uses the same transport
+             buttons; JUST BOOTLEG was the second consumer). -->
 
         <!-- Section headings inside the finder (settings flyout, detail panel). -->
         <Style Selector="TextBlock.finder-section">
