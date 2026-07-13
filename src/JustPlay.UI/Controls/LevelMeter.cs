@@ -10,11 +10,24 @@ namespace JustPlay.UI.Controls;
 /// One-channel output PEAK level bar — the SHARED meter for the whole J.U.S.T. suite. Compose as many
 /// as you need: JUST PLAY stacks two vertical ones (L + R) in the analyzer's OUT column; JUST STREAM
 /// drops a horizontal one into each of its L/R rows. Fed each render frame via <see cref="Push"/>
-/// (raw peak 0..1 + frame dt): the control OWNS the ballistics (fast attack / slow release, dt-rescaled
+/// (raw peak + frame dt): the control OWNS the ballistics (fast attack / slow release, dt-rescaled
 /// so the glide is identical at any refresh rate — the SAME K values as STREAM's old meter) and a
 /// peak-hold marker. The marker is a FLAT 2 px line with square ends (white with headroom, red within
-/// 1 dB of 0 dBFS = clip warning). dBFS scale −60..0; green → amber → red toward 0. <see cref="Orientation"/>
+/// 1 dB of 0 dBFS). dBFS scale −60..0; green → amber → red toward 0. <see cref="Orientation"/>
 /// = bar grows bottom→top (Vertical) or left→right (Horizontal). No labels — the host adds them.
+///
+/// <para><b>The fed level is NOT clamped to 1.0</b> (2026-07-13). Float buses can and do go past
+/// 0 dBFS, and that overshoot is precisely the news — clamping it at the source made "over" invisible
+/// by construction. Anything that reaches 0 dBFS lights the <b>OVER</b> cap at the top of the track,
+/// which holds for <see cref="OverHoldSeconds"/> s after the last one. The bar itself still pins at
+/// 0 dBFS: the scale stays −60..0 so the useful range isn't squeezed to make room for headroom nobody
+/// reads in numbers.</para>
+///
+/// <para><b>Optional pre-limiter ghost</b> (<see cref="PushInput"/>, cyan hairline): on a master meter
+/// the bar is measured AFTER the limiter, so by construction it can never go over — holding it under is
+/// the limiter's entire job — and it therefore cannot answer "am I driving this too hard?". The ghost
+/// can: it is the peak the limiter SEES. Ghost above the bar = the limiter is eating the difference,
+/// and the GR meter next to it says how much. Hosts that never call PushInput never see it.</para>
 /// </summary>
 public sealed class LevelMeter : Control
 {
@@ -32,19 +45,34 @@ public sealed class LevelMeter : Control
     private const double PeakHoldSeconds = 1.2, PeakFallDbPerSec = 36.0;
     private const double MaxThickness = 20.0, Radius = 4.0;
 
-    private double _lvl;             // smoothed linear 0..1
+    /// <summary>How long the OVER cap stays lit after the last sample that touched 0 dBFS. This is a
+    /// live-preview hold, NOT a mastering latch: the question a DJ asks the meter is "am I hot right
+    /// NOW", and a persistent overdrive simply keeps re-arming it.</summary>
+    private const double OverHoldSeconds = 3.0;
+
+    /// <summary>−0.1 dBFS counts as over. A 16-bit round-trip can't resolve finer, and a meter that
+    /// insists on exactly 0.0 would sit there silent while the signal is audibly against the ceiling.</summary>
+    private const double OverDb = -0.1;
+
+    private double _lvl;             // smoothed linear peak — NOT capped at 1
     private double _peakDb = MinDb;
     private double _hold;            // peak-hold seconds remaining
+    private double _over;            // OVER cap: seconds left to show
+
+    private bool _inputFed;          // has this meter ever been given a pre-limiter peak?
+    private double _inputDb = MinDb;
+    private double _inputHold;
 
     static LevelMeter() => AffectsRender<LevelMeter>(OrientationProperty);
 
-    /// <summary>Feed one frame: raw peak (linear 0..1) + seconds since the last frame.</summary>
+    /// <summary>Feed one frame: raw peak (linear; >1 is allowed and means OVER) + seconds since the
+    /// last frame. Push owns the clock — it is the only method that ages the holds.</summary>
     public void Push(double level, double dt)
     {
         double steps = dt > 0 ? dt / RefStep : 1.0;
         double aK = 1.0 - Math.Pow(1.0 - AttackK, steps);
         double rK = 1.0 - Math.Pow(1.0 - ReleaseK, steps);
-        double tgt = Math.Clamp(level, 0, 1);
+        double tgt = Math.Max(0, level);          // no upper clamp — see the class remarks
         _lvl += (tgt - _lvl) * (tgt > _lvl ? aK : rK);
 
         double db = ToDb(_lvl);
@@ -52,6 +80,24 @@ public sealed class LevelMeter : Control
         else if (_hold > 0) _hold -= dt;
         else _peakDb = Math.Max(db, _peakDb - PeakFallDbPerSec * dt);
 
+        // Age the holds owned by the other feed here too, so a meter that gets no PushInput still decays.
+        if (_inputHold > 0) _inputHold -= dt;
+        else _inputDb = Math.Max(MinDb, _inputDb - PeakFallDbPerSec * dt);
+
+        if (ToDb(tgt) >= OverDb) _over = OverHoldSeconds;
+        else if (_over > 0) _over -= dt;
+
+        InvalidateVisual();
+    }
+
+    /// <summary>Optional: the peak BEFORE the limiter (linear; >1 expected when driving it). Drawn as a
+    /// cyan hairline over the bar. Call it every frame you call <see cref="Push"/>, or never.</summary>
+    public void PushInput(double peak, double dt)
+    {
+        _inputFed = true;
+        double db = ToDb(Math.Max(0, peak));
+        if (db >= _inputDb) { _inputDb = db; _inputHold = PeakHoldSeconds; }
+        if (db >= OverDb) _over = OverHoldSeconds;   // Push ages it; we only ever arm it
         InvalidateVisual();
     }
 
@@ -86,6 +132,16 @@ public sealed class LevelMeter : Control
                 ctx.DrawRectangle(ZoneGradient(vert), null, track);
         }
 
+        // Pre-limiter GHOST (master meters only): what the limiter SEES. Cyan so it can't be mistaken
+        // for the white output peak-hold — they are different signals at different points in the chain.
+        if (_inputFed && _inputDb > MinDb + 0.5)
+        {
+            double gf = Frac(_inputDb);
+            var gb = new SolidColorBrush(Color.FromArgb(0xCC, 0x32, 0xC8, 0xE8));   // AccentA
+            if (vert) ctx.FillRectangle(gb, new Rect(x, y + h - gf * h - 0.5, w, 1));
+            else      ctx.FillRectangle(gb, new Rect(x + gf * w - 0.5, y, 1, h));
+        }
+
         // Peak-hold: FLAT 2 px line, square ends (FillRectangle, not a Pen → can't get rounded caps).
         if (_peakDb > MinDb + 0.5)
         {
@@ -94,6 +150,15 @@ public sealed class LevelMeter : Control
             var pb = new SolidColorBrush(pc);
             if (vert) ctx.FillRectangle(pb, new Rect(x, y + h - pf * h - 1, w, 2));
             else      ctx.FillRectangle(pb, new Rect(x + pf * w - 1, y, 2, h));
+        }
+
+        // OVER — 0 dBFS was touched. A solid red cap at the 0 dB END of the track, drawn last so it
+        // wins over the bar and both markers. This is the only thing on the meter that means "stop".
+        if (_over > 0)
+        {
+            var ob = new SolidColorBrush(Color.FromRgb(0xFF, 0x3B, 0x30));
+            if (vert) ctx.FillRectangle(ob, new Rect(x, y, w, 3));
+            else      ctx.FillRectangle(ob, new Rect(x + w - 3, y, 3, h));
         }
     }
 
