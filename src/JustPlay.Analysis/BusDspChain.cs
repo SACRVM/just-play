@@ -88,4 +88,23 @@ public sealed class BusDspChain
         _transient.ProcessInterleavedStereo(buf);
         if (_limiterEnabled) _limiter!.ProcessInterleavedStereo(buf);
     }
+
+    /// <summary>
+    /// How hard the limiter is working right now, in dB of gain reduction (0 when it is not limiting,
+    /// or when it is disabled). Read it after a <see cref="ProcessInterleavedStereo"/> block.
+    ///
+    /// <para><b>Why this exists.</b> A drum sound's real question is not "how does it sound" but "how
+    /// does it sound <i>through a master chain, next to a bassline</i>" — and the honest answer has two
+    /// halves: how hard it HITS, and how much LIMITER it eats to do so. A kick that only gets loud by
+    /// pushing everything else down is not a good kick, it is a greedy one. You cannot see that without
+    /// the gain reduction, so the chain has to be willing to say it.</para>
+    ///
+    /// <para>Read-only telemetry — it changes no audio and costs nothing when unread.</para>
+    /// </summary>
+    public double LimiterGainReductionDb => _limiterEnabled ? _limiter!.LastGainReductionDb : 0.0;
+
+    /// <summary>Whether the limiter stage is active at all. When false,
+    /// <see cref="LimiterGainReductionDb"/> is always 0 — and any bench reading it should say
+    /// "no limiter" rather than "no limiting", because those are very different sentences.</summary>
+    public bool HasLimiter => _limiterEnabled;
 }
