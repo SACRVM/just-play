@@ -15,6 +15,11 @@ public partial class MiniView : UserControl
     {
         InitializeComponent();
         AddHandler(PointerPressedEvent, OnPointerPressed, handledEventsToo: false);
+
+        // macOS: caption buttons sit LEFT, so the expand button owns the top-right corner —
+        // round its hover to the card radius (Button.cap.corner in JustStyles).
+        if (System.OperatingSystem.IsMacOS())
+            ExpandBtn.Classes.Add("corner");
     }
 
     // Drag the borderless mini window from any non-interactive surface.

@@ -52,6 +52,10 @@
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                                         Margin="14,0,0,0" VerticalAlignment="Center">
+                                <!-- macOS: traffic lights LEFT (min/zoom greyed, dialog-style). -->
+                                <controls:WindowControls ShowMinimize="False" ShowMaximize="False"
+                                                         IsVisible="{x:Static controls:Platform.IsMac}"
+                                                         Margin="0,0,4,0"/>
                                 <controls:SpectrumGlyph Width="17" Height="13" Active="False" Stroke="White"
                                                         VerticalAlignment="Center"/>
                                 <TextBlock Text="SPECTRUM" FontSize="11" FontWeight="SemiBold" LetterSpacing="2"
@@ -84,7 +88,8 @@
                                 </Button>
                             </StackPanel>
 
-                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close">
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
+                                    IsVisible="{x:Static controls:Platform.IsNotMac}">
                                 <TextBlock Text="✕" FontSize="13"/>
                             </Button>
                         </Grid>

@@ -25,7 +25,28 @@
             <Border DockPanel.Dock="Top" Name="ChromeBar" Height="36" Background="Transparent">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="12,0,0,0">
-                        <!-- TRANSPARENT chip — just the enlarged white play glyph (Chloe 2026-06-30). -->
+                        <!-- macOS: traffic lights on the far LEFT (suite chrome rule for mac);
+                             the brand moves to the CENTER (see end of this grid). -->
+                        <ui:WindowControls IsVisible="{x:Static ui:Platform.IsMac}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                    IsVisible="{x:Static ui:Platform.IsNotMac}">
+                            <!-- TRANSPARENT chip — just the enlarged white play glyph (Chloe 2026-06-30). -->
+                            <Border Width="18" Height="18" Background="Transparent">
+                                <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                    </Path.Effect>
+                                </Path>
+                            </Border>
+                            <TextBlock Text="JUST PLAY" FontSize="10" FontWeight="SemiBold"
+                                       LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- macOS: brand CENTERED in the chrome bar (mac title-bar convention). -->
+                    <StackPanel Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                IsVisible="{x:Static ui:Platform.IsMac}">
                         <Border Width="18" Height="18" Background="Transparent">
                             <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
                                 <Path.Effect>
@@ -48,7 +69,7 @@
                                   Data="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/>
                         </Button>
                         <!-- Expand back to Max — single big box, centered 14×14 -->
-                        <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand to full view">
+                        <Button Name="ExpandBtn" Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand to full view">
                             <Path Stretch="None" Width="14" Height="14"
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.4"
                                   StrokeJoin="Round" Fill="Transparent"
@@ -56,8 +77,9 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- Windows window controls — shared control (JustPlay.UI/Controls/WindowControls). -->
-                    <ui:WindowControls Grid.Column="3"/>
+                    <!-- Windows caption buttons (right) — on macOS the same control renders the
+                         traffic lights on the LEFT instead (see the brand StackPanel above). -->
+                    <ui:WindowControls Grid.Column="3" IsVisible="{x:Static ui:Platform.IsNotMac}"/>
                 </Grid>
             </Border>
 

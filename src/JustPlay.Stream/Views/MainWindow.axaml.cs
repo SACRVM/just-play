@@ -51,13 +51,13 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         InitializeComponent();
 
-        // Belt-and-braces (the XAML IReadOnlyList TypeConverter isn't honoured on every minor version).
-        TransparencyLevelHint = new[]
-        {
-            WindowTransparencyLevel.Transparent,
-            WindowTransparencyLevel.Mica,
-            WindowTransparencyLevel.Blur,
-        };
+        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips
+        // Avalonia's macOS opaque-fallback (black surround); see JustPlay MainWindow ctor.
+
+        // macOS: caption buttons sit LEFT, so the settings gear owns the top-right corner —
+        // round its hover to the card radius (Button.cap.corner in JustStyles).
+        if (System.OperatingSystem.IsMacOS())
+            SettingsBtn.Classes.Add("corner");
 
         _meterL = this.FindControl<LevelMeter>("MeterL");
         _meterR = this.FindControl<LevelMeter>("MeterR");

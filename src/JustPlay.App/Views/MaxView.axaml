@@ -282,9 +282,15 @@
             <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar" Background="Transparent">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto">
 
+                    <!-- macOS: traffic lights on the far LEFT (suite chrome rule for mac); the brand
+                         mark moves to the CENTER (mac title-bar convention, see end of this grid)
+                         and the track breadcrumb takes the brand's old spot next to the lights. -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Stretch">
+                    <ui:WindowControls IsVisible="{x:Static ui:Platform.IsMac}" Margin="14,0,0,0"/>
                     <!-- Brand — click opens the About dialog (replaces the old Tweaks "About" row).
                          A Button so the frameless-window drag handler treats it as interactive. -->
                     <Button Classes="brand" Click="OnAboutClick" Margin="14,0,0,0"
+                            IsVisible="{x:Static ui:Platform.IsNotMac}"
                             VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <!-- TRANSPARENT chip — just the enlarged white play glyph filling the area
@@ -303,8 +309,27 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- Center breadcrumb -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                    <!-- macOS: the track breadcrumb sits LEFT next to the lights (the centre now
+                         belongs to the brand). Same bindings as the Windows copy below. -->
+                    <Panel IsVisible="{x:Static ui:Platform.IsMac}" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"
+                                    IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <TextBlock Text="{Binding Current.Model.Metadata.Album, FallbackValue=''}"
+                                       FontSize="11" FontWeight="Bold" LetterSpacing="2"
+                                       Foreground="White" VerticalAlignment="Center"/>
+                            <TextBlock Text="·" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Current.Artist}" FontSize="11"
+                                       Foreground="#B3FFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock Text="·" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Current.Model.Metadata.Year, FallbackValue=''}"
+                                       FontSize="11" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Panel>
+                    </StackPanel>
+
+                    <!-- Center breadcrumb (Windows — on macOS the brand owns the centre, above) -->
+                    <Panel Grid.Column="1" IsVisible="{x:Static ui:Platform.IsNotMac}">
+                    <StackPanel Orientation="Horizontal" Spacing="10"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}">
                         <TextBlock Text="{Binding Current.Model.Metadata.Album, FallbackValue=''}"
@@ -317,6 +342,7 @@
                         <TextBlock Text="{Binding Current.Model.Metadata.Year, FallbackValue=''}"
                                    FontSize="11" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                     </StackPanel>
+                    </Panel>
 
                     <!-- App icon buttons (square, same style as window controls — keeps the chrome consistent).
                          Search was removed 2026-05-31 — JustPlay queues are short-by-design (drop-and-play, no
@@ -366,7 +392,7 @@
                         <!-- Event log: opens the shared LogWindow (JustPlay.UI); the dot marks unread entries —
                              file-lock / tag-write failures land there instead of a silent Console line. -->
                         <Panel>
-                            <Button Classes="cap" Click="OnOpenLog" ToolTip.Tip="Event log">
+                            <Button Name="LogBtn" Classes="cap" Click="OnOpenLog" ToolTip.Tip="Event log">
                                 <!-- 3-bar "log" glyph as stacked rectangles (mirrors JUST STREAM). -->
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3.5">
                                     <Rectangle Width="15" Height="1.7" RadiusX="1" RadiusY="1" Fill="{Binding $parent[Button].Foreground}"/>
@@ -381,7 +407,7 @@
                         <!-- Update badge — hidden until a newer release lands (Update.IsAvailable).
                              Green Discord-style "download to bar" glyph; click opens the update dialog.
                              Lucide "download" path (ISC), verbatim values. -->
-                        <Button Classes="cap update" Click="OnUpdateBadge"
+                        <Button Name="UpdateBadge" Classes="cap update" Click="OnUpdateBadge"
                                 IsVisible="{Binding Update.IsAvailable}"
                                 ToolTip.Tip="{Binding Update.Tooltip}">
                             <Path Stretch="Uniform" Width="17" Height="17"
@@ -391,8 +417,27 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- Windows window controls — shared control (JustPlay.UI/Controls/WindowControls). -->
-                    <ui:WindowControls Grid.Column="3"/>
+                    <!-- Windows caption buttons (right) — on macOS the same control renders the
+                         traffic lights on the LEFT instead (see the brand StackPanel above). -->
+                    <ui:WindowControls Grid.Column="3" IsVisible="{x:Static ui:Platform.IsNotMac}"/>
+
+                    <!-- macOS: brand mark CENTERED in the chrome bar (mac title-bar convention) —
+                         still the About button, centered on the WINDOW via the full column span. -->
+                    <Button Grid.ColumnSpan="4" Classes="brand" Click="OnAboutClick"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            IsVisible="{x:Static ui:Platform.IsMac}" ToolTip.Tip="About JustPlay">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Border Width="20" Height="20" Background="Transparent">
+                                <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="16" Height="16">
+                                    <Path.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                    </Path.Effect>
+                                </Path>
+                            </Border>
+                            <TextBlock Text="JUST PLAY" FontSize="11" FontWeight="SemiBold"
+                                       LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
 

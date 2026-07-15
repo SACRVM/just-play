@@ -4,27 +4,105 @@
              x:Class="JustPlay.UI.Controls.WindowControls">
 
     <!--
-      Shared JUST-suite caption buttons (minimize / maximize / close). Resolves the
-      hosting Window via TopLevel and drives a custom maximize through IFramelessWindow,
-      so it drops into any app's chrome bar with no wiring. Styling comes from the host
-      app's Button.cap / Button.cap.close styles (part of the shared design system).
+      Shared JUST-suite caption buttons. Resolves the hosting Window via TopLevel and
+      drives a custom maximize through IFramelessWindow, so it drops into any app's
+      chrome bar with no wiring.
+
+      Two hand-drawn variants, chosen by Platform (never both visible):
+        - Windows: square minimize / maximize / close on the RIGHT (host app's
+          Button.cap / Button.cap.close styles, part of the shared design system).
+        - macOS: traffic lights close / minimize / zoom on the LEFT — real macOS
+          colours + glyphs-on-group-hover, drawn by us (suite rule: no stock OS
+          chrome). Hosts place one instance per side; Platform.IsMac / IsNotMac
+          collapse the wrong side.
     -->
-    <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-        <Button Classes="cap" Click="OnMinimizeClick" ToolTip.Tip="Minimize">
-            <Path Stretch="None" Width="10" Height="1"
-                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
-                  Data="M 0,0 L 10,0"/>
-        </Button>
-        <Button Classes="cap" Click="OnMaximizeClick" ToolTip.Tip="Maximize"
-                IsVisible="{Binding $parent[c:WindowControls].ShowMaximize}">
-            <Path Stretch="None" Width="10" Height="10"
-                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"
-                  Data="M 0,0 L 10,0 L 10,10 L 0,10 Z"/>
-        </Button>
-        <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close">
-            <Path Stretch="None" Width="10" Height="10"
-                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
-                  Data="M 0,0 L 10,10 M 10,0 L 0,10"/>
-        </Button>
-    </StackPanel>
+
+    <UserControl.Styles>
+        <!-- macOS traffic light: 12px dot; glyphs appear when the pointer is anywhere
+             over the group (mac behaviour), not per-button. -->
+        <Style Selector="Button.traffic">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="Dot" CornerRadius="6"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="#26000000" BorderThickness="0.5">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.traffic.close"><Setter Property="Background" Value="#FF5F57"/></Style>
+        <Style Selector="Button.traffic.min"><Setter Property="Background" Value="#FEBC2E"/></Style>
+        <Style Selector="Button.traffic.zoom"><Setter Property="Background" Value="#28C840"/></Style>
+        <!-- Non-maximizable window: greyed-out zoom dot, like a mac window with zoom disabled. -->
+        <Style Selector="Button.traffic:disabled"><Setter Property="Background" Value="#30FFFFFF"/></Style>
+
+        <Style Selector="Button.traffic Path">
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.08"/></Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="StackPanel#MacCaps:pointerover Button.traffic:enabled Path">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <Style Selector="Button.traffic:pressed /template/ Border#Dot">
+            <Setter Property="Opacity" Value="0.65"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Panel>
+
+        <!-- ── macOS: traffic lights, LEFT (close / minimize / zoom) ─────────────── -->
+        <!-- Transparent background so the 8px gaps between dots keep the group hover alive. -->
+        <StackPanel Name="MacCaps" Orientation="Horizontal" Spacing="8"
+                    Background="Transparent"
+                    IsVisible="{x:Static c:Platform.IsMac}">
+            <Button Classes="traffic close" Click="OnCloseClick" ToolTip.Tip="Close">
+                <Path Stretch="None" Width="6" Height="6"
+                      Stroke="#B3000000" StrokeThickness="1.1" StrokeLineCap="Round"
+                      Data="M 0,0 L 6,6 M 6,0 L 0,6"/>
+            </Button>
+            <Button Classes="traffic min" Click="OnMinimizeClick" ToolTip.Tip="Minimize"
+                    IsEnabled="{Binding $parent[c:WindowControls].ShowMinimize}">
+                <Path Stretch="None" Width="7" Height="1"
+                      Stroke="#B3000000" StrokeThickness="1.2" StrokeLineCap="Round"
+                      Data="M 0,0.5 L 7,0.5"/>
+            </Button>
+            <Button Classes="traffic zoom" Click="OnMaximizeClick" ToolTip.Tip="Zoom"
+                    IsEnabled="{Binding $parent[c:WindowControls].ShowMaximize}">
+                <Path Stretch="None" Width="7" Height="7"
+                      Stroke="#B3000000" StrokeThickness="1.2" StrokeLineCap="Round"
+                      Data="M 3.5,0 L 3.5,7 M 0,3.5 L 7,3.5"/>
+            </Button>
+        </StackPanel>
+
+        <!-- ── Windows: squares, RIGHT (minimize / maximize / close) ─────────────── -->
+        <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Top"
+                    IsVisible="{x:Static c:Platform.IsNotMac}">
+            <Button Classes="cap" Click="OnMinimizeClick" ToolTip.Tip="Minimize"
+                    IsVisible="{Binding $parent[c:WindowControls].ShowMinimize}">
+                <Path Stretch="None" Width="10" Height="1"
+                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
+                      Data="M 0,0 L 10,0"/>
+            </Button>
+            <Button Classes="cap" Click="OnMaximizeClick" ToolTip.Tip="Maximize"
+                    IsVisible="{Binding $parent[c:WindowControls].ShowMaximize}">
+                <Path Stretch="None" Width="10" Height="10"
+                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"
+                      Data="M 0,0 L 10,0 L 10,10 L 0,10 Z"/>
+            </Button>
+            <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close">
+                <Path Stretch="None" Width="10" Height="10"
+                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
+                      Data="M 0,0 L 10,10 M 10,0 L 0,10"/>
+            </Button>
+        </StackPanel>
+
+    </Panel>
 </UserControl>

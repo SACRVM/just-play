@@ -27,6 +27,30 @@ public partial class MaxView : UserControl
         // Drag the frameless window by clicking the chrome bar.
         this.FindControl<Border>("ChromeBar")?.AddHandler(PointerPressedEvent, OnChromePressed, RoutingStrategies.Tunnel);
 
+        // macOS: the caption buttons sit LEFT, so the top-right corner belongs to the update
+        // badge while it is visible, otherwise to the log button. "corner" (JustStyles) rounds
+        // the hover to the card radius so it stays flush inside the rounded window edge.
+        if (OperatingSystem.IsMacOS())
+        {
+            void SetCorner()
+            {
+                bool up = (DataContext as MainWindowViewModel)?.Update.IsAvailable == true;
+                UpdateBadge.Classes.Set("corner", up);
+                LogBtn.Classes.Set("corner", !up);
+            }
+            DataContextChanged += (_, _) =>
+            {
+                if (DataContext is MainWindowViewModel vm)
+                    vm.Update.PropertyChanged += (_, args) =>
+                    {
+                        if (args.PropertyName == nameof(UpdateViewModel.IsAvailable))
+                            Dispatcher.UIThread.Post(SetCorner);
+                    };
+                SetCorner();
+            };
+            SetCorner();
+        }
+
         // Queue key handling MUST be registered with handledEventsToo:true. Avalonia's ListBoxItem
         // marks Key.Enter (and Key.Space) as Handled during the bubble pass BEFORE a plain XAML
         // KeyDown handler runs — ListBoxItem.OnKeyDown → SelectingItemsControl.UpdateSelectionFromEvent,

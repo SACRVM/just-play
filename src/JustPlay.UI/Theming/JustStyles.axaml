@@ -111,6 +111,21 @@
         <Setter Property="Background" Value="#A21020"/>
         <Setter Property="CornerRadius" Value="0,14,0,0"/>
     </Style>
+    <!--
+      macOS: the caption buttons sit LEFT (traffic lights), so an ordinary cap button ends
+      up in the top-right corner instead of the close button — same square-hover-vs-rounded-
+      card problem as above. The "corner" class is assigned from code-behind on macOS only
+      (it can move at runtime, e.g. JUST PLAY's update badge appearing right of the log).
+    -->
+    <Style Selector="Button.cap.corner">
+        <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
+    <Style Selector="Button.cap.corner:pointerover /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
+    <Style Selector="Button.cap.corner:pressed /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
 
     <!-- ════ Underline tabs (SHARED) ════
          A Button with Classes="tab" (add "active", or bind Classes.active) whose Content is

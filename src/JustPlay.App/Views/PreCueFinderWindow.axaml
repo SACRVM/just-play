@@ -300,8 +300,14 @@
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto"
                           Height="36" Background="Transparent"
                           PointerPressed="OnChromePressed">
-                        <!-- Brand → opens the shared About dialog, exactly like the main window's brand. -->
-                        <Button Grid.Column="0" Classes="brand" Click="OnAboutClick" Margin="14,0,0,0"
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Stretch">
+                        <!-- macOS: traffic lights on the far LEFT (suite chrome rule for mac). -->
+                        <uic:WindowControls IsVisible="{x:Static uic:Platform.IsMac}" Margin="14,0,0,0"/>
+                        <!-- Brand → opens the shared About dialog, exactly like the main window's brand.
+                             Windows-only: on macOS this window drops the title entirely and centres the
+                             folder breadcrumb instead (code-behind) — the centre belongs to the path. -->
+                        <Button Classes="brand" Click="OnAboutClick" Margin="14,0,0,0"
+                                IsVisible="{x:Static uic:Platform.IsNotMac}"
                                 VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                 <Border Width="20" Height="20" Background="Transparent">
@@ -315,12 +321,13 @@
                                            LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
+                        </StackPanel>
 
                         <!-- Clickable breadcrumb, right of the brand (Chloe 2026-07-05: "der pfad rechts
                              neben PRE CUE FINDER … jedes segment anklickbar um mehrere ebenen hoch"). Each
                              folder segment jumps straight to that level; clipped to its column so it can
                              never overrun the caption buttons. -->
-                        <ItemsControl Grid.Column="1" ItemsSource="{Binding BreadcrumbSegments}"
+                        <ItemsControl Name="Breadcrumb" Grid.Column="1" ItemsSource="{Binding BreadcrumbSegments}"
                                       VerticalAlignment="Center" Margin="14,0,10,0" ClipToBounds="True">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -353,7 +360,7 @@
                                             M9.09 9 a3 3 0 0 1 5.82 1 c0 2 -3 3 -3 3
                                             M12 17 h.01"/>
                             </Button>
-                            <Button Classes="cap" Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="Finder settings">
+                            <Button Name="FinderSettingsBtn" Classes="cap" Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="Finder settings">
                                 <!-- Exact gear path from the main window's Tweaks button. -->
                                 <Path Stretch="Uniform" Width="17" Height="17"
                                       Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2"
@@ -362,8 +369,28 @@
                             </Button>
                         </StackPanel>
 
-                        <!-- Shared caption buttons (min / max / close) — identical to every JUST window. -->
-                        <uic:WindowControls Grid.Column="3"/>
+                        <!-- Shared caption buttons (min / max / close) — identical to every JUST window.
+                             Windows-only here; on macOS the traffic lights sit LEFT (brand panel above). -->
+                        <uic:WindowControls Grid.Column="3" IsVisible="{x:Static uic:Platform.IsNotMac}"/>
+
+                        <!-- macOS: at the library ROOT the centre shows the classic brand (play glyph +
+                             PRE CUE FINDER, still the About click); one folder deeper the breadcrumb
+                             takes the centre instead — toggled in code-behind on BreadcrumbSegments. -->
+                        <Button Name="MacBrand" Grid.ColumnSpan="4" Classes="brand" Click="OnAboutClick"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False"
+                                ToolTip.Tip="About JustPlay">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" Background="Transparent">
+                                    <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="16" Height="16">
+                                        <Path.Effect>
+                                            <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                        </Path.Effect>
+                                    </Path>
+                                </Border>
+                                <TextBlock Text="PRE CUE FINDER" FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <!-- ── Footer: the SHARED keyboard-hint bar (KeyLegend, same control JUST STREAM uses).

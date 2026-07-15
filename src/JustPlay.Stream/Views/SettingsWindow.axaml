@@ -3,6 +3,7 @@
         xmlns:vm="using:JustPlay.Stream.ViewModels"
         xmlns:models="using:JustPlay.Core.Models"
         xmlns:theming="using:JustPlay.UI.Theming"
+        xmlns:uic="using:JustPlay.UI.Controls"
         x:Class="JustPlay.Stream.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="JUST STREAM — Settings"
@@ -69,6 +70,10 @@
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                                         Margin="14,0,0,0" VerticalAlignment="Center">
+                                <!-- macOS: traffic lights LEFT (min/zoom greyed, dialog-style). -->
+                                <uic:WindowControls ShowMinimize="False" ShowMaximize="False"
+                                                    IsVisible="{x:Static uic:Platform.IsMac}"
+                                                    Margin="0,0,4,0"/>
                                 <!-- Tool-window chrome convention (Chloe 2026-07-05): each secondary
                                      window leads with ITS OWN glyph, plain white on transparent — like
                                      SpectrumWindow (bars + "SPECTRUM") — NOT the app brand chip. Same
@@ -84,7 +89,8 @@
                                 <TextBlock Classes="label" Text="JUST STREAM" VerticalAlignment="Center"/>
                             </StackPanel>
 
-                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close">
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
+                                    IsVisible="{x:Static uic:Platform.IsNotMac}">
                                 <Path Stretch="None" Width="10" Height="10"
                                       Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
                                       Data="M 0,0 L 10,10 M 10,0 L 0,10"/>

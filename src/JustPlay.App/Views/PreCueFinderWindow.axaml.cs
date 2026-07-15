@@ -52,14 +52,32 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         if (this.FindControl<ListBox>("FolderList") is { } folderList)
             RowDragBehavior.Attach(folderList, dc => dc is FinderEntryViewModel { IsUp: false } fe ? fe.FullPath : null);
 
-        // Belt-and-braces: the XAML TypeConverter for the hint list isn't reliable on
-        // every Avalonia minor version (same guard as MainWindow).
-        TransparencyLevelHint = new[]
+        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips the
+        // macOS opaque-fallback bug (see MainWindow ctor).
+
+        // macOS: the left "PRE CUE FINDER" brand is hidden (XAML) and the chrome centre is
+        // shared — at the library ROOT it shows the centered brand (MacBrand), one folder
+        // deeper the folder breadcrumb (both worlds, Chloe 2026-07-15). The settings gear
+        // owns the top-right corner, so its hover gets the card radius (Button.cap.corner).
+        if (OperatingSystem.IsMacOS())
         {
-            WindowTransparencyLevel.Transparent,
-            WindowTransparencyLevel.Mica,
-            WindowTransparencyLevel.Blur,
-        };
+            Breadcrumb.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+            FinderSettingsBtn.Classes.Add("corner");
+
+            void SyncChromeCenter()
+            {
+                var atRoot = ViewModel is not { } vm || vm.BreadcrumbSegments.Count <= 1;
+                MacBrand.IsVisible = atRoot;
+                Breadcrumb.IsVisible = !atRoot;
+            }
+            DataContextChanged += (_, _) =>
+            {
+                if (ViewModel is { } vm)
+                    vm.BreadcrumbSegments.CollectionChanged += (_, _) => SyncChromeCenter();
+                SyncChromeCenter();
+            };
+            SyncChromeCenter();
+        }
 
         // TUNNEL + handledEventsToo so the finder's keys beat BOTH the focused ListBoxItem/Button
         // AND Avalonia's KeyboardNavigationHandler — which runs first in the tunnel and marks Tab

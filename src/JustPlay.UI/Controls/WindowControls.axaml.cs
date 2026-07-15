@@ -23,6 +23,18 @@ public partial class WindowControls : UserControl
         set => SetValue(ShowMaximizeProperty, value);
     }
 
+    /// <summary>Show the minimize button. Set False for dialogs (About, Log, Settings) — on
+    /// Windows the square disappears (dialogs carry only the ×), on macOS the yellow dot stays
+    /// visible but greyed/disabled, like a native mac dialog's traffic lights.</summary>
+    public static readonly StyledProperty<bool> ShowMinimizeProperty =
+        AvaloniaProperty.Register<WindowControls, bool>(nameof(ShowMinimize), defaultValue: true);
+
+    public bool ShowMinimize
+    {
+        get => GetValue(ShowMinimizeProperty);
+        set => SetValue(ShowMinimizeProperty, value);
+    }
+
     public WindowControls() => InitializeComponent();
 
     private Window? Window => TopLevel.GetTopLevel(this) as Window;

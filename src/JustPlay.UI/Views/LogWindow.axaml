@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:logging="using:JustPlay.UI.Logging"
+        xmlns:c="using:JustPlay.UI.Controls"
         x:Class="JustPlay.UI.Views.LogWindow"
         x:DataType="logging:LogViewModel"
         Title="Event Log"
@@ -52,11 +53,16 @@
                 <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
                 <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
 
-                <!-- Close (×) in the rounded top-right corner (shared Button.cap.close). -->
+                <!-- Close (×) in the rounded top-right corner (shared Button.cap.close) — Windows.
+                     macOS gets the traffic lights top-LEFT instead (min/zoom greyed, dialog-style). -->
                 <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close"
+                        IsVisible="{x:Static c:Platform.IsNotMac}"
                         HorizontalAlignment="Right" VerticalAlignment="Top">
                     <TextBlock Text="✕" FontSize="13"/>
                 </Button>
+                <c:WindowControls ShowMinimize="False" ShowMaximize="False"
+                                  IsVisible="{x:Static c:Platform.IsMac}"
+                                  HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12,0,0"/>
 
                 <DockPanel Margin="24,22,24,22">
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,30,12">

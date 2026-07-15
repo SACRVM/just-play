@@ -160,9 +160,14 @@
                                  gradient chip, per the JUST suite UI philosophy (CLAUDE.md). -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                                         Margin="6,0,0,0" VerticalAlignment="Center">
+                                <!-- macOS: traffic lights on the far LEFT (suite chrome rule for mac). -->
+                                <ui:WindowControls ShowMaximize="False" Margin="8,0,0,0"
+                                                   IsVisible="{x:Static ui:Platform.IsMac}"/>
                                 <!-- Brand mark IS the About button (top-left), per the JUST suite UI
-                                     philosophy — opens the SHARED About dialog (JustPlay.UI). -->
-                                <Button Classes="brandbtn" Click="OnAbout" ToolTip.Tip="About JUST STREAM">
+                                     philosophy — opens the SHARED About dialog (JustPlay.UI).
+                                     On macOS the brand sits CENTERED instead (end of this grid). -->
+                                <Button Classes="brandbtn" Click="OnAbout" ToolTip.Tip="About JUST STREAM"
+                                        IsVisible="{x:Static ui:Platform.IsNotMac}">
                                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <!-- TRANSPARENT chip — just the enlarged white Funkturm glyph filling
                                              the area where the gradient chip was (Chloe 2026-06-30). -->
@@ -188,8 +193,12 @@
                                                    LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
-                                <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="4,0"
-                                        IsVisible="{Binding !IsMini}"/>
+                                <!-- Hairline separates brand and label — pointless on macOS, where the
+                                     label sits directly next to the traffic lights. -->
+                                <Panel IsVisible="{x:Static ui:Platform.IsNotMac}">
+                                    <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="4,0"
+                                            IsVisible="{Binding !IsMini}"/>
+                                </Panel>
                                 <TextBlock Classes="label" Text="BROADCAST CONSOLE" VerticalAlignment="Center"
                                            IsVisible="{Binding !IsMini}"/>
                             </StackPanel>
@@ -249,7 +258,7 @@
                                             IsHitTestVisible="False" IsVisible="{Binding EventLog.HasUnread}"/>
                                 </Panel>
                                 <!-- Settings gear — also stays in mini (separate window, can open). -->
-                                <Button Classes="cap" Click="OpenSettings" ToolTip.Tip="Settings">
+                                <Button Name="SettingsBtn" Classes="cap" Click="OpenSettings" ToolTip.Tip="Settings">
                                     <Path Stretch="Uniform" Width="16" Height="16"
                                           Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2"
                                           StrokeJoin="Round" Fill="Transparent"
@@ -258,8 +267,39 @@
                             </StackPanel>
 
                             <!-- Caption buttons — shared suite control (JustPlay.UI/Controls/WindowControls).
-                                 No maximize: JUST STREAM is a fixed-size window (its layout isn't dynamic). -->
-                            <ui:WindowControls Grid.Column="3" ShowMaximize="False"/>
+                                 No maximize: JUST STREAM is a fixed-size window (its layout isn't dynamic).
+                                 Windows-only here; on macOS the traffic lights sit LEFT (brand panel above). -->
+                            <ui:WindowControls Grid.Column="3" ShowMaximize="False"
+                                               IsVisible="{x:Static ui:Platform.IsNotMac}"/>
+
+                            <!-- macOS: brand mark CENTERED in the chrome bar (mac title-bar convention) —
+                                 still the About button, mirrors JUST PLAY's MaxView. -->
+                            <Button Grid.ColumnSpan="4" Classes="brandbtn" Click="OnAbout"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    IsVisible="{x:Static ui:Platform.IsMac}" ToolTip.Tip="About JUST STREAM">
+                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Border Width="20" Height="20" Background="Transparent">
+                                        <!-- Lucide "radio-tower" (ISC) — the Funkturm mark. -->
+                                        <Path Stretch="Uniform" Width="16" Height="16"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Stroke="White" StrokeThickness="2"
+                                              StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M4.9 16.1 C1 12.2 1 5.8 4.9 1.9
+                                                    M7.8 4.7 a6.14 6.14 0 0 0 -.8 7.5
+                                                    M10 9 A2 2 0 1 0 14 9 A2 2 0 1 0 10 9
+                                                    M16.2 4.8 c2 2 2.26 5.11 .8 7.47
+                                                    M19.1 1.9 a9.96 9.96 0 0 1 0 14.1
+                                                    M9.5 18 h5
+                                                    M8 22 l4 -11 l4 11">
+                                            <Path.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
+                                            </Path.Effect>
+                                        </Path>
+                                    </Border>
+                                    <TextBlock Text="JUST STREAM" FontSize="11" FontWeight="SemiBold"
+                                               LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </Grid>
                     </Border>
 
