@@ -16,6 +16,25 @@ public partial class App : Application
 {
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
+    // "About Just Stream" in the macOS app menu — same shared About dialog as the Funkturm
+    // brand mark in the chrome (MainWindow.OnAbout), owned by the main window.
+    private void OnAboutMenu(object? sender, System.EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
+        {
+            var asm = typeof(App).Assembly;
+            var info = System.Reflection.CustomAttributeExtensions
+                .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(asm)?.InformationalVersion;
+            var ver = info?.Split('+')[0] ?? asm.GetName().Version?.ToString(3) ?? "";
+            var about = new JustPlay.UI.Views.AboutWindow(new JustPlay.UI.Views.AboutInfo(
+                AppName: "JUST STREAM",
+                Tagline: "Broadcast streaming console",
+                Version: string.IsNullOrEmpty(ver) ? "" : $"Version {ver}",
+                Glyph: BrandGlyphs.RadioTower));
+            about.ShowDialog(owner);
+        }
+    }
+
     public override void OnFrameworkInitializationCompleted()
     {
         // Apply the saved theme BEFORE the window opens — this publishes the full palette (incl.

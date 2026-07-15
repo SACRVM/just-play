@@ -2,7 +2,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="JustPlay.Stream.App"
              xmlns:theming="using:JustPlay.UI.Theming"
+             Name="Just Stream"
              RequestedThemeVariant="Dark">
+
+    <!-- macOS app menu — the bold "Just Stream" menu in the mac menu bar (title from Name=
+         above). About opens the same shared About dialog as the Funkturm brand mark;
+         Avalonia appends Hide/Quit itself. Inert on Windows/Linux. -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About Just Stream" Click="OnAboutMenu"/>
+        </NativeMenu>
+    </NativeMenu.Menu>
 
     <!--
       JUST STREAM design system — now built on the SHARED J.U.S.T. palette + styles from

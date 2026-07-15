@@ -3,7 +3,18 @@
              x:Class="JustPlay.App.App"
              xmlns:conv="using:JustPlay.App.Converters"
              xmlns:theming="using:JustPlay.UI.Theming"
+             Name="Just Play"
              RequestedThemeVariant="Dark">
+
+    <!-- macOS app menu — the bold "Just Play" menu in the mac menu bar (its title comes from
+         Name= above; without it Avalonia shows "Avalonia Application"). The About item opens
+         the same shared About dialog as the brand mark in the chrome. Avalonia appends the
+         standard Hide/Quit items itself; on Windows/Linux no native menu is exported. -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About Just Play" Click="OnAboutMenu"/>
+        </NativeMenu>
+    </NativeMenu.Menu>
 
     <Application.Resources>
         <ResourceDictionary>

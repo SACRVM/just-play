@@ -16,6 +16,21 @@ public partial class App : Application
 {
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
+    // "About Just Play" in the macOS app menu — same shared About dialog as the brand mark
+    // in the chrome bar (MaxView.OnAboutClick), owned by the main window.
+    private void OnAboutMenu(object? sender, System.EventArgs e)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })
+        {
+            var about = new JustPlay.UI.Views.AboutWindow(new JustPlay.UI.Views.AboutInfo(
+                AppName: "JustPlay",
+                Tagline: "Key-aware DJ music player",
+                Version: $"Version {AppInfo.Version}",
+                Glyph: BrandGlyphs.Play));
+            about.ShowDialog(owner);
+        }
+    }
+
     public override void OnFrameworkInitializationCompleted()
     {
         // Apply the persisted theme BEFORE the main window opens so the user
