@@ -198,6 +198,10 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     /// <summary>Start/stop the recorder automatically with the broadcast connection.</summary>
     [ObservableProperty] private bool _autoRecord;
 
+    /// <summary>Keep the display awake while on air / recording (Settings → Advanced; default ON) —
+    /// see StreamSettings.KeepScreenAwake and <see cref="JustPlay.UI.KeepAwake"/>.</summary>
+    [ObservableProperty] private bool _keepScreenAwake = true;
+
     /// <summary>Where recordings land when no folder is configured — shown as the folder box's placeholder.</summary>
     public string DefaultRecordingFolder { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyMusic), "JUST STREAM Recordings");
@@ -367,6 +371,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
             ? recFmt : Core.Models.RecordingFormat.SameAsStream;
         AutoRecord = s.AutoRecord;
         TrimSilence = s.TrimSilence;
+        KeepScreenAwake = s.KeepScreenAwake;
 
         // Sound presets: restore the user's saved presets, then TOP UP any missing built-in genre
         // starting points (DspPreset.StreamDefaults — same tonal identity as JUST PLAY, broadcast-
@@ -499,6 +504,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         s.RecordingFormat = RecordingFormat.ToString();
         s.AutoRecord = AutoRecord;
         s.TrimSilence = TrimSilence;
+        s.KeepScreenAwake = KeepScreenAwake;
         s.SoundPresets = SoundPresets.ToList();
         s.SoundPresetsSeeded = true;
         s.SoundPresetsSeedVersion = DspPreset.BuiltInSeedVersion;
@@ -592,6 +598,22 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     partial void OnRecordingFolderChanged(string? value) => Persist();
     partial void OnAutoRecordChanged(bool value) => Persist();
     partial void OnTrimSilenceChanged(bool value) => Persist();
+    partial void OnKeepScreenAwakeChanged(bool value) { UpdateKeepAwake(); Persist(); }
+
+    /// <summary>Hold/release the display-sleep guard from the CURRENT session state: awake while
+    /// the broadcast is live (incl. connecting/reconnecting — mid-gig states) or a recording runs,
+    /// and only with the setting on. Called from the UI thread only (both state handlers post
+    /// there), which Windows' per-thread ES_CONTINUOUS flag requires — see KeepAwake remarks.</summary>
+    private void UpdateKeepAwake()
+    {
+        var sessionHot = State is BroadcastState.Connected or BroadcastState.Connecting
+                                  or BroadcastState.Reconnecting
+                         || IsRecording;
+        if (KeepScreenAwake && sessionHot)
+            JustPlay.UI.KeepAwake.Enable("JUST STREAM is on air");
+        else
+            JustPlay.UI.KeepAwake.Disable();
+    }
 
     /// <summary>
     /// Sample-rate change: rebuild the engine at the new rate, restart capture if it was active,
@@ -839,6 +861,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             RecState = state;
+            UpdateKeepAwake(); // a manual recording holds the screen awake even off air
             switch (state)
             {
                 case RecordingState.Recording:
@@ -875,9 +898,13 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         {
             State = state;
             LastError = _broadcast.LastError;
+            UpdateKeepAwake(); // screen stays awake across Connected/Connecting/Reconnecting
             switch (state)
             {
                 case BroadcastState.Connected:
+                    // The stream is back — stop a pending Dock bounce (macOS) before anyone
+                    // had to look at it.
+                    JustPlay.UI.MacDock.CancelAttention();
                     // Cumulative on-air time: after an auto-reconnect the clock is still
                     // running — don't reset the session to 00:00:00 over a router hiccup.
                     if (_streamClock.IsRunning)
@@ -902,8 +929,13 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
                     // Keep the clock running (see Connected) and keep recording — a network
                     // hiccup must never cost the DJ their set recording.
                     Log($"{_broadcast.LastError ?? "Connection lost."} Auto-reconnecting…");
+                    // Ladiocast behaviour: bounce the Dock icon until the DJ looks over —
+                    // fullscreen Traktor hides everything else. Cancelled on Connected.
+                    JustPlay.UI.MacDock.RequestAttention();
                     break;
                 case BroadcastState.Disconnected:
+                    // Clean, user-initiated — nothing to draw attention to.
+                    JustPlay.UI.MacDock.CancelAttention();
                     _streamClock.Reset();
                     StreamTimeText = "00:00:00";
                     // Auto-stop ONLY what auto-record started (a manual recording outlives the
@@ -916,6 +948,8 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
                     if (_broadcast.LastError is { } e) Log(e);
                     // Deliberately KEEP recording on a connection error: the music is still
                     // playing — a network hiccup must never cost the DJ their set recording.
+                    // Dead stream + no auto-retry pending = the loudest case for the bounce.
+                    JustPlay.UI.MacDock.RequestAttention();
                     break;
             }
         });

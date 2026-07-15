@@ -97,6 +97,11 @@ public sealed class StreamSettings
     /// <summary>U7 — send now-playing/station title to the server (default on). Off = privacy mode.</summary>
     public bool SendSongInfo { get; set; } = true;
 
+    /// <summary>Keep the display awake while on air / recording (default ON). DJ software gets
+    /// controller input only — the OS sees an idle keyboard and blanks the screen mid-set;
+    /// Traktor doesn't suppress that itself (Chloe 2026-07-15). See <see cref="JustPlay.UI.KeepAwake"/>.</summary>
+    public bool KeepScreenAwake { get; set; } = true;
+
     /// <summary>Whether the bottom error-log strip is expanded.</summary>
     public bool LogVisible { get; set; } = false;
 
