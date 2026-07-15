@@ -26,9 +26,9 @@
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <!-- macOS: universal (x86_64 + arm64) dylibs. bass + bass_fx cover decode/BPM/key
-         (CLI + player); the mix/enc add-ons have no osx copy here yet — streaming/recording
-         stay Windows-only until their dylibs are added. -->
+    <!-- macOS: universal (x86_64 + arm64) dylibs — same set as win-x64: bass + bass_fx
+         (decode/BPM/key) plus the mix/enc add-ons (mixer-based playback, streaming,
+         recording). Only per-APP capture stays Windows-only (WASAPI process loopback). -->
     <None Include="native\osx\*.dylib">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
