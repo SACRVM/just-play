@@ -107,8 +107,7 @@ public static class Recording
         if (name.Length == 0)
             name = "Recording";
 
-        foreach (var c in Path.GetInvalidFileNameChars())
-            name = name.Replace(c, '_');
+        name = FileNames.Sanitize(name);
 
         return $"{localNow:yyyy-MM-dd HH-mm-ss} - {name}{FileExtension(codec)}";
     }

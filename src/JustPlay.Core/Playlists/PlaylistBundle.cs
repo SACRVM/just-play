@@ -209,11 +209,7 @@ public static class PlaylistBundle
     /// <summary>Strip characters that aren't legal in a file name, falling back to a default.</summary>
     private static string MakeSafeFileName(string name)
     {
-        var invalid = Path.GetInvalidFileNameChars();
-        var sb = new StringBuilder(name.Length);
-        foreach (var c in name)
-            sb.Append(Array.IndexOf(invalid, c) >= 0 ? '_' : c);
-        var s = sb.ToString().Trim();
+        var s = FileNames.Sanitize(name).Trim();
         return s.Length == 0 ? "JustPlay set" : s;
     }
 }

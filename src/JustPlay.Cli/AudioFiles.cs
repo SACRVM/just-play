@@ -17,9 +17,19 @@ internal static class AudioFiles
     /// sorted by full path for deterministic ordering.
     /// </summary>
     public static IEnumerable<string> Enumerate(string root)
-        => Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+        => Directory.EnumerateFiles(root, "*.*", new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                // macOS/SMB: protected subfolders (e.g. TemporaryItems, .Trashes) throw
+                // UnauthorizedAccess and would abort the whole walk without this.
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.None,
+            })
             .Where(f => Extensions.Contains(
                 Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
+            // AppleDouble sidecars ("._foo.aiff") are resource-fork metadata macOS drops on
+            // SMB/FAT volumes — they carry an audio extension but are not audio.
+            .Where(f => !Path.GetFileName(f).StartsWith("._", StringComparison.Ordinal))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>

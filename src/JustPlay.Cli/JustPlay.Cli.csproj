@@ -41,6 +41,10 @@
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\JustPlay.Audio.Bass\native\osx\*.dylib">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- Ship the how-to next to the exe (dev output + installer drop). .howto.txt = the
          "howto" signal AND a .txt so it opens on double-click everywhere. -->
     <None Include="JustPlayCLI.howto.txt">

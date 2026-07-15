@@ -159,7 +159,14 @@ public sealed class TrackEngine : ITrackEngine
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
 
-        var files = Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories)
+        var files = Directory.EnumerateFiles(folder, "*.*", new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                // macOS/SMB: protected subfolders (e.g. TemporaryItems, .Trashes) throw
+                // UnauthorizedAccess and would abort the whole walk without this.
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.None,
+            })
             .Where(f => AudioExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
             .ToList();
 
