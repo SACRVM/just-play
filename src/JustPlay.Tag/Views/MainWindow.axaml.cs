@@ -29,13 +29,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Belt-and-braces transparency (the XAML IReadOnlyList TypeConverter isn't honoured on every minor version).
-        TransparencyLevelHint = new[]
-        {
-            WindowTransparencyLevel.Transparent,
-            WindowTransparencyLevel.Mica,
-            WindowTransparencyLevel.Blur,
-        };
+        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips
+        // Avalonia's macOS opaque-fallback (black surround); see JustPlay MainWindow ctor.
 
         // Drag-drop an audio file onto the window to load it.
         DragDrop.SetAllowDrop(this, true);

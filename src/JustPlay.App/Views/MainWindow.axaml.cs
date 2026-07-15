@@ -26,14 +26,11 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         InitializeComponent();
 
-        // Belt-and-braces: also set in code (the XAML TypeConverter for IReadOnlyList
-        // doesn't always honour the comma-separated string on every Avalonia minor version).
-        TransparencyLevelHint = new[]
-        {
-            WindowTransparencyLevel.Transparent,
-            WindowTransparencyLevel.Mica,
-            WindowTransparencyLevel.Blur,
-        };
+        // TransparencyLevelHint comes from the XAML ONLY — never re-set it (the old
+        // "belt-and-braces"). Avalonia's macOS backend is not idempotent: re-setting an
+        // already-active level exits through the unsupported-level fallback and flips the
+        // window to OPAQUE (black surround). TopLevelImpl.SetTransparencyLevelHint,
+        // verified against release/12.0.3; the XAML string IS honoured there.
 
         DragDrop.AddDropHandler(this, OnDrop);
         DragDrop.AddDragOverHandler(this, OnDragOver);

@@ -41,12 +41,8 @@ public partial class SpectrumWindow : Window
     {
         InitializeComponent();
 
-        TransparencyLevelHint = new[]
-        {
-            WindowTransparencyLevel.Transparent,
-            WindowTransparencyLevel.Mica,
-            WindowTransparencyLevel.Blur,
-        };
+        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips
+        // Avalonia's macOS opaque-fallback (black surround); see JustPlay MainWindow ctor.
 
         _source = source;
         _showOutputLevels = showOutputLevels;
