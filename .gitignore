@@ -48,3 +48,4 @@ ml/_deam/
 
 # ── Local test audio (beatbed POC corpus — purchased tracks, never commit) ──
 testdata/
+dist/
