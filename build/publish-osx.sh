@@ -95,6 +95,8 @@ PLIST
     if [[ $MIC == 1 ]]; then cat >> "$1" <<PLIST
     <key>NSMicrophoneUsageDescription</key>
     <string>$NAME captures the selected audio input to broadcast and record it.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>$NAME captures the audio of the app you pick (e.g. your DJ software) to broadcast it.</string>
 PLIST
     fi
     if [[ $DOCTYPES == 1 ]]; then cat >> "$1" <<PLIST

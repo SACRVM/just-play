@@ -50,10 +50,13 @@ internal sealed class Program
         var services = new ServiceCollection();
 
         // Per-process "capture a specific APP" provider (Phase 0, Path A). Windows gets the real
-        // WASAPI process-loopback capturer; every other platform/build gets the Null provider (the
-        // "App" source is then hidden). Injected into the capture engine below.
+        // WASAPI process-loopback capturer; macOS 14.4+ the Core Audio process-tap capturer
+        // (native shim, see research/macos-app-audio-capture.md); everything else the Null
+        // provider (the "App" source is then hidden). Injected into the capture engine below.
         if (OperatingSystem.IsWindows())
             services.AddSingleton<IProcessAudioCapture, WasapiProcessLoopbackCapture>();
+        else if (OperatingSystem.IsMacOSVersionAtLeast(14, 4))
+            services.AddSingleton<IProcessAudioCapture, MacProcessAudioCapture>();
         else
             services.AddSingleton<IProcessAudioCapture, NullProcessAudioCapture>();
 
