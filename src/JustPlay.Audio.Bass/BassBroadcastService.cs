@@ -133,7 +133,22 @@ public sealed class BassBroadcastService : IBroadcastService
         CancelReconnect();      // a user-initiated (re)connect supersedes any pending auto-retry
         _lastProfile = profile; // remembered for auto-reconnect after a dropped connection
         lock (_connectSync)
-            ConnectCore(profile, ct, fromReconnect: false);
+        {
+            try
+            {
+                ConnectCore(profile, ct, fromReconnect: false);
+            }
+            catch (Exception ex)
+            {
+                // A throw out of ConnectCore (e.g. DllNotFoundException when a BASS add-on
+                // library can't be loaded — hit on macOS while the enc dylibs still had
+                // unresolvable @rpath deps) would escape into the async RelayCommand and
+                // leave the UI stuck on "Connecting…" with no Error state and no log entry.
+                _lastError = ex.Message;
+                Console.WriteLine($"[Broadcast] Connect failed: {ex}");
+                SetState(BroadcastState.Error);
+            }
+        }
         return Task.CompletedTask;
     }
 
@@ -351,7 +366,20 @@ public sealed class BassBroadcastService : IBroadcastService
 
             bool ok;
             lock (_connectSync)
-                ok = ConnectCore(profile, ct, fromReconnect: true);
+            {
+                try
+                {
+                    ok = ConnectCore(profile, ct, fromReconnect: true);
+                }
+                catch (Exception ex)
+                {
+                    // Same guard as ConnectAsync: a throwing attempt is a FAILED attempt,
+                    // not an unobserved-task crash from the background loop.
+                    _lastError = ex.Message;
+                    Console.WriteLine($"[Broadcast] Reconnect attempt failed: {ex.Message}");
+                    ok = false;
+                }
+            }
             if (ok)
             {
                 Console.WriteLine("[Broadcast] Reconnected.");
