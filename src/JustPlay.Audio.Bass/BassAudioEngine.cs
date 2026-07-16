@@ -32,7 +32,7 @@ namespace JustPlay.Audio.Bass;
 ///   BassFlags.MixerChanBuffer  — enables accurate position tracking for mixer sources
 ///   BassFlags.MixerChanPause   — pauses a source within the mixer without stopping it
 /// </summary>
-public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
+public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource, IDuckableAudioOutput
 {
     // ── Mixer (persistent output, process lifetime once created) ─────────
     // Created on first Load; never freed until Dispose. The Icecast encoder
@@ -50,6 +50,18 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
     // default). We leave _currentDevice as -1 until the first explicit
     // SetOutputDevice call or startup hydration so the VM can tell "not yet applied".
     private int _currentDevice = -1;
+
+    // ── N26 cue-ducking (IDuckableAudioOutput) ────────────────────────────
+    // True while BassPreListenEngine's CueArbiter has us suppressed (same-device cue playing).
+    // Guards SetDucked against a redundant re-duck/re-restore, and gates the Volume setter below
+    // so a live master-volume change WHILE ducked is remembered in _volume but not pushed to the
+    // audible channel attribute until the duck is lifted (otherwise a slider drag mid-cue would
+    // silently un-mute the speakers while the cue is still playing).
+    private bool _ducked;
+
+    // Short, click-free ramp for duck/restore — same family as FadeOutAsync's 50–500 ms clamp,
+    // just fast enough that engaging/releasing the duck is inaudible as a "pop".
+    private const int DuckFadeMs = 60;
 
     // ── Per-track decode source (the current / incoming track) ────────────
     private int _source;
@@ -194,6 +206,9 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
     /// <inheritdoc/>
     public int CurrentOutputDevice => _currentDevice;
 
+    /// <inheritdoc cref="IDuckableAudioOutput.OutputDeviceChanged"/>
+    public event EventHandler? OutputDeviceChanged;
+
     /// <summary>
     /// Enumerate enabled, non-"No sound" BASS output devices.
     ///
@@ -270,21 +285,57 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource
         }
 
         _currentDevice = index;
+        OutputDeviceChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public CorePlaybackState State => _state;
 
+    /// <remarks>
+    /// Applies BASS_ATTRIB_VOL on the MIXER (master volume) — the channel's audible/device-output
+    /// level. Per BASS's own docs this attribute "is not present in the sample data returned by
+    /// BASS_ChannelGetData", i.e. it does NOT reach the DSP chain — so it affects all attached
+    /// sources' local playback but NOT the Icecast encoder (BASSenc taps the mixer via a DSP at
+    /// priority −1000; DSPs read pre-BASS_ATTRIB_VOL data). This is exactly what makes
+    /// <see cref="SetDucked"/> below safe: it rides the same attribute.
+    ///
+    /// While <see cref="SetDucked"/> has us ducked, a live Volume change is remembered in
+    /// <see cref="_volume"/> (so a slider drag "sticks") but withheld from the channel until the
+    /// duck is released — otherwise the user's own volume touch would silently un-mute the
+    /// speakers mid-cue (N26).
+    /// </remarks>
     public double Volume
     {
         get => _volume;
         set
         {
             _volume = Math.Clamp(value, 0.0, 1.0);
-            // Apply volume on the MIXER (master volume) so it affects all attached sources
-            // and the encoder output simultaneously.
-            if (_mixer != 0)
+            if (_mixer != 0 && !_ducked)
                 ManagedBass.Bass.ChannelSetAttribute(_mixer, ChannelAttribute.Volume, _volume);
         }
+    }
+
+    /// <summary>
+    /// N26 "cue wins on a shared device": duck (<paramref name="ducked"/> = true) or restore
+    /// (false) the mixer's audible output. Idempotent — a repeated call with the same value is a
+    /// no-op, so a debounced double cue-start can never re-capture an already-ducked level.
+    ///
+    /// <para><b>Verified BASS-doc citation (why this is safe for the stream):</b> BASS_ATTRIB_VOL
+    /// ("is not present in the sample data returned by BASS_ChannelGetData, so it has no direct
+    /// effect on decoding channels") is a device-output-only gain — it never reaches the DSP
+    /// chain, and the Icecast encoder is wired as a DSP on this same mixer (<c>OutputChannel</c>,
+    /// tapped by <c>BassBroadcastService</c>/<c>BASS_Encode_*_Start</c> at priority −1000). A
+    /// separate attribute, BASS_ATTRIB_VOLDSP ("DSP chain volume level"), exists specifically for
+    /// gain that DOES reach DSPs/encoding — this method deliberately does NOT use it. Sliding
+    /// straight to/from 0 also never touches <see cref="Play"/>/<see cref="Pause"/> or
+    /// <see cref="_source"/>'s normalization gain, so a main engine that was paused before the cue
+    /// started stays paused after it stops — restore never forces playback.</para>
+    /// </summary>
+    public void SetDucked(bool ducked)
+    {
+        if (_mixer == 0 || ducked == _ducked) return;
+        _ducked = ducked;
+        var target = ducked ? 0f : (float)_volume;
+        ManagedBass.Bass.ChannelSlideAttribute(_mixer, ChannelAttribute.Volume, target, DuckFadeMs);
     }
 
     public double NormalizationGainDb

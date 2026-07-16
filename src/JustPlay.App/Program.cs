@@ -206,6 +206,11 @@ sealed class Program
         services.AddSingleton<BassAudioEngine>();
         services.AddSingleton<IAudioEngine>(sp => sp.GetRequiredService<BassAudioEngine>());
         services.AddSingleton<IBassMixerSource>(sp => sp.GetRequiredService<BassAudioEngine>());
+        // N26: narrow seam so the pre-listen (cue) engine can duck/restore the main engine's
+        // device-bound audible output when the two share an output device (BassPreListenEngine's
+        // constructor takes IDuckableAudioOutput?; this registration is what makes it non-null in
+        // the running app — see BassAudioEngine.SetDucked / JustPlay.Core.Playback.CueArbiter).
+        services.AddSingleton<IDuckableAudioOutput>(sp => sp.GetRequiredService<BassAudioEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
         // Waveform overview (finder scrubber, later the JUST SPIN decks): decodes via IAudioDecoder →

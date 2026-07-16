@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Playback;
 using ManagedBass;
 using ManagedBass.Mix;
 using AudioOutputDevice = JustPlay.Core.Models.AudioOutputDevice;
@@ -32,6 +33,20 @@ namespace JustPlay.Audio.Bass;
 ///     from the UI thread, so there is no race.
 ///
 /// Do NOT call Bass.Free() in Dispose — the main BassAudioEngine owns the global BASS state.
+///
+/// N26 CUE-WINS-ON-SHARED-DEVICE:
+///   When this engine's headphone device is the SAME BASS device index as the main engine's
+///   output, the two must never sound at once — starting a cue suppresses (ducks) the main
+///   engine's audible output; stopping it (or the cue leaving Playing) restores it. The pure
+///   decision is <see cref="JustPlay.Core.Playback.CueArbiter"/> (Core, unit-tested); this class
+///   just feeds it (cue state, both device indices) via <see cref="ReevaluateCueGate"/> and
+///   forwards Suppress/Restore to <see cref="_mainOutput"/> (<c>BassAudioEngine</c>, injected as
+///   the narrow <see cref="IDuckableAudioOutput"/> seam so this class doesn't need the main
+///   engine's whole playback/DSP/broadcast surface). See CueArbiter's class doc and
+///   BassAudioEngine.SetDucked for why this is guaranteed not to reach the Icecast stream.
+///   The constructor's <c>mainOutput</c> parameter is optional/nullable purely as a defensive
+///   fallback (e.g. if ever constructed outside the DI container) — the composition root
+///   registers the real BassAudioEngine singleton for it, so in the running app it is always present.
 /// </summary>
 public sealed class BassPreListenEngine : IPreListenEngine
 {
@@ -51,8 +66,16 @@ public sealed class BassPreListenEngine : IPreListenEngine
     // we get a CallbackOnCollectedDelegate crash. Keep it alive as a field.
     private SyncProcedure? _endSync;
 
-    public BassPreListenEngine()
+    // ── N26 cue-ducking ────────────────────────────────────────────────────────
+    private readonly IDuckableAudioOutput? _mainOutput;
+    private readonly CueArbiter _cueArbiter = new();
+
+    public BassPreListenEngine(IDuckableAudioOutput? mainOutput = null)
     {
+        _mainOutput = mainOutput;
+        if (_mainOutput is not null)
+            _mainOutput.OutputDeviceChanged += OnMainOutputDeviceChanged;
+
         // Ensure BASS is initialised for at least the default device. BassAudioEngine has already
         // done this in normal startup order, but this guard makes construction-order-independent.
         // Errors.Already = BASS already running on this device → treat as success.
@@ -62,6 +85,28 @@ public sealed class BassPreListenEngine : IPreListenEngine
             if (err != Errors.Already)
                 throw new InvalidOperationException($"[PreListen] BASS init failed: {err}");
         }
+    }
+
+    /// <summary>The main engine's output device moved — re-check whether we still share a device
+    /// with it (e.g. cue was suppressing main on device 3, main switched to device 5 mid-cue).</summary>
+    private void OnMainOutputDeviceChanged(object? sender, EventArgs e) => ReevaluateCueGate();
+
+    /// <summary>
+    /// Feed the current world (cue playing?, both device indices) to <see cref="_cueArbiter"/> and
+    /// apply whatever it decides. Called after every state or device change that could flip the
+    /// gate: <see cref="SetState"/> (cue Play/Pause/Stop/track-end) and the <see cref="OutputDevice"/>
+    /// setter (cue device change), plus <see cref="OnMainOutputDeviceChanged"/> (main device change).
+    /// No-op when no main-engine seam was wired in (see ctor remarks).
+    /// </summary>
+    private void ReevaluateCueGate()
+    {
+        if (_mainOutput is null) return;
+        var action = _cueArbiter.Evaluate(
+            cueIsPlaying: _state == CorePlaybackState.Playing,
+            mainDeviceIndex: _mainOutput.CurrentOutputDevice,
+            cueDeviceIndex: _device);
+        if (action is { } a)
+            _mainOutput.SetDucked(a == CueArbiterAction.Suppress);
     }
 
     // ── IPreListenEngine ─────────────────────────────────────────────────────
@@ -144,6 +189,12 @@ public sealed class BassPreListenEngine : IPreListenEngine
                 {
                     // Disabled: tear down the mixer (FreeSource was already called or is a no-op).
                     FreeMixer();
+                    // Bug fix (N26): FreeMixer/FreeSource don't themselves flip _state, so without
+                    // this a cue that was Playing would stay "Playing" with nothing left to play —
+                    // and, worse, could leave a same-device main-engine suppression stuck forever
+                    // (ReevaluateCueGate would never see cueIsPlaying go false). SetState is a no-op
+                    // if already Stopped.
+                    SetState(CorePlaybackState.Stopped);
                 }
                 else
                 {
@@ -159,6 +210,11 @@ public sealed class BassPreListenEngine : IPreListenEngine
                 }
             }
             // If _mixer is 0, EnsureMixer() will create it on the new device at the next Load().
+
+            // N26: the device that just changed is one of the two gate inputs — re-check whether
+            // suppression should engage/release. (SetState above already triggered this once for
+            // the value<0 branch; re-evaluating here too is a harmless idempotent no-op there.)
+            ReevaluateCueGate();
         }
     }
 
@@ -319,11 +375,22 @@ public sealed class BassPreListenEngine : IPreListenEngine
         if (_state == state) return;
         _state = state;
         StateChanged?.Invoke(this, state);
+        // N26: cue leaving/entering Playing is exactly the signal the gate cares about
+        // (Play → maybe suppress; Pause/Stop/track-end → maybe restore).
+        ReevaluateCueGate();
     }
 
     public void Dispose()
     {
         FreeMixer();
+        // N26: release any main-engine suppression before we go — a shutdown mid-cue must not
+        // leave the (still-alive-a-moment-longer) main engine permanently ducked.
+        if (_mainOutput is not null)
+        {
+            _mainOutput.OutputDeviceChanged -= OnMainOutputDeviceChanged;
+            if (_cueArbiter.IsSuppressed)
+                _mainOutput.SetDucked(false);
+        }
         // IMPORTANT: Do NOT call Bass.Free() here. The main BassAudioEngine owns the global BASS
         // state and calls Bass.Free() in its own Dispose(). Calling it here a second time would
         // free BASS while the main engine is still (or was recently) running.
