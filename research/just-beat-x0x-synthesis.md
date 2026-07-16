@@ -27,10 +27,17 @@ be re-verified against service manuals / cited papers when implementing.
 - **Rimshot/claves/maracas:** high-tuned fast-decay resonator / filtered-noise micro-envelopes.
 
 ### TR-909 — the techno one (hybrid)
-- **Kick:** a real VCO (triangle shaped toward sine) with a FAST exponential pitch sweep + a
-  dedicated click/attack stage (pulse + noise burst) + saturation. Harder and punchier than the 808
-  by design. The canonical techno kick is a 909 driven into distortion — the dirt is part of the
-  instrument, so a drive/waveshaper stage belongs IN our voice, not as an afterthought.
+- **Kick:** ✅ VERIFIED against the actual service manual (N29, 2026-07-14) — see
+  `references/kick-circuit-909.md` for the full stage-by-stage circuit breakdown. Confirmed: a
+  real VCO (CV Gen IC12 → VCO IC13, triangle shaped toward sine via diode wave-rounding) with a
+  dedicated, explicit pitch-envelope generator (ENV3/TUNE — NOT a bridged-T resonator, and NOT a
+  circuit-nonlinearity side effect the way the 808's pitch "sigh" is) + a fully parallel click
+  voice (Pulse Gen + shared digital shift-register noise, own fixed ~15 ms envelope, own ATTACK
+  *level* pot — ATTACK is a level control, not a time control). **Correction:** no dedicated
+  saturation/distortion stage was found in the bass-drum circuit itself — "the dirt is part of
+  the instrument" is NOT schematic-supported for the BD voice; any grit is more likely downstream
+  gain-staging. Keep a drive/waveshaper stage in our engine if it sounds good, but document it as
+  our own creative addition, not a circuit reproduction.
 - **Snare:** two slightly detuned oscillators + noise with separate tone/snappy envelopes.
 - ⚠ **Hats & cymbals are 6-bit SAMPLES on the 909** — the one exception in the family. For a
   no-samples engine we use the 808-style metallic cluster (or FM pairs) instead.
@@ -90,10 +97,15 @@ deterministic, trivially cheap on CPU, trim/AOT-safe, zero dependencies.
 
 - **Gordon Reid, "Synth Secrets" (Sound on Sound, ~60 parts)** — the canonical practical series;
   has dedicated chapters on synthesizing kick, snare, hats, cymbals, toms analytically.
-- **Kurt Werner et al. (Stanford CCRMA / DAFx)** — ⚠ virtual-analog / wave-digital-filter models of
-  the TR-808 voices (kick, cymbal); the academic gold standard if we want circuit-accurate.
+- **Kurt Werner et al. (Stanford CCRMA / DAFx)** — virtual-analog / wave-digital-filter models of
+  the TR-808 voices (kick, cymbal); the academic gold standard if we want circuit-accurate. ✅ Read
+  in full for the 909 kick research pass (N29) — see `references/kick-circuit-909.md` for the
+  equations and what they say about the 808's bridged-T + pitch-sigh mechanism.
 - 808/909/606/303 **service manuals + published circuit analyses** (widely available; the hat
-  oscillator frequencies and resonator tunings above should be confirmed there).
+  oscillator frequencies and resonator tunings above should be confirmed there). ✅ The TR-909
+  service manual (block diagram + bass-drum schematic) was read for N29 — see
+  `references/kick-circuit-909.md`. 808/606/303 manuals still unread; the hat/cymbal/snare/303
+  tunings above remain lore-level.
 - The `research/just-beat-sound-models.md` sources for the neural side (DOSE onset loss = why
   transients deserve explicit care even in evaluation).
 

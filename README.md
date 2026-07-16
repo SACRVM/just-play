@@ -38,6 +38,9 @@ The DJ tilt comes from analysis baked straight into the player:
 
 Serious DJ analysis, living *inside* the player — without the library overhead.
 
+> **[THE JUST MUSIC BRAIN](docs/MUSIC-BRAIN.md)** — what we actually know about how music works:
+> the measured anatomy of a kick, the physics of the chest, and every belief we tested and killed.
+
 ## New in 0.4.0
 
 ### JUST STREAM — the broadcaster app
