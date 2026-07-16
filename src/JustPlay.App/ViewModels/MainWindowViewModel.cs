@@ -41,6 +41,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
 
+    // ── N27: locked-file tag-write retry queue ──────────────────────────────────────────────
+    // DoWrite's write can hit a file locked by something OTHER than our own main engine's current
+    // track (WithFileReleased only defers for that ONE case) — the PRE-CUE finder engine holding a
+    // different file, or an EXTERNAL app (Chloe's verified trigger: Windows Media Player had the
+    // file open). Before this fix that IOException was logged once and dropped: no JUSTPLAY blob
+    // ever landed, so "write auto tags" silently never took and the track re-analyzed forever.
+    // _tagWriteRetryQueue (JustPlay.Core.Playback.PendingTagWriteQueue) is a SEPARATE queue from
+    // PlaybackController._deferred on purpose — re-adding to _deferred would busy-loop, since its
+    // flush is keyed to the MAIN CurrentTrack changing, which may never happen for an unrelated
+    // lock. _tagWriteRetryTimer polls it every 15s (capped ~20 attempts / ~5 min per file — see
+    // PendingTagWriteQueue's defaults) until the handle frees or it gives up and surfaces the
+    // failure via EventLog (see OnTagWriteGiveUp).
+    private readonly PendingTagWriteQueue _tagWriteRetryQueue = new();
+    private readonly DispatcherTimer _tagWriteRetryTimer;
+
     // ── Pre-cue seek reconciliation (mirrors main engine's _pendingSeek/_pendingSeekTicks) ───────
     private bool _suppressPreCueSeek;
     private double? _pendingPreCueSeek;
@@ -208,6 +223,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
+
+        // 15s cadence: frequent enough that a released handle (WMP closed, pre-cue moved on) lands
+        // within a few seconds of becoming free, infrequent enough it never looks like a busy-loop.
+        // The retry itself runs off the UI thread (Task.Run) — file IO must never block the tick;
+        // each queued write already marshals its own VM refresh back via Dispatcher.Post (WriteOnce).
+        _tagWriteRetryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _tagWriteRetryTimer.Tick += (_, _) => Task.Run(() =>
+        {
+            try { _tagWriteRetryQueue.RetryAll(OnTagWriteGiveUp); }
+            catch (Exception ex) { ErrorReporter.Report(ex, "Tag-write retry queue tick"); }
+        });
+        _tagWriteRetryTimer.Start();
     }
 
     public BulkObservableCollection<TrackViewModel> Tracks { get; } = [];
@@ -1989,7 +2016,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// immediately; for the CURRENTLY-PLAYING track it is DEFERRED by the controller (BASS holds the
     /// file open) and runs the instant the track stops being current — a track change — or on app exit.
     /// Playback is never interrupted. The deferred action re-reads the tags so the row reflects the new
-    /// values + decisions once it lands. Robust: a write failure logs, never crashes the app.</summary>
+    /// values + decisions once it lands.
+    /// <para>
+    /// N27: a LOCKED file (the pre-cue engine holding a different track, or an EXTERNAL app — Chloe's
+    /// verified trigger was Windows Media Player) used to throw <see cref="IOException"/>, get logged
+    /// once, and drop the write forever — no JUSTPLAY blob ever landed, so the track re-analyzed on
+    /// every load despite "write auto tags" being on. <see cref="_tagWriteRetryQueue"/> now retries it
+    /// on a timer (see the field's doc comment) instead of giving up on the first try. Never crashes:
+    /// every path either lands the write, re-queues it, or surfaces a visible EventLog failure.
+    /// </para></summary>
     private bool DoWrite(TrackViewModel tvm, TagWrite write)
     {
         // Record undo BEFORE the write. Since the playing track's write is deferred, we can't gate undo
@@ -1999,22 +2034,49 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (snapshot is not null)
             lock (_undoBatch) _undoBatch.Add((tvm, snapshot));
 
+        var path = tvm.Model.FilePath;
         _controller.WithFileReleased(tvm.Model, () =>
-        {
-            try
-            {
-                _writer.Write(tvm.Model.FilePath, write);
-                tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
-                Dispatcher.UIThread.Post(tvm.Refresh);
-            }
-            catch (Exception ex)
-            {
-                EventLog.Append($"Tag write failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
-            }
-        });
+            _tagWriteRetryQueue.EnqueueAndTryNow(path, () => WriteOnce(tvm, write), OnTagWriteGiveUp, OnTagWriteDeferred));
 
         return true;   // optimistic: the write runs now (other track) or is queued for the playing track
     }
+
+    /// <summary>The actual file write — shared by the first attempt (called synchronously from
+    /// <see cref="DoWrite"/>, via <see cref="PendingTagWriteQueue.EnqueueAndTryNow"/>) and every later
+    /// retry (driven by <see cref="_tagWriteRetryTimer"/> → <see cref="PendingTagWriteQueue.RetryAll"/>).
+    /// Deliberately does NOT catch here: <see cref="IOException"/> must propagate so the queue can tell
+    /// a retryable locked-file failure apart from a non-retryable one (see
+    /// <see cref="PendingTagWriteQueue"/>'s single decision point). On success, marshals the VM refresh
+    /// back to the UI thread — this may run on a background retry-timer thread.</summary>
+    private void WriteOnce(TrackViewModel tvm, TagWrite write)
+    {
+        _writer.Write(tvm.Model.FilePath, write);
+        tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+        Dispatcher.UIThread.Post(tvm.Refresh);
+    }
+
+    /// <summary>Called by <see cref="_tagWriteRetryQueue"/> exactly once per file, the moment it gives
+    /// up for good (either the attempt/time budget ran out on a persistently locked file, or a
+    /// non-retryable error occurred). This is the "surface persistent failure" requirement from N27:
+    /// previously a locked-file write failure was Console/EventLog-once and then invisible forever with
+    /// no further sign anything was wrong. EventLog is the app's existing non-modal "don't swallow
+    /// errors silently" channel (see its doc comment) — the same one Undo/Like/Analyze failures already
+    /// use, so a persistent tag-write failure now reads exactly like those, in the same log window.</summary>
+    private void OnTagWriteGiveUp(string path, Exception ex)
+    {
+        var name = Path.GetFileName(path);
+        EventLog.Append(ex is IOException
+            ? $"Tag write gave up — \"{name}\" stayed locked by another app (retried and timed out): {ex.Message}"
+            : $"Tag write failed — \"{name}\": {ex.Message}");
+    }
+
+    /// <summary>Called by <see cref="_tagWriteRetryQueue"/> the FIRST time a file's write hits a lock
+    /// (i.e. it wasn't the main engine's current track — <see cref="PlaybackController"/> already
+    /// handles that case silently — so this is specifically the pre-cue-engine / external-app case).
+    /// A single "will retry" line so the wait before a possible <see cref="OnTagWriteGiveUp"/> isn't
+    /// silent.</summary>
+    private void OnTagWriteDeferred(string path) =>
+        EventLog.Append($"Tag write deferred — \"{Path.GetFileName(path)}\" is in use by another app, retrying…");
 
     /// <summary>Run a user write action as one undoable batch: clears the prior undo set, lets the
     /// nested DoWrite calls record their pre-state, then publishes the new undo availability.</summary>
@@ -2910,11 +2972,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         await _engine.FadeOutAsync(200);    // graceful fade to silence first (avoids the hard-stop click)
         _controller.FlushPendingWrites();   // then release the handle + land any deferred tag writes
+
+        // Best-effort final try for anything still stuck in the N27 retry queue (e.g. the external
+        // app that locked it was closed since the last 15s tick) — same give-up channel, but a
+        // failure here is expected on quit (the log window may already be gone) so keep it silent
+        // beyond the EventLog line; there's no more app lifetime left to retry further.
+        try { _tagWriteRetryQueue.RetryAll(OnTagWriteGiveUp); }
+        catch (Exception ex) { ErrorReporter.Report(ex, "Tag-write retry queue flush on quit"); }
     }
 
     public void Dispose()
     {
         _timer.Stop();
+        _tagWriteRetryTimer.Stop();
         _controller.StateChanged -= OnEngineStateChanged;
         _controller.TrackEnded -= OnTrackEnded;
         _broadcast.StateChanged -= OnBroadcastServiceStateChanged;
