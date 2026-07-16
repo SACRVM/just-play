@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:JustPlay.UI.Controls"
+             x:Class="JustPlay.UI.Controls.BusyOverlay"
+             IsHitTestVisible="False">
+
+    <!--
+      Shared J.U.S.T. progress overlay — a floating "busy" pill that lives in a card's OVERLAY
+      layer, so it NEVER reflows the layout (Chloe 2026-07-15: an inline progress bar "schiebt unten
+      alles rechts raus - das ist schlechtes design. können wir kein generelles overlay basteln was
+      wir überall nutzen können?"). Drop it as the LAST child of a card's Panel, bind IsActive to a
+      busy flag, and optionally Message to a status string. It is IsHitTestVisible=False — purely
+      visual, it never eats a click on the controls underneath it.
+
+      Anti-flicker: it waits ShowDelayMs before appearing (revealed from the code-behind), so the
+      fast per-knob re-renders that make JUST BEAT feel instant never flash a spinner — only work
+      that actually takes a moment (an export, a heavy render) shows the pill. The look is the shared
+      themed card: BgLinear/BgGlowA fill + a hairline + a soft shadow, so it tracks the live theme.
+    -->
+    <Panel>
+        <Border x:Name="Pill" IsVisible="False"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,18" CornerRadius="11" ClipToBounds="True"
+                BoxShadow="0 10 30 0 #96000000">
+            <Panel>
+                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="11" RadiusY="11"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"  RadiusX="11" RadiusY="11"/>
+                <Border BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="11"/>
+                <StackPanel Orientation="Horizontal" Spacing="11" Margin="14,8"
+                            VerticalAlignment="Center">
+                    <ProgressBar Width="74" Height="3" IsIndeterminate="True"
+                                 VerticalAlignment="Center" Minimum="0" Maximum="1"
+                                 Foreground="{DynamicResource AccentBBrush}" Background="#22FFFFFF"/>
+                    <TextBlock x:Name="MsgText" FontSize="12" VerticalAlignment="Center"
+                               Foreground="#E6FFFFFF"
+                               Text="{Binding $parent[c:BusyOverlay].Message}"/>
+                </StackPanel>
+            </Panel>
+        </Border>
+    </Panel>
+</UserControl>
