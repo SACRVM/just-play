@@ -110,8 +110,11 @@ static int RunPromote(string[] args)
     // N21: --retag forces re-stamping of TKEY/TBPM/ENERGY even for fully-Applied files
     // (fixes ~4% of files where N15 left a stale TKEY despite the blob being Applied).
     var retag      = ParseBoolFlag(args, "--retag");
+    // Scope to an explicit file list (one path per line) instead of the whole root walk —
+    // an ingest promotes ONLY its new files and physically cannot touch the rest of the lib.
+    var filesList  = ParseStringFlag(args, "--files");
 
-    return PromoteCommand.Run(indexPath, root, apply, noGrouping, backupDir, retag);
+    return PromoteCommand.Run(indexPath, root, apply, noGrouping, backupDir, retag, filesList);
 }
 
 // ── Tag ──────────────────────────────────────────────────────────────────────

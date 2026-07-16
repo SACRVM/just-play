@@ -54,7 +54,11 @@ internal static class PromoteCommand
         // N21 CLEAN SLATE: when true, re-stamp TKEY/TBPM/ENERGY from blob even when
         // decisions are already Applied. Needed because N15 left some TKEY values stale
         // (applied the blob but did not fix TKEY for some files). --retag corrects those.
-        bool    retag = false)
+        bool    retag = false,
+        // Path to a text file with one audio-file path per line: promote exactly these
+        // files (each must live under root) instead of walking the whole root. Ingest
+        // scoping — new files only, the rest of the library is out of reach by construction.
+        string? filesListPath = null)
     {
         indexPath = Path.GetFullPath(indexPath);
         root      = Path.GetFullPath(root);
@@ -107,9 +111,37 @@ internal static class PromoteCommand
             Console.WriteLine($"[promote] Filename collisions (first entry wins): {string.Join(", ", fileNameCollisions)}");
         Console.WriteLine();
 
-        // ─── Enumerate GENRES audio files ─────────────────────────────────
-        var files = AudioFiles.Enumerate(root).ToList();
-        Console.WriteLine($"[promote] Audio files under root: {files.Count:N0}");
+        // ─── Enumerate GENRES audio files (or take the explicit --files scope) ───
+        List<string> files;
+        if (filesListPath is not null)
+        {
+            files = File.ReadAllLines(filesListPath)
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0)
+                .Select(Path.GetFullPath)
+                .ToList();
+            var outside = files.Where(f => !f.StartsWith(root + Path.DirectorySeparatorChar,
+                                                         StringComparison.OrdinalIgnoreCase)).ToList();
+            if (outside.Count > 0)
+            {
+                Console.Error.WriteLine($"[promote] ERROR: {outside.Count} --files entries are outside root " +
+                                        $"(first: {outside[0]}) — refusing to run.");
+                return 1;
+            }
+            var missing = files.Where(f => !File.Exists(f)).ToList();
+            if (missing.Count > 0)
+            {
+                Console.Error.WriteLine($"[promote] ERROR: {missing.Count} --files entries do not exist " +
+                                        $"(first: {missing[0]}) — refusing to run.");
+                return 1;
+            }
+            Console.WriteLine($"[promote] Scoped to --files list: {files.Count:N0} files");
+        }
+        else
+        {
+            files = AudioFiles.Enumerate(root).ToList();
+            Console.WriteLine($"[promote] Audio files under root: {files.Count:N0}");
+        }
         Console.WriteLine();
 
         // ─── Backup: record current tags before any write ─────────────────
