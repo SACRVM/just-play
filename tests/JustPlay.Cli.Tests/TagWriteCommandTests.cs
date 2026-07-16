@@ -473,8 +473,9 @@ public sealed class TagWriteCommandTests : IDisposable
         // Read back and assert.
         var meta = reader.Read(_tempFile);
 
-        // Standard tag TKEY must equal the detected key (A minor → "Am").
-        Assert.Equal("Am", meta.TaggedKey);
+        // Standard tag TKEY must equal the detected key as CAMELOT (A minor → "8A") —
+        // the §4 tag contract; the musical form ("Am") was the pre-contract behaviour.
+        Assert.Equal("8A", meta.TaggedKey);
 
         // Standard TBPM must be the rounded value (128.5 → 129; stored as uint, read back as double).
         Assert.Equal(129.0, meta.TaggedBpm);
@@ -571,7 +572,8 @@ public sealed class TagWriteCommandTests : IDisposable
         Assert.Equal(FieldDecision.Applied, after.StoredAnalysis?.KeyDecision);
         Assert.Equal(FieldDecision.Applied, after.StoredAnalysis?.BpmDecision);
         Assert.Equal(FieldDecision.Applied, after.StoredAnalysis?.EnergyDecision);
-        Assert.Equal("Am", after.TaggedKey);
+        // Camelot per the §4 tag contract (A minor → "8A"), not the musical "Am".
+        Assert.Equal("8A", after.TaggedKey);
     }
 }
 

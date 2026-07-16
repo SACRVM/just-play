@@ -5,29 +5,40 @@ using JustPlay.Core.Models;
 namespace JustPlay.Metadata;
 
 /// <summary>
-/// Writes analysis values back via TagLib#. BPM → standard tempo tag (rounded; the
-/// exact value is preserved in the JUSTPLAY blob), key → standard key tag as an ID3
-/// key string (e.g. "Am"), energy + the JustPlay state blob → custom fields. Camelot
-/// is intentionally NOT written (derived from the key on read) so the user's comment
-/// is never clobbered.
+/// Writes analysis values back via TagLib#, in the shape of the library tag contract
+/// (NAS CLAUDE.md §4): BPM → standard tempo tag (rounded; the exact value is preserved
+/// in the JUSTPLAY blob), key → standard key tag as the CAMELOT code ("6A", the
+/// DJ-readable form Traktor/rekordbox sort by — <see cref="MusicalKey"/> parses it
+/// back on read), energy + the JustPlay state blob → custom fields. FLAC additionally
+/// materialises <c>key</c>/<c>tkey</c>/<c>bpm</c> Xiph fields, MP3 loses any legacy
+/// ID3v1 shadow tag, and the comment is exactly ONE <c>eng</c> COMM frame.
 /// </summary>
 public sealed class TagLibMetadataWriter : IMetadataWriter
 {
-    private static readonly string[] PitchNames =
-        ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-
     public void Write(string filePath, TagWrite write)
+    {
+        WriteCore(filePath, write);
+        RepairAiffFormSize(filePath);
+    }
+
+    private static void WriteCore(string filePath, TagWrite write)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
 
+        // Contract §4: no ID3v1 shadow tag, ever. TagLib# happily keeps updating an
+        // existing v1 tag on save, which readers then surface as a second COMM
+        // ("ID3v1 Comment") with truncated 30-char values — strip it up front
+        // (the TagLib# equivalent of mutagen's save(v1=0)). No-op for AIFF/FLAC.
+        file.RemoveTags(TagLib.TagTypes.Id3v1);
+
         if (write.Bpm is { } bpm)
-            tag.BeatsPerMinute = (uint)Math.Clamp(Math.Round(bpm), 0, 999);
+            SetBpm(file, tag, bpm);
 
         if (write.Key is { } key)
-            tag.InitialKey = ToId3Key(key);
+            SetContractKey(file, tag, key);
 
         if (write.Energy is { } energy)
             TagCustomFields.Set(file, "ENERGY", energy.ToString(CultureInfo.InvariantCulture));
@@ -57,6 +68,12 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
 
     public void Restore(string filePath, TagRestore restore)
     {
+        RestoreCore(filePath, restore);
+        RepairAiffFormSize(filePath);
+    }
+
+    private static void RestoreCore(string filePath, TagRestore restore)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         using var file = TagLib.File.Create(filePath);
@@ -64,8 +81,30 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
 
         // null = the field was empty before the undone write → clear it (the inverse of Write,
         // which leaves null fields untouched).
-        tag.BeatsPerMinute = restore.Bpm is { } bpm ? (uint)Math.Clamp(Math.Round(bpm), 0, 999) : 0;
-        tag.InitialKey = restore.Key is { } key ? ToId3Key(key) : null;
+        if (restore.Bpm is { } bpm)
+        {
+            SetBpm(file, tag, bpm);
+        }
+        else
+        {
+            tag.BeatsPerMinute = 0;
+            if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment x)
+                x.RemoveField("BPM");
+        }
+
+        if (restore.Key is { } key)
+        {
+            SetContractKey(file, tag, key);
+        }
+        else
+        {
+            tag.InitialKey = null;
+            if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment x)
+            {
+                x.RemoveField("KEY");
+                x.RemoveField("TKEY");
+            }
+        }
 
         if (restore.Energy is { } energy)
             TagCustomFields.Set(file, "ENERGY", energy.ToString(CultureInfo.InvariantCulture));
@@ -100,10 +139,20 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     public void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
         byte[]? newCover, string? coverMimeType)
     {
+        WriteEditableCore(filePath, tags, coverAction, newCover, coverMimeType);
+        RepairAiffFormSize(filePath);
+    }
+
+    private static void WriteEditableCore(string filePath, EditableTags tags, CoverAction coverAction,
+        byte[]? newCover, string? coverMimeType)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
+
+        // Contract §4: no ID3v1 shadow tag (see Write).
+        file.RemoveTags(TagLib.TagTypes.Id3v1);
 
         // Title / Artist / Album / AlbumArtist / Genre — null/empty clears.
         tag.Title       = string.IsNullOrEmpty(tags.Title)       ? null : tags.Title;
@@ -176,9 +225,60 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         TagLib.Id3v2.Tag.ForceDefaultEncoding = true;
     }
 
-    /// <summary>MusicalKey → ID3v2 TKEY string ("A","C#","Am","F#m", …).</summary>
-    private static string ToId3Key(MusicalKey key)
-        => PitchNames[((key.PitchClass % 12) + 12) % 12] + (key.Mode == KeyMode.Minor ? "m" : "");
+    /// <summary>
+    /// TagLib# 2.3.0 leaves the top-level FORM chunk size STALE when it saves the trailing
+    /// <c>ID3 </c> chunk of an AIFF (verified: append AND in-place update). TagLib itself
+    /// re-finds the chunk by scanning, but strict RIFF/IFF parsers — mutagen, i.e. the
+    /// library's contract verification — stop at the declared FORM end and see NO tag at
+    /// all. A well-formed single-FORM AIFF always has FORM size == file length - 8, so
+    /// patch the 4 size bytes after every save when they disagree. No-op for non-AIFF.
+    /// </summary>
+    private static void RepairAiffFormSize(string filePath)
+    {
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite);
+        if (fs.Length < 12) return;
+        Span<byte> head = stackalloc byte[12];
+        fs.ReadExactly(head);
+        if (!head[..4].SequenceEqual("FORM"u8) || !head[8..12].SequenceEqual("AIFF"u8)) return;
+
+        var actual = (uint)(fs.Length - 8);
+        var declared = (uint)((head[4] << 24) | (head[5] << 16) | (head[6] << 8) | head[7]);
+        if (declared == actual) return;
+
+        fs.Position = 4;
+        fs.Write([(byte)(actual >> 24), (byte)(actual >> 16), (byte)(actual >> 8), (byte)actual]);
+    }
+
+    /// <summary>
+    /// Contract key write: the CAMELOT code ("6A"), never the musical name ("Gm") — Traktor
+    /// and the whole library sort by Camelot (NAS CLAUDE.md §4; the musical form was the old
+    /// behaviour and is still accepted on READ via <see cref="MusicalKey.TryParse"/>).
+    /// ID3 (MP3/AIFF): TKEY via InitialKey. Xiph (FLAC): the contract triple
+    /// <c>initialkey</c> + <c>key</c> + <c>tkey</c>, all Camelot.
+    /// </summary>
+    private static void SetContractKey(TagLib.File file, TagLib.Tag tag, MusicalKey key)
+    {
+        var cam = key.Camelot;
+        tag.InitialKey = cam; // ID3 TKEY / Xiph INITIALKEY
+        if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment xiph)
+        {
+            xiph.SetField("KEY", cam);
+            xiph.SetField("TKEY", cam);
+        }
+    }
+
+    /// <summary>
+    /// Contract BPM write: standard tempo tag everywhere, PLUS an explicit Xiph <c>BPM</c>
+    /// field on FLAC — TagLib# maps <see cref="TagLib.Tag.BeatsPerMinute"/> to <c>TEMPO</c>
+    /// there, which DJ tools (and the contract) don't read.
+    /// </summary>
+    private static void SetBpm(TagLib.File file, TagLib.Tag tag, double bpm)
+    {
+        var rounded = (uint)Math.Clamp(Math.Round(bpm), 0, 999);
+        tag.BeatsPerMinute = rounded;
+        if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment xiph)
+            xiph.SetField("BPM", rounded.ToString(CultureInfo.InvariantCulture));
+    }
 
     /// <summary>
     /// Write a comment to the file using the single-COMM-frame strategy (ID3v2) or the
@@ -186,15 +286,18 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// <see cref="WriteEditable"/> so the de-dup logic lives in exactly one place.
     /// </summary>
     /// <remarks>
-    /// N21 CLEAN SLATE: collapse the multiple COMM frames legacy taggers left
-    /// (COMM::'' / COMM:'ID3v1 Comment' / blob frames in various languages) to
-    /// exactly ONE clean frame. Two traps the earlier attempt hit:
+    /// N21 CLEAN SLATE + §4 contract: collapse the multiple COMM frames legacy taggers
+    /// left (COMM::'' / COMM:'ID3v1 Comment' / blob frames in various languages) to
+    /// exactly ONE clean frame with <b>lang="eng", desc=""</b>. Three traps:
     ///   1. the combined file.Tag.Comment setter ALSO writes the ID3v1 tag, which
     ///      TagLib# then renders back as a second COMM frame (desc="ID3v1 Comment")
-    ///      — the source of the duplicate;
-    ///   2. removing frames one-by-one is fragile; RemoveFrames(ident) clears all.
-    /// So: wipe every COMM frame, write the comment DIRECTLY on the Id3v2 tag, and
-    /// clear the ID3v1 comment so nothing re-mirrors. Result: a single COMM frame.
+    ///      — Write/WriteEditable therefore strip ID3v1 entirely before saving;
+    ///   2. removing frames one-by-one is fragile; RemoveFrames(ident) clears all;
+    ///   3. the id3.Comment SETTER stamps TagLib#'s default language onto the frame —
+    ///      readers saw the invalid code "ivl" (the NAS-documented bug). Contract says
+    ///      "eng", so the frame is constructed explicitly.
+    /// FLAC/Xiph: the contract reads the <c>COMMENT</c> field; TagLib#'s Comment property
+    /// prefers <c>DESCRIPTION</c>, so both are set/cleared explicitly and kept in sync.
     /// </remarks>
     private static void ApplyCleanComment(TagLib.File file, string? comment)
     {
@@ -203,13 +306,28 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         if (file.GetTag(TagLib.TagTypes.Id3v2, false) is TagLib.Id3v2.Tag id3)
         {
             id3.RemoveFrames("COMM");
-            id3.Comment = clean;
-            if (file.GetTag(TagLib.TagTypes.Id3v1, false) is TagLib.Id3v1.Tag id3v1)
-                id3v1.Comment = null;
+            if (clean is not null)
+                id3.AddFrame(new TagLib.Id3v2.CommentsFrame(description: "", language: "eng")
+                {
+                    Text = clean,
+                });
+        }
+        else if (file.GetTag(TagLib.TagTypes.Xiph, false) is TagLib.Ogg.XiphComment xiph)
+        {
+            if (clean is null)
+            {
+                xiph.RemoveField("COMMENT");
+                xiph.RemoveField("DESCRIPTION");
+            }
+            else
+            {
+                xiph.SetField("COMMENT", clean);
+                xiph.RemoveField("DESCRIPTION"); // one canonical comment field, not two
+            }
         }
         else
         {
-            // Non-ID3 container (e.g. FLAC/Xiph) — single comment field, no dup issue.
+            // Other containers (MP4 etc.) — single comment field, no dup issue.
             file.Tag.Comment = clean;
         }
     }

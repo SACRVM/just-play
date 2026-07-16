@@ -3,6 +3,7 @@ using System.Text.Json;
 using JustPlay.Cli.Index;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
+using JustPlay.Metadata;
 
 namespace JustPlay.Cli.Commands;
 
@@ -295,22 +296,39 @@ internal static class PromoteCommand
             });
 
             // ── 5. Build the write: standard tags + blob ───────────────────
-            //   Mirrors MainWindowViewModel.Persist() — write TKEY, TBPM, ENERGY
-            //   from the detected values (so the standard tag == detected == blob).
+            //   §4 tag contract (NAS CLAUDE.md): TKEY = Camelot, TBPM always set,
+            //   TXXX:ENERGY, and EXACTLY ONE clean COMM "<Camelot> - Energy <nrg>"
+            //   rebuilt from the SAME detected values — so standard tag == COMM ==
+            //   blob and no field can drift (the 2026-07-16 ingest shipped files
+            //   whose COMM disagreed with TKEY/ENERGY; fixed by fix_contract.py).
             //   Also preserves the ReplayGain tag if we have loudness data.
+
+            // TBPM fallback: detected BPM, else the ORIGINAL tag BPM (blob 'obpm') —
+            // the analyzer leaves Detected.Bpm null when it finds no confident beat
+            // ("Billie Jean"). NOTE: the serialized blob's 'abpm' is the BPM DECISION
+            // code (a letter, e.g. 'A' = Applied), never a tempo — only these two
+            // numeric sources are eligible.
+            var contractBpm = newState.Detected.Bpm ?? newState.Original?.Bpm;
+
+            // Contract COMM from the current detection (never from a stale index or
+            // original-key value); DjCommentBuilder strips any legacy JP/MIK prefix
+            // and keeps genuine user text behind " | ".
+            string? existingComment = null;
+            try { existingComment = composer.MetadataReader.ReadEditable(filePath).Comment; }
+            catch { /* unreadable comment → build the bare segment */ }
+
             var tagWrite = new TagWrite
             {
-                Bpm          = newState.Detected.Bpm,
+                Bpm          = contractBpm,
                 Key          = newState.Detected.Key,
                 Energy       = newState.Detected.Energy,
                 State        = newState,
                 // ReplayGain: stamp if available (non-destructive, mirrors Persist).
                 ReplayGainDb = newState.Detected.ReplayGainDb,
                 Peak         = newState.Detected.Peak,
-                // Comment and Grouping: leave untouched (N12 already wrote the vibe prefix).
-                // The --no-grouping flag is honored here via the noGrouping parameter
-                // but since we're not modifying Comment/Grouping in this command,
-                // it has no effect — included for consistency and future use.
+                Comment      = DjCommentBuilder.Build(
+                    newState.Detected.Key, newState.Detected.Energy, existingComment),
+                // Grouping: leave untouched (real label/catalog data, never ours).
             };
 
             if (apply)
