@@ -159,6 +159,31 @@ public sealed class WaveformView : Control
     private const double Pitch = 3.0;   // 2 px bar + 1 px gap
     private const double BarWidth = 2.0;
 
+    // Cached bar heights. The SampleAmp scan is the per-frame cost and depends only on the peaks, the
+    // width (bar count) and the view window — NOT on Progress. But ProgressProperty is in AffectsRender,
+    // so Render re-runs on every playhead move; without this cache each frame re-scanned all peaks across
+    // ~300 bars × the stacked views (the exact cost that made JUST BOOTLEG's playhead judder). Progress
+    // now only re-picks the played/unplayed brush per cached bar and moves the 1.5 px line.
+    private double[]? _barAmps;
+    private object? _cachePeaks;
+    private double _cacheW = -1, _cacheVs, _cacheSpan;
+
+    private double[] EnsureBarCache(double w, double vs, double span)
+    {
+        var peaks = Peaks;
+        if (_barAmps is { } cached && ReferenceEquals(peaks, _cachePeaks)
+            && w == _cacheW && vs == _cacheVs && span == _cacheSpan)
+            return cached;
+
+        var bars = Math.Max(1, (int)(w / Pitch));
+        var amps = new double[bars];
+        for (var i = 0; i < bars; i++)
+            amps[i] = SampleAmp(peaks, vs + (double)i / bars * span, vs + (double)(i + 1) / bars * span);
+
+        _cachePeaks = peaks; _cacheW = w; _cacheVs = vs; _cacheSpan = span; _barAmps = amps;
+        return amps;
+    }
+
     public override void Render(DrawingContext ctx)
     {
         base.Render(ctx);
@@ -172,27 +197,26 @@ public sealed class WaveformView : Control
         // so the empty top/bottom aren't seekable (Chloe 2026-07-07). This makes the whole height clickable.
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
 
-        var peaks = Peaks;
         var played = PlayedBrush ?? Brushes.DeepSkyBlue;
         var unplayed = UnplayedBrush ?? new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
 
         var centreY = h / 2;
         var maxBar = centreY - 1;             // leave a hairline top/bottom margin
-        var bars = Math.Max(1, (int)(w / Pitch));
         var (vs, span) = View();
+        var amps = EnsureBarCache(w, vs, span);
+        var bars = amps.Length;
         var progressX = (Math.Clamp(Progress, 0.0, 1.0) - vs) / span * w;
 
         for (var i = 0; i < bars; i++)
         {
-            var amp = SampleAmp(peaks, vs + (double)i / bars * span, vs + (double)(i + 1) / bars * span);
-            var barH = Math.Max(1.0, amp * maxBar);         // 1 px hairline even in silence
+            var barH = Math.Max(1.0, amps[i] * maxBar);     // 1 px hairline even in silence
             var x = i * Pitch;
             var brush = (x + BarWidth / 2) <= progressX ? played : unplayed;
             ctx.FillRectangle(brush, new Rect(x, centreY - barH, BarWidth, barH * 2));
         }
 
         // Playhead — only once there's a real track loaded AND it is inside the view window.
-        if (peaks is { Count: > 0 } && progressX >= -1 && progressX <= w + 1)
+        if (Peaks is { Count: > 0 } && progressX >= -1 && progressX <= w + 1)
             ctx.FillRectangle(PlayheadBrush ?? played, new Rect(progressX - 0.75, 0, 1.5, h));
     }
 
