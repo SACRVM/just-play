@@ -626,8 +626,29 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             OnPropertyChanged(nameof(ShowNoMatches));
         });
 
-    /// <summary>Turn a list of file paths into rows (metadata trickles in lazily, same two-step as
-    /// the queue). Shared by the folder and playlist loads.</summary>
+    // ── Hydration progress (fetch-what-you-see) ──────────────────────────────────────────────────
+    // Sorting needs EVERY row's data, so it stays locked until the whole folder is hydrated.
+    private int _hydratedCount;   // rows read so far this load (mutated on the UI thread only)
+    private int _hydrateTotal;    // rows in this load
+
+    /// <summary>False while a folder is still filling; true once every row is hydrated (or the folder is
+    /// empty). Gates column sorting — the finder header disables + tooltips while this is false.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LockedWhileLoadingTip))]
+    [NotifyPropertyChangedFor(nameof(LockedOpacity))]
+    private bool _allHydrated = true;
+
+    /// <summary>Tooltip for the controls locked while a folder is still loading — the sort header AND the
+    /// FILTER tab, both of which need every row's data. Null (no tooltip) once hydrated.</summary>
+    public string? LockedWhileLoadingTip => AllHydrated ? null : "Unlocks once every track has loaded.";
+
+    /// <summary>Dim factor for the locked controls (sort header + FILTER tab) so the lock is visible
+    /// without hovering. 1.0 when ready, dimmed while a folder is still loading.</summary>
+    public double LockedOpacity => AllHydrated ? 1.0 : 0.45;
+
+    /// <summary>Turn a list of file paths into rows. Rows appear instantly; metadata is fetched
+    /// what-you-see — the visible viewport (HydrateVisible) and a parallel background fill race to read
+    /// each row once. Shared by the folder and playlist loads.</summary>
     private void PopulateItems(List<string> paths, CancellationToken ct)
     {
         if (ct.IsCancellationRequested) return;
@@ -642,49 +663,78 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         {
             if (ct.IsCancellationRequested) return;
             _masterItems = items;
+            _hydratedCount = 0;
+            _hydrateTotal = items.Count;
+            AllHydrated = items.Count == 0;   // empty folder → nothing to gate; else lock sorting until filled
             ApplyMembership();
-            RecomputeRangeDomains(); // scale the FILTER ranges to this folder (redone below once tags are in)
-            RebuildView();           // Items = sort(filter(master)) — keeps the chosen sort + any active filter
+            RecomputeRangeDomains(); // scale the FILTER ranges to this folder (redone once tags are in)
+            RebuildView();           // load order while filling — SortList stays in load order until AllHydrated
         });
 
-        // Lazy tag pass: rows appear instantly, tags trickle in. Reading is all the finder ever
-        // does on browse — the stored v9 blob IS the analysis.
-        foreach (var item in items)
+        // Fetch-what-you-see: rows hydrate on demand as they scroll into view (HydrateVisible, from the
+        // window's ContainerPrepared) AND a PARALLEL background pass fills the rest — so scrolling anywhere
+        // in a huge folder populates THOSE rows at once, while sort/filter still get every row's data. A
+        // one-shot claim per row (FinderItemViewModel.TryClaimHydration) means each file is read exactly
+        // once, whoever reaches it first. Degree = the shared "Analysis threads" setting; tag reads are
+        // I/O-bound (NAS latency), so this is a safe cap. TagLibMetadataReader is stateless → safe in parallel.
+        var cores = Math.Max(1, _main.AnalysisThreads);
+        try
         {
-            if (ct.IsCancellationRequested) return;
-            var tvm = item.Track;
-            try
+            Parallel.ForEach(items,
+                new ParallelOptions { MaxDegreeOfParallelism = cores, CancellationToken = ct },
+                item => HydrateItem(item, ct));
+        }
+        catch (OperationCanceledException) { /* navigated away — a newer load owns the pane */ }
+    }
+
+    /// <summary>Called from the window when a file row scrolls INTO view — hydrate it now (priority), off
+    /// the UI thread. The one-shot claim means the background fill simply skips a row the viewport took.</summary>
+    public void HydrateVisible(FinderItemViewModel item)
+    {
+        var ct = _navCts?.Token ?? CancellationToken.None;
+        if (ct.IsCancellationRequested) return;
+        _ = Task.Run(() => HydrateItem(item, ct));
+    }
+
+    /// <summary>Read ONE row's metadata (the stored v9 blob IS the analysis) and push it to the row — off
+    /// the UI thread. Guarded by the one-shot claim so each file is read once. Counts toward
+    /// <see cref="AllHydrated"/> exactly once (even on a read failure); the last row unlocks sorting and
+    /// finalises the filter ranges.</summary>
+    private void HydrateItem(FinderItemViewModel item, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested) return;
+        if (!item.TryClaimHydration()) return;   // the viewport or another worker already owns this row
+
+        var tvm = item.Track;
+        try
+        {
+            var md = _metadata.Read(item.FullPath);
+            tvm.Model.Metadata = md;
+            if (md.StoredAnalysis is { } stored)
             {
-                var md = _metadata.Read(item.FullPath);
-                tvm.Model.Metadata = md;
-                if (md.StoredAnalysis is { } stored)
-                {
-                    // Trust the blob as-is, any version — re-analyse stays an explicit action.
-                    tvm.Model.Analysis = stored.Detected;
-                    tvm.Model.AnalysisStatus = AnalysisStatus.Done;
-                }
+                // Trust the blob as-is, any version — re-analyse stays an explicit action.
+                tvm.Model.Analysis = stored.Detected;
+                tvm.Model.AnalysisStatus = AnalysisStatus.Done;
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Finder] tag read failed: {item.FullPath}: {ex.GetType().Name}: {ex.Message}");
-                continue;
-            }
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (ct.IsCancellationRequested) return;
-                tvm.Refresh();
-                if (ReferenceEquals(item, Selected)) RaiseDetail();
-            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Finder] tag read failed: {item.FullPath}: {ex.GetType().Name}: {ex.Message}");
         }
 
-        // Tags are all in now → re-scale the FILTER ranges to the real values and re-apply the filter (a
-        // band set while tags were still loading now matches correctly). Range handles reset to full span —
-        // harmless, since a range can't have been touched while its slider was hidden (no spread yet).
         Dispatcher.UIThread.Post(() =>
         {
             if (ct.IsCancellationRequested) return;
-            RecomputeRangeDomains();
-            RebuildView();
+            tvm.Refresh();
+            if (ReferenceEquals(item, Selected)) RaiseDetail();
+
+            // Counter runs on the UI thread only (all these posts serialize here) — plain ++ is safe.
+            if (++_hydratedCount >= _hydrateTotal)
+            {
+                AllHydrated = true;      // unlock sorting
+                RecomputeRangeDomains(); // real values are all in → finalise the FILTER ranges + re-apply
+                RebuildView();
+            }
         });
     }
 
@@ -1206,40 +1256,42 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private void SortList(List<FinderItemViewModel> list)
     {
         if (list.Count < 2) return;
-        var d = Columns.SortDescending;
 
-        if (Columns.SortColumn is null)
+        // While a folder is still filling, stay in LOAD ORDER — sorting needs every row's data and is
+        // locked in the UI until AllHydrated (SortDisabledTip / TrackDataHeader.CanSort). This also ignores
+        // a sort column carried over from a previous folder until the new one has fully loaded.
+        if (!AllHydrated || Columns.SortColumn is null)
         {
             list.Sort((a, b) => a.Order.CompareTo(b.Order));
+            return;
         }
-        else
+
+        var d = Columns.SortDescending;
+        list.Sort((a, b) =>
         {
-            list.Sort((a, b) =>
+            var (ta, tb) = (a.Track, b.Track);
+            var c = Columns.SortColumn switch
             {
-                var (ta, tb) = (a.Track, b.Track);
-                var c = Columns.SortColumn switch
-                {
-                    "title"    => NaturalComparer.Instance.Compare(ta.Title, tb.Title),
-                    "artist"   => NaturalComparer.Instance.Compare(ta.Artist, tb.Artist),
-                    "genre"    => NaturalComparer.Instance.Compare(ta.GenreText, tb.GenreText),
-                    "key"      => NaturalComparer.Instance.Compare(ta.KeyText, tb.KeyText),
-                    "bpm"      => Nullable.Compare(ta.Bpm, tb.Bpm),
-                    "nrg"      => Nullable.Compare(ta.Energy, tb.Energy),
-                    "gain"     => Nullable.Compare(ta.ReplayGainDb, tb.ReplayGainDb),
-                    "lufs"     => Nullable.Compare(ta.LoudnessLufs, tb.LoudnessLufs),
-                    "comment"  => NaturalComparer.Instance.Compare(ta.CommentText, tb.CommentText),
-                    "duration" => Nullable.Compare(ta.Model.Metadata?.Duration, tb.Model.Metadata?.Duration),
-                    "like"     => ta.IsFavorite.CompareTo(tb.IsFavorite),
-                    "dark"     => ta.DarkScore.CompareTo(tb.DarkScore),
-                    "hypnotic" => ta.HypnoticScore.CompareTo(tb.HypnoticScore),
-                    "groove"   => ta.GrooveScore.CompareTo(tb.GrooveScore),
-                    "punch"    => ta.PunchScore.CompareTo(tb.PunchScore),
-                    "harsh"    => ta.HarshScore.CompareTo(tb.HarshScore),
-                    _          => 0,
-                };
-                return d ? -c : c;
-            });
-        }
+                "title"    => NaturalComparer.Instance.Compare(ta.Title, tb.Title),
+                "artist"   => NaturalComparer.Instance.Compare(ta.Artist, tb.Artist),
+                "genre"    => NaturalComparer.Instance.Compare(ta.GenreText, tb.GenreText),
+                "key"      => NaturalComparer.Instance.Compare(ta.KeyText, tb.KeyText),
+                "bpm"      => Nullable.Compare(ta.Bpm, tb.Bpm),
+                "nrg"      => Nullable.Compare(ta.Energy, tb.Energy),
+                "gain"     => Nullable.Compare(ta.ReplayGainDb, tb.ReplayGainDb),
+                "lufs"     => Nullable.Compare(ta.LoudnessLufs, tb.LoudnessLufs),
+                "comment"  => NaturalComparer.Instance.Compare(ta.CommentText, tb.CommentText),
+                "duration" => Nullable.Compare(ta.Model.Metadata?.Duration, tb.Model.Metadata?.Duration),
+                "like"     => ta.IsFavorite.CompareTo(tb.IsFavorite),
+                "dark"     => ta.DarkScore.CompareTo(tb.DarkScore),
+                "hypnotic" => ta.HypnoticScore.CompareTo(tb.HypnoticScore),
+                "groove"   => ta.GrooveScore.CompareTo(tb.GrooveScore),
+                "punch"    => ta.PunchScore.CompareTo(tb.PunchScore),
+                "harsh"    => ta.HarshScore.CompareTo(tb.HarshScore),
+                _          => 0,
+            };
+            return d ? -c : c;
+        });
     }
 
     // ── Column visibility + sort state — the shared TrackColumns (right-click the header toggles a column
@@ -1271,7 +1323,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public bool ShowInfoContent => !FilterTabActive;
 
     [RelayCommand] private void ShowInfoTab() => FilterTabActive = false;
-    [RelayCommand] private void ShowFilterTab() => FilterTabActive = true;
+    [RelayCommand] private void ShowFilterTab() { if (AllHydrated) FilterTabActive = true; } // locked until loaded
 
     /// <summary>Free-text search over title + artist (case-insensitive substring).</summary>
     [ObservableProperty] private string _filterName = "";
@@ -1375,7 +1427,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// the cursor on the same row when it survives. The single funnel every filter/sort change flows through.</summary>
     private void RebuildView()
     {
-        var filtered = _masterItems.Where(PassesFilter).ToList();
+        // Filtering needs every row's data too — while a folder is still filling, show ALL rows (the
+        // FILTER tab is disabled meanwhile); once AllHydrated, apply the filter. Mirrors the SortList gate.
+        var filtered = AllHydrated ? _masterItems.Where(PassesFilter).ToList() : _masterItems.ToList();
         SortList(filtered);
 
         // Detach the selection BEFORE the Reset. A ListBox in SelectionMode=Multiple with a bound

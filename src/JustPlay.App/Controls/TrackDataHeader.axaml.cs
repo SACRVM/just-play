@@ -50,12 +50,25 @@ public partial class TrackDataHeader : UserControl
         set => SetValue(DurationHeaderLetterSpacingProperty, value);
     }
 
+    /// <summary>Whether header clicks sort. Default true (the queue). The Pre-Cue Finder binds this to
+    /// its "all rows loaded" flag so sorting stays locked until every row's data is in (sort needs it all);
+    /// a tooltip on the header explains the wait. Column visibility (right-click) is never gated.</summary>
+    public static readonly StyledProperty<bool> CanSortProperty =
+        AvaloniaProperty.Register<TrackDataHeader, bool>(nameof(CanSort), defaultValue: true);
+
+    public bool CanSort
+    {
+        get => GetValue(CanSortProperty);
+        set => SetValue(CanSortProperty, value);
+    }
+
     public TrackDataHeader() => InitializeComponent();
 
     // A header cell was clicked: cycle that column's sort on the shared Columns (which fires SortRequested;
     // each host re-sorts its own rows). The Tag on each cell Border carries the lowercase column id.
     private void OnHeaderTapped(object? sender, TappedEventArgs e)
     {
+        if (!CanSort) return; // sorting locked (e.g. finder still loading rows) — the tooltip explains
         if (sender is Control { Tag: string id })
             Columns?.SortBy(id);
     }

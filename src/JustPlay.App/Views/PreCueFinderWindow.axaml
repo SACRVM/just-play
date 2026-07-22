@@ -639,7 +639,16 @@
                                                 <TextBlock Classes="finderhead" Text="NAME"/>
                                                 <TextBlock Classes="finderhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
                                             </StackPanel>
-                                            <controls:TrackDataHeader Grid.Column="1" Columns="{Binding Columns}"/>
+                                            <Panel Grid.Column="1">
+                                                <controls:TrackDataHeader Columns="{Binding Columns}"
+                                                                          CanSort="{Binding AllHydrated}"
+                                                                          Opacity="{Binding LockedOpacity}"/>
+                                                <!-- While a folder loads: a transparent overlay intercepts hover (ONE
+                                                     "locked" tooltip over EVERY column, past the per-cell tooltips) and
+                                                     blocks sort clicks. Collapses once loaded. -->
+                                                <Border Background="Transparent" IsVisible="{Binding !AllHydrated}"
+                                                        ToolTip.Tip="{Binding LockedWhileLoadingTip}"/>
+                                            </Panel>
                                         </Grid>
                                     </DockPanel>
                                 </Border>
@@ -758,7 +767,9 @@
                                         <TextBlock Classes="finderhead" Text="INFO"/>
                                     </Button>
                                     <Button Classes="tabhead" Classes.active="{Binding FilterTabActive}"
-                                            Command="{Binding ShowFilterTabCommand}">
+                                            Command="{Binding ShowFilterTabCommand}"
+                                            Opacity="{Binding LockedOpacity}"
+                                            ToolTip.Tip="{Binding LockedWhileLoadingTip}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Classes="finderhead" Text="FILTER"/>
                                             <Ellipse Width="5" Height="5" VerticalAlignment="Center"
@@ -934,6 +945,7 @@
                             <!-- FILTER tab: name search + Camelot key wheel + numeric ranges over the CURRENT
                                  file pane only (in-memory, no library index). Chloe 2026-07-07. -->
                             <ScrollViewer IsVisible="{Binding FilterTabActive}"
+                                          IsEnabled="{Binding AllHydrated}"
                                           HorizontalScrollBarVisibility="Disabled"
                                           VerticalScrollBarVisibility="Auto" AllowAutoHide="False">
                                 <StackPanel Margin="2,10,4,2" Spacing="14">
@@ -1111,6 +1123,27 @@
                                 </StackPanel>
                                 <TextBlock FontSize="10" Foreground="#73FFFFFF"
                                            Text="How far Shift+← / Shift+→ jump inside the auditioning song."/>
+
+                                <!-- The SAME setting as JUST PLAY's Analysis threads (one store, editable here too) —
+                                     how many tracks the finder reads in parallel while browsing. Bound to Main.* so
+                                     it can never drift from the main setting. -->
+                                <TextBlock Text="LIBRARY WORKERS" Classes="finder-section" Margin="0,10,0,0"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Button Classes="fmt-radio" Content="1"
+                                            Classes.active="{Binding Main.AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=1}"
+                                            Command="{Binding Main.SetAnalysisThreadsCommand}" CommandParameter="1"/>
+                                    <Button Classes="fmt-radio" Content="2"
+                                            Classes.active="{Binding Main.AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
+                                            Command="{Binding Main.SetAnalysisThreadsCommand}" CommandParameter="2"/>
+                                    <Button Classes="fmt-radio" Content="4"
+                                            Classes.active="{Binding Main.AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=4}"
+                                            Command="{Binding Main.SetAnalysisThreadsCommand}" CommandParameter="4"/>
+                                    <Button Classes="fmt-radio" Content="8"
+                                            Classes.active="{Binding Main.AnalysisThreadsText, Converter={StaticResource StringEquals}, ConverterParameter=8}"
+                                            Command="{Binding Main.SetAnalysisThreadsCommand}" CommandParameter="8"/>
+                                </StackPanel>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
+                                           Text="Tracks the finder reads at once while browsing — shared with Analysis in the main settings."/>
                             </StackPanel>
                         </ScrollViewer>
                     </Border>

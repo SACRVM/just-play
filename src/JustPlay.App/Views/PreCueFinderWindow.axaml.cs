@@ -139,6 +139,9 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             // Uses the SHARED suite dialog (JustPlay.UI), not an app-local copy.
             vm.ConfirmAsync = (title, message, confirm) =>
                 JustPlay.UI.Views.ConfirmDialog.AskAsync(this, title, message, confirm);
+            // Fetch-what-you-see: hydrate a row the moment its container is realized (scrolled into view).
+            // Avalonia only prepares containers for the visible range (+ a small cache), so this IS the viewport.
+            if (fileList is not null) fileList.ContainerPrepared += OnFileContainerPrepared;
         }
         ViewModel?.OnWindowOpened();
         FocusFolders(); // land in the folders pane — the Norton-Commander entry point
@@ -344,6 +347,14 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         var entry = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext as FinderEntryViewModel;
         if (entry is null) return; // click on empty space — keep the current selection
         vm.SelectedEntry = entry;  // point the menu (CanAddSelectedEntry / SelectedEntryIsPlaylist) at it
+    }
+
+    // A file row's container was realized (scrolled into view) → hydrate that row now (priority). The VM's
+    // parallel background fill handles the rest; a one-shot claim keeps each file read to exactly once.
+    private void OnFileContainerPrepared(object? sender, ContainerPreparedEventArgs e)
+    {
+        if (ViewModel is { } vm && e.Container.DataContext is FinderItemViewModel item)
+            vm.HydrateVisible(item);
     }
 
     // KeyUp guard: our keys (Space/Enter) must never Click a focused button (Button.OnKeyUp fires

@@ -66,6 +66,15 @@ public sealed partial class FinderItemViewModel : ObservableObject
 
     public TrackViewModel Track { get; }
 
+    // One-shot hydration claim. Metadata is fetched-what-you-see: the visible viewport and a parallel
+    // background fill RACE to hydrate each row; this CAS lets exactly ONE of them win, so a file is read
+    // once no matter who reaches it first. 0 = free, 1 = claimed. See PreCueFinderViewModel.HydrateItem.
+    private int _claimed;
+
+    /// <summary>Atomically claim this row for the ONE caller that will read its metadata; everyone else
+    /// (viewport or background pool) gets false and must not read.</summary>
+    public bool TryClaimHydration() => System.Threading.Interlocked.CompareExchange(ref _claimed, 1, 0) == 0;
+
     /// <summary>✓ — this file is on the CURRENT queue (live: appears the moment + adds it).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowQueuedTick))]
