@@ -316,92 +316,159 @@
                     <StackPanel Spacing="2"
                                 IsVisible="{Binding SelectedStreamServer, Converter={x:Static ObjectConverters.IsNotNull}}">
 
-                        <!-- Name -->
-                        <TextBlock Classes="field-cap" Text="NAME"/>
-                        <TextBox Classes="stream-field"
-                                 Text="{Binding SelectedServerName}"
-                                 PlaceholderText="My Stream"/>
-
-                        <!-- Host -->
-                        <TextBlock Classes="field-cap" Text="HOST"/>
-                        <TextBox Classes="stream-field"
-                                 Text="{Binding SelectedServerHost}"
-                                 PlaceholderText="stream.example.com"/>
-
-                        <!-- Port + Mount on one row -->
-                        <Grid ColumnDefinitions="Auto,12,*">
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Classes="field-cap" Text="PORT"/>
-                                <TextBox Classes="stream-field" Width="70"
-                                         Text="{Binding SelectedServerPort}"
-                                         PlaceholderText="8000"/>
+                        <!-- Station-editor tabs — reuse the SHARED underline tabs (App.axaml), same look
+                             as the Tweaks panel. Splits the profile form into short groups so it never
+                             needs to scroll (Server / Quality / Station). -->
+                        <Border BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,4">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Button Classes="tab"
+                                        Classes.active="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Server}"
+                                        Command="{Binding SetStreamEditorTabCommand}" CommandParameter="Server">
+                                    <Panel>
+                                        <TextBlock Text="Server" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab"
+                                        Classes.active="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Quality}"
+                                        Command="{Binding SetStreamEditorTabCommand}" CommandParameter="Quality">
+                                    <Panel>
+                                        <TextBlock Text="Quality" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
+                                <Button Classes="tab"
+                                        Classes.active="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Station}"
+                                        Command="{Binding SetStreamEditorTabCommand}" CommandParameter="Station">
+                                    <Panel>
+                                        <TextBlock Text="Station" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"/>
+                                        <Border Classes="tabline"/>
+                                    </Panel>
+                                </Button>
                             </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Classes="field-cap" Text="MOUNT"/>
-                                <TextBox Classes="stream-field"
-                                         Text="{Binding SelectedServerMount}"
-                                         PlaceholderText="/live.mp3"/>
-                            </StackPanel>
-                        </Grid>
+                        </Border>
 
-                        <!-- Username -->
-                        <TextBlock Classes="field-cap" Text="USERNAME"/>
-                        <TextBox Classes="stream-field"
-                                 Text="{Binding SelectedServerUsername}"
-                                 PlaceholderText="source"/>
+                        <!-- ═══════════ SERVER: connection ═══════════ -->
+                        <StackPanel Spacing="2"
+                                    IsVisible="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Server}">
+                            <TextBlock Classes="field-cap" Text="NAME"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerName}"
+                                     PlaceholderText="My Stream"/>
 
-                        <!-- Password (masked) -->
-                        <TextBlock Classes="field-cap" Text="PASSWORD"/>
-                        <TextBox Classes="stream-field"
-                                 Text="{Binding SelectedServerPassword}"
-                                 PasswordChar="●"
-                                 PlaceholderText="••••••••"/>
+                            <TextBlock Classes="field-cap" Text="HOST"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerHost}"
+                                     PlaceholderText="stream.example.com"/>
 
-                        <!-- Format toggle -->
-                        <TextBlock Classes="field-cap" Text="FORMAT"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Classes="fmt-radio" Content="MP3"
-                                    Classes.active="{Binding IsSelectedServerMp3}"
-                                    Command="{Binding SetSelectedServerFormatCommand}"
-                                    CommandParameter="Mp3"/>
-                            <Button Classes="fmt-radio" Content="Opus"
-                                    Classes.active="{Binding IsSelectedServerOpus}"
-                                    Command="{Binding SetSelectedServerFormatCommand}"
-                                    CommandParameter="Opus"/>
+                            <!-- Port + Mount on one row -->
+                            <Grid ColumnDefinitions="Auto,12,*">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Classes="field-cap" Text="PORT"/>
+                                    <TextBox Classes="stream-field" Width="70"
+                                             Text="{Binding SelectedServerPort}"
+                                             PlaceholderText="8000"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Classes="field-cap" Text="MOUNT"/>
+                                    <TextBox Classes="stream-field"
+                                             Text="{Binding SelectedServerMount}"
+                                             PlaceholderText="/live.mp3"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Classes="field-cap" Text="USERNAME"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerUsername}"
+                                     PlaceholderText="source"/>
+
+                            <TextBlock Classes="field-cap" Text="PASSWORD"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerPassword}"
+                                     PasswordChar="●"
+                                     PlaceholderText="••••••••"/>
                         </StackPanel>
 
-                        <!-- Bitrate -->
-                        <TextBlock Classes="field-cap" Text="BITRATE (KBPS)"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Classes="bps-radio" Content="128"
-                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=128}"
-                                    Command="{Binding SetSelectedServerBitrateCommand}"
-                                    CommandParameter="128"/>
-                            <Button Classes="bps-radio" Content="192"
-                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=192}"
-                                    Command="{Binding SetSelectedServerBitrateCommand}"
-                                    CommandParameter="192"/>
-                            <Button Classes="bps-radio" Content="256"
-                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=256}"
-                                    Command="{Binding SetSelectedServerBitrateCommand}"
-                                    CommandParameter="256"/>
-                            <Button Classes="bps-radio" Content="320"
-                                    Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=320}"
-                                    Command="{Binding SetSelectedServerBitrateCommand}"
-                                    CommandParameter="320"/>
+                        <!-- ═══════════ QUALITY: codec + bitrate + security ═══════════ -->
+                        <StackPanel Spacing="2"
+                                    IsVisible="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Quality}">
+                            <TextBlock Classes="field-cap" Text="FORMAT"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="fmt-radio" Content="MP3"
+                                        Classes.active="{Binding IsSelectedServerMp3}"
+                                        Command="{Binding SetSelectedServerFormatCommand}"
+                                        CommandParameter="Mp3"/>
+                                <Button Classes="fmt-radio" Content="Opus"
+                                        Classes.active="{Binding IsSelectedServerOpus}"
+                                        Command="{Binding SetSelectedServerFormatCommand}"
+                                        CommandParameter="Opus"/>
+                            </StackPanel>
+
+                            <TextBlock Classes="field-cap" Text="BITRATE (KBPS)"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="bps-radio" Content="128"
+                                        Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=128}"
+                                        Command="{Binding SetSelectedServerBitrateCommand}"
+                                        CommandParameter="128"/>
+                                <Button Classes="bps-radio" Content="192"
+                                        Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=192}"
+                                        Command="{Binding SetSelectedServerBitrateCommand}"
+                                        CommandParameter="192"/>
+                                <Button Classes="bps-radio" Content="256"
+                                        Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=256}"
+                                        Command="{Binding SetSelectedServerBitrateCommand}"
+                                        CommandParameter="256"/>
+                                <Button Classes="bps-radio" Content="320"
+                                        Classes.active="{Binding SelectedServerBitrateText, Converter={StaticResource StringEquals}, ConverterParameter=320}"
+                                        Command="{Binding SetSelectedServerBitrateCommand}"
+                                        CommandParameter="320"/>
+                            </StackPanel>
+
+                            <!-- TLS toggle -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Classes="stream-label" Text="TLS / HTTPS"/>
+                                    <TextBlock Foreground="#73FFFFFF" FontSize="10"
+                                               Text="Requires a valid server certificate."/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                              IsChecked="{Binding SelectedServerUseTls}"
+                                              OnContent="" OffContent=""/>
+                            </Grid>
                         </StackPanel>
 
-                        <!-- TLS toggle -->
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Classes="stream-label" Text="TLS / HTTPS"/>
-                                <TextBlock Foreground="#73FFFFFF" FontSize="10"
-                                           Text="Requires a valid server certificate."/>
-                            </StackPanel>
-                            <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
-                                          IsChecked="{Binding SelectedServerUseTls}"
-                                          OnContent="" OffContent=""/>
-                        </Grid>
+                        <!-- ═══════════ STATION: ICY directory info (optional, DJ-owned) ═══════════ -->
+                        <!-- Same four as JUST STREAM (ice-url / ice-genre / ice-description / ice-public);
+                             the shared broadcast adapter already sends them. -->
+                        <StackPanel Spacing="2"
+                                    IsVisible="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Station}">
+                            <TextBlock Classes="field-cap" Text="WEBSITE"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerUrl}"
+                                     PlaceholderText="https://…"/>
+
+                            <TextBlock Classes="field-cap" Text="GENRE"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerGenre}"
+                                     PlaceholderText="Hard Dance"/>
+
+                            <TextBlock Classes="field-cap" Text="DESCRIPTION"/>
+                            <TextBox Classes="stream-field"
+                                     Text="{Binding SelectedServerDescription}"
+                                     PlaceholderText="One line about your stream"/>
+
+                            <!-- Public directory toggle (ice-public) — same layout as the TLS row. -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Classes="stream-label" Text="PUBLIC DIRECTORY"/>
+                                    <TextBlock Foreground="#73FFFFFF" FontSize="10"
+                                               Text="List this stream in the server's public directory."/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                              IsChecked="{Binding SelectedServerPublic}"
+                                              OnContent="" OffContent=""/>
+                            </Grid>
+                        </StackPanel>
 
                     </StackPanel>
 

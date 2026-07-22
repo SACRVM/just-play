@@ -1640,6 +1640,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(SelectedServerUsername))]
     [NotifyPropertyChangedFor(nameof(SelectedServerPassword))]
     [NotifyPropertyChangedFor(nameof(SelectedServerUseTls))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerUrl))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerGenre))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerDescription))]
+    [NotifyPropertyChangedFor(nameof(SelectedServerPublic))]
     private StreamServerProfile? _selectedStreamServer;
 
     // ── Editor pass-through properties ───────────────────────────────────
@@ -1693,11 +1697,45 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { UseTls = value }); }
     }
 
+    // Station info (ICY directory fields — optional, DJ-owned). Same shared StreamServerProfile as
+    // JUST STREAM, so the broadcast adapter already sends them; these give JUST PLAY the edit UI.
+    public string SelectedServerUrl
+    {
+        get => SelectedStreamServer?.Url ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Url = value }); }
+    }
+
+    public string SelectedServerGenre
+    {
+        get => SelectedStreamServer?.Genre ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Genre = value }); }
+    }
+
+    public string SelectedServerDescription
+    {
+        get => SelectedStreamServer?.Description ?? string.Empty;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { Description = value }); }
+    }
+
+    public bool SelectedServerPublic
+    {
+        get => SelectedStreamServer?.IsPublic ?? false;
+        set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { IsPublic = value }); }
+    }
+
     /// <summary>String bitrate for the active-state binding in the bitrate radio buttons.</summary>
     public string SelectedServerBitrateText => SelectedStreamServer?.BitrateKbps.ToString() ?? string.Empty;
 
     public bool IsSelectedServerMp3 => SelectedStreamServer?.Format == StreamFormat.Mp3;
     public bool IsSelectedServerOpus => SelectedStreamServer?.Format == StreamFormat.Opus;
+
+    // Which station-editor tab shows in the Streaming panel: "Server" / "Quality" / "Station".
+    // Transient UI state — the profile form is split into tabs so it never needs to scroll.
+    [ObservableProperty] private string _streamEditorTab = "Server";
+
+    /// <summary>Switch the visible station-editor tab ("Server"/"Quality"/"Station").</summary>
+    [RelayCommand]
+    private void SetStreamEditorTab(string which) => StreamEditorTab = which;
 
     /// <summary>Whether in-progress / not-yet-working UI is shown — the headphone Pre-Cue tab and the
     /// Opus stream format. True only in DEBUG builds, so RELEASE installers ship without the dead UI.
@@ -1726,6 +1764,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedServerUsername));
         OnPropertyChanged(nameof(SelectedServerPassword));
         OnPropertyChanged(nameof(SelectedServerUseTls));
+        OnPropertyChanged(nameof(SelectedServerUrl));
+        OnPropertyChanged(nameof(SelectedServerGenre));
+        OnPropertyChanged(nameof(SelectedServerDescription));
+        OnPropertyChanged(nameof(SelectedServerPublic));
         PersistSettings();
     }
 
