@@ -241,7 +241,8 @@ public sealed class BassBroadcastService : IBroadcastService
         // ── Step 3: Open the Icecast source-client connection ────────────
         // Server string format: "host:port/mount"  (Icecast)
         // Content type: BassEnc.MimeMp3 = "audio/mpeg"
-        // Public=false: do not advertise to the server's public directory listing.
+        // Station metadata (ice-name/url/genre/description) + the public-directory flag come from the
+        // profile — all DJ-owned; we inject nothing promotional of our own.
         // Source: un4seen.com/doc/bassenc BASS_Encode_CastInit docs.
         var server = $"{profile.Host}:{profile.Port}{profile.Mount}";
 
@@ -265,6 +266,7 @@ public sealed class BassBroadcastService : IBroadcastService
         // user having to pick — so the per-profile Protocol toggle was removed from the UI.
         var flags = BASS_ENCODE_CAST_PUT;
         if (profile.UseTls) flags |= BASS_ENCODE_CAST_SSL;
+        if (profile.IsPublic) flags |= BASS_ENCODE_CAST_PUBLIC;  // list in the server's public YP directory
 
         Console.WriteLine($"[Broadcast] Connecting to {server} via PUT (auto; SOURCE fallback on denial)…");
 
@@ -273,15 +275,22 @@ public sealed class BassBroadcastService : IBroadcastService
         // Ogg/Opus = "audio/ogg" (no out-of-band ICY metadata; see UpdateNowPlayingAsync guard).
         var contentType = profile.Format == StreamFormat.Opus ? "audio/ogg" : "audio/mpeg";
 
+        // Station-info headers: send an empty field as null so Icecast simply omits it (no blank
+        // ice-url/ice-genre/ice-description on the mount) rather than advertising an empty value.
+        static string? OrNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+        var castUrl   = OrNull(profile.Url);
+        var castGenre = OrNull(profile.Genre);
+        var castDesc  = OrNull(profile.Description);
+
         var castOk = BASS_Encode_CastInit(
             _encoder,
             server,
             creds,
             contentType,
-            profile.Name,           // stream name
-            null,                   // url
-            null,                   // genre
-            null,                   // description
+            profile.Name,           // stream name  (ice-name)
+            castUrl,                // url          (ice-url)
+            castGenre,              // genre        (ice-genre)
+            castDesc,               // description  (ice-description)
             null,                   // headers
             profile.BitrateKbps,
             flags);
@@ -295,7 +304,7 @@ public sealed class BassBroadcastService : IBroadcastService
             flags &= ~BASS_ENCODE_CAST_PUT;
             castOk = BASS_Encode_CastInit(
                 _encoder, server, creds, contentType, profile.Name,
-                null, null, null, null, profile.BitrateKbps, flags);
+                castUrl, castGenre, castDesc, null, profile.BitrateKbps, flags);
         }
 
         if (!castOk)

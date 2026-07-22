@@ -111,6 +111,24 @@ public sealed record StreamServerProfile
     /// for legacy servers that reject PUT. See streaming-broadcast.md §1.1.
     /// </summary>
     public IcecastProtocol Protocol { get; init; } = IcecastProtocol.Put;
+
+    // ── Station info (ICY mount metadata: ice-url / ice-genre / ice-description / ice-public) ──
+    // The public-facing directory fields set once at connect. All optional and DJ-owned: we fill
+    // NOTHING promotional ourselves (no "Powered by …" — that's the spammy-encoder anti-pattern).
+    // Empty strings are sent as null (omitted) by the broadcast adapter. See BassBroadcastService.
+
+    /// <summary>Station website URL (<c>ice-url</c>) — shown in players and the public directory. Optional.</summary>
+    public string Url { get; init; } = string.Empty;
+
+    /// <summary>Station genre (<c>ice-genre</c>), e.g. "Hard Dance". Optional.</summary>
+    public string Genre { get; init; } = string.Empty;
+
+    /// <summary>One-line station description (<c>ice-description</c>). Optional.</summary>
+    public string Description { get; init; } = string.Empty;
+
+    /// <summary>List this stream in the server's public YP directory (<c>ice-public</c>). Default off —
+    /// a club/private stream stays unlisted unless the DJ opts in.</summary>
+    public bool IsPublic { get; init; } = false;
 }
 
 /// <summary>

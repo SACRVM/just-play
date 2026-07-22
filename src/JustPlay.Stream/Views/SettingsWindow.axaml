@@ -175,10 +175,13 @@
 
                             <Border Grid.Column="1" Background="{StaticResource HairlineBrush}" Width="1" Margin="0,2"/>
 
-                            <ScrollViewer Grid.Column="2" Margin="16,0,0,0"
+                            <!-- Padding right: a gutter so the (overlay) vertical scrollbar sits BESIDE the
+                                 fields, not over them, once the station-info rows make the form overflow. -->
+                            <ScrollViewer Grid.Column="2" Margin="16,0,0,0" Padding="0,0,14,0"
                                           IsEnabled="{Binding Editing, Converter={x:Static ObjectConverters.IsNotNull}}">
                                 <!-- x:CompileBindings=False: Editing.Port (int→TextBox.Text) + enum/int ComboBox needs coercion. -->
-                                <Grid x:CompileBindings="False" ColumnDefinitions="96,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                                <Grid x:CompileBindings="False" ColumnDefinitions="96,*"
+                                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                       VerticalAlignment="Top">
                                     <!-- UpdateSourceTrigger=LostFocus: commit on blur, not per keystroke — so typing isn't
                                          interrupted by the collection-replace in OnEditingChanged (the focus-loss bug). -->
@@ -198,8 +201,24 @@
                                     <!-- CODEC + BITRATE → main page (quality settings). PROTOCOL removed too:
                                          the connect is AUTO now (tries PUT, falls back to SOURCE). -->
 
-                                    <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="TLS / SSL" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                    <ToggleSwitch Grid.Row="6" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent=""/>
+                                    <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="TLS / SSL" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <ToggleSwitch Grid.Row="6" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent="" Margin="0,0,0,8"/>
+
+                                    <!-- Station info (ICY directory fields) — all optional, all the DJ's. We fill NOTHING
+                                         promotional ourselves; these are exactly the fields a spammy encoder would cram, so
+                                         we hand them to the DJ. Website=ice-url, Genre=ice-genre, Description=ice-description,
+                                         Public=ice-public (YP directory listing). See BassBroadcastService / StreamServerProfile. -->
+                                    <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Classes="label" Opacity="0.65"
+                                               Text="STATION INFO — OPTIONAL, SHOWN IN PLAYERS &amp; DIRECTORY" Margin="0,6,0,10"/>
+                                    <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="WEBSITE" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="8" Grid.Column="1" Text="{Binding Editing.Url, UpdateSourceTrigger=LostFocus}" PlaceholderText="https://…" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="9" Grid.Column="0" Classes="label" Text="GENRE" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="9" Grid.Column="1" Text="{Binding Editing.Genre, UpdateSourceTrigger=LostFocus}" PlaceholderText="Hard Dance" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="10" Grid.Column="0" Classes="label" Text="DESCRIPTION" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                                    <TextBox  Grid.Row="10" Grid.Column="1" Text="{Binding Editing.Description, UpdateSourceTrigger=LostFocus}" PlaceholderText="One line about your stream" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="11" Grid.Column="0" Classes="label" Text="PUBLIC" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <ToggleSwitch Grid.Row="11" Grid.Column="1" IsChecked="{Binding Editing.IsPublic}" OnContent="" OffContent=""
+                                                  ToolTip.Tip="List this stream in the server's public directory (YP). Off keeps a club/private stream unlisted."/>
                                 </Grid>
                             </ScrollViewer>
                             </Grid>

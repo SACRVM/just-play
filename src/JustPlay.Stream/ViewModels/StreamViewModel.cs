@@ -231,6 +231,12 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _streamTimeText = "00:00:00";
     [ObservableProperty] private string _nowPlayingText = "";
 
+    // The auto-generated "Streaming live from {app}" value we last wrote into NowPlayingText, so we
+    // can refresh it on app-switch and retire it when leaving app mode — WITHOUT ever stomping a
+    // title the DJ typed themselves (see ApplyAutoNowPlaying / RetireAutoNowPlaying). Null = the
+    // current now-playing line is either empty or the DJ's own.
+    private string? _autoNowPlaying;
+
     // ── Meters (0..1 linear) ─────────────────────────────────────────────
     // Raw output peak (0..1 linear). The shared LevelMeter control owns the ballistics + peak-hold + display.
     public double OutLevelLeft { get; private set; }
@@ -445,6 +451,40 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         // it no longer gates the capture, so even an unrecognised DJ app gets channels 1-2 by default.
         try { _engine.StartApplicationCapture(app.ProcessId, SelectedAppChannels); }
         catch (Exception ex) { Log($"App capture failed on '{app.DisplayName}': {ex.Message}"); }
+
+        // Default the now-playing line to the app we're actually grabbing (truthful by construction —
+        // it names the real capture source, no file, no guessing). Only fills when the DJ hasn't typed
+        // their own title. This is the honest fallback for third-party DJ apps that expose no track title.
+        ApplyAutoNowPlaying(app.DisplayName);
+    }
+
+    /// <summary>
+    /// Set the now-playing line to <c>"Streaming live from {app}"</c> — but ONLY when the DJ hasn't
+    /// typed their own title (the field is empty or still holds our last auto value). Updates it live
+    /// on the server when on air, so switching the captured app is reflected instantly for listeners.
+    /// </summary>
+    private void ApplyAutoNowPlaying(string appName)
+    {
+        var auto = $"Streaming live from {appName}";
+        if (auto == NowPlayingText) return;                       // already showing it — nothing to do
+        var fieldIsOurs = string.IsNullOrWhiteSpace(NowPlayingText) || NowPlayingText == _autoNowPlaying;
+        if (!fieldIsOurs) return;                                 // the DJ typed a custom title — never stomp it
+
+        NowPlayingText = auto;
+        _autoNowPlaying = auto;
+        if (State == BroadcastState.Connected && IsSongInfoActive)
+            _ = _broadcast.UpdateNowPlayingAsync(auto);
+    }
+
+    /// <summary>
+    /// Drop the auto "Streaming live from {app}" line when we leave app mode — a captured DEVICE has no
+    /// app identity, so we never fake one. A title the DJ typed themselves is left untouched.
+    /// </summary>
+    private void RetireAutoNowPlaying()
+    {
+        if (!string.IsNullOrEmpty(_autoNowPlaying) && NowPlayingText == _autoNowPlaying)
+            NowPlayingText = "";
+        _autoNowPlaying = null;
     }
 
     partial void OnIsAppSourceModeChanged(bool value)
@@ -456,9 +496,10 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
             if (SelectedCaptureApp is null) SelectedCaptureApp = CaptureApps.FirstOrDefault();
             else StartAppCaptureSafe(SelectedCaptureApp);
         }
-        else if (SelectedInputDevice is { } dev)
+        else
         {
-            StartDeviceCaptureSafe(dev);
+            RetireAutoNowPlaying();   // device mode has no app to name
+            if (SelectedInputDevice is { } dev) StartDeviceCaptureSafe(dev);
         }
         Persist();
     }

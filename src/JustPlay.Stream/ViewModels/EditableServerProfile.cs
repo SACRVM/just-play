@@ -23,6 +23,12 @@ public sealed partial class EditableServerProfile : ObservableObject
     [ObservableProperty] private bool _useTls;
     [ObservableProperty] private IcecastProtocol _protocol;
 
+    // Station info (ICY directory fields — optional, DJ-owned).
+    [ObservableProperty] private string _url;
+    [ObservableProperty] private string _genre;
+    [ObservableProperty] private string _description;
+    [ObservableProperty] private bool _isPublic;
+
     public EditableServerProfile(StreamServerProfile p)
     {
         Id = p.Id;
@@ -36,6 +42,10 @@ public sealed partial class EditableServerProfile : ObservableObject
         _bitrateKbps = p.BitrateKbps;
         _useTls = p.UseTls;
         _protocol = p.Protocol;
+        _url = p.Url;
+        _genre = p.Genre;
+        _description = p.Description;
+        _isPublic = p.IsPublic;
     }
 
     public StreamServerProfile ToProfile() => new()
@@ -51,5 +61,9 @@ public sealed partial class EditableServerProfile : ObservableObject
         BitrateKbps = BitrateKbps,
         UseTls = UseTls,
         Protocol = Protocol,
+        Url = Url,
+        Genre = Genre,
+        Description = Description,
+        IsPublic = IsPublic,
     };
 }

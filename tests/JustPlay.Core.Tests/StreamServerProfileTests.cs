@@ -36,6 +36,12 @@ public class StreamServerProfileTests
         Assert.Equal("/live.mp3", profile.Mount);
         Assert.False(profile.UseTls);
         Assert.NotEmpty(profile.Id); // auto-generated GUID
+
+        // Station info: empty + unlisted by default (a club/private stream stays off the public directory).
+        Assert.Equal("", profile.Url);
+        Assert.Equal("", profile.Genre);
+        Assert.Equal("", profile.Description);
+        Assert.False(profile.IsPublic);
     }
 
     // ── Source-gen context round-trip: single profile ────────────────────────────────
@@ -56,6 +62,10 @@ public class StreamServerProfileTests
             BitrateKbps = 320,
             UseTls = true,
             Protocol = IcecastProtocol.Put,
+            Url = "https://chloe.fm",
+            Genre = "Hard Dance",
+            Description = "Two classes better",
+            IsPublic = true,
         };
 
         var json = JsonSerializer.Serialize(profile, StreamingJsonContext.Default.StreamServerProfile);
@@ -73,6 +83,10 @@ public class StreamServerProfileTests
         Assert.Equal(320, restored.BitrateKbps);
         Assert.True(restored.UseTls);
         Assert.Equal(IcecastProtocol.Put, restored.Protocol);
+        Assert.Equal("https://chloe.fm", restored.Url);
+        Assert.Equal("Hard Dance", restored.Genre);
+        Assert.Equal("Two classes better", restored.Description);
+        Assert.True(restored.IsPublic);
     }
 
     // ── Source-gen context round-trip: multiple profiles (List) ──────────────────────
