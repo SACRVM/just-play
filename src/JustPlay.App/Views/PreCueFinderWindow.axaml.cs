@@ -136,7 +136,9 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             var fileList = this.FindControl<ListBox>("FinderList");
             vm.ClearFileSelection = () => fileList?.Selection?.Clear();
             // Modal yes/no confirm over THIS window — used by "Open playlist" before it replaces the queue.
-            vm.ConfirmAsync = (title, message, confirm) => ConfirmDialog.AskAsync(this, title, message, confirm);
+            // Uses the SHARED suite dialog (JustPlay.UI), not an app-local copy.
+            vm.ConfirmAsync = (title, message, confirm) =>
+                JustPlay.UI.Views.ConfirmDialog.AskAsync(this, title, message, confirm);
         }
         ViewModel?.OnWindowOpened();
         FocusFolders(); // land in the folders pane — the Norton-Commander entry point
