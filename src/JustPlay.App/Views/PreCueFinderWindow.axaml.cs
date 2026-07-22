@@ -135,6 +135,8 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             // SelectionModel crashes if the bound source resets while a (multi-)selection is live.
             var fileList = this.FindControl<ListBox>("FinderList");
             vm.ClearFileSelection = () => fileList?.Selection?.Clear();
+            // Modal yes/no confirm over THIS window — used by "Open playlist" before it replaces the queue.
+            vm.ConfirmAsync = (title, message, confirm) => ConfirmDialog.AskAsync(this, title, message, confirm);
         }
         ViewModel?.OnWindowOpened();
         FocusFolders(); // land in the folders pane — the Norton-Commander entry point
@@ -330,6 +332,16 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             lb.SelectedItems.Add(row); // fires SelectionChanged → syncs vm.SelectedItems + the cursor
         }
         vm.RefreshFileMenuState(); // fresh "(N)" headers as the menu opens
+    }
+
+    // Right-click a LEFT-pane entry (folder / playlist): point the selection (and its context menu) at
+    // what she pointed at, so "Add to list" / "Open playlist" act on that entry — mirrors the file pane.
+    private void OnFoldersContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (ViewModel is not { } vm) return;
+        var entry = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext as FinderEntryViewModel;
+        if (entry is null) return; // click on empty space — keep the current selection
+        vm.SelectedEntry = entry;  // point the menu (CanAddSelectedEntry / SelectedEntryIsPlaylist) at it
     }
 
     // KeyUp guard: our keys (Space/Enter) must never Click a focused button (Button.OnKeyUp fires

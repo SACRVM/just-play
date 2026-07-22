@@ -188,6 +188,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public BulkObservableCollection<FinderEntryViewModel> FolderEntries { get; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanAddSelectedEntry))]
+    [NotifyPropertyChangedFor(nameof(SelectedEntryIsPlaylist))]
     private FinderEntryViewModel? _selectedEntry;
 
     /// <summary>↑/↓/PageUp/PageDown while the FOLDER pane has focus (relative, clamped).</summary>
@@ -488,6 +490,82 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         if (targets.Count == 0) return;
         _ = _main.AnalyzeExternalAsync(targets);
     }
+
+    // ── Left-pane (folder / playlist) context actions ────────────────────────────────────────────
+    // The finder already navigates INTO folders/playlists to audition; these two verbs act on a whole
+    // ENTRY without entering it — the same two moves JUST PLAY already makes for external files
+    // (a playlist REPLACES the queue; loose tracks are ADDED). Target is always the current queue —
+    // no new playlist is created, no file on disk is touched (Chloe 2026-07-22: "keine neue magie").
+
+    /// <summary>True when the (right-clicked) left-pane entry is a real folder/playlist, not the ".." hop
+    /// — gates the "Add to list" context item.</summary>
+    public bool CanAddSelectedEntry => SelectedEntry is { IsUp: false };
+
+    /// <summary>True when the (right-clicked) left-pane entry is a playlist — gates "Open playlist".</summary>
+    public bool SelectedEntryIsPlaylist => SelectedEntry is { IsPlaylist: true };
+
+    /// <summary>Set by the window: show a modal yes/no confirm over the finder window
+    /// (title, message, confirm-button label) → true when confirmed. Null-safe: a missing hook fails
+    /// safe (treated as NOT confirmed), so a destructive action never runs unasked.</summary>
+    public Func<string, string, string, Task<bool>>? ConfirmAsync { get; set; }
+
+    /// <summary>Context "Add to list" on a folder or playlist: add ALL its tracks to the queue — the bulk
+    /// sibling of the file pane's per-selection add, run on a whole entry. Same guarded enqueue path.</summary>
+    [RelayCommand]
+    private async Task AddEntryToQueue()
+    {
+        if (SelectedEntry is not { IsUp: false } entry) return;
+
+        List<string> paths;
+        try { paths = await Task.Run(() => ReadEntryTracks(entry)); }   // NAS round-trip — off the UI thread
+        catch (Exception ex) { ErrorReporter.Report(ex, $"Reading \"{entry.Name}\" to add to the queue"); return; }
+
+        if (paths.Count == 0) { _main.EventLog.Append($"\"{entry.Name}\" has no tracks to add."); return; }
+        await AddPathsGuarded(paths);
+    }
+
+    /// <summary>Context "Open playlist" on a playlist: open it like an Explorer double-click — REPLACE the
+    /// queue with it (via the shell's LoadPlaylistAsync). Confirms first when the queue isn't empty, so a
+    /// live set is never wiped by accident (Chloe: "open nachfragen").</summary>
+    [RelayCommand]
+    private async Task OpenPlaylist()
+    {
+        if (SelectedEntry is not { IsPlaylist: true } entry) return;
+
+        if (_main.Tracks.Count > 0)
+        {
+            if (ConfirmAsync is not { } confirm) return;   // no way to ask → never wipe the queue silently
+            var n = _main.Tracks.Count;
+            var ok = await confirm("Open playlist?",
+                $"This replaces your current queue ({n} track{(n == 1 ? "" : "s")}) with “{entry.Name}”.",
+                "Open");
+            if (!ok) return;
+        }
+
+        try { await _main.LoadPlaylistAsync(entry.FullPath); }
+        catch (Exception ex) { ErrorReporter.Report(ex, $"Opening playlist \"{entry.Name}\""); }
+    }
+
+    /// <summary>Context "Refresh": re-read the current view from disk — a NAS browser changes under you
+    /// (tracks dropped, playlists added/removed). Reloads whatever is showing: a loaded playlist, a leaf
+    /// folder's tracks, or the current folder's entries + files. Always available, so no menu is ever
+    /// empty (Chloe 2026-07-22: a refresh beats suppressing the empty ".." menu).</summary>
+    [RelayCommand]
+    private void RefreshFolder()
+    {
+        if (CurrentPlaylist is { } pl) EnterPlaylist(pl);
+        else if (CurrentLeafFolder is { } leaf) OpenLeafFolder(leaf);
+        else if (CurrentFolder is { } folder) NavigateToFolder(folder, SelectedEntry?.FullPath);
+    }
+
+    /// <summary>Read an entry's audio tracks: a playlist's referenced audio (in playlist order), or a
+    /// folder's own audio files (natural-sorted). Same sources the file pane lists — may throw (NAS),
+    /// so callers run it off the UI thread and guard.</summary>
+    private static List<string> ReadEntryTracks(FinderEntryViewModel entry) =>
+        entry.IsPlaylist
+            ? M3uPlaylist.ReadPaths(entry.FullPath).Where(AudioFileTypes.IsAudio).ToList()
+            : Directory.EnumerateFiles(entry.FullPath).Where(AudioFileTypes.IsAudio)
+                .OrderBy(Path.GetFileName, NaturalComparer.Instance).ToList();
 
     private void LoadFolderFiles(string folder)
     {

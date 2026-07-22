@@ -517,7 +517,23 @@
                                      SelectionMode="Single"
                                      Background="Transparent"
                                      GotFocus="OnFoldersGotFocus"
-                                     Tapped="OnFolderTapped">
+                                     Tapped="OnFolderTapped"
+                                     ContextRequested="OnFoldersContextRequested">
+                                <!-- Right-click a folder/playlist: add all its tracks to the queue, or open a
+                                     playlist (replace queue, with a confirm). Acts on SelectedEntry, which the
+                                     ContextRequested handler points at the right-clicked row. -->
+                                <ListBox.ContextMenu>
+                                    <ContextMenu x:DataType="vm:PreCueFinderViewModel">
+                                        <MenuItem Header="Add to list"
+                                                  IsVisible="{Binding CanAddSelectedEntry}"
+                                                  Command="{Binding AddEntryToQueueCommand}"/>
+                                        <MenuItem Header="Open playlist"
+                                                  IsVisible="{Binding SelectedEntryIsPlaylist}"
+                                                  Command="{Binding OpenPlaylistCommand}"/>
+                                        <Separator IsVisible="{Binding CanAddSelectedEntry}"/>
+                                        <MenuItem Header="Refresh" Command="{Binding RefreshFolderCommand}"/>
+                                    </ContextMenu>
+                                </ListBox.ContextMenu>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:FinderEntryViewModel">
                                         <!-- Grid (not StackPanel): the name lives in a * column so it's
@@ -653,6 +669,8 @@
                                             <MenuItem Header="{Binding ReanalyzeSelectionHeader}"
                                                       Command="{Binding ReanalyzeSelectionCommand}"
                                                       IsVisible="{Binding HasFileSelection}"/>
+                                            <Separator IsVisible="{Binding HasFileSelection}"/>
+                                            <MenuItem Header="Refresh" Command="{Binding RefreshFolderCommand}"/>
                                         </ContextMenu>
                                     </ListBox.ContextMenu>
                                     <ListBox.ItemTemplate>
