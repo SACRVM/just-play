@@ -5,10 +5,11 @@ Drop tracks in, double-click to play. No library, no memory between sessions, no
 
 *Part of **J.U.S.T.** — Just Useful Sound Tools · **FROM DJS TO DJS** — built and gig-tested by a working DJ.*
 
-> **v0.4.0 — still pre-1.0, but a daily driver on Windows.**
-> This release adds a whole second app: **JUST STREAM**, a standalone broadcaster that can stream
-> the audio of *any single application* — including your DJ software — straight to Icecast. The
-> installer now ships the suite side by side: **JUST PLAY** (the player), **JUST STREAM** (the
+> **v0.5.0 — still pre-1.0, but a daily driver on Windows.**
+> This release adds the headphone **Pre-Cue Finder** — a keyboard-first window to browse your whole
+> library and audition the next track on your headphones while the set (or the stream) keeps playing —
+> plus **set recording** in JUST STREAM (record like you stream) and DJ-owned **station metadata**.
+> The installer ships the suite side by side: **JUST PLAY** (the player), **JUST STREAM** (the
 > broadcaster) and the headless **JustPlayCLI** tool, all sharing one runtime.
 > macOS / Linux share the codebase but aren't validated yet. Expect rough edges; the core
 > functionality plays, analyses, sorts and streams today.
@@ -38,10 +39,32 @@ The DJ tilt comes from analysis baked straight into the player:
 
 Serious DJ analysis, living *inside* the player — without the library overhead.
 
-> **[THE JUST MUSIC BRAIN](docs/MUSIC-BRAIN.md)** — what we actually know about how music works:
-> the measured anatomy of a kick, the physics of the chest, and every belief we tested and killed.
+## New in 0.5.0
 
-## New in 0.4.0
+### Pre-Cue Finder — audition on headphones (JUST PLAY)
+
+A dedicated, keyboard-first window to browse your whole library — folders and playlists both — with the
+same analysis columns as the queue (Camelot key, BPM, energy, groove). Land on a track and it plays
+instantly on your **headphones** while the set keeps playing to the room. On a single output it
+**ducks** the main sound while you cue and brings it back after; if you're streaming, the broadcast is
+never touched. A filter tab narrows a big folder fast — name/artist search, a **Camelot key wheel**
+(harmonic neighbours one tap away) and range sliders per analysed field. **Right-click a folder or
+playlist** to add it to the queue or open it as your set.
+
+### Record your set (JUST STREAM)
+
+**Set-and-forget capture — you record like you stream.** The file is the finished, limited master that
+goes on air, so it's already loudness-managed. **Auto-record** starts with CONNECT; **auto-trim** begins
+the file on the first beat and cuts the dead air (no "15 minutes of silence before the music"). MP3 /
+FLAC / AIFF / WAV, and a recording glitch can never interrupt the broadcast.
+
+### Station metadata (both apps)
+
+DJ-owned stream metadata carried into Icecast — **website, genre, description** and a
+**public-directory** toggle — so your station shows up properly in players and directories.
+Functionally identical in JUST PLAY and JUST STREAM; the UI differs to match each app's focus.
+
+## Previously — v0.4.0
 
 ### JUST STREAM — the broadcaster app
 
@@ -111,6 +134,9 @@ auto-update all remain.
 | Live Icecast broadcast (from the player)                        | ✅ BASSmix + BASSenc, MP3 + Opus, multi-server    |
 | **JUST STREAM** — standalone broadcaster                        | ✅ ships in the same installer                    |
 | JUST STREAM — capture a specific app (per-process loopback)     | ✅ auto-isolates Master on multi-out DJ gear      |
+| **Pre-Cue Finder** — headphone audition + cue ducking           | ✅ browse · filter (key wheel) · open-playlist    |
+| Set recording (JUST STREAM) — auto-record + auto-trim silence   | ✅ records the limited master · MP3/FLAC/AIFF/WAV  |
+| Station metadata (website / genre / description / public dir)    | ✅ JUST PLAY + JUST STREAM                         |
 | Theme switch (Aurora / Sunset / Midnight / Onyx / Neon / Hardcore) | ✅ live palette swap, repaints the app icon   |
 | Installer + in-app auto-update                                  | ✅ Inno Setup (per-user) + GitHub Releases       |
 | macOS / Linux builds                                            | ❌ target, not validated yet                    |
@@ -192,9 +218,9 @@ at runtime and the installer / release pipeline read the same value.
 
 ## Roadmap
 
-**Next — v0.5.0:** the headphone **Pre-Cue** flow (audition the next track on your headphones
-while the party / stream keeps playing), plus validated **macOS + Linux** builds — the codebase
-is cross-platform; they just need real-hardware runs and any OS-specific device-picker wiring.
+**Next — v0.6.0:** validated **macOS + Linux** builds — the codebase is cross-platform; they just
+need real-hardware runs and any OS-specific device-picker wiring — plus a metadata **cache** for the
+Pre-Cue Finder so revisiting a big folder is instant.
 
 Beyond that, roughly in priority order:
 

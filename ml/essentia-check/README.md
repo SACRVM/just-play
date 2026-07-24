@@ -78,4 +78,4 @@ Output: JSON with edma + bgate key/scale/strength/camelot.
   JP's minor bias calling a track minor when Essentia calls it the parallel/nearby major
 - All disagreements have JP confidence < 0.031 — the confidence gate is correctly flagging
   these uncertain calls
-- See `.claude/night-reports/2026-06-23-essentia-keycheck.md` for full analysis
+- The full key-check analysis is kept in the project's internal dev notes.

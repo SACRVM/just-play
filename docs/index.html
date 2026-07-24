@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JustPlay — the music player for DJs and music lovers</title>
-<meta name="description" content="JustPlay — drop tracks in, double-click to play: automatic Camelot key, BPM &amp; energy, harmonic sort, a live DSP rack and tag writing. Now shipping with JUST STREAM, a broadcaster that streams any single app to Icecast. Free, no library, no nag. v0.4.0.">
+<meta name="description" content="JustPlay — drop tracks in, double-click to play: automatic Camelot key, BPM &amp; energy, harmonic sort, a live DSP rack and tag writing, plus a Pre-Cue Finder to audition your next track on headphones. Ships with JUST STREAM, a broadcaster that streams any single app to Icecast. Free, no library, no nag. v0.5.0.">
 <meta name="theme-color" content="#060310">
 
 <meta property="og:type" content="website">
@@ -587,7 +587,7 @@ footer {
     </div>
     <a class="nav-cta" href="https://github.com/chloe-dream/just-play/releases/latest">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-      Download v0.4.0
+      Download v0.5.0
     </a>
   </div>
 </nav>
@@ -612,12 +612,12 @@ footer {
     <p class="hero-family"><b>One growing family of sound tools.</b><br>
       <span class="fam-app">JUST PLAY</span> &nbsp;·&nbsp; <span class="fam-app">JUST STREAM</span> &nbsp;·&nbsp; <span class="fam-app">JustPlay CLI</span> <span class="soon">&nbsp;·&nbsp; more coming</span></p>
 
-    <p class="hero-meta"><b>v0.4.0</b> &nbsp;·&nbsp; Free &nbsp;·&nbsp; Windows &nbsp;·&nbsp; MIT &nbsp;·&nbsp; no data leaves your machine</p>
+    <p class="hero-meta"><b>v0.5.0</b> &nbsp;·&nbsp; Free &nbsp;·&nbsp; Windows &nbsp;·&nbsp; MIT &nbsp;·&nbsp; no data leaves your machine</p>
 
     <div class="hero-btns">
       <a class="btn btn-download" href="https://github.com/chloe-dream/just-play/releases/latest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-        Download for Windows · v0.4.0
+        Download for Windows · v0.5.0
       </a>
       <a class="btn btn-ghost" href="https://github.com/chloe-dream/just-play">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.4.5 0 5.9 0 12.5c0 5.3 3.4 9.8 8.2 11.4.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 24 12.5C24 5.9 18.6.5 12 .5z"/></svg>
@@ -683,21 +683,56 @@ footer {
   </div>
 </section>
 
+<!-- ── PRE-CUE FINDER ──────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">New in v0.5.0 · headphone auditioning</p>
+  <h2 class="section-title">The <span class="grad">Pre-Cue Finder</span></h2>
+  <p style="margin:-32px 0 40px; max-width:660px; color:var(--muted); font-size:15.5px;">
+    A keyboard-first window to browse your whole library — folders and playlists both — and audition
+    the next track on your <b>headphones</b> while the set keeps playing. On one output it ducks the
+    main sound while you cue and brings it back after; if you're streaming, the broadcast is never
+    touched. Every column is the analysis you already trust: Camelot key, BPM, energy, groove.
+  </p>
+
+  <figure class="shot-frame shot-featured">
+    <img src="assets/play-finder.png"
+         alt="JUST PLAY Pre-Cue Finder — browse the library with Camelot key, BPM and energy columns and a per-track info panel"
+         data-cap="Pre-Cue Finder — Norton-Commander browse across folders and playlists, the full analysis in columns, and a per-track info panel: key confidence, LUFS, beat type and the vibe fields.">
+    <p class="shot-cap">Pre-Cue Finder — browse, audition, cue on headphones</p>
+  </figure>
+
+  <div class="shot-grid">
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/play-finder-filter.png"
+           alt="Pre-Cue Finder filter — Camelot key wheel with harmonic neighbours and range sliders"
+           data-cap="Filter — search by name or artist, click a Camelot key wheel (harmonic neighbours one tap away), and dial range sliders per analysed field: BPM, energy, gain, LUFS and the vibes."></div>
+      <p class="shot-cap">Filter — Camelot key wheel &amp; range sliders</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/play-finder-settings.png"
+           alt="Pre-Cue Finder settings and right-click menu — cue headphone device, cue volume, auto-play"
+           data-cap="Cue routing — a separate headphone device (or share the main one and duck it), cue volume, auto-play and seek step; right-click a track, folder or playlist to add it or open it as your set."></div>
+      <p class="shot-cap">Cue routing &amp; right-click actions</p>
+    </figure>
+  </div>
+</section>
+
 <!-- ── JUST STREAM ─────────────────────────────────────── -->
 <section class="section wrap">
-  <p class="eyebrow">New in v0.4.0 · a second app</p>
+  <p class="eyebrow">A second app in the same install</p>
   <h2 class="section-title">Meet <span class="grad">JUST STREAM</span></h2>
   <p style="margin:-32px 0 40px; max-width:660px; color:var(--muted); font-size:15.5px;">
     A standalone broadcaster in the same install. Its headline trick: capture the audio of
     <b>one application</b> — your DJ software, a browser tab — and stream exactly that to Icecast.
     On a multi-out DJ interface it isolates the Master pair automatically, so your headphone cue
-    never goes on air. No virtual cables, no routing to untangle.
+    never goes on air. No virtual cables, no routing to untangle. And it records your whole set as
+    you play — auto-started, auto-trimmed, saved to MP3 or lossless.
   </p>
 
   <figure class="shot-frame shot-featured tall">
     <img src="assets/stream-console.png"
          alt="JUST STREAM broadcast console — capturing Traktor, on air, with the broadcast DSP rack"
-         data-cap="JUST STREAM console — capturing Traktor Pro (Channels 1-2), on air to Icecast, with the broadcast DSP rack and genre presets.">
+         data-cap="JUST STREAM console — capturing Traktor Pro (Channels 1-2), on air to Icecast with an automatic 'Streaming live from Traktor Pro' now-playing title, plus the broadcast DSP rack and genre presets.">
     <p class="shot-cap">Broadcast console — capture an app, on air, DSP &amp; presets</p>
   </figure>
 
@@ -726,6 +761,12 @@ footer {
            alt="JUST STREAM server settings — Icecast profiles, MP3 or Opus, TLS"
            data-cap="Server profiles — host, mount, credentials, MP3 or Opus, optional TLS. Save as many as you like."></div>
       <p class="shot-cap">Server profiles · MP3 or Opus · TLS</p>
+    </figure>
+    <figure class="shot-frame shot-tile">
+      <div class="thumb"><img src="assets/stream-advanced.png"
+           alt="JUST STREAM advanced settings — keep screen awake on air, auto-reconnect with backoff, log folder"
+           data-cap="Advanced — keep the screen awake while on air, auto-reconnect with exponential backoff if the link drops, and a daily event log you can look back on."></div>
+      <p class="shot-cap">Advanced — stay-awake, auto-reconnect, log</p>
     </figure>
   </div>
 </section>
@@ -762,6 +803,16 @@ footer {
       </div>
       <h3>Harmonic Sort</h3>
       <p>Drop your tracks in and JustPlay sequences them into a flowing set — key compatibility, BPM, energy and groove all considered. A head start on any DJ set, or a playlist that simply flows.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-grad"></div>
+      <span class="feat-new">New · v0.5.0</span>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2.5" y="14" width="4.5" height="7" rx="1.6"/><rect x="17" y="14" width="4.5" height="7" rx="1.6"/></svg>
+      </div>
+      <h3>Pre-Cue Finder</h3>
+      <p>A keyboard-first window to browse your whole library and audition the next track on your headphones — cueing ducks the main output, the live stream is never touched. Filter by a Camelot key wheel, BPM and energy; open a playlist straight into your set.</p>
     </div>
 
     <div class="feat-card">
@@ -802,12 +853,21 @@ footer {
 
     <div class="feat-card">
       <div class="ab ab-pink"></div>
-      <span class="feat-new">New · v0.4.0</span>
       <div class="feat-icon">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M4.9 16.1a10 10 0 0 1 0-8.2M19.1 7.9a10 10 0 0 1 0 8.2M7.8 13.2a6 6 0 0 1 0-2.4M16.2 10.8a6 6 0 0 1 0 2.4"/></svg>
       </div>
       <h3>Capture Any App · JUST STREAM</h3>
-      <p>The sister broadcaster streams the audio of a single application — your DJ software, a browser — straight to Icecast, auto-isolating the Master pair so your cue stays private. Same look, same DSP.</p>
+      <p>The sister broadcaster streams the audio of a single application — your DJ software, a browser, not your whole sound card — straight to Icecast, auto-isolating the Master pair so your cue stays private. Same look, same DSP.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-red"></div>
+      <span class="feat-new">New · v0.5.0</span>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <h3>Record Your Set · JUST STREAM</h3>
+      <p>Set-and-forget capture of your whole set — you record like you stream. The file is the finished, limited master that goes on air, so it's already loudness-managed: auto-gain, clip-safe. Auto-record starts with CONNECT, and auto-trim begins the file on the first beat and cuts the dead air — no "15 minutes of silence before the music." MP3, FLAC, AIFF or WAV, and a recording glitch can never interrupt the broadcast.</p>
     </div>
 
     <div class="feat-card">
@@ -957,7 +1017,7 @@ footer {
     </div>
 
     <div class="footer-links">
-      <a href="https://github.com/chloe-dream/just-play/releases/latest">Download v0.4.0</a>
+      <a href="https://github.com/chloe-dream/just-play/releases/latest">Download v0.5.0</a>
       <span class="sep">·</span>
       <a href="https://github.com/chloe-dream/just-play">Source on GitHub</a>
       <span class="sep">·</span>

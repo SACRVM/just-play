@@ -14,8 +14,6 @@
 </head>
 <body>
 
-<div class="wip">Documentation — work in progress: neither complete nor exhaustive (yet)</div>
-
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="index.html">JustPlay</a>
@@ -122,7 +120,9 @@
     <h2>Record your set</h2>
     <p>
       A <b>REC</b> button sits next to <b>CONNECT</b>. Recording is independent of streaming — you can
-      record without ever going on air, and a stream reconnect never breaks the file.
+      record without ever going on air, and a stream reconnect never breaks the file. You
+      <b>record like you stream</b>: it captures the finished, limited master — the same signal that
+      goes on air, already loudness-managed — not your raw source.
     </p>
     <p>
       Pick the format in <b>Settings → Recording</b>. <b>Same as stream</b> is the default: the file
@@ -161,10 +161,6 @@
       A recording problem — disk full, an unreachable folder — can never interrupt the broadcast. The
       recorder fails on its own and says so in the event log; the stream keeps going.
     </p>
-
-    <div class="callout">
-      <b>Coming next:</b> set recording ships with the next release (0.5).
-    </div>
   </section>
 
   <section class="doc-section prose">
@@ -173,6 +169,26 @@
       Save as many Icecast servers as you like — host, mount, login and optional TLS — and switch between
       them from the dropdown at the top. The codec (MP3 or Opus) and bitrate aren't part of these
       per-server settings; you pick those on the main console, next to the meters — see above.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Station metadata</h2>
+    <p>
+      Per profile you can carry the station's own details into Icecast — <b>website</b>, <b>genre</b>,
+      <b>description</b> and a <b>public-directory</b> toggle — so your stream shows up properly in
+      listeners' players and, if you opt in, in the server's public directory. All optional; leave a
+      field blank and it simply isn't sent.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Now playing</h2>
+    <p>
+      Send a station title / now-playing line that rides along with the stream (MP3 only — Opus can't
+      carry it). When you capture an app, JUST STREAM offers an automatic
+      <b>"Streaming live from {app}"</b> title, so listeners always see something even before you wire
+      up track names — and it never overwrites a title you typed yourself.
     </p>
   </section>
 
