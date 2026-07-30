@@ -827,7 +827,9 @@
                             <!-- The shared floating overlay (never inline progress that shifts the
                                  layout) — it carries the live phase text from the sync pass. -->
                             <uic:BusyOverlay IsActive="{Binding IsScanning}"
-                                             Message="{Binding ScanMessage}"/>
+                                             Message="{Binding ScanMessage}"
+                                             Detail="{Binding ScanDetail}"
+                                             Progress="{Binding ScanProgress}"/>
                         </Panel>
 
                         <!-- ── INFO (right): everything the analyzer stored (v9 blob). Its header sits on
@@ -1161,6 +1163,34 @@
                                              PlaceholderText="Your music library folder"/>
                                 </DockPanel>
 
+                                <!-- ⛔ The indexing opt-in sits directly under the root it belongs to
+                                     (Chloe 2026-07-30) — the index IS per library root, so putting it
+                                     in a section of its own further down invited the question "which
+                                     library?". Off by default: with it off the finder reads every
+                                     listing from disk exactly like 0.5 and no index file is ever
+                                     created. Turning it on does NOT scan; that stays a button. -->
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                                    <TextBlock Grid.Column="0" Text="Keep an index of this library"
+                                               FontSize="11.5" Foreground="#E6FFFFFF"
+                                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding UseLibraryIndex}"/>
+                                </Grid>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
+                                           Text="Off: every folder is read from disk, nothing is stored. On: songs already in the index appear instantly, and you can search across subfolders. The index lives on this computer — your music folders are never written to."/>
+                                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0"
+                                            IsVisible="{Binding UseLibraryIndex}">
+                                    <Button Classes="crumb" Content="Scan library" FontSize="11.5"
+                                            Command="{Binding ScanLibraryCommand}"
+                                            IsEnabled="{Binding !IsScanning}"/>
+                                    <TextBlock Text="{Binding LibraryCountText}" FontSize="10.5"
+                                               Foreground="#73FFFFFF" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
+                                           IsVisible="{Binding UseLibraryIndex}"
+                                           Text="The first scan reads every track's tags once. After that it only looks at what changed, so it stays quick."/>
+
                                 <DockPanel Margin="0,10,0,0">
                                     <Button DockPanel.Dock="Right" Classes="seg" Content="↻"
                                             Command="{Binding Main.RefreshDevicesCommand}"
@@ -1202,32 +1232,6 @@
                                 </Grid>
                                 <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
                                            Text="Off: browse silently, Enter plays the highlighted song. On: it auditions as soon as you land on it."/>
-
-                                <!-- ⛔ The indexing opt-in (0.6). Off by default: with it off the finder
-                                     reads every listing from disk exactly like 0.5 and no index file is
-                                     ever created. Turning it on does NOT scan — that stays a button. -->
-                                <TextBlock Text="LIBRARY INDEX" Classes="finder-section" Margin="0,10,0,0"/>
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0" Text="Keep a library index on this computer"
-                                               FontSize="11.5" Foreground="#E6FFFFFF"
-                                               VerticalAlignment="Center" TextWrapping="Wrap"/>
-                                    <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
-                                                  VerticalAlignment="Center"
-                                                  IsChecked="{Binding UseLibraryIndex}"/>
-                                </Grid>
-                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
-                                           Text="Off: every folder is read from disk, nothing is stored. On: songs already in the index load instantly, and you can search across subfolders. The index lives on this computer — your music folders are never written to."/>
-                                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0"
-                                            IsVisible="{Binding UseLibraryIndex}">
-                                    <Button Classes="crumb" Content="Scan library" FontSize="11.5"
-                                            Command="{Binding ScanLibraryCommand}"
-                                            IsEnabled="{Binding !IsScanning}"/>
-                                    <TextBlock Text="{Binding LibraryCountText}" FontSize="10.5"
-                                               Foreground="#73FFFFFF" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
-                                           IsVisible="{Binding UseLibraryIndex}"
-                                           Text="The first scan reads every track's tags once. After that it only looks at what changed, so it stays quick."/>
 
                                 <TextBlock Text="SEEK STEP" Classes="finder-section" Margin="0,10,0,0"/>
                                 <StackPanel Orientation="Horizontal" Spacing="6">

@@ -5,35 +5,64 @@
              IsHitTestVisible="False">
 
     <!--
-      Shared J.U.S.T. progress overlay — a floating "busy" pill that lives in a card's OVERLAY
-      layer, so it NEVER reflows the layout (Chloe 2026-07-15: an inline progress bar "schiebt unten
+      Shared J.U.S.T. progress overlay — a floating card in a card's OVERLAY layer, so showing
+      progress NEVER reflows the layout (Chloe 2026-07-15: an inline progress bar "schiebt unten
       alles rechts raus - das ist schlechtes design. können wir kein generelles overlay basteln was
       wir überall nutzen können?"). Drop it as the LAST child of a card's Panel, bind IsActive to a
-      busy flag, and optionally Message to a status string. It is IsHitTestVisible=False — purely
-      visual, it never eats a click on the controls underneath it.
+      busy flag, Message to a status line and (optionally) Progress to a 0..1 value. It is
+      IsHitTestVisible=False — purely visual, it never eats a click on the controls underneath.
 
-      Anti-flicker: it waits ShowDelayMs before appearing (revealed from the code-behind), so the
-      fast per-knob re-renders that make JUST BEAT feel instant never flash a spinner — only work
-      that actually takes a moment (an export, a heavy render) shows the pill. The look is the shared
-      themed card: BgLinear/BgGlowA fill + a hairline + a soft shadow, so it tracks the live theme.
+      0.6 rebuild (Chloe 2026-07-30: "ich mag die progress anzeige überhaupt nicht .. zuckelt zum
+      wenn sich der text ändert (es er ständig tut) die bar ist viel zu schmal … ich hätte lieber
+      was rundes modernes schickes"):
+
+        · ROUND. A hand-drawn ProgressRing replaces the 74×3 px bar, with the percentage inside it.
+        · IT CANNOT JITTER. The card has a FIXED width and the text is centred inside it, so a
+          message changing per file no longer shoves the whole pill sideways. The old one was
+          centre-aligned with automatic width — every new string re-measured and moved it.
+        · The ring's value EASES toward its target (see ProgressRing), so per-file reporting reads
+          as one smooth sweep instead of a stutter.
+
+      Anti-flicker is unchanged: nothing appears before ShowDelayMs of continuous busy, so the fast
+      per-knob re-renders that make a lab feel instant never flash a spinner. The look is the shared
+      themed card (BgLinear/BgGlowA + hairline + soft shadow), so it tracks the live theme.
     -->
     <Panel>
         <Border x:Name="Pill" IsVisible="False"
+                Width="248"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                Margin="0,0,0,18" CornerRadius="11" ClipToBounds="True"
-                BoxShadow="0 10 30 0 #96000000">
+                Margin="0,0,0,20" CornerRadius="16" ClipToBounds="True"
+                BoxShadow="0 12 34 0 #A6000000">
             <Panel>
-                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="11" RadiusY="11"/>
-                <Rectangle Fill="{DynamicResource BgGlowA}"  RadiusX="11" RadiusY="11"/>
-                <Border BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="11"/>
-                <StackPanel Orientation="Horizontal" Spacing="11" Margin="14,8"
-                            VerticalAlignment="Center">
-                    <ProgressBar Width="74" Height="3" IsIndeterminate="True"
-                                 VerticalAlignment="Center" Minimum="0" Maximum="1"
-                                 Foreground="{DynamicResource AccentBBrush}" Background="#22FFFFFF"/>
-                    <TextBlock x:Name="MsgText" FontSize="12" VerticalAlignment="Center"
-                               Foreground="#E6FFFFFF"
+                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"  RadiusX="16" RadiusY="16"/>
+                <Border BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="16"/>
+
+                <StackPanel Margin="18,16" Spacing="11" HorizontalAlignment="Stretch">
+                    <c:ProgressRing x:Name="Ring"
+                                    Width="52" Height="52"
+                                    HorizontalAlignment="Center"
+                                    RingThickness="4"
+                                    Progress="{Binding $parent[c:BusyOverlay].Progress}"
+                                    TrackBrush="#1FFFFFFF"
+                                    ArcBrush="{DynamicResource AccentGradient}"
+                                    LabelBrush="#E6FFFFFF"/>
+
+                    <!-- Fixed height + centred: the phase line changes a handful of times per job
+                         and must not resize the card when it does. -->
+                    <TextBlock x:Name="MsgText" FontSize="12.5" Height="17"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
                                Text="{Binding $parent[c:BusyOverlay].Message}"/>
+
+                    <!-- The counter that used to churn the layout. Same fixed-height treatment, and
+                         it collapses to nothing when a job has no detail to report. -->
+                    <TextBlock x:Name="DetailText" FontSize="10.5" Height="14"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               Foreground="#8CFFFFFF" TextTrimming="CharacterEllipsis"
+                               Text="{Binding $parent[c:BusyOverlay].Detail}"
+                               IsVisible="{Binding $parent[c:BusyOverlay].Detail,
+                                                   Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
             </Panel>
         </Border>

@@ -28,6 +28,12 @@ public partial class BusyOverlay : UserControl
     public static readonly StyledProperty<int> ShowDelayMsProperty =
         AvaloniaProperty.Register<BusyOverlay, int>(nameof(ShowDelayMs), 180);
 
+    public static readonly StyledProperty<double?> ProgressProperty =
+        AvaloniaProperty.Register<BusyOverlay, double?>(nameof(Progress));
+
+    public static readonly StyledProperty<string?> DetailProperty =
+        AvaloniaProperty.Register<BusyOverlay, string?>(nameof(Detail));
+
     private readonly DispatcherTimer _delay;
 
     public BusyOverlay()
@@ -49,6 +55,26 @@ public partial class BusyOverlay : UserControl
     {
         get => GetValue(MessageProperty);
         set => SetValue(MessageProperty, value);
+    }
+
+    /// <summary>
+    /// Completion as 0..1, or null when the length is unknown — then the ring travels instead of
+    /// filling. The ring eases toward whatever it is given, so reporting per item is fine.
+    /// </summary>
+    public double? Progress
+    {
+        get => GetValue(ProgressProperty);
+        set => SetValue(ProgressProperty, value);
+    }
+
+    /// <summary>
+    /// Optional second line under the message — the counter ("1,203 / 4,096") or anything else that
+    /// changes often. It lives in its own fixed-height row so it can churn without moving the card.
+    /// </summary>
+    public string? Detail
+    {
+        get => GetValue(DetailProperty);
+        set => SetValue(DetailProperty, value);
     }
 
     /// <summary>How long a busy state must persist before the pill appears — the anti-flicker guard.

@@ -819,8 +819,25 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>True while a scan runs — drives the shared floating BusyOverlay.</summary>
     [ObservableProperty] private bool _isScanning;
 
-    /// <summary>Live scan status, e.g. "Reading tags… 1,203 / 4,096".</summary>
+    /// <summary>The scan's PHASE, e.g. "Reading tags…" — changes a handful of times per job, never
+    /// per file. The counter lives in <see cref="ScanDetail"/> and the completion in
+    /// <see cref="ScanProgress"/>, so nothing in the overlay has to resize as work goes on.</summary>
     [ObservableProperty] private string? _scanMessage;
+
+    /// <summary>The counter under the phase line, e.g. "1,203 / 4,096".</summary>
+    [ObservableProperty] private string? _scanDetail;
+
+    /// <summary>0..1 while the length is known, null while it is not (the ring travels instead).</summary>
+    [ObservableProperty] private double? _scanProgress;
+
+    /// <summary>
+    /// Throttle for the progress callback. A scan reports per file — 17 a second at the measured
+    /// tag-read rate, far more from a cached folder — and pushing every one of those into bound
+    /// properties is pure UI churn. The ring eases between the values it does get, so 10 Hz looks
+    /// identical to 1000 Hz and costs nothing.
+    /// </summary>
+    private const long ScanUiIntervalMs = 100;
+    private long _lastScanUiTick;
 
     /// <summary>
     /// Opted in, nothing indexed yet, and the pane has nothing to show — then the scan offer is the
@@ -857,19 +874,24 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _scanCts?.Cancel();
         var cts = _scanCts = new CancellationTokenSource();
 
-        IsScanning  = true;
-        ScanMessage = "Reading the library…";
+        IsScanning     = true;
+        ScanMessage    = "Reading the library…";
+        ScanDetail     = null;
+        ScanProgress   = null;
+        _lastScanUiTick = 0;
         RaiseLibraryState();
 
-        // Progress<T> captures this (UI) context, so the message updates marshal themselves.
-        var progress = new Progress<SyncProgress>(p => ScanMessage = DescribeScan(p));
+        // Progress<T> captures this (UI) context, so the updates marshal themselves.
+        var progress = new Progress<SyncProgress>(ReportScan);
 
         try
         {
             var report = await _index.SyncAsync(progress, cts.Token);
             if (report is not null)
             {
-                ScanMessage = report.ToString();
+                ScanMessage  = "Library up to date";
+                ScanDetail   = $"{report.Scanned:N0} tracks · {report.ImportedFromTags:N0} read in";
+                ScanProgress = 1;
                 Console.WriteLine($"[Finder] scan: {report}");
             }
         }
@@ -886,13 +908,29 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
     }
 
-    private static string DescribeScan(SyncProgress p) => p.Phase switch
+    /// <summary>
+    /// Pushes a progress report into the overlay — phase, counter and completion as three separate
+    /// values, throttled. A phase change always gets through; the per-file churn in between does not.
+    /// </summary>
+    private void ReportScan(SyncProgress p)
     {
-        SyncPhase.Enumerating => "Listing files…",
-        SyncPhase.Comparing   => "Comparing against the index…",
-        SyncPhase.ReadingTags => $"Reading tags… {p.Done:N0} / {p.Total:N0}",
-        _                     => "Finishing…",
-    };
+        var phase = p.Phase switch
+        {
+            SyncPhase.Enumerating => "Listing files…",
+            SyncPhase.Comparing   => "Comparing against the index…",
+            SyncPhase.ReadingTags => "Reading tags…",
+            _                     => "Finishing up…",
+        };
+
+        var phaseChanged = ScanMessage != phase;
+        var now = Environment.TickCount64;
+        if (!phaseChanged && now - _lastScanUiTick < ScanUiIntervalMs) return;
+        _lastScanUiTick = now;
+
+        ScanMessage  = phase;
+        ScanDetail   = p.Total > 0 ? $"{p.Done:N0} / {p.Total:N0}" : null;
+        ScanProgress = p.Total > 0 ? Math.Clamp((double)p.Done / p.Total, 0, 1) : null;
+    }
 
     private void PostLoadError(CancellationToken ct, string message) =>
         Dispatcher.UIThread.Post(() =>
