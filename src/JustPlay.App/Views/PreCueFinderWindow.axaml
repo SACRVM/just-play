@@ -166,6 +166,40 @@
             <Setter Property="Foreground" Value="#F5FFFFFF"/>
         </Style>
 
+        <!-- "+ SUBFOLDERS" in the folders-pane header: reads like the tab labels next to it, but it is
+             a ToggleButton — dim when off, accent when the pane is looking at the whole subtree. The
+             template setters have to override FluentTheme's ToggleButton chrome for all four states
+             (base, pointerover, checked, checked-pointerover) or the checked state paints a grey box
+             (see the "Belt-and-braces" note in App.axaml). -->
+        <Style Selector="ToggleButton.subfolders">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders:checked:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders TextBlock.finderhead">
+            <Setter Property="Foreground" Value="#5CFFFFFF"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders:pointerover TextBlock.finderhead">
+            <Setter Property="Foreground" Value="#C8FFFFFF"/>
+        </Style>
+        <Style Selector="ToggleButton.subfolders:checked TextBlock.finderhead">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBBrush}"/>
+        </Style>
+
         <!-- FILTER range value readout: dim at full span, accent + semibold once the range is narrowing
              (Classes.active bound to FinderFilterRange.IsActive) — the "this filter is live" cue. -->
         <Style Selector="TextBlock.rangeval">
@@ -501,9 +535,22 @@
 
                         <!-- FOLDERS (left) — flat list: ".." + sub-folders (📁) + playlists (☰). -->
                         <DockPanel Grid.Column="0">
+                            <!-- One decision, not a mode (Chloe 2026-07-30: "wenn ich einen ordner
+                                 durchsuche dann will ich sagen - nur diesen ordner oder alle
+                                 unterordner"): how DEEP the file pane looks. Where the rows come
+                                 from follows from that and is not the user's problem. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding FoldersActive}" Margin="0,0,0,3">
-                                <TextBlock Classes="finderhead" Text="LIBRARY" Margin="8,0,0,0"/>
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Classes="finderhead" Text="LIBRARY"
+                                               Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    <ToggleButton Grid.Column="1" Classes="subfolders"
+                                                  HorizontalAlignment="Right" Margin="0,0,2,0"
+                                                  IsChecked="{Binding IncludeSubfolders}"
+                                                  ToolTip.Tip="Also list everything in the folders below this one">
+                                        <TextBlock Classes="finderhead" Text="+ SUBFOLDERS"/>
+                                    </ToggleButton>
+                                </Grid>
                             </Border>
                             <!-- Single click OPENS (activate): a click descends a container folder or opens a
                                  leaf/playlist's tracks — "ein Mausklick ist wie Cursor hin + ENTER" (Chloe
@@ -753,6 +800,26 @@
                                         HorizontalAlignment="Center"
                                         Command="{Binding ClearFiltersCommand}"/>
                             </StackPanel>
+                            <!-- LIBRARY scope with an index nobody has filled yet — offer the scan
+                                 instead of an empty list that reads like a bug. -->
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8"
+                                        MaxWidth="420" IsVisible="{Binding ShowLibraryNotScanned}">
+                                <TextBlock Text="This library hasn't been scanned yet."
+                                           Foreground="{DynamicResource MutedBrush}" FontSize="13"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="A scan reads each track's tags once. After that it only looks at what changed, so it stays quick."
+                                           Foreground="{DynamicResource MutedDimBrush}" FontSize="11.5"
+                                           TextWrapping="Wrap" TextAlignment="Center"
+                                           HorizontalAlignment="Center"/>
+                                <Button Classes="crumb" Content="Scan library" FontSize="11.5"
+                                        HorizontalAlignment="Center"
+                                        Command="{Binding ScanLibraryCommand}"/>
+                            </StackPanel>
+
+                            <!-- The shared floating overlay (never inline progress that shifts the
+                                 layout) — it carries the live phase text from the sync pass. -->
+                            <uic:BusyOverlay IsActive="{Binding IsScanning}"
+                                             Message="{Binding ScanMessage}"/>
                         </Panel>
 
                         <!-- ── INFO (right): everything the analyzer stored (v9 blob). Its header sits on
@@ -942,13 +1009,32 @@
                             </ScrollViewer>
                             </Panel><!-- /INFO tab -->
 
-                            <!-- FILTER tab: name search + Camelot key wheel + numeric ranges over the CURRENT
-                                 file pane only (in-memory, no library index). Chloe 2026-07-07. -->
+                            <!-- FILTER tab: name search + Camelot key wheel + numeric ranges over whatever
+                                 the file pane currently holds — one folder (FOLDER scope) or the whole
+                                 library below it (LIBRARY scope, 0.6). Always in-memory. Chloe 2026-07-07. -->
                             <ScrollViewer IsVisible="{Binding FilterTabActive}"
                                           IsEnabled="{Binding AllHydrated}"
                                           HorizontalScrollBarVisibility="Disabled"
                                           VerticalScrollBarVisibility="Auto" AllowAutoHide="False">
                                 <StackPanel Margin="2,10,4,2" Spacing="14">
+                                    <!-- Mix out of what's playing: sets the key wheel + the BPM and energy
+                                         handles below, so the reason a track passed is visible and editable
+                                         rather than hidden in a rule. -->
+                                    <StackPanel Spacing="4" IsVisible="{Binding CanMatchNowPlaying}">
+                                        <TextBlock Text="NOW PLAYING" Classes="finder-section" Margin="0"/>
+                                        <Button Classes="crumb" HorizontalAlignment="Stretch"
+                                                Command="{Binding MatchNowPlayingCommand}"
+                                                ToolTip.Tip="Key + harmonic neighbours, ±3 BPM, energy from one step below upward">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="Fits what's playing" FontSize="11.5"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding NowPlayingMatchText}" FontSize="11.5"
+                                                           Foreground="{DynamicResource MutedBrush}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+
                                     <!-- Name -->
                                     <StackPanel Spacing="4">
                                         <TextBlock Text="SEARCH" Classes="finder-section" Margin="0"/>

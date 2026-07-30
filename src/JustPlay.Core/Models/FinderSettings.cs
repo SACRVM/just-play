@@ -32,6 +32,14 @@ public sealed record FinderSettings
     public bool AutoPlayOnSelect { get; init; } = false;
 
     /// <summary>
+    /// When true, the file pane lists everything in the folders BELOW the selected one, not just
+    /// its own tracks (0.6). Persisted because it is a habit, not a per-visit decision
+    /// (Chloe 2026-07-30). Off by default: a single folder is always read fresh from disk, while
+    /// a subtree is only as current as the last library scan.
+    /// </summary>
+    public bool IncludeSubfolders { get; init; } = false;
+
+    /// <summary>
     /// The file-list columns the finder shows, mirroring the JUST PLAY queue's toggleable columns
     /// (right-click the header to flip them). Null = <see cref="DefaultColumns"/>. The NAME column is
     /// structural (always shown) and isn't in this set.

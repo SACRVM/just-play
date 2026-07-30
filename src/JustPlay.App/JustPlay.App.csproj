@@ -51,6 +51,8 @@
     <ProjectReference Include="..\JustPlay.Audio.Bass\JustPlay.Audio.Bass.csproj" />
     <ProjectReference Include="..\JustPlay.Metadata\JustPlay.Metadata.csproj" />
     <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+    <!-- 0.6: this machine's library index (SQLite) + the sync pass behind LIBRARY scope. -->
+    <ProjectReference Include="..\JustPlay.Library\JustPlay.Library.csproj" />
     <ProjectReference Include="..\JustPlay.ML\JustPlay.ML.csproj" />
     <ProjectReference Include="..\JustPlay.UI\JustPlay.UI.csproj" />
   </ItemGroup>

@@ -9,10 +9,12 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustPlay.App.Services;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
 using JustPlay.Core.Playlists;
+using JustPlay.Library;
 using JustPlay.UI.Controls;
 
 namespace JustPlay.App.ViewModels;
@@ -41,6 +43,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 {
     /// <summary>Which of the two panes currently owns focus (drives the header highlight).</summary>
     public enum FinderPane { Folders, Files }
+
 
     // Folder names never worth showing — dot-folders plus the usual NAS system dirs
     // (Synology thumbnail/recycle, Windows share clutter). Name-based on purpose: an
@@ -94,8 +97,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private readonly Dictionary<string, (FinderItemViewModel Item, bool Liked)> _pendingLikes =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly ILibraryIndexService _index;
+
     private CancellationTokenSource? _navCts;      // file-listing loads
     private CancellationTokenSource? _entriesCts;  // folder-entry (left pane) loads
+    private CancellationTokenSource? _scanCts;     // library scan
     private FinderItemViewModel? _cuedItem;
     private string? _loadedCuePath;
     private int _pollCounter;
@@ -106,7 +112,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         IFinderSettingsService settings,
         IMetadataReader metadata,
         IMetadataWriter writer,
-        IWaveformService waveform)
+        IWaveformService waveform,
+        ILibraryIndexService index)
     {
         _main = main;
         _preListen = preListen;
@@ -114,6 +121,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _metadata = metadata;
         _writer = writer;
         _waveform = waveform;
+        _index = index;
 
         _playDebounce.Tick += (_, _) =>
         {
@@ -137,6 +145,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         // ✓ stays live: the moment Enter (or anything else) changes the queue, re-flag rows.
         _main.Tracks.CollectionChanged += (_, _) => RebuildMembership();
 
+        // "Fits what's playing" targets whatever is on the main deck right now.
+        _main.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(MainWindowViewModel.Current)) return;
+            OnPropertyChanged(nameof(CanMatchNowPlaying));
+            OnPropertyChanged(nameof(NowPlayingMatchText));
+        };
+
         // FILTER ranges — one dual-handle slider per analyzed field, each re-filtering the view live.
         // Vibe scores gate on HasAnalysis (the finder loads the stored blob into Model.Analysis on browse),
         // so an un-analyzed row reads null and drops out of any active vibe band.
@@ -152,6 +168,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             new("punch",    "Punch",    t => t.HasAnalysis ? t.PunchScore : null,        v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
             new("harsh",    "Harsh",    t => t.HasAnalysis ? t.HarshScore : null,        v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
         ];
+
+        // The index belongs to the configured library root. Opening it is lazy inside the service,
+        // so a user who never switches to LIBRARY scope pays nothing for this.
+        _index.UseRoot(LibraryRoot);
     }
 
     /// <summary>The FILTER tab's numeric range sliders (BPM · energy · vibe scores) — the fields DJs actually
@@ -263,7 +283,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         CurrentPlaylist = null;
         CurrentLeafFolder = folder;
         RebuildBreadcrumb();
-        LoadFolderFiles(folder);
+        LoadFilesForFolder(folder);
     }
 
     /// <summary>Backspace (folders pane) / the ".." row: hop to the parent folder. Bounded at the
@@ -301,7 +321,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         CurrentLeafFolder = null;
         CurrentFolder = folder;
         BuildFolderEntries(folder, selectChild);
-        LoadFolderFiles(folder);
+        LoadFilesForFolder(folder);
     }
 
     /// <summary>Enter a playlist as a virtual folder: its tracks fill the right pane (in playlist
@@ -372,7 +392,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>Everything loaded for the current folder/playlist, BEFORE the FILTER tab narrows it.
     /// <see cref="Items"/> is always sort(filter(this)). Filtering is purely in-memory over this list —
-    /// the finder never touches a library index (Chloe 2026-07-07: "keine library, erstmal").</summary>
+    /// in FOLDER scope it was read from disk, in LIBRARY scope (0.6) it came from the index. The
+    /// 0.5 note "keine library, erstmal" no longer applies: the index is the point of
+    /// <see cref="FinderScope.Library"/>.</summary>
     private List<FinderItemViewModel> _masterItems = [];
 
     [ObservableProperty]
@@ -396,7 +418,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public bool HasNoRoot => string.IsNullOrWhiteSpace(LibraryRoot);
 
     public bool ShowEmptyFolderHint =>
-        !HasNoRoot && LoadError is null && CurrentFolder is not null && _masterItems.Count == 0;
+        !HasNoRoot && LoadError is null && CurrentFolder is not null && _masterItems.Count == 0
+        && !ShowLibraryNotScanned;   // "scan the library" is the better hint when that's the reason
 
     /// <summary>The folder HAS tracks but the FILTER narrowed them all out — a distinct, non-alarming hint.</summary>
     public bool ShowNoMatches =>
@@ -614,6 +637,188 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             PopulateItems(paths, cts.Token); // playlist ORDER is meaningful — do not re-sort
         }, cts.Token);
     }
+
+    // ── How deep the file pane looks (0.6) ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Off: the file pane lists the tracks directly in the selected folder. On: it also lists
+    /// everything in the folders below it.
+    ///
+    /// <para>This is the ONE thing the user decides. Where the rows come from is not a mode and is
+    /// deliberately not exposed: one folder is read from disk (cheap, always current), a whole
+    /// subtree comes out of the index — reading it from disk would mean a tag read per file, and
+    /// measured over SMB that is ~57 ms each.</para>
+    ///
+    /// <para>Persisted in finder.settings.json — it is a working habit, not a per-visit choice.</para>
+    /// </summary>
+    public bool IncludeSubfolders
+    {
+        get => _settings.Current.IncludeSubfolders;
+        set
+        {
+            if (value == _settings.Current.IncludeSubfolders) return;
+            _settings.Save(_settings.Current with { IncludeSubfolders = value });
+            OnPropertyChanged();
+            RefreshFolder();
+            RaiseLibraryState();
+        }
+    }
+
+    /// <summary>The file-pane load for a folder, routed by how deep we are looking.</summary>
+    private void LoadFilesForFolder(string folder)
+    {
+        if (IncludeSubfolders) LoadLibraryFiles(folder);
+        else LoadFolderFiles(folder);
+    }
+
+    /// <summary>
+    /// Fill the file pane from the index: everything below <paramref name="folder"/>, including
+    /// tracks that have not been analysed yet (they show blank columns and say so in the detail
+    /// pane — a track on disk is never invisible).
+    /// </summary>
+    private void LoadLibraryFiles(string folder)
+    {
+        _navCts?.Cancel();
+        var cts = _navCts = new CancellationTokenSource();
+        LoadError = null;
+        _ = Task.Run(() =>
+        {
+            IReadOnlyList<TrackIndexEntry> rows;
+            try
+            {
+                rows = _index.Query(new LibraryQuery
+                {
+                    PathPrefix     = folder,
+                    SuccessOnly    = false,   // un-analysed tracks belong in the list
+                    IncludeMissing = false,   // …but ones the last scan could not find do not
+                    Sort           = LibrarySort.Path,
+                });
+            }
+            catch (Exception ex)
+            {
+                PostLoadError(cts.Token, $"Can't read the library index — {ex.Message}");
+                return;
+            }
+            PopulateFromIndex(rows, cts.Token);
+        }, cts.Token);
+    }
+
+    /// <summary>
+    /// Turn index rows into file-pane rows. Unlike <see cref="PopulateItems"/> nothing is hydrated
+    /// afterwards: the data came out of the index, so every row is complete on arrival and sorting
+    /// plus the FILTER tab are live from the first frame.
+    /// </summary>
+    private void PopulateFromIndex(IReadOnlyList<TrackIndexEntry> rows, CancellationToken ct)
+    {
+        if (ct.IsCancellationRequested) return;
+
+        var items = new List<FinderItemViewModel>(rows.Count);
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var entry = rows[i];
+            var item  = new FinderItemViewModel(entry.FilePath) { Order = i };
+
+            // Claim the row so neither the viewport nor a background pass ever re-reads this file.
+            item.TryClaimHydration();
+
+            var model = item.Track.Model;
+            model.Metadata = TrackIndexMapping.ToMetadata(entry);
+            if (entry.Success)
+            {
+                model.Analysis = TrackIndexMapping.ToAnalysisResult(entry);
+                model.AnalysisStatus = AnalysisStatus.Done;
+            }
+
+            // Refresh HERE, off the UI thread: these view-models are not bound to anything yet, so
+            // the property-changed notifications have no listeners and cost nothing. Doing it after
+            // the post would put thousands of raises on the UI thread for no reason.
+            item.Track.Refresh();
+            item.Track.ToggleFavoriteCallback = (_, liked) => { QueueLike(item, liked); return Task.CompletedTask; };
+
+            items.Add(item);
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (ct.IsCancellationRequested) return;
+            _masterItems   = items;
+            _hydratedCount = _hydrateTotal = items.Count;
+            AllHydrated    = true;   // ← the payoff: no waiting for sort or filters
+            ApplyMembership();
+            RecomputeRangeDomains();
+            RebuildView();
+            RaiseLibraryState();
+        });
+    }
+
+    // ── Scanning the library (keeps the index in step with the disk) ─────────────────────────────
+
+    /// <summary>True while a scan runs — drives the shared floating BusyOverlay.</summary>
+    [ObservableProperty] private bool _isScanning;
+
+    /// <summary>Live scan status, e.g. "Reading tags… 1,203 / 4,096".</summary>
+    [ObservableProperty] private string? _scanMessage;
+
+    /// <summary>Looking across subfolders with an index that has never been filled — offer the scan
+    /// instead of an empty list that looks like a bug.</summary>
+    public bool ShowLibraryNotScanned =>
+        IncludeSubfolders && !HasNoRoot && !IsScanning && _index.Count == 0;
+
+    /// <summary>"14,186 tracks indexed" — the footer note under the scan button.</summary>
+    public string LibraryCountText => $"{_index.Count:N0} tracks indexed";
+
+    private void RaiseLibraryState()
+    {
+        OnPropertyChanged(nameof(ShowLibraryNotScanned));
+        OnPropertyChanged(nameof(LibraryCountText));
+        OnPropertyChanged(nameof(ShowEmptyFolderHint));
+        OnPropertyChanged(nameof(ShowNoMatches));
+    }
+
+    [RelayCommand]
+    private async Task ScanLibrary()
+    {
+        if (IsScanning || string.IsNullOrWhiteSpace(LibraryRoot)) return;
+
+        _scanCts?.Cancel();
+        var cts = _scanCts = new CancellationTokenSource();
+
+        IsScanning  = true;
+        ScanMessage = "Reading the library…";
+        RaiseLibraryState();
+
+        // Progress<T> captures this (UI) context, so the message updates marshal themselves.
+        var progress = new Progress<SyncProgress>(p => ScanMessage = DescribeScan(p));
+
+        try
+        {
+            var report = await _index.SyncAsync(progress, cts.Token);
+            if (report is not null)
+            {
+                ScanMessage = report.ToString();
+                Console.WriteLine($"[Finder] scan: {report}");
+            }
+        }
+        catch (OperationCanceledException) { /* window closed or rescanned */ }
+        catch (Exception ex)
+        {
+            LoadError = $"Library scan failed — {ex.Message}";
+        }
+        finally
+        {
+            IsScanning = false;
+            RaiseLibraryState();
+            if (IncludeSubfolders) RefreshFolder();   // show what the scan just found
+        }
+    }
+
+    private static string DescribeScan(SyncProgress p) => p.Phase switch
+    {
+        SyncPhase.Enumerating => "Listing files…",
+        SyncPhase.Comparing   => "Comparing against the index…",
+        SyncPhase.ReadingTags => $"Reading tags… {p.Done:N0} / {p.Total:N0}",
+        _                     => "Finishing…",
+    };
 
     private void PostLoadError(CancellationToken ct, string message) =>
         Dispatcher.UIThread.Post(() =>
@@ -1185,6 +1390,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             _settings.Save(_settings.Current with { LibraryRoot = value });
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasNoRoot));
+            // The index is per library root — point it at the new one before anything reloads.
+            _index.UseRoot(LibraryRoot);
+            RaiseLibraryState();
             ResetToRoot();
         }
     }
@@ -1391,6 +1599,63 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Any filter is narrowing the view (drives the FILTER-tab dot + the Clear button).</summary>
     public bool HasActiveFilter =>
         FilterName.Length > 0 || _selectedKeys.Count > 0 || Ranges.Any(r => r.IsActive);
+
+    /// <summary>True when there is a playing track with enough analysis to mix out of.</summary>
+    public bool CanMatchNowPlaying => _main.Current is { } t && (t.Bpm is not null || t.KeyText.Length > 0);
+
+    /// <summary>What the "fits what's playing" button says it will match, e.g. "8A · 145".</summary>
+    public string NowPlayingMatchText => _main.Current is { } t
+        ? string.Join(" · ", new[] { t.KeyText, t.Bpm?.ToString("0") }.Where(s => !string.IsNullOrEmpty(s)))
+        : "";
+
+    /// <summary>BPM window either side of the playing track — a hair over a 2 % pitch nudge, which is
+    /// what a beatmatched blend actually tolerates.</summary>
+    private const double MatchBpmWindow = 3.0;
+
+    /// <summary>
+    /// Narrow the view to what mixes out of the track currently playing: its key plus the harmonic
+    /// neighbours, a ±3 BPM window, and energy from one step below it upward (a set can hold or
+    /// lift, dropping two steps mid-mix kills a floor).
+    ///
+    /// <para>Deliberately expressed through the SAME filters the FILTER tab shows rather than as a
+    /// hidden rule: the key wheel lights up, the sliders move, and every part of it can be widened
+    /// by hand. A magic button whose reasoning you cannot see is one you stop trusting mid-gig.</para>
+    /// </summary>
+    [RelayCommand]
+    private void MatchNowPlaying()
+    {
+        if (_main.Current is not { } t) return;
+
+        FilterName = "";
+
+        _selectedKeys.Clear();
+        if (t.KeyText is { Length: > 0 } key)
+        {
+            _selectedKeys.Add(key);
+            HarmonicKeys = true;   // setter re-runs RecomputeKeys + RebuildView
+        }
+        RecomputeKeys();
+
+        foreach (var r in Ranges)
+        {
+            switch (r.Key)
+            {
+                case "bpm" when t.Bpm is { } bpm:
+                    r.Lower = Math.Max(r.DomainMin, bpm - MatchBpmWindow);
+                    r.Upper = Math.Min(r.DomainMax, bpm + MatchBpmWindow);
+                    break;
+                case "nrg" when t.Energy is { } energy:
+                    r.Lower = Math.Max(r.DomainMin, energy - 1);
+                    r.Upper = r.DomainMax;
+                    break;
+                default:
+                    r.Reset();
+                    break;
+            }
+        }
+
+        RebuildView();
+    }
 
     [RelayCommand]
     private void ClearFilters()

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using Avalonia;
 using JustPlay.Analysis;
+using JustPlay.App.Services;
 using JustPlay.App.Settings;
 using JustPlay.UI.Theming;
 using JustPlay.App.ViewModels;
@@ -249,6 +250,9 @@ sealed class Program
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         // PRE CUE FINDER add-on settings — separate file (finder.settings.json), source-gen JSON.
         services.AddSingleton<IFinderSettingsService, FinderSettingsService>();
+        // 0.6: this machine's library index. Per library root, opened lazily — see
+        // milestone-0.6-scope.md for why it is local and the files stay the shared truth.
+        services.AddSingleton<ILibraryIndexService, LibraryIndexService>();
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
 
         // Auto-update (v0.2). One shared HttpClient backs both the API check and the installer
