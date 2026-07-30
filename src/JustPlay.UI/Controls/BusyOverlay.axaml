@@ -52,14 +52,18 @@
             </Ellipse>
             <Ellipse Width="170" Height="170" HorizontalAlignment="Center" VerticalAlignment="Center"
                      Fill="{DynamicResource BgGlowA}"/>
-            <Ellipse Width="170" Height="170" HorizontalAlignment="Center" VerticalAlignment="Center"
-                     Stroke="#1FFFFFFF" StrokeThickness="1"/>
+            <!-- ⚠ No hairline stroke on the disc. It used to carry one, which was fine while the
+                 rim was a thin 6 px ring sitting OUTSIDE it — but the rim is 11 px now and its band
+                 spans radius 79–90, so a 1 px circle at radius 85 lands INSIDE the ring and reads
+                 as a stray line drawn through it (Chloe 2026-07-30: "da ist eine dünne linie im
+                 ring - warum?"). The ring's own track is the disc's edge now. -->
 
-            <!-- The rim rides just outside the disc, so the arc never crosses the text. -->
+            <!-- The rim rides ON the disc's edge — thick enough to read from across the room, and
+                 it never crosses the text because the text column is the inscribed square. -->
             <c:ProgressRing x:Name="Ring"
-                            Width="182" Height="182"
+                            Width="180" Height="180"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                            RingThickness="6" ShowPercent="False"
+                            RingThickness="11" ShowPercent="False"
                             Progress="{Binding $parent[c:BusyOverlay].Progress}"
                             TrackBrush="#1AFFFFFF"
                             ArcBrush="{DynamicResource AccentGradient}"/>

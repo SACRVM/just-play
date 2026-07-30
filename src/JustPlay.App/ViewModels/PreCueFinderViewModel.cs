@@ -419,11 +419,19 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     public bool ShowEmptyFolderHint =>
         !HasNoRoot && LoadError is null && CurrentFolder is not null && _masterItems.Count == 0
-        && !ShowLibraryNotScanned;   // "scan the library" is the better hint when that's the reason
+        && !ShowLibraryNotScanned   // "scan the library" is the better hint when that's the reason
+        && !IsScanning;             // …and NO hint at all while the disc is up (see ShowNoMatches)
 
-    /// <summary>The folder HAS tracks but the FILTER narrowed them all out — a distinct, non-alarming hint.</summary>
+    /// <summary>The folder HAS tracks but the FILTER narrowed them all out — a distinct, non-alarming hint.
+    ///
+    /// <para>⚠ Every centred hint in this pane must switch off while the progress disc is up. They
+    /// share the pane's centre, so the disc covers the MIDDLE of a hint line and leaves both ends
+    /// sticking out past its rim — which is exactly what Chloe photographed on 2026-07-30 and took
+    /// for rendering artefacts: the "N" of "Nothing to audition in this folder." on one side and
+    /// the end of the sentence on the other.</para></summary>
     public bool ShowNoMatches =>
-        !HasNoRoot && LoadError is null && _masterItems.Count > 0 && Items.Count == 0;
+        !HasNoRoot && LoadError is null && _masterItems.Count > 0 && Items.Count == 0
+        && !IsScanning;
 
     /// <summary>↑/↓/PageUp/PageDown while the FILE pane has focus — deterministic regardless of which
     /// control actually holds keyboard focus.</summary>
@@ -816,8 +824,15 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     // ── Scanning the library (keeps the index in step with the disk) ─────────────────────────────
 
-    /// <summary>True while a scan runs — drives the shared floating BusyOverlay.</summary>
-    [ObservableProperty] private bool _isScanning;
+    /// <summary>True while a scan runs — drives the shared floating BusyOverlay. Also silences every
+    /// centred hint in the pane, so nothing peeks out from behind the disc.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyFolderHint))]
+    [NotifyPropertyChangedFor(nameof(ShowNoMatches))]
+    [NotifyPropertyChangedFor(nameof(ShowLibraryNotScanned))]
+    [NotifyPropertyChangedFor(nameof(SubfoldersLockedReason))]
+    [NotifyPropertyChangedFor(nameof(SubfoldersTip))]
+    private bool _isScanning;
 
     /// <summary>The scan's PHASE, e.g. "Reading tags…" — changes a handful of times per job, never
     /// per file. The counter lives in <see cref="ScanDetail"/> and the completion in
