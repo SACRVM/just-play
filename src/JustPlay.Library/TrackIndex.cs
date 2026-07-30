@@ -1,24 +1,37 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace JustPlay.Cli.Index;
+namespace JustPlay.Library;
 
 /// <summary>
-/// The sidecar index: all <see cref="TrackIndexEntry"/> records keyed by file path.
-/// Serialized as a single JSON file; designed to be safely written atomically
-/// (write to .tmp, then rename) so an interrupted analyze run does not corrupt it.
+/// The library index: all <see cref="TrackIndexEntry"/> records keyed by file path.
+/// Serialized as a single JSON file; written atomically (write to .tmp, then rename) so an
+/// interrupted analyze run does not corrupt it.
 ///
-/// <para>Resumability: <see cref="AnalyzeCommand"/> skips any file whose path already
-/// has an entry with a matching <see cref="TrackIndexEntry.ContentHash"/> and the
-/// current <see cref="CurrentDetectionVersion"/>.</para>
+/// <para>0.6 (THE LIBRARY): moved here from <c>JustPlay.Cli.Index</c> with the schema UNCHANGED.
+/// That is deliberate — every index Chloe already has on disk keeps loading, and the CLI keeps
+/// reading and writing the same format the app does. One format, or the divergence is back.</para>
+///
+/// <para>Resumability: a scan skips any file whose entry still matches on the cheap key
+/// (<see cref="TrackIndexEntry.LooksUnchanged"/>) or, failing that, on
+/// <see cref="TrackIndexEntry.ContentHash"/> — and which no <see cref="StaleRule"/> rejects.</para>
 /// </summary>
 public sealed class TrackIndex
 {
     /// <summary>
-    /// Version of the detection stack baked into new entries.
-    /// Bump this when the DSP/key/energy logic changes so old entries are re-analysed.
+    /// Version of the detection stack baked into new entries — the SAME number the app stamps into
+    /// a file's JUSTPLAY blob, so an entry's provenance is one value no matter which producer wrote it.
+    ///
+    /// <para>History worth keeping: this used to be a private counter stuck at <c>1</c> while the
+    /// real version discipline lived in FILENAMES ("sets.v9.index.json"). Measured 2026-07-30, all
+    /// 6,561 entries of the "v9" index carried <c>detectionVersion: 1</c>. Entries that old
+    /// therefore say 1 and mean "unknown".</para>
+    ///
+    /// <para>⚠ Still do NOT treat a version bump as the re-analysis trigger — it would mark the
+    /// whole library stale and re-run thousands of healthy MP3s. Express what actually needs
+    /// redoing as a <see cref="StaleRule"/> (e.g. FLAC-only for the mono-decode bug).</para>
     /// </summary>
-    public const int CurrentDetectionVersion = 1;
+    public const int CurrentDetectionVersion = Core.Models.TrackAnalysisState.CurrentVersion;
 
     [JsonPropertyName("entries")]
     public Dictionary<string, TrackIndexEntry> Entries { get; init; } = new(StringComparer.OrdinalIgnoreCase);
@@ -41,7 +54,7 @@ public sealed class TrackIndex
             return new TrackIndex();
 
         var json = File.ReadAllText(path);
-        var idx = JsonSerializer.Deserialize(json, CliJsonContext.Default.TrackIndex);
+        var idx = JsonSerializer.Deserialize(json, LibraryJsonContext.Default.TrackIndex);
         return idx ?? new TrackIndex();
     }
 
@@ -58,7 +71,7 @@ public sealed class TrackIndex
             Directory.CreateDirectory(dir);
 
         var tmp = path + ".tmp";
-        var json = JsonSerializer.Serialize(this, CliJsonContext.Default.TrackIndex);
+        var json = JsonSerializer.Serialize(this, LibraryJsonContext.Default.TrackIndex);
         File.WriteAllText(tmp, json);
         File.Move(tmp, path, overwrite: true);
     }

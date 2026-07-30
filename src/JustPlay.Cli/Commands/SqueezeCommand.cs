@@ -1,6 +1,5 @@
 using System.Text.Json;
 using JustPlay.Analysis;
-using JustPlay.Cli.Index;
 using JustPlay.Cli.Reports;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playlists;

@@ -79,8 +79,11 @@ static int RunAnalyze(string[] args)
         return Fail("analyze requires --index <path>.");
     var threads   = ParseIntFlag(args[1..], "--threads", Environment.ProcessorCount);
     var limit     = ParseIntFlag(args[1..], "--limit", int.MaxValue);
+    var dbPath    = ParseStringFlag(args[1..], "--db");
+    var noDb      = args[1..].Contains("--no-db");
+    var force     = args[1..].Contains("--force");
 
-    return AnalyzeCommand.Run(root, indexPath, threads, limit);
+    return AnalyzeCommand.Run(root, indexPath, threads, limit, dbPath, noDb, force);
 }
 
 // ── Stats ────────────────────────────────────────────────────────────────────
@@ -259,15 +262,26 @@ static void PrintHelp()
               (b) Near dupes: same artist+title AND duration within ~2s.
               READ-ONLY. Optionally writes JSON to <out>.
 
-          analyze <root> --index <path> [--threads N] [--limit N]
+          analyze <root> --index <path> [--threads N] [--limit N] [--db <path>|--no-db] [--force]
               Phase 1 — full resumable analysis pass.
               Runs BPM / key / energy / loudness / beat-fingerprint / RhythmPattern
-              on every audio file and writes results to the sidecar index at <path>.
-              Skips files already in the index with the current detection version.
-              READ-ONLY on audio files. Writes only the index file.
+              on every audio file and writes results to the sidecar index at <path>
+              AND to this machine's library database.
+              READ-ONLY on audio files. Writes only the index and the database.
+
+              Work it does NOT redo:
+                · unchanged + already analysed (size+mtime match) -> skipped, file never opened
+                · a JUSTPLAY blob at the current detection version -> imported from the tags,
+                  no DSP. This is what makes a second machine cheap: whichever machine
+                  analysed a track first already wrote the answer into the file.
+              Files are hashed only when they are actually analysed (hashing reads every
+              byte, i.e. the whole library over the network).
 
               --threads N     Degree of parallelism (default: CPU count).
               --limit N       Process at most N files (smoke-test mode).
+              --db <path>     Use this database file instead of the default for <root>.
+              --no-db         Write the sidecar index only.
+              --force         Re-run the DSP on every file, ignoring skips and stored blobs.
 
           stats --index <path> [--json <out>]
               Read the sidecar index and print histograms:

@@ -1,23 +1,27 @@
-using JustPlay.Cli.Index;
 using JustPlay.Core.Models;
 
 namespace JustPlay.Cli.Commands;
 
 /// <summary>
-/// <c>justplay analyze &lt;root&gt; --index &lt;path&gt; [--threads N] [--limit N]</c>
+/// <c>justplay analyze &lt;root&gt; --index &lt;path&gt; [--threads N] [--limit N] [--db &lt;path&gt;|--no-db] [--force]</c>
 ///
-/// PHASE 1 — the heavy resumable analysis pass.
-/// For each audio file under <paramref name="root"/>:
-///   1. Compute a SHA-256 content hash (cheap — no decode needed).
-///   2. If an up-to-date entry already exists in the sidecar index, skip it.
-///   3. Read tag metadata (artist, title, duration, …) via IMetadataReader.
-///   4. Run the full DSP pipeline (BPM → key → energy → loudness → beat fingerprint
-///      + RhythmPattern if available) via ITrackAnalysisService.
-///   5. Write (or update) the entry in the in-memory index.
-///   6. Flush the index to disk every <see cref="FlushEveryN"/> files for durability.
+/// PHASE 1 — the heavy resumable analysis pass. For each audio file under <c>root</c>:
+///   1. Cheap key (size + mtime, straight from the directory listing): unchanged and already
+///      analysed → skip without opening the file.
+///   2. Read tag metadata. A JUSTPLAY blob at the CURRENT detection version is imported as-is —
+///      that analysis has already been paid for, on this machine or the other one.
+///   3. Otherwise run the full DSP pipeline (BPM → key → energy → loudness → beat fingerprint
+///      → RhythmPattern) and hash the file (for dedup).
+///   4. Write the entry to the sidecar index AND to this machine's library database.
 ///
-/// READ-ONLY on the audio library — no tags are written tonight.
-/// The sidecar index file is the ONLY output, written atomically via a .tmp rename.
+/// <para><b>What changed in 0.6 and why.</b> This command used to SHA-256 every file first, with
+/// the comment "cheap — no decode needed". Measured 2026-07-30 against <c>\\nas\music\GENRES</c>,
+/// it is not cheap over SMB: hashing reads every byte, i.e. the whole library through the network
+/// on every run, while the directory entry that answers "did this change?" costs 0.23 ms. Files
+/// are now hashed only when they are actually analysed.</para>
+///
+/// <para><b>READ-ONLY on the audio library</b> — no tags are written here (that is <c>promote</c>).
+/// Outputs are the index file and the local database.</para>
 /// </summary>
 internal static class AnalyzeCommand
 {
@@ -27,7 +31,10 @@ internal static class AnalyzeCommand
         string root,
         string indexPath,
         int threads,
-        int limit)
+        int limit,
+        string? dbPath = null,
+        bool noDb = false,
+        bool force = false)
     {
         root      = Path.GetFullPath(root);
         indexPath = Path.GetFullPath(indexPath);
@@ -38,9 +45,34 @@ internal static class AnalyzeCommand
             return 1;
         }
 
+        // ── The local library database (this machine's index) ────────────────
+        LibraryDb? db = null;
+        var dbLocation = "(none)";
+        if (!noDb)
+        {
+            dbLocation = dbPath is not null
+                ? Path.GetFullPath(dbPath)
+                : LibraryDb.DefaultPathFor(root);
+            try
+            {
+                db = LibraryDb.Open(dbLocation);
+            }
+            catch (Exception ex)
+            {
+                // A locked or unwritable database must not cost her the analysis run.
+                Console.Error.WriteLine($"[analyze] WARN: cannot open library db ({ex.Message}) — index only.");
+                dbLocation = $"(failed: {dbLocation})";
+            }
+        }
+
+        using var _ = db;
+
         Console.WriteLine($"[analyze] Root      : {root}");
         Console.WriteLine($"[analyze] Index     : {indexPath}");
+        Console.WriteLine($"[analyze] Library db: {dbLocation}");
         Console.WriteLine($"[analyze] Threads   : {threads}");
+        Console.WriteLine($"[analyze] Detection : v{TrackIndex.CurrentDetectionVersion}" +
+                          (force ? "  (--force: re-running DSP on everything)" : ""));
         if (limit < int.MaxValue)
             Console.WriteLine($"[analyze] Limit     : {limit}");
 
@@ -48,166 +80,133 @@ internal static class AnalyzeCommand
         var index = TrackIndex.Load(indexPath);
         Console.WriteLine($"[analyze] Existing entries: {index.Entries.Count:N0}");
 
-        // Enumerate files
-        var allFiles = AudioFiles.Enumerate(root).ToList();
+        // One enumeration, carrying size + mtime — a follow-up FileInfo per file would be a
+        // second round-trip each over SMB.
+        var allFiles = AudioFiles.EnumerateWithKeys(root)
+            .OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         if (limit < allFiles.Count)
             allFiles = allFiles.Take(limit).ToList();
 
         Console.WriteLine($"[analyze] Files to process: {allFiles.Count:N0}");
 
-        // Count how many we can skip upfront (without reading content hash yet)
-        // We'll do the real skip check after hashing inside the loop.
+        var dbState = db?.LoadSyncState();
 
         // ── Compose the analysis stack once ─────────────────────────────────
         using var composer = EngineComposer.Build();
 
-        var startTime      = DateTime.UtcNow;
-        var processed      = 0;
-        var skipped        = 0;
-        var failed         = 0;
-        var since          = 0; // files since last flush
-        var lockObj        = new object();
+        var startTime = DateTime.UtcNow;
+        var processed = 0;
+        var skipped   = 0;
+        var imported  = 0;
+        var analysed  = 0;
+        var failed    = 0;
+        var since     = 0; // files since last flush
+        var lockObj   = new object();
+        var pending   = new List<TrackIndexEntry>(FlushEveryN);
 
-        // For thread-safe progress reporting we use a simple shared counter.
-        // The analysis itself is parallelised; the index write is serialised.
         var parallelOptions = new ParallelOptions
         {
             MaxDegreeOfParallelism = threads,
         };
 
-        Parallel.ForEach(allFiles, parallelOptions, filePath =>
+        Parallel.ForEach(allFiles, parallelOptions, file =>
         {
+            var filePath = file.Path;
             try
             {
-                // 1. Hash first — cheap, used for resume check
-                string hash;
-                try
+                // ── 1. Cheap-key resume: no file is opened to answer this ────
+                if (!force && IsAlreadyDone(file, index, dbState, lockObj))
                 {
-                    hash = AudioFiles.Sha256(filePath);
-                }
-                catch (Exception ex)
-                {
-                    Console.Error.WriteLine($"[analyze] WARN: cannot hash {filePath}: {ex.Message}");
-                    Interlocked.Increment(ref failed);
+                    lock (lockObj)
+                    {
+                        skipped++;
+                        PrintProgress(++processed, allFiles.Count, startTime, skipped, failed, "[skip]");
+                    }
                     return;
                 }
 
-                // 2. Resume check
-                lock (lockObj)
-                {
-                    if (index.IsUpToDate(filePath, hash))
-                    {
-                        Interlocked.Increment(ref skipped);
-                        PrintProgress(++processed, allFiles.Count, startTime, skipped, failed, "[skip]");
-                        return;
-                    }
-                }
-
-                // 3. Read tag metadata (fast, no decode)
-                string?  title      = null, artist = null, album = null, genre = null;
-                uint?    year       = null;
-                double   durationSec = 0;
-                int?     bitrateKbps = null;
+                // ── 2. Tags (needed either way) ──────────────────────────────
+                TrackMetadata? meta = null;
                 try
                 {
-                    var meta = composer.MetadataReader.Read(filePath);
-                    title       = meta.Title;
-                    artist      = meta.Artist;
-                    album       = meta.Album;
-                    genre       = meta.Genre;
-                    year        = meta.Year;
-                    durationSec = meta.Duration.TotalSeconds;
-                    bitrateKbps = meta.Bitrate;
+                    meta = composer.MetadataReader.Read(filePath);
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"[analyze] WARN: tag read failed for {Path.GetFileName(filePath)}: {ex.Message}");
-                    // Continue — DSP can still run without tags
+                    // Continue — DSP can still run without tags.
                 }
 
-                // 4. DSP analysis
-                AnalysisResult? result = null;
-                string?         error  = null;
-                try
+                // ── 3. Already measured at the current version? Import it. ───
+                TrackIndexEntry? entry = null;
+                var status = "  ok ";
+
+                if (!force && meta is not null)
                 {
-                    using var cts = new CancellationTokenSource();
-                    result = composer.AnalysisService.AnalyzeAsync(filePath, null, cts.Token)
-                                     .GetAwaiter().GetResult();
+                    entry = TrackIndexMapping.FromStoredBlob(
+                        filePath, file.SizeBytes, file.ModifiedUtc, meta,
+                        minVersion: TrackIndex.CurrentDetectionVersion);
+
+                    if (entry is not null)
+                    {
+                        status = "[tags]";
+                        Interlocked.Increment(ref imported);
+                    }
                 }
-                catch (Exception ex)
+
+                // ── 4. Otherwise: hash + full DSP ───────────────────────────
+                if (entry is null)
                 {
-                    error = ex.Message;
-                    Console.Error.WriteLine($"[analyze] WARN: analysis failed for {Path.GetFileName(filePath)}: {ex.Message}");
-                    Interlocked.Increment(ref failed);
+                    string hash;
+                    try
+                    {
+                        hash = AudioFiles.Sha256(filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"[analyze] WARN: cannot hash {filePath}: {ex.Message}");
+                        Interlocked.Increment(ref failed);
+                        return;
+                    }
+
+                    AnalysisResult? result = null;
+                    string?         error  = null;
+                    try
+                    {
+                        using var cts = new CancellationTokenSource();
+                        result = composer.AnalysisService.AnalyzeAsync(filePath, null, cts.Token)
+                                         .GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex.Message;
+                        Console.Error.WriteLine($"[analyze] WARN: analysis failed for {Path.GetFileName(filePath)}: {ex.Message}");
+                        Interlocked.Increment(ref failed);
+                        status = " FAIL";
+                    }
+
+                    if (error is null) Interlocked.Increment(ref analysed);
+
+                    entry = TrackIndexMapping.ToIndexEntry(
+                        filePath, hash, file.SizeBytes, file.ModifiedUtc, meta, result,
+                        detectionVersion: TrackIndex.CurrentDetectionVersion, error: error);
                 }
 
-                // 5. Build index entry (read Rhythm defensively — may be null)
-                var rhythm = result?.Rhythm;
-                var fp     = result?.Fingerprint;
-
-                var fileSize = new FileInfo(filePath).Length;
-                var entry = new TrackIndexEntry
-                {
-                    FilePath         = filePath,
-                    ContentHash      = hash,
-                    AnalysedAt       = DateTime.UtcNow.ToString("o"),
-                    DetectionVersion = TrackIndex.CurrentDetectionVersion,
-                    FileSizeBytes    = fileSize,
-
-                    Title       = title,
-                    Artist      = artist,
-                    Album       = album,
-                    Genre       = genre,
-                    Year        = year,
-                    DurationSec = durationSec,
-                    BitrateKbps = bitrateKbps,
-
-                    Success      = result is not null && error is null,
-                    Error        = error,
-                    Bpm          = result?.Bpm,
-                    KeyName      = result?.Key?.Name,
-                    KeyCamelot   = result?.Key?.Camelot,
-                    KeyConfidence= result?.KeyConfidence,
-                    Energy       = result?.Energy,
-                    LoudnessLufs = result?.LoudnessLufs,
-                    ReplayGainDb = result?.ReplayGainDb,
-                    Peak         = result?.Peak,
-                    Danceability = fp?.Danceability,
-
-                    // RhythmPattern fields — null until other agent's DSP lands
-                    BeatType      = rhythm?.BeatType,
-                    FourOnFloor   = rhythm?.FourOnFloor,
-                    OffbeatEnergy = rhythm?.OffbeatEnergy,
-                    Swing         = rhythm?.Swing,
-                    Syncopation   = rhythm?.Syncopation,
-                    HalfTimeFeel  = rhythm?.HalfTimeFeel,
-
-                    // Vibe quartet + fatigue flag (v8+)
-                    RawEnergyScore   = result?.RawEnergyScore,
-                    SpectralFlatness = result?.SpectralFlatness,
-                    Harshness        = result?.Harshness,
-                    BassPunch        = result?.BassPunch,
-                    BassGroove       = result?.BassGroove,
-                    Dark             = result?.Dark,
-                    Hypnotic         = result?.Hypnotic,
-                    // Grid-confidence bundle (v9+)
-                    AcfSharpness     = result?.AcfSharpness,
-                    GridConfidence   = result?.GridConfidence,
-                };
-
-                // 6. Write to index (serialised)
+                // ── 5. Persist (serialised) ─────────────────────────────────
                 lock (lockObj)
                 {
                     index.Entries[filePath] = entry;
+                    pending.Add(entry);
                     since++;
-                    var n = ++processed;
-                    PrintProgress(n, allFiles.Count, startTime, skipped, failed,
-                        result is not null && error is null ? "  ok " : " FAIL");
+                    PrintProgress(++processed, allFiles.Count, startTime, skipped, failed, status);
 
                     // Flush periodically for durability
                     if (since >= FlushEveryN)
                     {
                         index.Save(indexPath);
+                        db?.UpsertMany(pending);
+                        pending.Clear();
                         since = 0;
                     }
                 }
@@ -221,13 +220,45 @@ internal static class AnalyzeCommand
 
         // Final save
         index.Save(indexPath);
+        if (pending.Count > 0) db?.UpsertMany(pending);
 
         Console.WriteLine();
-        Console.WriteLine($"[analyze] Done. Processed={processed}  Skipped={skipped}  Failed={failed}");
+        Console.WriteLine($"[analyze] Done. Analysed={analysed}  ImportedFromTags={imported}  " +
+                          $"Skipped={skipped}  Failed={failed}");
         Console.WriteLine($"[analyze] Index entries total: {index.Entries.Count:N0}");
         Console.WriteLine($"[analyze] Index written to: {indexPath}");
+        if (db is not null)
+            Console.WriteLine($"[analyze] Library db rows: {db.Count:N0}");
 
         return failed > 0 ? 2 : 0; // exit 2 = partial failure (some files failed)
+    }
+
+    /// <summary>
+    /// True if an existing entry — in the sidecar index or in this machine's database — still
+    /// matches the file's cheap key AND holds a finished analysis. Opens nothing.
+    ///
+    /// <para>Entries written before 0.6 have no recorded mtime, so they never match here and fall
+    /// through to a tag read. That costs ~57 ms each and usually ends in a blob import, which is
+    /// still vastly cheaper than the SHA-256 pass the old resume check performed on every file.</para>
+    /// </summary>
+    private static bool IsAlreadyDone(
+        AudioFiles.ScannedFile file,
+        TrackIndex index,
+        Dictionary<string, SyncKey>? dbState,
+        object lockObj)
+    {
+        if (dbState is not null &&
+            dbState.TryGetValue(file.Path, out var key) &&
+            key.Analysed &&
+            key.Matches(file.SizeBytes, file.ModifiedUtc))
+            return true;
+
+        lock (lockObj)
+        {
+            return index.Entries.TryGetValue(file.Path, out var entry)
+                && entry.Success
+                && entry.LooksUnchanged(file.SizeBytes, file.ModifiedUtc);
+        }
     }
 
     private static void PrintProgress(int n, int total, DateTime start, int skipped, int failed, string status)

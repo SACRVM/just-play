@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Reflection-free / trim-AOT-safe, like Core and Engine: the index is source-gen
+         serialized (LibraryJsonContext) and there is no dynamic type loading here. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JustPlay.Library.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Platform-agnostic core: IMetadataReader, TrackMetadata, AnalysisResult,
+         TrackAnalysisState. No Avalonia, no ManagedBass — the layering rule holds. -->
+    <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+  </ItemGroup>
+
+</Project>

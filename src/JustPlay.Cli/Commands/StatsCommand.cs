@@ -1,5 +1,4 @@
 using System.Text.Json;
-using JustPlay.Cli.Index;
 using JustPlay.Cli.Reports;
 
 namespace JustPlay.Cli.Commands;
@@ -176,7 +175,7 @@ internal static class StatsCommand
 
     // ── Histogram builders ───────────────────────────────────────────────────
 
-    private static List<BpmBucket> BuildBpmBuckets(IReadOnlyList<Index.TrackIndexEntry> entries)
+    private static List<BpmBucket> BuildBpmBuckets(IReadOnlyList<TrackIndexEntry> entries)
     {
         // Bands: 60-69, 70-79, …, 170-179, 180+, Unknown
         var bandMin = 60;
@@ -212,7 +211,7 @@ internal static class StatsCommand
         return result;
     }
 
-    private static Dictionary<string, int> BuildEnergyHist(IReadOnlyList<Index.TrackIndexEntry> entries)
+    private static Dictionary<string, int> BuildEnergyHist(IReadOnlyList<TrackIndexEntry> entries)
     {
         var hist = new Dictionary<string, int>();
         for (var i = 1; i <= 10; i++)
@@ -229,7 +228,7 @@ internal static class StatsCommand
         return hist;
     }
 
-    private static Dictionary<string, int> BuildDanceabilityHist(IReadOnlyList<Index.TrackIndexEntry> entries)
+    private static Dictionary<string, int> BuildDanceabilityHist(IReadOnlyList<TrackIndexEntry> entries)
     {
         var hist    = new Dictionary<string, int>();
         var unknown = 0;
@@ -245,7 +244,7 @@ internal static class StatsCommand
         return hist.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value);
     }
 
-    private static Dictionary<string, int> BuildBeatTypeHist(IReadOnlyList<Index.TrackIndexEntry> entries)
+    private static Dictionary<string, int> BuildBeatTypeHist(IReadOnlyList<TrackIndexEntry> entries)
     {
         var hist = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var e in entries)
@@ -261,8 +260,8 @@ internal static class StatsCommand
     /// for any scalar property in [0,1]. Entries where the value is null are skipped.
     /// </summary>
     private static Dictionary<string, int> BuildDecileHist(
-        IReadOnlyList<Index.TrackIndexEntry> entries,
-        Func<Index.TrackIndexEntry, double?> selector)
+        IReadOnlyList<TrackIndexEntry> entries,
+        Func<TrackIndexEntry, double?> selector)
     {
         const double bucketSize = 0.1;
         var hist = new Dictionary<string, int>();
@@ -279,12 +278,12 @@ internal static class StatsCommand
             : hist.OrderBy(kv => kv.Key).ToDictionary(kv => kv.Key, kv => kv.Value);
     }
 
-    private static Dictionary<string, double> BuildRhythmAverages(IReadOnlyList<Index.TrackIndexEntry> entries)
+    private static Dictionary<string, double> BuildRhythmAverages(IReadOnlyList<TrackIndexEntry> entries)
     {
         var rhythmEntries = entries.Where(e => e.BeatType is not null).ToList();
         if (rhythmEntries.Count == 0) return [];
 
-        static double Avg(IReadOnlyList<Index.TrackIndexEntry> list, Func<Index.TrackIndexEntry, double?> sel)
+        static double Avg(IReadOnlyList<TrackIndexEntry> list, Func<TrackIndexEntry, double?> sel)
         {
             var vals = list.Select(sel).Where(v => v.HasValue).Select(v => v!.Value).ToList();
             return vals.Count > 0 ? vals.Average() : 0.0;

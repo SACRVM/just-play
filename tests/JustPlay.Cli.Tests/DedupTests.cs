@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
 using JustPlay.Cli.Commands;
-using JustPlay.Cli.Index;
 using JustPlay.Cli.Reports;
+using JustPlay.Library;
 
 namespace JustPlay.Cli.Tests;
 

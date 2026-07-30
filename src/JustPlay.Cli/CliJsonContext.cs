@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using JustPlay.Cli.Index;
 using JustPlay.Cli.Reports;
 
 namespace JustPlay.Cli;
@@ -16,8 +15,8 @@ namespace JustPlay.Cli;
 [JsonSerializable(typeof(DedupReport))]
 [JsonSerializable(typeof(DedupGroup))]
 [JsonSerializable(typeof(List<DedupGroup>))]
-[JsonSerializable(typeof(TrackIndexEntry))]
-[JsonSerializable(typeof(TrackIndex))]
+// TrackIndex / TrackIndexEntry are serialized by LibraryJsonContext (0.6) — the index format
+// belongs to the library layer now, so the app and the CLI cannot drift apart on it.
 [JsonSerializable(typeof(StatsReport))]
 [JsonSerializable(typeof(BpmBucket))]
 [JsonSerializable(typeof(List<BpmBucket>))]

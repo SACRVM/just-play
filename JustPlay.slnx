@@ -7,6 +7,7 @@
     <Project Path="src/JustPlay.Cli/JustPlay.Cli.csproj" />
     <Project Path="src/JustPlay.Core/JustPlay.Core.csproj" />
     <Project Path="src/JustPlay.Engine/JustPlay.Engine.csproj" />
+    <Project Path="src/JustPlay.Library/JustPlay.Library.csproj" />
     <Project Path="src/JustPlay.Metadata/JustPlay.Metadata.csproj" />
     <Project Path="src/JustPlay.ML/JustPlay.ML.csproj" />
     <Project Path="src/JustPlay.Stream/JustPlay.Stream.csproj" />
@@ -18,6 +19,7 @@
     <Project Path="tests/JustPlay.Cli.Tests/JustPlay.Cli.Tests.csproj" />
     <Project Path="tests/JustPlay.Core.Tests/JustPlay.Core.Tests.csproj" />
     <Project Path="tests/JustPlay.Engine.Tests/JustPlay.Engine.Tests.csproj" />
+    <Project Path="tests/JustPlay.Library.Tests/JustPlay.Library.Tests.csproj" />
     <Project Path="tests/JustPlay.Metadata.Tests/JustPlay.Metadata.Tests.csproj" />
   </Folder>
 </Solution>

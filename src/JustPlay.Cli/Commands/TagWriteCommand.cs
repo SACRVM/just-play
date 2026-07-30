@@ -1,4 +1,3 @@
-using JustPlay.Cli.Index;
 using JustPlay.Cli.Tags;
 using JustPlay.Engine.Dtos;
 using JustPlay.Metadata;

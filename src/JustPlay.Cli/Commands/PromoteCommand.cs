@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using JustPlay.Cli.Index;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Metadata;
@@ -286,7 +285,7 @@ internal static class PromoteCommand
                 }
 
                 // Build full AnalysisResult from index entry.
-                var detected = BuildAnalysisResult(entry);
+                var detected = TrackIndexMapping.ToAnalysisResult(entry);
                 detectedKeyStr = entry.KeyCamelot;
 
                 // The "original" is what TKEY / TBPM / ENERGY currently hold.
@@ -437,66 +436,6 @@ internal static class PromoteCommand
             KeyDecision:    FieldDecision.Applied,
             EnergyDecision: FieldDecision.Applied,
         };
-
-    /// <summary>
-    /// Build a full <see cref="AnalysisResult"/> from a <see cref="TrackIndexEntry"/>.
-    /// Maps every scalar field the index carries. BeatFingerprint is omitted (the index
-    /// stores only the scalar summary <c>Danceability</c>, not the full float arrays
-    /// needed to reconstruct <see cref="BeatFingerprint"/>). The app will continue to
-    /// work: Harmonic Sort degrades gracefully when the fingerprint is null.
-    /// </summary>
-    private static AnalysisResult BuildAnalysisResult(TrackIndexEntry e)
-    {
-        MusicalKey? key = null;
-        if (e.KeyCamelot is { } cam)
-            key = MusicalKey.TryParse(cam);
-        else if (e.KeyName is { } name)
-            key = MusicalKey.TryParse(name);
-
-        RhythmPattern? rhythm = null;
-        if (e.BeatType  is { } bt  &&
-            e.FourOnFloor  is { } fof &&
-            e.OffbeatEnergy is { } obe &&
-            e.Swing         is { } swg &&
-            e.Syncopation   is { } syn &&
-            e.HalfTimeFeel  is { } htf)
-        {
-            rhythm = new RhythmPattern
-            {
-                BeatType      = bt,
-                FourOnFloor   = fof,
-                OffbeatEnergy = obe,
-                Swing         = swg,
-                Syncopation   = syn,
-                HalfTimeFeel  = htf,
-            };
-        }
-
-        return new AnalysisResult
-        {
-            Bpm              = e.Bpm,
-            Key              = key,
-            KeyConfidence    = e.KeyConfidence,
-            Energy           = e.Energy,
-            LoudnessLufs     = e.LoudnessLufs,
-            ReplayGainDb     = e.ReplayGainDb,
-            Peak             = e.Peak,
-            // BeatFingerprint: not stored in index → null. Harmonic Sort degrades gracefully.
-            Fingerprint      = null,
-            Rhythm           = rhythm,
-            // Vibe quartet (v7/v8):
-            RawEnergyScore   = e.RawEnergyScore,
-            SpectralFlatness = e.SpectralFlatness,
-            Harshness        = e.Harshness,
-            BassPunch        = e.BassPunch,
-            BassGroove       = e.BassGroove,
-            Dark             = e.Dark,
-            Hypnotic         = e.Hypnotic,
-            // Grid-confidence (v9):
-            AcfSharpness     = e.AcfSharpness,
-            GridConfidence   = e.GridConfidence,
-        };
-    }
 
     /// <summary>SHA-256 hex digest of the file bytes. Mirrors AudioFiles.Sha256.</summary>
     private static string ComputeSha256(string filePath)
