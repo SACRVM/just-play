@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using JustPlay.Core.Abstractions;
@@ -10,22 +11,29 @@ namespace JustPlay.App.Services;
 /// <summary>
 /// The app's handle on THIS machine's library index (0.6).
 ///
-/// <para>The database is per library root and is opened lazily, so a user who never picks a root —
-/// or never leaves FOLDER scope — pays nothing. Changing the root closes the old handle and opens
-/// the new one; everything else in the app just asks for query results.</para>
+/// <para><b>Indexing is opt-in and must stay opt-in.</b> Nothing here touches the disk until
+/// somebody asks for library data: reads open the database only if it already exists, and the file
+/// is CREATED by exactly one action — an explicit scan. A user who browses folders and never turns
+/// on "+ subfolders" ends up with no index file at all, and the finder behaves exactly as it did
+/// in 0.5.</para>
+///
+/// <para>The database is per library root; changing the root just drops the handle.</para>
 /// </summary>
 public interface ILibraryIndexService
 {
     /// <summary>The library root this index belongs to, or null before one is picked.</summary>
     string? Root { get; }
 
-    /// <summary>True when a database is open and can be queried.</summary>
-    bool IsReady { get; }
+    /// <summary>True when this root has an index on disk. False = never scanned; nothing was created.</summary>
+    bool HasIndex { get; }
 
     /// <summary>Rows in the index (0 when it has never been scanned).</summary>
     int Count { get; }
 
-    /// <summary>Points the service at a library root. Cheap and idempotent for the same root.</summary>
+    /// <summary>
+    /// Points the service at a library root. Records it and drops any previous handle — it does NOT
+    /// open or create anything, so merely opening the finder never leaves an index file behind.
+    /// </summary>
     void UseRoot(string? root);
 
     /// <summary>Runs a query. Returns empty when no index is open — never throws for that reason.</summary>
@@ -50,9 +58,16 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
 
     public string? Root { get; private set; }
 
-    public bool IsReady
+    public bool HasIndex
     {
-        get { lock (_gate) return _db is not null; }
+        get
+        {
+            lock (_gate)
+            {
+                if (_db is not null) return true;
+                return Root is { Length: > 0 } root && File.Exists(LibraryDb.DefaultPathFor(root));
+            }
+        }
     }
 
     public int Count
@@ -61,7 +76,7 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         {
             lock (_gate)
             {
-                try { return _db?.Count ?? 0; }
+                try { return Open(createIfMissing: false)?.Count ?? 0; }
                 catch (Exception) { return 0; }
             }
         }
@@ -73,33 +88,49 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
     {
         lock (_gate)
         {
-            if (string.Equals(Root, root, StringComparison.OrdinalIgnoreCase) && _db is not null)
-                return;
+            if (string.Equals(Root, root, StringComparison.OrdinalIgnoreCase)) return;
 
             _db?.Dispose();
             _db  = null;
             Root = root;
-
-            if (string.IsNullOrWhiteSpace(root)) return;
-
-            try
-            {
-                _db = LibraryDb.OpenForRoot(root);
-            }
-            catch (Exception ex)
-            {
-                // A busy or unwritable database must never stop the finder from browsing folders.
-                Console.WriteLine($"[Library] cannot open index for {root}: {ex.Message}");
-            }
         }
+    }
+
+    /// <summary>
+    /// The open database for the current root, or null.
+    ///
+    /// <para><paramref name="createIfMissing"/> is the opt-in gate: readers pass false, so browsing
+    /// a library that was never scanned reports "no index" instead of quietly creating one. Only an
+    /// explicit scan passes true. Caller holds <see cref="_gate"/>.</para>
+    /// </summary>
+    private LibraryDb? Open(bool createIfMissing)
+    {
+        if (_db is not null) return _db;
+        if (Root is not { Length: > 0 } root) return null;
+
+        var path = LibraryDb.DefaultPathFor(root);
+        if (!createIfMissing && !File.Exists(path)) return null;
+
+        try
+        {
+            _db = LibraryDb.Open(path);
+        }
+        catch (Exception ex)
+        {
+            // A busy or unwritable database must never stop the finder from browsing folders.
+            Console.WriteLine($"[Library] cannot open index for {root}: {ex.Message}");
+        }
+
+        return _db;
     }
 
     public IReadOnlyList<TrackIndexEntry> Query(LibraryQuery query)
     {
         lock (_gate)
         {
-            if (_db is null) return [];
-            try { return _db.Query(query); }
+            var db = Open(createIfMissing: false);
+            if (db is null) return [];
+            try { return db.Query(query); }
             catch (Exception ex)
             {
                 Console.WriteLine($"[Library] query failed: {ex.Message}");
@@ -114,8 +145,9 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         var root = Root;
         if (string.IsNullOrWhiteSpace(root)) return null;
 
+        // The one place allowed to bring the index into existence.
         LibraryDb? db;
-        lock (_gate) db = _db;
+        lock (_gate) db = Open(createIfMissing: true);
         if (db is null) return null;
 
         var report = await Task.Run(
