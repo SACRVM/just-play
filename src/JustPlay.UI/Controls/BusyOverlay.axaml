@@ -14,57 +14,79 @@
 
       0.6 rebuild (Chloe 2026-07-30: "ich mag die progress anzeige überhaupt nicht .. zuckelt zum
       wenn sich der text ändert (es er ständig tut) die bar ist viel zu schmal … ich hätte lieber
-      was rundes modernes schickes"):
+      was rundes modernes schickes", then "braucht der progress ne box? dann der ring nicht größer
+      sein?"):
 
-        · ROUND. A hand-drawn ProgressRing replaces the 74×3 px bar, with the percentage inside it.
-        · IT CANNOT JITTER. The card has a FIXED width and the text is centred inside it, so a
-          message changing per file no longer shoves the whole pill sideways. The old one was
-          centre-aligned with automatic width — every new string re-measured and moved it.
+        · ROUND, and it carries the composition. A hand-drawn ProgressRing (108 px) replaces the
+          74×3 px bar, on the theme's accent gradient with the percentage inside it.
+        · NO CARD. The bordered pill only ever earned its keep by making TEXT readable over
+          arbitrary content — the ring never needed it, and a hard-edged box around a round
+          indicator fought with it. A radial scrim does the same job with no edge to notice, and
+          the two text lines carry their own drop shadow.
+        · IT CANNOT JITTER. The content sits in a FIXED-size panel with the text centred and each
+          line at a fixed height, so a message changing per file moves nothing. The original was
+          centre-aligned with automatic width — every new string re-measured it and shoved it
+          sideways, which is exactly what she saw.
         · The ring's value EASES toward its target (see ProgressRing), so per-file reporting reads
           as one smooth sweep instead of a stutter.
 
       Anti-flicker is unchanged: nothing appears before ShowDelayMs of continuous busy, so the fast
-      per-knob re-renders that make a lab feel instant never flash a spinner. The look is the shared
-      themed card (BgLinear/BgGlowA + hairline + soft shadow), so it tracks the live theme.
+      per-knob re-renders that make a lab feel instant never flash a spinner.
     -->
     <Panel>
-        <Border x:Name="Pill" IsVisible="False"
-                Width="248"
-                HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                Margin="0,0,0,20" CornerRadius="16" ClipToBounds="True"
-                BoxShadow="0 12 34 0 #A6000000">
-            <Panel>
-                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
-                <Rectangle Fill="{DynamicResource BgGlowA}"  RadiusX="16" RadiusY="16"/>
-                <Border BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="16"/>
+        <Panel x:Name="Pill" IsVisible="False"
+               Width="280" Height="230"
+               HorizontalAlignment="Center" VerticalAlignment="Center">
 
-                <StackPanel Margin="18,16" Spacing="11" HorizontalAlignment="Stretch">
-                    <c:ProgressRing x:Name="Ring"
-                                    Width="52" Height="52"
-                                    HorizontalAlignment="Center"
-                                    RingThickness="4"
-                                    Progress="{Binding $parent[c:BusyOverlay].Progress}"
-                                    TrackBrush="#1FFFFFFF"
-                                    ArcBrush="{DynamicResource AccentGradient}"
-                                    LabelBrush="#E6FFFFFF"/>
+            <!-- No card. A soft scrim instead: the ring carries itself against any background, only
+                 the TEXT needs backing to stay readable, and a hard-edged bordered pill around a
+                 round indicator fought with it. Radial, so it has no edge to notice. -->
+            <Ellipse Width="300" Height="250" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Ellipse.Fill>
+                    <RadialGradientBrush GradientOrigin="50%,50%" Center="50%,50%" RadiusX="50%" RadiusY="50%">
+                        <GradientStop Offset="0.0"  Color="#B2000000"/>
+                        <GradientStop Offset="0.55" Color="#8C000000"/>
+                        <GradientStop Offset="1.0"  Color="#00000000"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
 
-                    <!-- Fixed height + centred: the phase line changes a handful of times per job
-                         and must not resize the card when it does. -->
-                    <TextBlock x:Name="MsgText" FontSize="12.5" Height="17"
-                               HorizontalAlignment="Center" TextAlignment="Center"
-                               Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
-                               Text="{Binding $parent[c:BusyOverlay].Message}"/>
+            <StackPanel Spacing="16" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <c:ProgressRing x:Name="Ring"
+                                Width="108" Height="108"
+                                HorizontalAlignment="Center"
+                                RingThickness="7"
+                                Progress="{Binding $parent[c:BusyOverlay].Progress}"
+                                TrackBrush="#26FFFFFF"
+                                ArcBrush="{DynamicResource AccentGradient}"
+                                LabelBrush="#F2FFFFFF"/>
 
-                    <!-- The counter that used to churn the layout. Same fixed-height treatment, and
-                         it collapses to nothing when a job has no detail to report. -->
-                    <TextBlock x:Name="DetailText" FontSize="10.5" Height="14"
-                               HorizontalAlignment="Center" TextAlignment="Center"
-                               Foreground="#8CFFFFFF" TextTrimming="CharacterEllipsis"
-                               Text="{Binding $parent[c:BusyOverlay].Detail}"
-                               IsVisible="{Binding $parent[c:BusyOverlay].Detail,
-                                                   Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                </StackPanel>
-            </Panel>
-        </Border>
+                <!-- Fixed height + centred inside a fixed-width panel: the phase line changes a
+                     handful of times per job and must never move anything when it does. -->
+                <TextBlock x:Name="MsgText" FontSize="13.5" Height="19"
+                           HorizontalAlignment="Center" TextAlignment="Center"
+                           Foreground="#F2FFFFFF" TextTrimming="CharacterEllipsis">
+                    <TextBlock.Text>
+                        <Binding Path="Message" RelativeSource="{RelativeSource AncestorType=c:BusyOverlay}"/>
+                    </TextBlock.Text>
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="Black" BlurRadius="8" OffsetX="0" OffsetY="1" Opacity="0.7"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+
+                <!-- The counter that used to churn the layout. Same fixed-height treatment, and it
+                     collapses to nothing when a job has no detail to report. -->
+                <TextBlock x:Name="DetailText" FontSize="11" Height="15"
+                           HorizontalAlignment="Center" TextAlignment="Center"
+                           Foreground="#A6FFFFFF" TextTrimming="CharacterEllipsis"
+                           Text="{Binding $parent[c:BusyOverlay].Detail}"
+                           IsVisible="{Binding $parent[c:BusyOverlay].Detail,
+                                               Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="Black" BlurRadius="8" OffsetX="0" OffsetY="1" Opacity="0.7"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+            </StackPanel>
+        </Panel>
     </Panel>
 </UserControl>
