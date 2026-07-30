@@ -36,7 +36,7 @@
     -->
     <Panel>
         <Panel x:Name="Pill" IsVisible="False"
-               Width="188" Height="188"
+               Width="200" Height="200"
                HorizontalAlignment="Center" VerticalAlignment="Center">
 
             <!-- The disc. Everything the overlay shows lives INSIDE it (Chloe 2026-07-30:
@@ -44,24 +44,25 @@
                  gefahr"), so no text can ever land on a list row and turn to mush — which is what
                  the card, and then the scrim, had been there to prevent. Themed fill + hairline +
                  shadow, so it still reads as a JUST object and tracks the live theme. -->
-            <Ellipse Width="170" Height="170" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <Ellipse Width="188" Height="188" HorizontalAlignment="Center" VerticalAlignment="Center"
                      Fill="{DynamicResource BgLinear}">
                 <Ellipse.Effect>
                     <DropShadowEffect Color="Black" BlurRadius="34" OffsetX="0" OffsetY="10" Opacity="0.62"/>
                 </Ellipse.Effect>
             </Ellipse>
-            <Ellipse Width="170" Height="170" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <Ellipse Width="188" Height="188" HorizontalAlignment="Center" VerticalAlignment="Center"
                      Fill="{DynamicResource BgGlowA}"/>
-            <!-- ⚠ No hairline stroke on the disc. It used to carry one, which was fine while the
-                 rim was a thin 6 px ring sitting OUTSIDE it — but the rim is 11 px now and its band
-                 spans radius 79–90, so a 1 px circle at radius 85 lands INSIDE the ring and reads
-                 as a stray line drawn through it (Chloe 2026-07-30: "da ist eine dünne linie im
-                 ring - warum?"). The ring's own track is the disc's edge now. -->
 
-            <!-- The rim rides ON the disc's edge — thick enough to read from across the room, and
-                 it never crosses the text because the text column is the inscribed square. -->
+            <!-- ⚠ The rim must sit ENTIRELY on the disc, never across its edge. The track is
+                 semi-transparent, so wherever the disc's boundary crosses the band it composites
+                 against the disc on one side and the pane on the other — and that shows up as a
+                 seam drawn straight through the ring (Chloe 2026-07-30: "da ist eine dünne linie im
+                 ring", then "der ring innen - als wäre er immer noch kaputt" after I had removed a
+                 hairline that was only a second line in the same place). Disc Ø188 / ring Ø178 at
+                 11 px = band radius 78–89 against disc radius 94: the whole rim lands on filled
+                 pixels. Keep that margin if either number ever changes. -->
             <c:ProgressRing x:Name="Ring"
-                            Width="180" Height="180"
+                            Width="178" Height="178"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
                             RingThickness="11" ShowPercent="False"
                             Progress="{Binding $parent[c:BusyOverlay].Progress}"
