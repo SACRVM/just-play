@@ -215,6 +215,29 @@ public sealed class LibraryDbTests : IDisposable
         Assert.Equal(145, fresh.TryGet(@"C:\m\b.mp3")!.Bpm);
     }
 
+    // ── Point lookups: what the finder asks when it lists ONE folder ──────────
+
+    [Fact]
+    public void LookupMany_returns_only_what_it_knows()
+    {
+        _db.UpsertMany([Track(@"C:\m\a.mp3", bpm: 128), Track(@"C:\m\b.mp3", bpm: 145)]);
+
+        var found = _db.LookupMany([@"C:\m\a.mp3", @"C:\m\b.mp3", @"C:\m\never-indexed.mp3"]);
+
+        Assert.Equal(2, found.Count);
+        Assert.Equal(145, found[@"C:\m\b.mp3"].Bpm);
+        Assert.False(found.ContainsKey(@"C:\m\never-indexed.mp3"));
+    }
+
+    [Fact]
+    public void LookupMany_matches_case_insensitively_and_survives_an_empty_ask()
+    {
+        _db.Upsert(Track(@"C:\m\A.mp3"));
+
+        Assert.Single(_db.LookupMany([@"c:\m\a.MP3"]));
+        Assert.Empty(_db.LookupMany([]));
+    }
+
     // ── Where the file lives ──────────────────────────────────────────────────
 
     [Theory]

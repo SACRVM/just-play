@@ -544,10 +544,18 @@
                                 <Grid ColumnDefinitions="Auto,*">
                                     <TextBlock Grid.Column="0" Classes="finderhead" Text="LIBRARY"
                                                Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    <!-- Disabled without a usable index, and the tooltip says WHY —
+                                         a greyed-out control with no reason is the worst kind
+                                         (Chloe 2026-07-30: "ist immer besser zu sagen warum"). The
+                                         locked look reuses the same dim + tooltip pattern as the
+                                         FILTER tab while a folder is still loading. -->
                                     <ToggleButton Grid.Column="1" Classes="subfolders"
                                                   HorizontalAlignment="Right" Margin="0,0,2,0"
                                                   IsChecked="{Binding IncludeSubfolders}"
-                                                  ToolTip.Tip="Also list everything in the folders below this one">
+                                                  IsEnabled="{Binding CanSearchSubfolders}"
+                                                  Opacity="{Binding SubfoldersOpacity}"
+                                                  ToolTip.Tip="{Binding SubfoldersTip}"
+                                                  ToolTip.ShowOnDisabled="True">
                                         <TextBlock Classes="finderhead" Text="+ SUBFOLDERS"/>
                                     </ToggleButton>
                                 </Grid>
@@ -1194,6 +1202,32 @@
                                 </Grid>
                                 <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
                                            Text="Off: browse silently, Enter plays the highlighted song. On: it auditions as soon as you land on it."/>
+
+                                <!-- ⛔ The indexing opt-in (0.6). Off by default: with it off the finder
+                                     reads every listing from disk exactly like 0.5 and no index file is
+                                     ever created. Turning it on does NOT scan — that stays a button. -->
+                                <TextBlock Text="LIBRARY INDEX" Classes="finder-section" Margin="0,10,0,0"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="Keep a library index on this computer"
+                                               FontSize="11.5" Foreground="#E6FFFFFF"
+                                               VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <ToggleSwitch Grid.Column="1" OnContent="" OffContent=""
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding UseLibraryIndex}"/>
+                                </Grid>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
+                                           Text="Off: every folder is read from disk, nothing is stored. On: songs already in the index load instantly, and you can search across subfolders. The index lives on this computer — your music folders are never written to."/>
+                                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,0"
+                                            IsVisible="{Binding UseLibraryIndex}">
+                                    <Button Classes="crumb" Content="Scan library" FontSize="11.5"
+                                            Command="{Binding ScanLibraryCommand}"
+                                            IsEnabled="{Binding !IsScanning}"/>
+                                    <TextBlock Text="{Binding LibraryCountText}" FontSize="10.5"
+                                               Foreground="#73FFFFFF" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock FontSize="10" Foreground="#73FFFFFF" TextWrapping="Wrap"
+                                           IsVisible="{Binding UseLibraryIndex}"
+                                           Text="The first scan reads every track's tags once. After that it only looks at what changed, so it stays quick."/>
 
                                 <TextBlock Text="SEEK STEP" Classes="finder-section" Margin="0,10,0,0"/>
                                 <StackPanel Orientation="Horizontal" Spacing="6">

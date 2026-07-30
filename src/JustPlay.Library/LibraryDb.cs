@@ -378,6 +378,32 @@ public sealed class LibraryDb : IDisposable
         }
     }
 
+    /// <summary>
+    /// Point lookups for a known set of paths, in one lock. The finder uses this when it lists a
+    /// single folder: the DISK says which files are there, this says what we already know about
+    /// them, and only the leftovers cost a tag read.
+    /// </summary>
+    public Dictionary<string, TrackIndexEntry> LookupMany(IEnumerable<string> paths)
+    {
+        var found = new Dictionary<string, TrackIndexEntry>(StringComparer.OrdinalIgnoreCase);
+
+        lock (_gate)
+        {
+            using var cmd = _cx.CreateCommand();
+            cmd.CommandText = SelectColumns + " WHERE path=$path;";
+            var p = cmd.Parameters.Add("$path", Microsoft.Data.Sqlite.SqliteType.Text);
+
+            foreach (var path in paths)
+            {
+                p.Value = path;
+                using var r = cmd.ExecuteReader();
+                if (r.Read()) found[path] = Read(r);
+            }
+        }
+
+        return found;
+    }
+
     /// <summary>Total rows, including entries flagged missing.</summary>
     public int Count
     {

@@ -590,20 +590,34 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             : Directory.EnumerateFiles(entry.FullPath).Where(AudioFileTypes.IsAudio)
                 .OrderBy(Path.GetFileName, NaturalComparer.Instance).ToList();
 
+    /// <summary>One row to build: its path, plus what the index already knows about it (null = read
+    /// its tags).</summary>
+    private readonly record struct PendingRow(string Path, TrackIndexEntry? Entry);
+
+    /// <summary>
+    /// List ONE folder. The disk stays authoritative for which tracks are there — a file copied in
+    /// five minutes ago must show up whether or not anyone has scanned since — but each row's data
+    /// comes out of the index when the index still matches the file. Only the leftovers cost a tag
+    /// read.
+    ///
+    /// <para>The disk part is nearly free: measured 0.23 ms per file for the directory entry
+    /// against ~57 ms to open one.</para>
+    /// </summary>
     private void LoadFolderFiles(string folder)
     {
         _navCts?.Cancel();
         var cts = _navCts = new CancellationTokenSource();
         LoadError = null;
+        var useIndex = IndexReady;
+
         _ = Task.Run(() =>
         {
-            List<string> paths;
+            List<AudioFiles.ScannedFile> files;
             try
             {
                 // Per-folder guard: a flaky NAS share can throw on any enumeration call.
-                paths = Directory.EnumerateFiles(folder)
-                    .Where(AudioFileTypes.IsAudio)
-                    .OrderBy(Path.GetFileName, NaturalComparer.Instance)
+                files = AudioFiles.EnumerateWithKeys(folder, recursive: false)
+                    .OrderBy(f => Path.GetFileName(f.Path), NaturalComparer.Instance)
                     .ToList();
             }
             catch (Exception ex)
@@ -611,7 +625,26 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 PostLoadError(cts.Token, $"Can't open this folder — {ex.Message}");
                 return;
             }
-            PopulateItems(paths, cts.Token);
+
+            var known = useIndex
+                ? _index.LookupMany(files.Select(f => f.Path).ToList())
+                : null;
+
+            var rows = new List<PendingRow>(files.Count);
+            foreach (var f in files)
+            {
+                // Use the stored row only if it still describes THIS file (size + mtime) and holds
+                // a finished analysis; anything else falls back to reading the tags.
+                var entry = known is not null
+                            && known.TryGetValue(f.Path, out var e)
+                            && e.LooksUnchanged(f.SizeBytes, f.ModifiedUtc)
+                            && e.Success
+                    ? e : null;
+
+                rows.Add(new PendingRow(f.Path, entry));
+            }
+
+            PopulateItems(rows, cts.Token);
         }, cts.Token);
     }
 
@@ -634,7 +667,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 PostLoadError(cts.Token, $"Can't read this playlist — {ex.Message}");
                 return;
             }
-            PopulateItems(paths, cts.Token); // playlist ORDER is meaningful — do not re-sort
+            // Playlist ORDER is meaningful — do not re-sort. Rows hydrate from tags: a playlist's
+            // entries are arbitrary paths, so there is no cheap key to validate an index row
+            // against without stat-ing every file first.
+            PopulateItems(paths.Select(p => new PendingRow(p, null)).ToList(), cts.Token);
         }, cts.Token);
     }
 
@@ -653,9 +689,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// </summary>
     public bool IncludeSubfolders
     {
-        get => _settings.Current.IncludeSubfolders;
+        get => _settings.Current.IncludeSubfolders && CanSearchSubfolders;
         set
         {
+            if (value && !CanSearchSubfolders) return;   // the UI disables it; belt and braces
             if (value == _settings.Current.IncludeSubfolders) return;
             _settings.Save(_settings.Current with { IncludeSubfolders = value });
             OnPropertyChanged();
@@ -663,6 +700,52 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             RaiseLibraryState();
         }
     }
+
+    /// <summary>
+    /// ⛔ The indexing opt-in. Off (the default) = the 0.5 finder: every listing read from disk,
+    /// no index file created on this machine. On = keep a local index and use it wherever it is
+    /// faster. It never scans by itself.
+    /// </summary>
+    public bool UseLibraryIndex
+    {
+        get => _settings.Current.UseLibraryIndex;
+        set
+        {
+            if (value == _settings.Current.UseLibraryIndex) return;
+            _settings.Save(_settings.Current with { UseLibraryIndex = value });
+            OnPropertyChanged();
+            RaiseLibraryState();
+            RefreshFolder();   // start (or stop) serving rows out of the index
+        }
+    }
+
+    /// <summary>
+    /// The double check every read does: opted in, the database exists, and it actually holds
+    /// something. Only then is the index used — for anything.
+    /// </summary>
+    public bool IndexReady => UseLibraryIndex && _index.HasIndex && _index.Count > 0;
+
+    /// <summary>Searching below the current folder needs the index — a subtree cannot be walked
+    /// from disk at a sane cost (~57 ms per file, measured over SMB).</summary>
+    public bool CanSearchSubfolders => IndexReady;
+
+    /// <summary>
+    /// WHY the subfolder search is unavailable — shown on the disabled toggle. A control that is
+    /// simply greyed out with no reason is the most annoying kind.
+    /// </summary>
+    public string? SubfoldersLockedReason =>
+        CanSearchSubfolders            ? null
+        : !UseLibraryIndex             ? "Searching below this folder needs the library index. Turn it on in the finder settings (⚙)."
+        : IsScanning                   ? "The library is being scanned — this unlocks when it finishes."
+                                       : "The library index is empty. Scan it once (⚙ finder settings) and searching across subfolders unlocks.";
+
+    /// <summary>What the toggle says on hover: what it does, or why it can't.</summary>
+    public string SubfoldersTip =>
+        SubfoldersLockedReason ?? "Also list everything in the folders below this one";
+
+    /// <summary>Dim the toggle while it is locked — the same "this is unavailable" cue the FILTER
+    /// tab uses while a folder is still loading, so the two read alike.</summary>
+    public double SubfoldersOpacity => CanSearchSubfolders ? 1.0 : 0.45;
 
     /// <summary>The file-pane load for a folder, routed by how deep we are looking.</summary>
     private void LoadFilesForFolder(string folder)
@@ -699,56 +782,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 PostLoadError(cts.Token, $"Can't read the library index — {ex.Message}");
                 return;
             }
-            PopulateFromIndex(rows, cts.Token);
+            // Every row comes with its data — the whole subtree is complete on arrival.
+            PopulateItems(rows.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
         }, cts.Token);
-    }
-
-    /// <summary>
-    /// Turn index rows into file-pane rows. Unlike <see cref="PopulateItems"/> nothing is hydrated
-    /// afterwards: the data came out of the index, so every row is complete on arrival and sorting
-    /// plus the FILTER tab are live from the first frame.
-    /// </summary>
-    private void PopulateFromIndex(IReadOnlyList<TrackIndexEntry> rows, CancellationToken ct)
-    {
-        if (ct.IsCancellationRequested) return;
-
-        var items = new List<FinderItemViewModel>(rows.Count);
-        for (var i = 0; i < rows.Count; i++)
-        {
-            var entry = rows[i];
-            var item  = new FinderItemViewModel(entry.FilePath) { Order = i };
-
-            // Claim the row so neither the viewport nor a background pass ever re-reads this file.
-            item.TryClaimHydration();
-
-            var model = item.Track.Model;
-            model.Metadata = TrackIndexMapping.ToMetadata(entry);
-            if (entry.Success)
-            {
-                model.Analysis = TrackIndexMapping.ToAnalysisResult(entry);
-                model.AnalysisStatus = AnalysisStatus.Done;
-            }
-
-            // Refresh HERE, off the UI thread: these view-models are not bound to anything yet, so
-            // the property-changed notifications have no listeners and cost nothing. Doing it after
-            // the post would put thousands of raises on the UI thread for no reason.
-            item.Track.Refresh();
-            item.Track.ToggleFavoriteCallback = (_, liked) => { QueueLike(item, liked); return Task.CompletedTask; };
-
-            items.Add(item);
-        }
-
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (ct.IsCancellationRequested) return;
-            _masterItems   = items;
-            _hydratedCount = _hydrateTotal = items.Count;
-            AllHydrated    = true;   // ← the payoff: no waiting for sort or filters
-            ApplyMembership();
-            RecomputeRangeDomains();
-            RebuildView();
-            RaiseLibraryState();
-        });
     }
 
     // ── Scanning the library (keeps the index in step with the disk) ─────────────────────────────
@@ -759,16 +795,27 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Live scan status, e.g. "Reading tags… 1,203 / 4,096".</summary>
     [ObservableProperty] private string? _scanMessage;
 
-    /// <summary>Looking across subfolders with an index that has never been filled — offer the scan
-    /// instead of an empty list that looks like a bug.</summary>
+    /// <summary>
+    /// Opted in, nothing indexed yet, and the pane has nothing to show — then the scan offer is the
+    /// useful hint. Requires an empty pane on purpose: a populated folder listing must never get an
+    /// overlay telling her to scan, because that listing is perfectly fine without an index.
+    /// </summary>
     public bool ShowLibraryNotScanned =>
-        IncludeSubfolders && !HasNoRoot && !IsScanning && _index.Count == 0;
+        UseLibraryIndex && !HasNoRoot && !IsScanning
+        && _index.Count == 0 && _masterItems.Count == 0;
 
     /// <summary>"14,186 tracks indexed" — the footer note under the scan button.</summary>
     public string LibraryCountText => $"{_index.Count:N0} tracks indexed";
 
     private void RaiseLibraryState()
     {
+        OnPropertyChanged(nameof(IndexReady));
+        OnPropertyChanged(nameof(CanSearchSubfolders));
+        OnPropertyChanged(nameof(SubfoldersLockedReason));
+        OnPropertyChanged(nameof(SubfoldersTip));
+        OnPropertyChanged(nameof(SubfoldersOpacity));
+        OnPropertyChanged(nameof(UseLibraryIndex));
+        OnPropertyChanged(nameof(IncludeSubfolders));
         OnPropertyChanged(nameof(ShowLibraryNotScanned));
         OnPropertyChanged(nameof(LibraryCountText));
         OnPropertyChanged(nameof(ShowEmptyFolderHint));
@@ -854,23 +901,55 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Turn a list of file paths into rows. Rows appear instantly; metadata is fetched
     /// what-you-see — the visible viewport (HydrateVisible) and a parallel background fill race to read
     /// each row once. Shared by the folder and playlist loads.</summary>
-    private void PopulateItems(List<string> paths, CancellationToken ct)
+    private void PopulateItems(List<PendingRow> rows, CancellationToken ct)
     {
         if (ct.IsCancellationRequested) return;
 
         // Order = the load order (natural / playlist), so a "default" (unsorted) column state can restore it.
-        var items = paths.Select((p, i) => new FinderItemViewModel(p) { Order = i }).ToList();
-        // Mouse likes on the heart go through the same deferred path as the L key.
-        foreach (var item in items)
+        var items = new List<FinderItemViewModel>(rows.Count);
+        var needHydration = 0;
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row  = rows[i];
+            var item = new FinderItemViewModel(row.Path) { Order = i };
+            // Mouse likes on the heart go through the same deferred path as the L key.
             item.Track.ToggleFavoriteCallback = (_, liked) => { QueueLike(item, liked); return Task.CompletedTask; };
+
+            if (row.Entry is { } entry)
+            {
+                // Already known: claim the row so neither the viewport nor the background pass
+                // re-reads the file, and fill it straight from the index.
+                item.TryClaimHydration();
+                var model = item.Track.Model;
+                model.Metadata = TrackIndexMapping.ToMetadata(entry);
+                if (entry.Success)
+                {
+                    model.Analysis = TrackIndexMapping.ToAnalysisResult(entry);
+                    model.AnalysisStatus = AnalysisStatus.Done;
+                }
+                // Refresh HERE, off the UI thread: nothing is bound to these view-models yet, so the
+                // notifications have no listeners. Doing it after the post would put thousands of
+                // raises on the UI thread for nothing.
+                item.Track.Refresh();
+            }
+            else
+            {
+                needHydration++;
+            }
+
+            items.Add(item);
+        }
 
         Dispatcher.UIThread.Post(() =>
         {
             if (ct.IsCancellationRequested) return;
             _masterItems = items;
             _hydratedCount = 0;
-            _hydrateTotal = items.Count;
-            AllHydrated = items.Count == 0;   // empty folder → nothing to gate; else lock sorting until filled
+            _hydrateTotal = needHydration;
+            // Sorting stays locked only while rows are still being READ. A listing served entirely
+            // from the index is complete on arrival, so sort + FILTER are live immediately.
+            AllHydrated = needHydration == 0;
             ApplyMembership();
             RecomputeRangeDomains(); // scale the FILTER ranges to this folder (redone once tags are in)
             RebuildView();           // load order while filling — SortList stays in load order until AllHydrated
@@ -1713,6 +1792,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasActiveFilter));
         OnPropertyChanged(nameof(ShowEmptyFolderHint));
         OnPropertyChanged(nameof(ShowNoMatches));
+        OnPropertyChanged(nameof(ShowLibraryNotScanned));   // depends on the pane being empty
     }
 
     /// <summary>Auto-scale every range's domain to the values present in the current view and reset its

@@ -40,6 +40,12 @@ public interface ILibraryIndexService
     IReadOnlyList<TrackIndexEntry> Query(LibraryQuery query);
 
     /// <summary>
+    /// What the index knows about a specific set of files. Empty when there is no index — the
+    /// caller then falls back to reading tags, per row.
+    /// </summary>
+    IReadOnlyDictionary<string, TrackIndexEntry> LookupMany(IReadOnlyList<string> paths);
+
+    /// <summary>
     /// Brings the index in line with the disk. Long-running on a first run (measured ~13.5 min for
     /// 14k files over SMB — the tag reads dominate), near-instant afterwards, because an unchanged
     /// file is recognised by its directory entry and never opened.
@@ -135,6 +141,23 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
             {
                 Console.WriteLine($"[Library] query failed: {ex.Message}");
                 return [];
+            }
+        }
+    }
+
+    public IReadOnlyDictionary<string, TrackIndexEntry> LookupMany(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0) return new Dictionary<string, TrackIndexEntry>();
+
+        lock (_gate)
+        {
+            var db = Open(createIfMissing: false);
+            if (db is null) return new Dictionary<string, TrackIndexEntry>();
+            try { return db.LookupMany(paths); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Library] lookup failed: {ex.Message}");
+                return new Dictionary<string, TrackIndexEntry>();
             }
         }
     }

@@ -10,11 +10,17 @@ namespace JustPlay.Library;
 public static class AudioFiles
 {
     /// <summary>
-    /// Lower-case extensions (including the dot) that JustPlay recognises as audio.
-    /// Matches the set in <c>TrackEngine</c> plus AAC/WMA which can appear in DJ libraries.
+    /// Lower-case extensions (including the dot) that JustPlay recognises as audio — the ONE list;
+    /// the app's <c>AudioFileTypes</c> delegates here. Matches <c>TrackEngine</c> plus AAC/WMA,
+    /// which turn up in DJ libraries.
+    ///
+    /// <para>⚠ <c>.opus</c> is in the list because the app has always listed it, and a format
+    /// silently vanishing from a browser is worse than one that fails loudly — but only
+    /// <c>bassenc_opus.dll</c> (the streaming ENCODER) is vendored, not the <c>bassopus</c> decoder
+    /// plugin. An .opus file therefore shows up and then fails to play or analyse.</para>
     /// </summary>
     public static readonly string[] Extensions =
-        [".mp3", ".wav", ".flac", ".aif", ".aiff", ".m4a", ".aac", ".ogg", ".wma"];
+        [".mp3", ".wav", ".flac", ".aif", ".aiff", ".m4a", ".aac", ".ogg", ".opus", ".wma"];
 
     /// <summary>
     /// Folder names that never hold library content: NAS system dirs (Synology thumbnails and
@@ -70,14 +76,20 @@ public static class AudioFiles
     /// <para>Unordered — the caller compares against a dictionary, so sorting would only cost a
     /// full materialisation of the tree.</para>
     /// </summary>
-    public static IEnumerable<ScannedFile> EnumerateWithKeys(string root) =>
+    /// <param name="root">Folder to enumerate.</param>
+    /// <param name="recursive">
+    /// True (default) walks the whole subtree. False lists only the folder's own tracks — what the
+    /// finder needs when it is showing one directory, where the disk stays authoritative for WHICH
+    /// files exist and the index only supplies what is already known about them.
+    /// </param>
+    public static IEnumerable<ScannedFile> EnumerateWithKeys(string root, bool recursive = true) =>
         new System.IO.Enumeration.FileSystemEnumerable<ScannedFile>(
             root,
             (ref System.IO.Enumeration.FileSystemEntry entry) => new ScannedFile(
                 entry.ToFullPath(), entry.Length, entry.LastWriteTimeUtc.UtcDateTime),
             new EnumerationOptions
             {
-                RecurseSubdirectories = true,
+                RecurseSubdirectories = recursive,
                 // macOS/SMB: protected subfolders (e.g. TemporaryItems, .Trashes) throw
                 // UnauthorizedAccess and would abort the whole walk without this.
                 IgnoreInaccessible = true,

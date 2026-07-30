@@ -32,10 +32,23 @@ public sealed record FinderSettings
     public bool AutoPlayOnSelect { get; init; } = false;
 
     /// <summary>
-    /// When true, the file pane lists everything in the folders BELOW the selected one, not just
-    /// its own tracks (0.6). Persisted because it is a habit, not a per-visit decision
-    /// (Chloe 2026-07-30). Off by default: a single folder is always read fresh from disk, while
-    /// a subtree is only as current as the last library scan.
+    /// ⛔ The opt-in for indexing (0.6). Off by default and it must stay that way: with it off the
+    /// finder behaves exactly as it did in 0.5 — every listing read from disk — and no index file
+    /// is ever created on this machine.
+    ///
+    /// <para>On, it means: keep a local index and USE it wherever it is faster. It does not scan by
+    /// itself; the scan stays an explicit action.</para>
+    /// </summary>
+    public bool UseLibraryIndex { get; init; } = false;
+
+    /// <summary>
+    /// Search depth: false = the selected folder only, true = it and everything below it.
+    /// Persisted because it is a habit, not a per-visit decision (Chloe 2026-07-30).
+    ///
+    /// <para>Searching below the current folder is only possible when the rows come from the index —
+    /// walking a subtree from disk would mean a tag read per file (~57 ms each, measured over SMB).
+    /// So this is disabled, with the reason shown, whenever <see cref="UseLibraryIndex"/> is off or
+    /// the index has not been built yet.</para>
     /// </summary>
     public bool IncludeSubfolders { get; init; } = false;
 

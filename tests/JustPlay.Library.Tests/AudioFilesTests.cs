@@ -41,9 +41,42 @@ public sealed class AudioFilesTests : IDisposable
     [InlineData(@"C:\m\a.mp3",   true)]
     [InlineData(@"C:\m\a.FLAC",  true)]
     [InlineData(@"C:\m\a.aiff",  true)]
+    // .opus is here because the APP has always listed it. The two lists had drifted, and the day
+    // the finder started reading from the index every .opus file would have silently vanished from
+    // it. (Playing one still needs the bassopus decoder plugin, which is not vendored.)
+    [InlineData(@"C:\m\a.opus",  true)]
     [InlineData(@"C:\m\._a.mp3", false)]
     [InlineData(@"C:\m\a.jpg",   false)]
     [InlineData(@"C:\m\a.m3u",   false)]
     public void IsAudio_agrees_with_the_enumeration(string path, bool expected) =>
         Assert.Equal(expected, AudioFiles.IsAudio(path));
+
+    [Fact]
+    public void EnumerateWithKeys_can_stay_in_one_folder()
+    {
+        var sub = Path.Combine(_root, "Sub");
+        Directory.CreateDirectory(sub);
+        File.WriteAllText(Path.Combine(_root, "here.mp3"), "x");
+        File.WriteAllText(Path.Combine(sub, "below.mp3"), "x");
+
+        var shallow = AudioFiles.EnumerateWithKeys(_root, recursive: false)
+            .Select(f => Path.GetFileName(f.Path)).ToArray();
+        var deep = AudioFiles.EnumerateWithKeys(_root)
+            .Select(f => Path.GetFileName(f.Path)).OrderBy(n => n).ToArray();
+
+        Assert.Equal(["here.mp3"], shallow);
+        Assert.Equal(["below.mp3", "here.mp3"], deep);
+    }
+
+    [Fact]
+    public void EnumerateWithKeys_reports_size_and_mtime_without_a_second_look()
+    {
+        var path = Path.Combine(_root, "track.mp3");
+        File.WriteAllText(path, "0123456789");
+
+        var scanned = Assert.Single(AudioFiles.EnumerateWithKeys(_root));
+
+        Assert.Equal(new FileInfo(path).Length, scanned.SizeBytes);
+        Assert.Equal(File.GetLastWriteTimeUtc(path), scanned.ModifiedUtc, TimeSpan.FromSeconds(1));
+    }
 }
