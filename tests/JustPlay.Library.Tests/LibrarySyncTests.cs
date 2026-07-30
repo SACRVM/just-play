@@ -262,6 +262,147 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal(1, report.ImportedFromTags);
     }
 
+    // ── The per-folder check behind a painted listing ─────────────────────────
+
+    [Fact]
+    public void An_unchanged_folder_costs_one_fingerprint_and_no_reads()
+    {
+        MakeFile(@"GENRES\a.mp3", blob: Blob());
+        MakeFile(@"GENRES\b.mp3", blob: Blob());
+        var folder = Path.Combine(_root, "GENRES");
+
+        var first = _sync.VerifyFolder(folder);      // first look: indexes the folder
+        Assert.True(first.Changed);
+        Assert.Equal(2, first.Added);
+
+        _tags.Opened.Clear();
+        var second = _sync.VerifyFolder(folder);
+
+        Assert.False(second.Changed);
+        Assert.Empty(_tags.Opened);                  // the fingerprint matched — nothing was opened
+    }
+
+    [Fact]
+    public void A_new_file_moves_the_fingerprint()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+        _tags.Opened.Clear();
+
+        var added = MakeFile(@"GENRES\new.mp3", blob: Blob());
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.True(result.Changed);
+        Assert.Equal(1, result.Added);
+        Assert.Equal([added], _tags.Opened);         // only the new one was read
+        Assert.NotNull(_db.TryGet(added));
+    }
+
+    [Fact]
+    public void A_deleted_file_moves_the_fingerprint()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\stays.mp3", blob: Blob());
+        var goes = MakeFile(@"GENRES\goes.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+
+        File.Delete(goes);
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.True(result.Changed);
+        Assert.Equal(1, result.MarkedMissing);
+        Assert.NotNull(_db.TryGet(goes));            // flagged, not dropped
+    }
+
+    [Fact]
+    public void A_RETAGGED_file_moves_the_fingerprint_although_the_count_is_identical()
+    {
+        // ⭐ The case the whole design turns on. A retag changes the FILE's mtime while the folder's
+        // own timestamp does not move — measured on the real library, GENRES\Bass_House held a file
+        // modified 07-29 while the directory still read 07-17. Watching the newest FILE mtime (what
+        // Chloe actually proposed) catches it; watching the folder would not.
+        var folder = Path.Combine(_root, "GENRES");
+        var path   = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+        _tags.Opened.Clear();
+
+        // Same file, same folder, same count — only its contents and timestamp changed.
+        File.WriteAllText(path, "audio, retagged elsewhere");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(5));
+        _tags.ByPath[path] = _tags.ByPath[path] with { Title = "Corrected Title" };
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.True(result.Changed);
+        Assert.Equal(1, result.Updated);
+        Assert.Equal([path], _tags.Opened);
+        Assert.Equal("Corrected Title", _db.TryGet(path)!.Title);
+    }
+
+    [Fact]
+    public void Only_the_files_that_moved_are_re_read()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\untouched1.mp3", blob: Blob());
+        MakeFile(@"GENRES\untouched2.mp3", blob: Blob());
+        var touched = MakeFile(@"GENRES\touched.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+        _tags.Opened.Clear();
+
+        File.WriteAllText(touched, "changed");
+        File.SetLastWriteTimeUtc(touched, DateTime.UtcNow.AddMinutes(10));
+        _sync.VerifyFolder(folder);
+
+        // The fingerprint said the FOLDER moved; the per-file check narrowed it to the one file.
+        Assert.Equal([touched], _tags.Opened);
+    }
+
+    [Fact]
+    public void KNOWN_LIMIT_a_change_within_the_time_tolerance_of_the_newest_file_is_invisible()
+    {
+        // The fingerprint's resolution is the same 2 s tolerance the per-file key uses (FAT/exFAT
+        // round to 2 s). A file edited within that window of the folder's previously-newest one
+        // therefore does not move it, and the check early-outs.
+        //
+        // Harmless in practice — a retag happens minutes or days after the folder last changed, and
+        // the first look at a folder always does the full pass — but it is a real property of the
+        // design, not an accident, so it is pinned here rather than discovered later.
+        var folder = Path.Combine(_root, "GENRES");
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        var b = MakeFile(@"GENRES\b.mp3", blob: Blob());
+        var now = DateTime.UtcNow;
+        File.SetLastWriteTimeUtc(a, now);
+        File.SetLastWriteTimeUtc(b, now);
+
+        _sync.VerifyFolder(folder);
+        _tags.Opened.Clear();
+
+        File.WriteAllText(b, "changed");
+        File.SetLastWriteTimeUtc(b, now.AddSeconds(1));   // inside the tolerance
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.False(result.Changed);
+        Assert.Empty(_tags.Opened);
+        // …and an explicit Refresh (or any later change in the folder) still repairs it.
+        File.SetLastWriteTimeUtc(b, now.AddMinutes(5));
+        Assert.True(_sync.VerifyFolder(folder).Changed);
+    }
+
+    [Fact]
+    public void A_folder_check_ignores_what_is_below_it()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\here.mp3", blob: Blob());
+        MakeFile(@"GENRES\Sub\below.mp3", blob: Blob());
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.Equal(1, result.Added);
+        Assert.Null(_db.TryGet(Path.Combine(_root, "GENRES", "Sub", "below.mp3")));
+    }
+
     // ── Staleness is a separate question from the filesystem ──────────────────
 
     [Fact]

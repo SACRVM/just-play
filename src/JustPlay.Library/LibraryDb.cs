@@ -28,7 +28,7 @@ namespace JustPlay.Library;
 public sealed class LibraryDb : IDisposable
 {
     /// <summary>Schema version stored in SQLite's <c>user_version</c>. Bump + migrate when columns change.</summary>
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     private readonly SqliteConnection _cx;
     private readonly Lock _gate = new();
@@ -112,9 +112,16 @@ public sealed class LibraryDb : IDisposable
         if (version == 0)
         {
             Execute(_cx, Schema);
-            Execute(_cx, $"PRAGMA user_version={SchemaVersion};");
+            Execute(_cx, FolderSchema);
         }
-        // Future: version == 1 → ALTER TABLE … ; PRAGMA user_version=2;
+        else if (version == 1)
+        {
+            // v2 (2026-07-30): per-folder fingerprints, so the finder can paint a directory from
+            // the index and verify it behind the user's back instead of enumerating first.
+            Execute(_cx, FolderSchema);
+        }
+
+        Execute(_cx, $"PRAGMA user_version={SchemaVersion};");
     }
 
     private const string Schema = """
@@ -149,6 +156,20 @@ public sealed class LibraryDb : IDisposable
         CREATE INDEX IF NOT EXISTS ix_tracks_energy  ON tracks(energy);
         CREATE INDEX IF NOT EXISTS ix_tracks_missing ON tracks(missing);
         CREATE INDEX IF NOT EXISTS ix_tracks_artist  ON tracks(artist);
+        """;
+
+    /// <summary>
+    /// What the last look at a folder found: how many tracks were in it and the newest modification
+    /// time among them. Comparing this against the live listing is what tells the finder whether the
+    /// rows it just painted from the index are still true.
+    /// </summary>
+    private const string FolderSchema = """
+        CREATE TABLE IF NOT EXISTS folders (
+            path        TEXT PRIMARY KEY COLLATE NOCASE,
+            file_count  INTEGER NOT NULL,
+            max_mtime   TEXT,
+            checked_at  TEXT NOT NULL
+        );
         """;
 
     // ── Write ────────────────────────────────────────────────────────────────
@@ -404,6 +425,74 @@ public sealed class LibraryDb : IDisposable
         return found;
     }
 
+    // ── Folder fingerprints ──────────────────────────────────────────────────
+
+    /// <summary>What the last check found in <paramref name="folder"/>, or null if it never looked.</summary>
+    public FolderFingerprint? FolderState(string folder)
+    {
+        var key = NormalizeFolder(folder);
+
+        lock (_gate)
+        {
+            using var cmd = _cx.CreateCommand();
+            cmd.CommandText = "SELECT file_count, max_mtime FROM folders WHERE path=$path;";
+            cmd.Parameters.AddWithValue("$path", key);
+
+            using var r = cmd.ExecuteReader();
+            if (!r.Read()) return null;
+
+            DateTime? newest = null;
+            if (!r.IsDBNull(1) &&
+                DateTime.TryParse(r.GetString(1), null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+                newest = parsed.ToUniversalTime();
+
+            return new FolderFingerprint(r.GetInt32(0), newest);
+        }
+    }
+
+    /// <summary>Records what a check found in <paramref name="folder"/>.</summary>
+    public void SetFolderState(string folder, FolderFingerprint state)
+    {
+        var key = NormalizeFolder(folder);
+
+        lock (_gate)
+        {
+            using var cmd = _cx.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO folders (path, file_count, max_mtime, checked_at)
+                VALUES ($path, $count, $mtime, $checked)
+                ON CONFLICT(path) DO UPDATE SET
+                    file_count=excluded.file_count,
+                    max_mtime=excluded.max_mtime,
+                    checked_at=excluded.checked_at;
+                """;
+            cmd.Parameters.AddWithValue("$path", key);
+            cmd.Parameters.AddWithValue("$count", state.FileCount);
+            cmd.Parameters.AddWithValue("$mtime",
+                state.MaxModifiedUtc is { } m ? TrackIndexEntry.FormatUtc(m) : DBNull.Value);
+            cmd.Parameters.AddWithValue("$checked", DateTime.UtcNow.ToString("o"));
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    /// <summary>Forgets a folder's fingerprint, so the next look re-verifies it from scratch.</summary>
+    public void ForgetFolderState(string folder)
+    {
+        var key = NormalizeFolder(folder);
+
+        lock (_gate)
+        {
+            using var cmd = _cx.CreateCommand();
+            cmd.CommandText = "DELETE FROM folders WHERE path=$path;";
+            cmd.Parameters.AddWithValue("$path", key);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    private static string NormalizeFolder(string folder) =>
+        folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
     /// <summary>Total rows, including entries flagged missing.</summary>
     public int Count
     {
@@ -451,6 +540,13 @@ public sealed class LibraryDb : IDisposable
                 where.Add("substr(path, 1, $prefixLen) = $prefix COLLATE NOCASE");
                 cmd.Parameters.AddWithValue("$prefix", prefix);
                 cmd.Parameters.AddWithValue("$prefixLen", prefix.Length);
+
+                if (!q.Recursive)
+                {
+                    // No further separator after the prefix = a direct child of that folder.
+                    where.Add("instr(substr(path, $prefixLen + 1), $sep) = 0");
+                    cmd.Parameters.AddWithValue("$sep", Path.DirectorySeparatorChar.ToString());
+                }
             }
 
             if (q.BpmMin is { } bpmMin) { where.Add("bpm >= $bpmMin"); cmd.Parameters.AddWithValue("$bpmMin", bpmMin); }

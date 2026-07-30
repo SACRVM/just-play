@@ -595,29 +595,47 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private readonly record struct PendingRow(string Path, TrackIndexEntry? Entry);
 
     /// <summary>
-    /// List ONE folder. The disk stays authoritative for which tracks are there — a file copied in
-    /// five minutes ago must show up whether or not anyone has scanned since — but each row's data
-    /// comes out of the index when the index still matches the file. Only the leftovers cost a tag
-    /// read.
+    /// List ONE folder. With a usable index the rows are painted from it IMMEDIATELY and the disk is
+    /// consulted afterwards, in the background — Chloe 2026-07-30: <i>"wir können gerne einen check
+    /// im hintergrund starten, ob das verzeichnis noch aktuell ist … und bei abweichung scannen und
+    /// nachpflegen"</i>.
     ///
-    /// <para>The disk part is nearly free: measured 0.23 ms per file for the directory entry
-    /// against ~57 ms to open one.</para>
+    /// <para>Measured why: enumerating a folder costs 0.12–0.25 ms per file — 18 ms for a normal
+    /// folder but 276 ms for her 1,092-file one, and that would be paid on EVERY open, almost always
+    /// to learn that nothing changed. The check itself still enumerates, but behind an already
+    /// painted list, and it only writes when the fingerprint moved.</para>
+    ///
+    /// <para>Without an index (or for a folder that was never indexed) this is the 0.5 path
+    /// unchanged: read the directory, hydrate row by row.</para>
     /// </summary>
     private void LoadFolderFiles(string folder)
     {
         _navCts?.Cancel();
         var cts = _navCts = new CancellationTokenSource();
         LoadError = null;
-        var useIndex = IndexReady;
+
+        if (IndexReady)
+        {
+            var indexed = _index.QueryFolder(folder);
+            if (indexed.Count > 0)
+            {
+                // Paint now…
+                PopulateItems(indexed.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
+                // …and check behind it.
+                _ = VerifyFolderInBackground(folder, cts);
+                return;
+            }
+        }
 
         _ = Task.Run(() =>
         {
-            List<AudioFiles.ScannedFile> files;
+            List<string> paths;
             try
             {
                 // Per-folder guard: a flaky NAS share can throw on any enumeration call.
-                files = AudioFiles.EnumerateWithKeys(folder, recursive: false)
-                    .OrderBy(f => Path.GetFileName(f.Path), NaturalComparer.Instance)
+                paths = AudioFiles.EnumerateWithKeys(folder, recursive: false)
+                    .Select(f => f.Path)
+                    .OrderBy(Path.GetFileName, NaturalComparer.Instance)
                     .ToList();
             }
             catch (Exception ex)
@@ -626,26 +644,35 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 return;
             }
 
-            var known = useIndex
-                ? _index.LookupMany(files.Select(f => f.Path).ToList())
-                : null;
+            PopulateItems(paths.Select(p => new PendingRow(p, null)).ToList(), cts.Token);
 
-            var rows = new List<PendingRow>(files.Count);
-            foreach (var f in files)
-            {
-                // Use the stored row only if it still describes THIS file (size + mtime) and holds
-                // a finished analysis; anything else falls back to reading the tags.
-                var entry = known is not null
-                            && known.TryGetValue(f.Path, out var e)
-                            && e.LooksUnchanged(f.SizeBytes, f.ModifiedUtc)
-                            && e.Success
-                    ? e : null;
-
-                rows.Add(new PendingRow(f.Path, entry));
-            }
-
-            PopulateItems(rows, cts.Token);
+            // First visit with the index on: let the check fill this folder in for next time.
+            if (IndexReady) _ = VerifyFolderInBackground(folder, cts);
         }, cts.Token);
+    }
+
+    /// <summary>
+    /// Runs the folder check behind the painted list and reloads the pane only if something actually
+    /// moved — and only if she is still standing in that folder.
+    /// </summary>
+    private async Task VerifyFolderInBackground(string folder, CancellationTokenSource cts)
+    {
+        var result = await _index.VerifyFolderAsync(folder, cts.Token);
+        if (result is null || !result.Changed) return;
+        if (cts.IsCancellationRequested) return;
+
+        Console.WriteLine($"[Finder] {folder}: +{result.Added} ~{result.Updated} " +
+                          $"-{result.MarkedMissing} (index corrected)");
+
+        // Still the folder on screen? Then show the corrected picture. A newer navigation owns the
+        // pane otherwise, and its own check is already running.
+        if (!string.Equals(CurrentFolder, folder, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(CurrentLeafFolder, folder, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var refreshed = _index.QueryFolder(folder);
+        if (refreshed.Count > 0)
+            PopulateItems(refreshed.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
     }
 
     private void LoadPlaylistFiles(string playlistPath)

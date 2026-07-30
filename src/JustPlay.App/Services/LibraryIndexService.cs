@@ -46,6 +46,19 @@ public interface ILibraryIndexService
     IReadOnlyDictionary<string, TrackIndexEntry> LookupMany(IReadOnlyList<string> paths);
 
     /// <summary>
+    /// The tracks the index holds for exactly this folder (not its sub-folders). Empty means the
+    /// folder was never indexed — the caller then reads it from disk.
+    /// </summary>
+    IReadOnlyList<TrackIndexEntry> QueryFolder(string folder);
+
+    /// <summary>
+    /// Checks one folder against the disk and repairs the index if it drifted. Cheap when nothing
+    /// changed (a fingerprint comparison, no writes). Meant to run BEHIND a listing that was
+    /// already painted from the index, never in front of it.
+    /// </summary>
+    Task<FolderVerifyResult?> VerifyFolderAsync(string folder, CancellationToken ct = default);
+
+    /// <summary>
     /// Brings the index in line with the disk. Long-running on a first run (measured ~13.5 min for
     /// 14k files over SMB — the tag reads dominate), near-instant afterwards, because an unchanged
     /// file is recognised by its directory entry and never opened.
@@ -159,6 +172,38 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
                 Console.WriteLine($"[Library] lookup failed: {ex.Message}");
                 return new Dictionary<string, TrackIndexEntry>();
             }
+        }
+    }
+
+    public IReadOnlyList<TrackIndexEntry> QueryFolder(string folder) =>
+        Query(new LibraryQuery
+        {
+            PathPrefix     = folder,
+            Recursive      = false,
+            SuccessOnly    = false,   // un-analysed tracks are part of the folder too
+            IncludeMissing = false,
+        });
+
+    public async Task<FolderVerifyResult?> VerifyFolderAsync(string folder, CancellationToken ct = default)
+    {
+        LibraryDb? db;
+        lock (_gate) db = Open(createIfMissing: false);
+        if (db is null) return null;
+
+        try
+        {
+            return await Task.Run(
+                () => new LibrarySync(db, metadata).VerifyFolder(folder, options: null, ct), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;   // navigated away — a newer check owns the pane
+        }
+        catch (Exception ex)
+        {
+            // A flaky share must never break browsing; the listing that is already painted stands.
+            Console.WriteLine($"[Library] folder check failed for {folder}: {ex.Message}");
+            return null;
         }
     }
 

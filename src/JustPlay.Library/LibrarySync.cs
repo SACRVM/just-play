@@ -159,6 +159,108 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     }
 
     /// <summary>
+    /// Checks ONE folder against the index and repairs it if it drifted — the background half of
+    /// painting a directory from the index.
+    ///
+    /// <para>The early-out is Chloe's fingerprint (2026-07-30): the file count plus the newest
+    /// modification time among the folder's tracks. It moves for an added, deleted, renamed OR
+    /// retagged file, which the folder's own timestamp does not — measured, <c>GENRES\Bass_House</c>
+    /// held a file modified 07-29 while the directory still read 07-17. When it matches, this
+    /// returns having written nothing.</para>
+    ///
+    /// <para>Cheap enough to run behind every folder open: 0.12–0.25 ms per file, measured over SMB
+    /// (276 ms for the 1,092-file folder, ~18 ms for a normal one) — but only because it is NOT on
+    /// the path that paints the list.</para>
+    /// </summary>
+    public FolderVerifyResult VerifyFolder(
+        string folder, SyncOptions? options = null, CancellationToken ct = default)
+    {
+        var opt = options ?? SyncOptions.Default;
+
+        var files = AudioFiles.EnumerateWithKeys(folder, recursive: false).ToList();
+        var live  = FolderFingerprint.FromFiles(files);
+
+        ct.ThrowIfCancellationRequested();
+
+        if (db.FolderState(folder) is { } stored && stored.Matches(live))
+            return new FolderVerifyResult { Folder = folder, Changed = false };
+
+        // Something moved. Compare per file — the fingerprint says THAT it changed, not WHAT.
+        var known = db.LookupMany(files.Select(f => f.Path));
+        var seen  = new HashSet<string>(files.Count, StringComparer.OrdinalIgnoreCase);
+
+        var batch    = new List<TrackIndexEntry>();
+        var queued   = new List<string>();
+        var added    = 0;
+        var updated  = 0;
+
+        foreach (var file in files)
+        {
+            ct.ThrowIfCancellationRequested();
+            seen.Add(file.Path);
+
+            var existing = known.GetValueOrDefault(file.Path);
+            if (existing is not null && existing.LooksUnchanged(file.SizeBytes, file.ModifiedUtc))
+                continue;   // this one is fine; something else in the folder moved
+
+            TrackIndexEntry? entry = null;
+            try
+            {
+                var meta = metadata.Read(file.Path);
+                entry = TrackIndexMapping.FromStoredBlob(
+                    file.Path, file.SizeBytes, file.ModifiedUtc, meta, opt.MinBlobVersion);
+
+                if (entry is null)
+                {
+                    queued.Add(file.Path);
+                    if (opt.IndexUnanalysedFiles)
+                        entry = TrackIndexMapping.NotAnalysed(
+                            file.Path, file.SizeBytes, file.ModifiedUtc, meta);
+                }
+            }
+            catch (Exception)
+            {
+                if (!queued.Contains(file.Path)) queued.Add(file.Path);
+            }
+
+            if (entry is null) continue;
+
+            batch.Add(entry);
+            if (existing is null) added++; else updated++;
+        }
+
+        if (batch.Count > 0) db.UpsertMany(batch);
+
+        var markedMissing = 0;
+        if (opt.MarkMissing)
+        {
+            var gone = db
+                .Query(new LibraryQuery
+                {
+                    PathPrefix = folder, Recursive = false,
+                    SuccessOnly = false, IncludeMissing = false,
+                })
+                .Select(e => e.FilePath)
+                .Where(p => !seen.Contains(p))
+                .ToList();
+
+            if (gone.Count > 0) markedMissing = db.MarkMissing(gone);
+        }
+
+        db.SetFolderState(folder, live);
+
+        return new FolderVerifyResult
+        {
+            Folder            = folder,
+            Changed           = added > 0 || updated > 0 || markedMissing > 0,
+            Added             = added,
+            Updated           = updated,
+            MarkedMissing     = markedMissing,
+            QueuedForAnalysis = queued,
+        };
+    }
+
+    /// <summary>
     /// Entries that are on disk and unchanged but whose stored analysis a rule rejects — the
     /// FLAC mono-decode debt, a failed run worth retrying, a never-analysed file. Paged so a
     /// very large library does not materialise at once.
@@ -176,6 +278,22 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
 
         return stale;
     }
+}
+
+/// <summary>What a <see cref="LibrarySync.VerifyFolder"/> check found.</summary>
+public sealed record FolderVerifyResult
+{
+    public required string Folder { get; init; }
+
+    /// <summary>False = the fingerprint matched, nothing was read or written.</summary>
+    public bool Changed { get; init; }
+
+    public int Added { get; init; }
+    public int Updated { get; init; }
+    public int MarkedMissing { get; init; }
+
+    /// <summary>Files in this folder that still need a real analysis run.</summary>
+    public IReadOnlyList<string> QueuedForAnalysis { get; init; } = [];
 }
 
 /// <summary>Knobs for a <see cref="LibrarySync.Reconcile"/> pass.</summary>

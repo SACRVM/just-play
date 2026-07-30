@@ -20,6 +20,12 @@ public sealed record LibraryQuery
     /// </summary>
     public string? PathPrefix { get; init; }
 
+    /// <summary>
+    /// Whether <see cref="PathPrefix"/> reaches into sub-folders. False = that folder's own tracks
+    /// only, which is what the finder asks for when it paints a single directory out of the index.
+    /// </summary>
+    public bool Recursive { get; init; } = true;
+
     public double? BpmMin { get; init; }
     public double? BpmMax { get; init; }
 
