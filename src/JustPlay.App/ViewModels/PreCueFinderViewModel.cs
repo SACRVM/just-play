@@ -890,7 +890,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             if (report is not null)
             {
                 ScanMessage  = "Library up to date";
-                ScanDetail   = $"{report.Scanned:N0} tracks · {report.ImportedFromTags:N0} read in";
+                ScanDetail   = $"{report.Scanned:N0} tracks";
                 ScanProgress = 1;
                 Console.WriteLine($"[Finder] scan: {report}");
             }
@@ -928,7 +928,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _lastScanUiTick = now;
 
         ScanMessage  = phase;
-        ScanDetail   = p.Total > 0 ? $"{p.Done:N0} / {p.Total:N0}" : null;
+        // Compact, the way she wrote it — it has to fit inside the disc, where "2,445 / 36,332"
+        // would eat the width that keeps the string from trimming.
+        ScanDetail   = p.Total > 0 ? $"{p.Done}/{p.Total}" : null;
         ScanProgress = p.Total > 0 ? Math.Clamp((double)p.Done / p.Total, 0, 1) : null;
     }
 
