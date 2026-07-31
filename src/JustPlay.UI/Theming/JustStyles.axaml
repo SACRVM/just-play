@@ -627,6 +627,19 @@
     <Style Selector="ScrollViewer:focus-within ScrollBar:vertical">
         <Setter Property="Opacity" Value="1"/>
     </Style>
+    <!-- ⚠ And the bar's OWN hover, which is what keeps it alive while you DRAG it. The rule above
+         alone loses the bar mid-drag: the pill is 6 px flush at the right edge, so sliding a few
+         pixels sideways while holding the thumb takes the pointer out of the ScrollViewer, the
+         condition goes false, and the thing you are holding fades away under your hand (Chloe
+         2026-07-31: "pack ich die scrollbar und drag scrolle - verschwindet diese"). During a drag
+         the Thumb holds pointer CAPTURE, so the ScrollBar stays pointer-over wherever the mouse
+         goes — this selector is true for the whole drag, off-edge included. -->
+    <Style Selector="ScrollBar:vertical:pointerover">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="ScrollBar:horizontal:pointerover">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
 
     <!-- Horizontal bar — same slim pill as vertical, laid on its side (Height 6, Orientation Horizontal,
          Thumb MinWidth). Shows in no-wrap scroll areas like the Event Log. Chloe 2026-07-08. -->
