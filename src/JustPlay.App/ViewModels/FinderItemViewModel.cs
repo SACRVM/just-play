@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using JustPlay.Core.Models;
 
@@ -65,6 +67,20 @@ public sealed partial class FinderItemViewModel : ObservableObject
     public string NormalizedPath { get; }
 
     public TrackViewModel Track { get; }
+
+    /// <summary>
+    /// The playlists this track appears in, when the pane is showing a folder's playlists together
+    /// (Chloe 2026-07-31: <i>"wenn die lib aktiv ist könnten wir doch auch über mehrere playlisten
+    /// hinweg filtern"</i>). A song that sits in five sets is ONE row — you are looking for the
+    /// track, not for its occurrences — so where it came from has to live on the row instead.
+    /// Empty for a plain folder listing.
+    /// </summary>
+    public IReadOnlyList<string> InPlaylists { get; set; } = [];
+
+    /// <summary>"Warehouse, Peak Time, Closing" — the detail pane's provenance line. Null when this
+    /// row did not come from a playlist.</summary>
+    public string? InPlaylistsText =>
+        InPlaylists.Count == 0 ? null : string.Join(", ", InPlaylists);
 
     // One-shot hydration claim. Metadata is fetched-what-you-see: the visible viewport and a parallel
     // background fill RACE to hydrate each row; this CAS lets exactly ONE of them win, so a file is read

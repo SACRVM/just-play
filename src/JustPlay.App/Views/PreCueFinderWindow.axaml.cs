@@ -157,6 +157,86 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
     // ── Keyboard (the whole point of this window) ──────────────────────────
 
+#if DEBUG
+    // ── F9 frame-time readout (Debug only) ────────────────────────────────────────────────────
+    // Drives the compositor with a self-renewing animation-frame request and reports, once a
+    // second: how many frames actually landed, and the LONGEST gap between two of them. The gap is
+    // the number that matters — 60 fps with one 90 ms hitch feels broken, and an average says
+    // "58 fps, fine". Printed big on the window AND to the console, so the numbers can be read
+    // back here without squinting at a screenshot.
+    private TextBlock? _perfReadout;
+    private bool _perfOn;
+    private int _frames;
+    private double _worstGapMs;
+    private TimeSpan _prevFrame;
+    private DateTime _windowStartUtc;
+
+    private void TogglePerfReadout()
+    {
+        _perfOn = !_perfOn;
+
+        if (_perfReadout is null && Content is Panel root)
+        {
+            // Fully qualified on purpose: Window itself carries FontWeight / HorizontalAlignment /
+            // VerticalAlignment members, so the bare enum names bind to those and don't compile.
+            _perfReadout = new TextBlock
+            {
+                FontSize            = 20,
+                FontWeight          = Avalonia.Media.FontWeight.Bold,
+                Foreground           = Avalonia.Media.Brushes.White,
+                Background          = new Avalonia.Media.SolidColorBrush(
+                                          Avalonia.Media.Color.Parse("#D0000000")),
+                Padding             = new Thickness(12, 8),
+                Margin              = new Thickness(0, 64, 44, 0),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+                VerticalAlignment   = Avalonia.Layout.VerticalAlignment.Top,
+                IsHitTestVisible    = false,
+                Text                = "measuring…",
+            };
+            root.Children.Add(_perfReadout);
+        }
+
+        if (_perfReadout is not null) _perfReadout.IsVisible = _perfOn;
+
+        if (!_perfOn) return;
+
+        _frames         = 0;
+        _worstGapMs     = 0;
+        _prevFrame      = default;
+        _windowStartUtc = DateTime.UtcNow;
+        Console.WriteLine($"[Finder] perf readout ON · transparency actual = {ActualTransparencyLevel}");
+        RequestAnimationFrame(OnPerfFrame);
+    }
+
+    private void OnPerfFrame(TimeSpan now)
+    {
+        if (!_perfOn) return;
+
+        if (_prevFrame != default)
+        {
+            var gap = (now - _prevFrame).TotalMilliseconds;
+            if (gap > _worstGapMs) _worstGapMs = gap;
+        }
+        _prevFrame = now;
+        _frames++;
+
+        var elapsed = (DateTime.UtcNow - _windowStartUtc).TotalSeconds;
+        if (elapsed >= 1.0)
+        {
+            var fps = _frames / elapsed;
+            var line = $"{fps:F0} fps · worst {_worstGapMs:F0} ms";
+            if (_perfReadout is not null) _perfReadout.Text = line;
+            Console.WriteLine($"[Finder] {line} · {ActualTransparencyLevel}");
+
+            _frames         = 0;
+            _worstGapMs     = 0;
+            _windowStartUtc = DateTime.UtcNow;
+        }
+
+        RequestAnimationFrame(OnPerfFrame);   // keep the frame clock running
+    }
+#endif
+
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is not { } vm) return;
@@ -171,6 +251,41 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             e.Handled = true;
             return;
         }
+
+#if DEBUG
+        // ── Perf probes, Debug builds only ────────────────────────────────────────────────────
+        // Chloe 2026-07-31: "das scrollen im pre cue finder ist sehr träge … man merkt auch wenn
+        // man mit der maus über die liste fährt und das row highlighting auslöst dass es
+        // hinterherhinkt … als wäre die FPS im sack".
+        //
+        // ⛔ RULED OUT by measurement, do not re-litigate: the lists' bottom-fade OpacityMask. It
+        // was the obvious suspect (a mask forces its subtree through an offscreen layer on every
+        // frame the content moves) and removing it changed NOTHING.
+        //
+        // That the HOVER highlight lags the pointer is the real clue: the cost is not per row and
+        // not per list, it is the whole window's frame. Which points at the window itself —
+        // per-pixel transparency (Transparent is first in TransparencyLevelHint) plus a big blurred
+        // BoxShadow on a ClipToBounds=False card and three full-window gradient rectangles. That
+        // cost scales with WINDOW SIZE, not with track count, which matches "everything is slow".
+        //
+        //   F9  — a readout you can actually READ. Avalonia's own FPS overlay was useless here
+        //         ("die fps anzeige ist für die tonne - ich kann da nix erkennen"), and an average
+        //         hides exactly what she feels anyway: it is the WORST frame gap that reads as lag,
+        //         not the mean. So: big text, fps AND worst-frame-in-the-last-second, plus what
+        //         transparency the OS actually granted (the hint is a wish list; the OS decides).
+        // ⛔ There WAS an F10 here that flipped the window to opaque to price per-pixel transparency.
+        // It did nothing — measured, not assumed: Win32 fixes a window's transparency when it is
+        // created, so assigning TransparencyLevelHint later is ignored. Testing that hypothesis needs
+        // two windows created differently, not a key. Removed rather than left lying around; a probe
+        // that silently measures nothing is worse than no probe.
+        if (e.Key == Key.F9)
+        {
+            TogglePerfReadout();
+            e.Handled = true;
+            return;
+        }
+
+#endif
 
         if (e.Key == Key.F1)
         {

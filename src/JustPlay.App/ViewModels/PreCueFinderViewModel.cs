@@ -581,12 +581,52 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// (tracks dropped, playlists added/removed). Reloads whatever is showing: a loaded playlist, a leaf
     /// folder's tracks, or the current folder's entries + files. Always available, so no menu is ever
     /// empty (Chloe 2026-07-22: a refresh beats suppressing the empty ".." menu).</summary>
+    /// <summary>
+    /// Reload what the file pane is showing — and, with an index in play, CHECK it for real rather
+    /// than trusting the stored fingerprint. This is the escape hatch for the cases the cheap checks
+    /// cannot see: a share that does not maintain timestamps, a change that landed inside the 2 s
+    /// tolerance, or a playlist whose tracks were retagged from the other machine.
+    /// </summary>
     [RelayCommand]
     private void RefreshFolder()
     {
-        if (CurrentPlaylist is { } pl) EnterPlaylist(pl);
-        else if (CurrentLeafFolder is { } leaf) OpenLeafFolder(leaf);
-        else if (CurrentFolder is { } folder) NavigateToFolder(folder, SelectedEntry?.FullPath);
+        if (CurrentPlaylist is { } pl)
+        {
+            EnterPlaylist(pl);
+            if (IndexReady) _ = VerifyPlaylistTracks(pl);
+            return;
+        }
+
+        var folder = CurrentLeafFolder ?? CurrentFolder;
+        if (folder is null) return;
+
+        // Drop the stored fingerprint so the background check cannot early-out on it.
+        if (IndexReady) _index.ForgetFolderState(folder);
+
+        if (CurrentLeafFolder is { } leaf) OpenLeafFolder(leaf);
+        else NavigateToFolder(folder, SelectedEntry?.FullPath);
+    }
+
+    /// <summary>Refresh on a playlist: check its tracks file by file, then repaint if anything moved.</summary>
+    private async Task VerifyPlaylistTracks(string playlistPath)
+    {
+        List<string> paths;
+        try { paths = M3uPlaylist.ReadPaths(playlistPath).Where(AudioFileTypes.IsAudio).ToList(); }
+        catch (Exception) { return; }
+
+        var result = await _index.VerifyTracksAsync(paths);
+        if (result is null || !result.Changed) return;
+        if (!string.Equals(CurrentPlaylist, playlistPath, StringComparison.OrdinalIgnoreCase)) return;
+
+        Console.WriteLine($"[Finder] {Path.GetFileName(playlistPath)}: +{result.Added} " +
+                          $"~{result.Updated} -{result.MarkedMissing} (index corrected)");
+
+        var known = _index.LookupMany(paths);
+        PopulateItems(
+            paths.Select(p => new PendingRow(
+                    p, known.GetValueOrDefault(p) is { Success: true } e ? e : null))
+                 .ToList(),
+            _navCts?.Token ?? CancellationToken.None);
     }
 
     /// <summary>Read an entry's audio tracks: a playlist's referenced audio (in playlist order), or a
@@ -600,7 +640,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>One row to build: its path, plus what the index already knows about it (null = read
     /// its tags).</summary>
-    private readonly record struct PendingRow(string Path, TrackIndexEntry? Entry);
+    private readonly record struct PendingRow(
+        string Path, TrackIndexEntry? Entry, IReadOnlyList<string>? Sets = null);
 
     /// <summary>
     /// List ONE folder. With a usable index the rows are painted from it IMMEDIATELY and the disk is
@@ -702,10 +743,23 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 PostLoadError(cts.Token, $"Can't read this playlist — {ex.Message}");
                 return;
             }
-            // Playlist ORDER is meaningful — do not re-sort. Rows hydrate from tags: a playlist's
-            // entries are arbitrary paths, so there is no cheap key to validate an index row
-            // against without stat-ing every file first.
-            PopulateItems(paths.Select(p => new PendingRow(p, null)).ToList(), cts.Token);
+            // Playlist ORDER is meaningful — do not re-sort. Rows come from the index, which already
+            // holds the newest thing we know about each track (Chloe 2026-07-30: "wir wissen welche
+            // songs in der playliste sind und wir haben alle songs in der DB … wir haben also die
+            // neuste version"). No verification pass runs here on purpose: the tracks live in
+            // folders, and those are what the fingerprint checks keep honest — re-checking the same
+            // files a second time because they happen to be listed in an m3u is duplicated work.
+            // Anything the index does not know still falls back to a tag read, per row, and
+            // Refresh forces a real check.
+            var known = IndexReady
+                ? _index.LookupMany(paths)
+                : null;
+
+            PopulateItems(
+                paths.Select(p => new PendingRow(
+                        p, known?.GetValueOrDefault(p) is { Success: true } e ? e : null))
+                     .ToList(),
+                cts.Token);
         }, cts.Token);
     }
 
@@ -776,7 +830,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>What the toggle says on hover: what it does, or why it can't.</summary>
     public string SubfoldersTip =>
-        SubfoldersLockedReason ?? "Also list everything in the folders below this one";
+        SubfoldersLockedReason ?? "Search the folders below this one too";
 
     /// <summary>Dim the toggle while it is locked — the same "this is unavailable" cue the FILTER
     /// tab uses while a folder is still loading, so the two read alike.</summary>
@@ -793,6 +847,15 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// Fill the file pane from the index: everything below <paramref name="folder"/>, including
     /// tracks that have not been analysed yet (they show blank columns and say so in the detail
     /// pane — a track on disk is never invisible).
+    ///
+    /// <para><b>Playlists below the folder count too.</b> They are virtual folders in this finder,
+    /// so "look deeper" has to include them — otherwise a folder that holds nothing BUT playlists
+    /// (her <c>SETS</c>) shows an empty pane and the filter has nothing to work on, which is exactly
+    /// where she landed (2026-07-31: <i>"ich war in SETS auf .. und wunderte mich"</i>). Reading them
+    /// is cheap — an m3u is a small text file and the tracks it names are already in the index — and
+    /// it turns the filter into something new: <i>"könnten wir doch auch über mehrere playlisten
+    /// hinweg filtern - wie geil wäre das?"</i>. One row per track, deduplicated, carrying the sets
+    /// it came from.</para>
     /// </summary>
     private void LoadLibraryFiles(string folder)
     {
@@ -817,9 +880,103 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 PostLoadError(cts.Token, $"Can't read the library index — {ex.Message}");
                 return;
             }
-            // Every row comes with its data — the whole subtree is complete on arrival.
-            PopulateItems(rows.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
+
+            // The index answers instantly, the playlists need the share. So paint what we have first
+            // and merge the sets in behind it — unless there is nothing to paint, in which case a
+            // first pass would only flash "nothing here" before the real content lands.
+            if (rows.Count > 0)
+                PopulateItems(rows.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
+
+            var sets = ReadPlaylistsBelow(folder, cts.Token);
+            if (cts.IsCancellationRequested) return;
+
+            if (sets.Count == 0)
+            {
+                if (rows.Count == 0) PopulateItems([], cts.Token);   // genuinely empty
+                return;
+            }
+
+            // Index rows keep their order; tracks only a playlist knows about follow.
+            var merged = new List<PendingRow>(rows.Count + sets.Count);
+            var seen   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var e in rows)
+            {
+                var key = NormalizePath(e.FilePath);
+                seen.Add(key);
+                merged.Add(new PendingRow(e.FilePath, e, sets.GetValueOrDefault(key).Sets));
+            }
+
+            var extra = sets.Where(kv => !seen.Contains(kv.Key)).ToList();
+            if (extra.Count > 0)
+            {
+                // One lookup for all of them; whatever the index does not know falls back to a tag
+                // read per row, exactly like any other listing.
+                var known = _index.LookupMany(extra.Select(kv => kv.Value.Path).ToList());
+                foreach (var (_, value) in extra)
+                    merged.Add(new PendingRow(value.Path, known.GetValueOrDefault(value.Path), value.Sets));
+            }
+
+            PopulateItems(merged, cts.Token);
         }, cts.Token);
+    }
+
+    /// <summary>
+    /// Every playlist at or below <paramref name="folder"/>, read into "which sets is this track in".
+    /// Keyed by normalised path so the same track referenced from three sets collapses to one entry
+    /// that remembers all three.
+    ///
+    /// <para>⚠ Enumerated by extension pattern, not by walking every file: at the library root the
+    /// unfiltered walk returns 14k entries (measured 3.2 s over SMB) to find a handful of m3u.</para>
+    /// </summary>
+    private static Dictionary<string, (string Path, List<string> Sets)> ReadPlaylistsBelow(
+        string folder, CancellationToken ct)
+    {
+        var byTrack = new Dictionary<string, (string Path, List<string> Sets)>(StringComparer.OrdinalIgnoreCase);
+
+        List<string> playlists;
+        try
+        {
+            playlists = Directory.EnumerateFiles(folder, "*.m3u*", SearchOption.AllDirectories)
+                .Where(M3uPlaylist.IsPlaylist)
+                .OrderBy(Path.GetFileName, NaturalComparer.Instance)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // An unreadable share must never break a listing — the folder's own tracks still show.
+            Console.WriteLine($"[Finder] playlist sweep failed under {folder}: {ex.Message}");
+            return byTrack;
+        }
+
+        foreach (var pl in playlists)
+        {
+            if (ct.IsCancellationRequested) return byTrack;
+
+            var name = Path.GetFileNameWithoutExtension(pl);
+            List<string> paths;
+            try { paths = M3uPlaylist.ReadPaths(pl).Where(AudioFileTypes.IsAudio).ToList(); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Finder] can't read playlist {name}: {ex.Message}");
+                continue;
+            }
+
+            foreach (var p in paths)
+            {
+                var key = NormalizePath(p);
+                if (byTrack.TryGetValue(key, out var hit))
+                {
+                    if (!hit.Sets.Contains(name)) hit.Sets.Add(name);
+                }
+                else
+                {
+                    byTrack[key] = (p, [name]);
+                }
+            }
+        }
+
+        return byTrack;
     }
 
     // ── Scanning the library (keeps the index in step with the disk) ─────────────────────────────
@@ -830,6 +987,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowEmptyFolderHint))]
     [NotifyPropertyChangedFor(nameof(ShowNoMatches))]
     [NotifyPropertyChangedFor(nameof(ShowLibraryNotScanned))]
+    [NotifyPropertyChangedFor(nameof(ShowScanReminder))]
     [NotifyPropertyChangedFor(nameof(SubfoldersLockedReason))]
     [NotifyPropertyChangedFor(nameof(SubfoldersTip))]
     private bool _isScanning;
@@ -863,6 +1021,24 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         UseLibraryIndex && !HasNoRoot && !IsScanning
         && _index.Count == 0 && _masterItems.Count == 0;
 
+    /// <summary>
+    /// The SAME state as <see cref="ShowLibraryNotScanned"/>, but with tracks on screen — so it
+    /// cannot use the centred offer (that one owns the empty pane) and shows a slim strip above the
+    /// list instead.
+    ///
+    /// <para>Chloe 2026-07-31: <i>"wenn lib scan an ist und noch kein initialer scan angestoßen
+    /// wurde, dann auch melden"</i>. Without this, switching the index on and then browsing a folder
+    /// that happens to have songs in it says NOTHING: the rows come from disk exactly as before, the
+    /// subfolder toggle is locked with its reason buried in a tooltip, and the switch she just
+    /// flipped looks like it did nothing at all.</para>
+    ///
+    /// <para>It states the consequence, not just the fact — a notice that only says "empty" leaves
+    /// her to work out what she is missing.</para>
+    /// </summary>
+    public bool ShowScanReminder =>
+        UseLibraryIndex && !HasNoRoot && !IsScanning
+        && _index.Count == 0 && _masterItems.Count > 0;
+
     /// <summary>"14,186 tracks indexed" — the footer note under the scan button.</summary>
     public string LibraryCountText => $"{_index.Count:N0} tracks indexed";
 
@@ -876,6 +1052,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(UseLibraryIndex));
         OnPropertyChanged(nameof(IncludeSubfolders));
         OnPropertyChanged(nameof(ShowLibraryNotScanned));
+        OnPropertyChanged(nameof(ShowScanReminder));
         OnPropertyChanged(nameof(LibraryCountText));
         OnPropertyChanged(nameof(ShowEmptyFolderHint));
         OnPropertyChanged(nameof(ShowNoMatches));
@@ -958,6 +1135,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             LoadError = message;
             OnPropertyChanged(nameof(ShowEmptyFolderHint));
             OnPropertyChanged(nameof(ShowNoMatches));
+            OnPropertyChanged(nameof(ShowScanReminder));
         });
 
     // ── Hydration progress (fetch-what-you-see) ──────────────────────────────────────────────────
@@ -995,6 +1173,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         {
             var row  = rows[i];
             var item = new FinderItemViewModel(row.Path) { Order = i };
+            if (row.Sets is { Count: > 0 } sets) item.InPlaylists = sets;
             // Mouse likes on the heart go through the same deferred path as the L key.
             item.Track.ToggleFavoriteCallback = (_, liked) => { QueueLike(item, liked); return Task.CompletedTask; };
 
@@ -1695,8 +1874,19 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [RelayCommand] private void ShowFilterTab() { if (AllHydrated) FilterTabActive = true; } // locked until loaded
 
     /// <summary>Free-text search over title + artist (case-insensitive substring).</summary>
-    [ObservableProperty] private string _filterName = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSearchText))]
+    private string _filterName = "";
     partial void OnFilterNameChanged(string value) => RebuildView();
+
+    /// <summary>Drives the ✕ inside the search box — it only exists while there is something to clear.</summary>
+    public bool HasSearchText => FilterName.Length > 0;
+
+    /// <summary>Clears ONLY the search text (the ✕ in the box). Deliberately not
+    /// <see cref="ClearFiltersCommand"/>: wiping the key wheel and every range because she emptied a
+    /// text field would be a nasty surprise.</summary>
+    [RelayCommand]
+    private void ClearSearch() => FilterName = "";
 
     // Camelot key selection (+ optional harmonic neighbours).
     private readonly HashSet<string> _selectedKeys = new(StringComparer.OrdinalIgnoreCase);
@@ -1875,6 +2065,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(ShowEmptyFolderHint));
         OnPropertyChanged(nameof(ShowNoMatches));
         OnPropertyChanged(nameof(ShowLibraryNotScanned));   // depends on the pane being empty
+        OnPropertyChanged(nameof(ShowScanReminder));        // …and this one on it NOT being
     }
 
     /// <summary>Auto-scale every range's domain to the values present in the current view and reset its
