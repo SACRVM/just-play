@@ -403,6 +403,57 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Null(_db.TryGet(Path.Combine(_root, "GENRES", "Sub", "below.mp3")));
     }
 
+    // ── Checking an explicit list of tracks (what Refresh on a playlist does) ─
+
+    [Fact]
+    public void VerifyTracks_leaves_a_matching_list_alone()
+    {
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        var b = MakeFile(@"GENRES\b.mp3", blob: Blob());
+        _sync.VerifyTracks([a, b]);          // first pass indexes them
+        _tags.Opened.Clear();
+
+        var again = _sync.VerifyTracks([a, b]);
+
+        Assert.False(again.Changed);
+        Assert.Empty(_tags.Opened);          // a stat each, no reads
+    }
+
+    [Fact]
+    public void VerifyTracks_picks_up_a_retagged_track()
+    {
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyTracks([a]);
+        _tags.Opened.Clear();
+
+        File.WriteAllText(a, "retagged");
+        File.SetLastWriteTimeUtc(a, DateTime.UtcNow.AddMinutes(5));
+        _tags.ByPath[a] = _tags.ByPath[a] with { Title = "Fixed" };
+
+        var result = _sync.VerifyTracks([a]);
+
+        Assert.True(result.Changed);
+        Assert.Equal(1, result.Updated);
+        Assert.Equal("Fixed", _db.TryGet(a)!.Title);
+    }
+
+    [Fact]
+    public void VerifyTracks_flags_a_gone_track_but_ignores_one_it_never_knew()
+    {
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyTracks([a]);
+
+        File.Delete(a);
+        // A playlist may point anywhere — an unknown, unreachable path is not our business.
+        var stranger = Path.Combine(_root, "not-a-real", "elsewhere.mp3");
+
+        var result = _sync.VerifyTracks([a, stranger]);
+
+        Assert.Equal(1, result.MarkedMissing);
+        Assert.NotNull(_db.TryGet(a));       // flagged, not dropped
+        Assert.Null(_db.TryGet(stranger));   // never indexed, nothing invented
+    }
+
     // ── Staleness is a separate question from the filesystem ──────────────────
 
     [Fact]

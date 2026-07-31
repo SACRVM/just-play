@@ -59,6 +59,18 @@ public interface ILibraryIndexService
     Task<FolderVerifyResult?> VerifyFolderAsync(string folder, CancellationToken ct = default);
 
     /// <summary>
+    /// The same check for an explicit list of tracks — what a playlist needs, since it has no folder
+    /// to fingerprint. Also meant to run behind an already-painted list.
+    /// </summary>
+    Task<TrackVerifyResult?> VerifyTracksAsync(IReadOnlyList<string> paths, CancellationToken ct = default);
+
+    /// <summary>
+    /// Forgets a folder's stored fingerprint, so the next check cannot early-out on it. This is what
+    /// an explicit Refresh does — the escape hatch for anything the cheap comparison cannot see.
+    /// </summary>
+    void ForgetFolderState(string folder);
+
+    /// <summary>
     /// Brings the index in line with the disk. Long-running on a first run (measured ~13.5 min for
     /// 14k files over SMB — the tag reads dominate), near-instant afterwards, because an unchanged
     /// file is recognised by its directory entry and never opened.
@@ -203,6 +215,40 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         {
             // A flaky share must never break browsing; the listing that is already painted stands.
             Console.WriteLine($"[Library] folder check failed for {folder}: {ex.Message}");
+            return null;
+        }
+    }
+
+    public void ForgetFolderState(string folder)
+    {
+        lock (_gate)
+        {
+            try { Open(createIfMissing: false)?.ForgetFolderState(folder); }
+            catch (Exception ex) { Console.WriteLine($"[Library] forget folder failed: {ex.Message}"); }
+        }
+    }
+
+    public async Task<TrackVerifyResult?> VerifyTracksAsync(
+        IReadOnlyList<string> paths, CancellationToken ct = default)
+    {
+        if (paths.Count == 0) return null;
+
+        LibraryDb? db;
+        lock (_gate) db = Open(createIfMissing: false);
+        if (db is null) return null;
+
+        try
+        {
+            return await Task.Run(
+                () => new LibrarySync(db, metadata).VerifyTracks(paths, options: null, ct), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Library] track check failed: {ex.Message}");
             return null;
         }
     }

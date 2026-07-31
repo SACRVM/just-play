@@ -261,6 +261,95 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     }
 
     /// <summary>
+    /// The same check for an explicit LIST of tracks rather than a folder — what a playlist needs.
+    ///
+    /// <para>A playlist is an arbitrary set of paths, so there is no folder fingerprint to early-out
+    /// on; each file is checked by its own cheap key. That is affordable because a stat is nothing
+    /// next to a tag read: measured 2026-07-30 over SMB, <b>1.58 ms per file against ~57 ms to open
+    /// one</b> — 36× cheaper, so a 100-track playlist verifies in ~160 ms in the background instead
+    /// of costing six seconds of reads up front.</para>
+    /// </summary>
+    public TrackVerifyResult VerifyTracks(
+        IReadOnlyList<string> paths, SyncOptions? options = null, CancellationToken ct = default)
+    {
+        var opt   = options ?? SyncOptions.Default;
+        var known = db.LookupMany(paths);
+
+        var batch   = new List<TrackIndexEntry>();
+        var queued  = new List<string>();
+        var gone    = new List<string>();
+        var added   = 0;
+        var updated = 0;
+
+        foreach (var path in paths)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            long size;
+            DateTime modified;
+            try
+            {
+                // One FileInfo = one stat; the properties are served from its cached state.
+                var info = new FileInfo(path);
+                if (!info.Exists)
+                {
+                    if (known.ContainsKey(path)) gone.Add(path);
+                    continue;
+                }
+                size     = info.Length;
+                modified = info.LastWriteTimeUtc;
+            }
+            catch (Exception)
+            {
+                // A playlist can point anywhere, including a share that is not mounted right now.
+                if (known.ContainsKey(path)) gone.Add(path);
+                continue;
+            }
+
+            var existing = known.GetValueOrDefault(path);
+            if (existing is not null && existing.LooksUnchanged(size, modified))
+                continue;
+
+            TrackIndexEntry? entry = null;
+            try
+            {
+                var meta = metadata.Read(path);
+                entry = TrackIndexMapping.FromStoredBlob(path, size, modified, meta, opt.MinBlobVersion);
+
+                if (entry is null)
+                {
+                    queued.Add(path);
+                    if (opt.IndexUnanalysedFiles)
+                        entry = TrackIndexMapping.NotAnalysed(path, size, modified, meta);
+                }
+            }
+            catch (Exception)
+            {
+                if (!queued.Contains(path)) queued.Add(path);
+            }
+
+            if (entry is null) continue;
+
+            batch.Add(entry);
+            if (existing is null) added++; else updated++;
+        }
+
+        if (batch.Count > 0) db.UpsertMany(batch);
+
+        var markedMissing = 0;
+        if (opt.MarkMissing && gone.Count > 0) markedMissing = db.MarkMissing(gone);
+
+        return new TrackVerifyResult
+        {
+            Changed           = added > 0 || updated > 0 || markedMissing > 0,
+            Added             = added,
+            Updated           = updated,
+            MarkedMissing     = markedMissing,
+            QueuedForAnalysis = queued,
+        };
+    }
+
+    /// <summary>
     /// Entries that are on disk and unchanged but whose stored analysis a rule rejects — the
     /// FLAC mono-decode debt, a failed run worth retrying, a never-analysed file. Paged so a
     /// very large library does not materialise at once.
@@ -293,6 +382,20 @@ public sealed record FolderVerifyResult
     public int MarkedMissing { get; init; }
 
     /// <summary>Files in this folder that still need a real analysis run.</summary>
+    public IReadOnlyList<string> QueuedForAnalysis { get; init; } = [];
+}
+
+/// <summary>What a <see cref="LibrarySync.VerifyTracks"/> check found.</summary>
+public sealed record TrackVerifyResult
+{
+    /// <summary>False = every listed track still matched what the index held.</summary>
+    public bool Changed { get; init; }
+
+    public int Added { get; init; }
+    public int Updated { get; init; }
+    public int MarkedMissing { get; init; }
+
+    /// <summary>Listed tracks that still need a real analysis run.</summary>
     public IReadOnlyList<string> QueuedForAnalysis { get; init; } = [];
 }
 
