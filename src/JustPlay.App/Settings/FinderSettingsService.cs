@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.App.Settings;
 
@@ -19,9 +20,7 @@ public sealed class FinderSettingsService : IFinderSettingsService
 
     public FinderSettingsService()
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JustPlay");
+        var dir = JustDataPaths.Combine("JustPlay");
         Directory.CreateDirectory(dir);
         _settingsPath = Path.Combine(dir, "finder.settings.json");
 

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using JustPlay.Core.Storage;
 using Microsoft.Data.Sqlite;
 
 namespace JustPlay.Library;
@@ -63,9 +64,7 @@ public sealed class LibraryDb : IDisposable
             .Where(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_').ToArray());
         if (label.Length == 0) label = "library";
 
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JUST", "library", $"{label}-{hash}.db");
+        return JustDataPaths.Combine("JUST", "library", $"{label}-{hash}.db");
     }
 
     // ── Open / schema ────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.Core.Logging;
 
@@ -32,8 +33,7 @@ public sealed class SessionLog : ISessionLog
     /// <param name="appFolderName">The <c>%LOCALAPPDATA%</c> subfolder to write into (e.g. "JustPlay").</param>
     public SessionLog(string appFolderName)
     {
-        _dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appFolderName);
+        _dir = JustDataPaths.Combine(appFolderName);
         Prune();
     }
 

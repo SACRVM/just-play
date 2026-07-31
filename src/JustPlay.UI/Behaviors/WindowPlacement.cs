@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.UI.Behaviors;
 
@@ -25,9 +26,8 @@ public sealed record WindowBounds(int X, int Y, double W, double H);
 /// </summary>
 public static class WindowPlacement
 {
-    private static readonly string StorePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "JUST", "window-layout.json");
+    private static readonly string StorePath =
+        JustDataPaths.Combine("JUST", "window-layout.json");
 
     private static readonly Dictionary<string, WindowBounds> Cache = Load();
 

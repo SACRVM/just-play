@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.App.Settings;
 
@@ -37,9 +38,7 @@ public sealed class JsonSettingsService : ISettingsService
 
     public JsonSettingsService()
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JustPlay");
+        var dir = JustDataPaths.Combine("JustPlay");
         Directory.CreateDirectory(dir);
         _settingsPath = Path.Combine(dir, "settings.json");
 

@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using JustPlay.Core.Storage;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI.Behaviors;
 
@@ -49,8 +50,7 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            var folder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustStream");
+            var folder = JustDataPaths.Combine("JustStream");
             Directory.CreateDirectory(folder);
             Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
         }

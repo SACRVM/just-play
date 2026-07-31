@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using JustPlay.App.Views;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.App;
 
@@ -41,8 +42,7 @@ public static class ErrorReporter
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustPlay", "logs");
+            var dir = JustDataPaths.Combine("JustPlay", "logs");
             Directory.CreateDirectory(dir);
             var file = Path.Combine(dir, $"crash-{DateTime.Now:yyyyMMdd}.log");
             File.AppendAllText(file, report + Environment.NewLine + new string('-', 72) + Environment.NewLine);

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using JustPlay.Core.Storage;
 using JustPlay.Core.Updates;
 
 namespace JustPlay.App.Updates;
@@ -54,9 +55,7 @@ internal static class UpdateInstaller
             throw new InvalidOperationException("Release has no installer asset to download.");
         }
 
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JustPlay", "updates");
+        var dir = JustDataPaths.Combine("JustPlay", "updates");
         Directory.CreateDirectory(dir);
 
         var name = string.IsNullOrEmpty(info.InstallerAssetName)

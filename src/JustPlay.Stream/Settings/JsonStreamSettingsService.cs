@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.Stream.Settings;
 
@@ -32,9 +33,7 @@ public sealed class JsonStreamSettingsService
 
     public JsonStreamSettingsService()
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "JustStream");
+        var dir = JustDataPaths.Combine("JustStream");
         _path = Path.Combine(dir, "settings.json");
         Current = Load();
     }

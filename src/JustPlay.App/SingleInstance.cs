@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Threading;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.App;
 
@@ -15,13 +16,33 @@ namespace JustPlay.App;
 /// on Windows, Linux and macOS.
 ///
 /// Names are suffixed with the user name so two users on one machine each get their own
-/// instance (matches the per-user install).
+/// instance (matches the per-user install), AND with the data directory, so an instance running
+/// on a redirected <c>JUSTPLAY_DATA_DIR</c> is a different INSTALLATION and gets its own gate.
+///
+/// <para>⚠ Without that second part the fresh-install run is unusable: launching it while the real
+/// JUST PLAY is open makes the new process forward-and-exit, and you sit there looking at your real
+/// library wondering why nothing reset (Chloe 2026-07-31: "mein just play music lib ordner und index
+/// wurden nicht zurück gesetzt - konnte die neue logik nicht testen"). The gate exists to keep ONE
+/// instance owning ONE queue and ONE settings file — two different data roots are not that case.</para>
 /// </summary>
 public sealed class SingleInstance : IDisposable
 {
-    private static readonly string Suffix = Sanitize(Environment.UserName);
+    private static readonly string Suffix = Sanitize(Environment.UserName) + DataScope();
     private static readonly string MutexName = $"JustPlay.SingleInstance.v1.{Suffix}";
     private static readonly string PipeName  = $"JustPlay.OpenFiles.v1.{Suffix}";
+
+    /// <summary>
+    /// Empty for a normal install (so the gate name is unchanged and an existing running instance is
+    /// still found), a short stable hash of the data root when it has been redirected.
+    /// </summary>
+    private static string DataScope()
+    {
+        if (!JustDataPaths.IsOverridden) return "";
+
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(JustDataPaths.Base.ToLowerInvariant()));
+        return "." + Convert.ToHexStringLower(bytes)[..8];
+    }
 
     private Mutex? _mutex;
     private volatile bool _running = true;

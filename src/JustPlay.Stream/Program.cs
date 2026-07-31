@@ -4,6 +4,7 @@ using Avalonia;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Audio;
+using JustPlay.Core.Storage;
 using JustPlay.Stream.Settings;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI.Theming;
@@ -95,8 +96,7 @@ internal sealed class Program
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustStream");
+            var dir = JustDataPaths.Combine("JustStream");
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, $"crash-{DateTime.Now:yyyy-MM-dd}.log");
             File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss}] {context}\n{ex}\n\n");

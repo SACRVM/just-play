@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Avalonia;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Storage;
 using JustPlay.Metadata;
 using JustPlay.Tag.ViewModels;
 using JustPlay.UI.Theming;
@@ -73,8 +74,7 @@ internal sealed class Program
     {
         try
         {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustTag");
+            var dir = JustDataPaths.Combine("JustTag");
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, $"crash-{DateTime.Now:yyyy-MM-dd}.log");
             File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss}] {context}\n{ex}\n\n");

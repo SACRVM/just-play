@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using JustPlay.Core.Models;
+using JustPlay.Core.Storage;
 
 namespace JustPlay.Tag.Settings;
 
@@ -19,8 +20,7 @@ public sealed class TagSettingsService
 
     public TagSettingsService()
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustTag");
+        var dir = JustDataPaths.Combine("JustTag");
         _path = Path.Combine(dir, "settings.json");
         Current = Load();
     }
