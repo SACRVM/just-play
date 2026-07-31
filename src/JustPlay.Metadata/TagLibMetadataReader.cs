@@ -128,7 +128,12 @@ public sealed class TagLibMetadataReader : IMetadataReader
     /// Also handles Xiph RATING comment fields (FLAC/OGG) where a value of
     /// "5" (1–5 stars) or "255" (0–255 raw) is treated as "liked".
     /// </summary>
-    private static bool ReadPopm(TagLib.File file)
+    /// <remarks>
+    /// Internal (not private): <see cref="TagLibWritePreview"/> reuses this exact logic to read
+    /// the CURRENT rating for its dry-run plan, so the preview can never drift from what
+    /// <see cref="Read"/> itself considers "liked".
+    /// </remarks>
+    internal static bool ReadPopm(TagLib.File file)
     {
         // ID3v2: POPM frame — the standard path for MP3.
         if (file.GetTag(TagLib.TagTypes.Id3v2, false) is TagLib.Id3v2.Tag id3)
