@@ -104,4 +104,62 @@ public class AnalysisStateCodecTests
     {
         Assert.Null(AnalysisStateCodec.TryParse(blob));
     }
+
+    // ── AnalysedAtUtc (L7, post-L6 night report) ────────────────────────────────
+
+    [Fact]
+    public void RoundTrips_AnalysedAtUtc()
+    {
+        var state = new TrackAnalysisState
+        {
+            Version = TrackAnalysisState.CurrentVersion,
+            AnalysedAtUtc = new DateTime(2026, 7, 31, 22, 5, 12, DateTimeKind.Utc),
+            Detected = new AnalysisResult { Bpm = 128 },
+            BpmDecision = FieldDecision.Applied,
+        };
+
+        var restored = AnalysisStateCodec.TryParse(AnalysisStateCodec.Serialize(state));
+
+        Assert.NotNull(restored);
+        Assert.Equal(state.AnalysedAtUtc, restored!.AnalysedAtUtc);
+        Assert.Equal(DateTimeKind.Utc, restored.AnalysedAtUtc!.Value.Kind);
+    }
+
+    [Fact]
+    public void AnalysedAtUtc_IsNull_WhenNeverSet()
+    {
+        // Default construction — same shape every pre-L7 caller already produces.
+        var state = new TrackAnalysisState
+        {
+            Detected = new AnalysisResult { Bpm = 120 },
+        };
+
+        Assert.Null(state.AnalysedAtUtc);
+
+        var restored = AnalysisStateCodec.TryParse(AnalysisStateCodec.Serialize(state));
+        Assert.NotNull(restored);
+        Assert.Null(restored!.AnalysedAtUtc);
+    }
+
+    [Fact]
+    public void OldBlob_WithNoAatKey_StillParses_WithAnalysedAtUtcNull()
+    {
+        // Verbatim shape of a blob written before AnalysedAtUtc existed: no "aat" key at all.
+        // Backward-compat is non-negotiable — this blob lives in Chloe's actual music files.
+        const string oldBlob =
+            "{\"v\":9,\"bpm\":127.98,\"kpc\":9,\"kmd\":\"min\",\"kcf\":0.82,\"nrg\":7," +
+            "\"abpm\":\"A\",\"akey\":\"P\",\"anrg\":\"K\"}";
+
+        var restored = AnalysisStateCodec.TryParse(oldBlob);
+
+        Assert.NotNull(restored);
+        Assert.Null(restored!.AnalysedAtUtc);
+        Assert.Equal(9, restored.Version);
+        Assert.Equal(127.98, restored.Detected.Bpm);
+        Assert.Equal(new MusicalKey(9, KeyMode.Minor), restored.Detected.Key);
+        Assert.Equal(7, restored.Detected.Energy);
+        Assert.Equal(FieldDecision.Applied, restored.BpmDecision);
+        Assert.Equal(FieldDecision.Pending, restored.KeyDecision);
+        Assert.Equal(FieldDecision.Kept, restored.EnergyDecision);
+    }
 }

@@ -53,6 +53,29 @@ public sealed record TrackAnalysisState
 
     public int Version { get; init; } = CurrentVersion;
 
+    /// <summary>
+    /// UTC instant the DSP that produced <see cref="Detected"/> actually ran — added post-L6
+    /// (night report 2026-08-01). Deliberately NOT auto-stamped by a property default the way
+    /// <see cref="Version"/> is: a default of "now" would make every producer of a
+    /// <see cref="TrackAnalysisState"/> silently claim "analysed this instant" even when it is
+    /// only reconstructing an old result (e.g. <c>PromoteCommand</c> rebuilding a state from a
+    /// pre-0.6 index entry) — exactly the kind of false timestamp that made
+    /// <c>StaleRule.FlacMonoDecodeBug()</c> read 0 stale entries against a real 957-file debt. A
+    /// producer that genuinely just ran the DSP must set this explicitly.
+    ///
+    /// <para>Null means "unknown" — either a blob written before this field existed, or a state
+    /// rebuilt without its own fresh timestamp. <c>JustPlay.Library.TrackIndexMapping.FromStoredBlob</c>
+    /// is the reader that has to decide what an unknown analysed-at means for staleness; see the
+    /// comment on <c>JustPlay.Library.TrackIndexEntry.UnknownAnalysedAt</c> for why "unknown" is
+    /// treated as "assume the worst", not "assume clean". (Core cannot reference Library, so this
+    /// is a plain-text pointer, not a resolvable cref.)</para>
+    ///
+    /// <para>Deliberately outside the <see cref="Version"/> bump discipline above: this describes
+    /// WHEN a measurement happened, not WHAT was measured, so adding it does not invalidate or
+    /// require re-analysing any existing blob.</para>
+    /// </summary>
+    public DateTime? AnalysedAtUtc { get; init; }
+
     /// <summary>What our DSP detected (the values, regardless of what's in the standard tags).</summary>
     public AnalysisResult Detected { get; init; } = AnalysisResult.Empty;
 

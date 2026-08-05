@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:JustPlay.UI.Controls"
+        xmlns:vm="using:JustPlay.UI.ViewModels"
+        x:Class="JustPlay.UI.Views.TagEditorWindow"
+        x:DataType="vm:TagEditorViewModel"
+        Title="Edit tags"
+        Width="560" Height="660"
+        MinWidth="480" MinHeight="440"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <!--
+      The floating tag editor — ALWAYS ON TOP (Chloe 2026-08-02: "wir machen nen tag edit window -
+      was immer im vordergrund bleibt"). Same frameless rounded card as the rest of the suite; the
+      body is the SHARED TagEditorPanel, which JUST TAG will dock as its sidebar unchanged.
+
+      ShowInTaskbar=False: this is a tool window belonging to the app that opened it, not a second
+      entry to alt-tab through.
+    -->
+
+    <Panel>
+        <Border CornerRadius="14" ClipToBounds="False"
+                Margin="20,20,20,22"
+                Background="#40000000"
+                BoxShadow="{DynamicResource WindowOuter}">
+            <Panel>
+                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+
+                <DockPanel LastChildFill="True">
+
+                    <!-- ─── CHROME / TITLE BAR ─── -->
+                    <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
+                            Background="Transparent" PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                        Margin="14,0,0,0" VerticalAlignment="Center">
+                                <!-- macOS: traffic lights LEFT (dialog-style, no min/zoom). -->
+                                <controls:WindowControls ShowMinimize="False" ShowMaximize="False"
+                                                         IsVisible="{x:Static controls:Platform.IsMac}"
+                                                         Margin="0,0,4,0"/>
+                                <!-- Lucide "tag" — the same mark JUST TAG carries. -->
+                                <Path Stretch="Uniform" Width="14" Height="14"
+                                      VerticalAlignment="Center"
+                                      Stroke="#D9FFFFFF" StrokeThickness="2"
+                                      StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                      Data="M12.586 2.586 A2 2 0 0 0 11.172 2 H4 a2 2 0 0 0 -2 2 v7.172
+                                            a2 2 0 0 0 .586 1.414 l8.704 8.704 a2.426 2.426 0 0 0 3.42 0
+                                            l6.58 -6.58 a2.426 2.426 0 0 0 0 -3.42 Z
+                                            M6.3 7.5 A1.2 1.2 0 1 0 8.7 7.5 A1.2 1.2 0 1 0 6.3 7.5"/>
+                                <TextBlock Text="EDIT TAGS" FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="2" Foreground="#D9FFFFFF"
+                                           VerticalAlignment="Center"/>
+                                <!-- Unsaved marker: a dot, not a word — it must read at a glance from
+                                     the corner of the eye while you are looking at the list. -->
+                                <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                         Fill="{DynamicResource AccentBBrush}"
+                                         IsVisible="{Binding IsDirty}"
+                                         ToolTip.Tip="Unsaved changes"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
+                                    IsVisible="{x:Static controls:Platform.IsNotMac}">
+                                <TextBlock Text="✕" FontSize="13"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <controls:TagEditorPanel Name="Panel"/>
+                </DockPanel>
+            </Panel>
+        </Border>
+    </Panel>
+</Window>

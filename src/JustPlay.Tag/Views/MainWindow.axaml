@@ -197,6 +197,33 @@
                                          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="62"/>
                             </StackPanel>
 
+                            <!-- ID3 VERSION CONVERSION NOTICE — shown only when saving THIS file would
+                                 also change its ID3v2 version, i.e. only when the WRITE FORMAT setting is
+                                 on one of the three CONVERT options (those set ForceDefaultVersion = true
+                                 in TagLibMetadataWriter.ConfigureId3WriteFormat; the default
+                                 KeepFileVersion does not, and then this never appears). Measured 2026-07-31: the
+                                 version change re-encodes GEOB descriptors, which is how Serato and Mixed
+                                 In Key find their frames. Sits directly above Save — the last thing read
+                                 before the irreversible click. -->
+                            <Border Classes="caution" IsVisible="{Binding HasVersionNotice}">
+                                <Grid ColumnDefinitions="Auto,11,*">
+                                    <!-- Lucide "triangle-alert". -->
+                                    <Path Grid.Column="0" Stretch="Uniform" Width="15" Height="15"
+                                          VerticalAlignment="Top" Margin="0,1,0,0"
+                                          Stroke="{DynamicResource CautionBrush}" StrokeThickness="1.8"
+                                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                          Data="M10.29 3.86 L1.82 18 a2 2 0 0 0 1.71 3 h16.94 a2 2 0 0 0 1.71 -3
+                                                L13.71 3.86 a2 2 0 0 0 -3.42 0 Z M12 9 v4 M12 17 h.01"/>
+                                    <StackPanel Grid.Column="2" Spacing="4">
+                                        <TextBlock Classes="cautiontitle" Text="{Binding VersionNotice}"/>
+                                        <TextBlock Classes="cautionbody"
+                                                   Text="Serato and Mixed In Key find their data by the frame label, and the conversion rewrites those labels. The cue points stay in the file — those apps can stop finding them."/>
+                                        <TextBlock Classes="cautionfix" Text="{Binding VersionNoticeFix}"
+                                                   IsVisible="{Binding HasVersionNoticeFix}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
                             <!-- Save + status -->
                             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
                                 <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="value"

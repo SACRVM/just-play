@@ -5,7 +5,7 @@
         x:Class="JustPlay.Tag.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="JUST TAG — Settings"
-        Width="468" Height="556"
+        Width="468" Height="696"
         CanResize="False"
         Background="#00000000"
         TransparencyLevelHint="Transparent,Mica,Blur"
@@ -125,13 +125,40 @@
 
                             <Border Height="1" Background="{StaticResource HairlineBrush}"/>
 
-                            <!-- ═══ WRITE FORMAT (MP3) ═══ -->
+                            <!-- ═══ WRITE FORMAT (MP3) ═══
+                                 This setting is the ONLY way into an ID3 version change in the whole suite:
+                                 the CLI and JUST PLAY never call ConfigureId3WriteFormat, so they run with
+                                 ForceDefaultVersion = false and preserve whatever version a file has. The
+                                 default option below does exactly the same; the three CONVERT options force
+                                 it, in BOTH directions — hence the caution card under them. -->
                             <StackPanel Spacing="10">
                                 <StackPanel Spacing="3">
                                     <TextBlock Classes="label" Text="WRITE FORMAT  ·  MP3 / ID3v2"/>
                                     <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
-                                               Text="How tags are saved to MP3 files. FLAC, MP4 and Ogg ignore this."/>
+                                               Text="What saving does to an MP3's ID3 version. FLAC, MP4 and Ogg ignore this."/>
                                 </StackPanel>
+
+                                <Button Classes="opt" Command="{Binding SetWriteFormatCommand}" CommandParameter="KeepFileVersion"
+                                        Classes.active="{Binding WriteFormat, Converter={x:Static vm:EnumEqualsConverter.Instance}, ConverterParameter=KeepFileVersion}">
+                                    <Grid ColumnDefinitions="Auto,12,*">
+                                        <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
+                                                BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="2" Spacing="1">
+                                            <!-- The non-converting option carries the DEFAULT badge so it reads as
+                                                 the default, not merely as the first row in a list. -->
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="Keep each file's version" FontSize="13"
+                                                           FontWeight="SemiBold" Foreground="#ECFFFFFF"
+                                                           VerticalAlignment="Center"/>
+                                                <Border Classes="pill">
+                                                    <TextBlock Classes="pilltext" Text="DEFAULT"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
+                                                       Text="Nothing is converted. Only the fields you edited are written."/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
 
                                 <Button Classes="opt" Command="{Binding SetWriteFormatCommand}" CommandParameter="Id3v23Utf16"
                                         Classes.active="{Binding WriteFormat, Converter={x:Static vm:EnumEqualsConverter.Instance}, ConverterParameter=Id3v23Utf16}">
@@ -139,7 +166,7 @@
                                         <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
                                                 BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="2" Spacing="1">
-                                            <TextBlock Text="ID3v2.3 · UTF-16   (recommended)" FontSize="13"
+                                            <TextBlock Text="Convert to ID3v2.3 · UTF-16" FontSize="13"
                                                        FontWeight="SemiBold" Foreground="#ECFFFFFF"/>
                                             <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
                                                        Text="Reads everywhere — Windows, car &amp; DJ gear. mp3tag's default."/>
@@ -153,10 +180,10 @@
                                         <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
                                                 BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="2" Spacing="1">
-                                            <TextBlock Text="ID3v2.3 · ISO-8859-1" FontSize="13"
+                                            <TextBlock Text="Convert to ID3v2.3 · ISO-8859-1" FontSize="13"
                                                        FontWeight="SemiBold" Foreground="#ECFFFFFF"/>
                                             <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
-                                                       Text="For the oldest gear that chokes on UTF-16. ASCII-safe text only."/>
+                                                       Text="Same version, plain text — for old gear that chokes on UTF-16."/>
                                         </StackPanel>
                                     </Grid>
                                 </Button>
@@ -167,16 +194,38 @@
                                         <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
                                                 BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="2" Spacing="1">
-                                            <TextBlock Text="ID3v2.4 · UTF-8" FontSize="13"
+                                            <TextBlock Text="Convert to ID3v2.4 · UTF-8" FontSize="13"
                                                        FontWeight="SemiBold" Foreground="#ECFFFFFF"/>
                                             <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
-                                                       Text="Modern &amp; compact. Only for software known to read v2.4."/>
+                                                       Text="Modern and compact. Only for software known to read v2.4."/>
                                         </StackPanel>
                                     </Grid>
                                 </Button>
 
-                                <TextBlock Classes="value" FontSize="10" TextWrapping="Wrap" Foreground="#59FFFFFF"
-                                           Text="Existing tags are normalised to the chosen version on the next save."/>
+                                <!-- Measured 2026-07-31 (128 writes / 787 vendor frames): a version change
+                                     re-serialises the tag and re-encodes GEOB descriptors. Payloads survive
+                                     byte-for-byte; the LABEL Serato/MIK search by does not. Re-verified against
+                                     the shipped writer: F_mik_armstrong.mp3 (v2.4) saved in the DEFAULT mode
+                                     came back v2.3 with GEOB:CuePoints relabelled Latin-1 → UTF-16+BOM. -->
+                                <Border Classes="caution">
+                                    <Grid ColumnDefinitions="Auto,11,*">
+                                        <!-- Lucide "triangle-alert". -->
+                                        <Path Grid.Column="0" Stretch="Uniform" Width="15" Height="15"
+                                              VerticalAlignment="Top" Margin="0,1,0,0"
+                                              Stroke="{DynamicResource CautionBrush}" StrokeThickness="1.8"
+                                              StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                              Data="M10.29 3.86 L1.82 18 a2 2 0 0 0 1.71 3 h16.94 a2 2 0 0 0 1.71 -3
+                                                    L13.71 3.86 a2 2 0 0 0 -3.42 0 Z M12 9 v4 M12 17 h.01"/>
+                                        <StackPanel Grid.Column="2" Spacing="4">
+                                            <TextBlock Classes="cautiontitle"
+                                                       Text="Converting rewrites Serato's frame labels"/>
+                                            <TextBlock Classes="cautionbody"
+                                                       Text="Serato and Mixed In Key find their cue points, key and energy by the frame label. Converting an MP3 to another ID3 version rewrites those labels, and they can stop finding the data."/>
+                                            <TextBlock Classes="cautionfix"
+                                                       Text="A convert option applies to every file you save, not only the ones that need it. JUST TAG warns you above Save when the open file would change."/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
 
                     </StackPanel>

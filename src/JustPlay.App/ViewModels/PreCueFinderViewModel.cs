@@ -469,6 +469,24 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// re-sort by list position). Mirrors <see cref="MainWindowViewModel.SelectedTracks"/>.</summary>
     public ObservableCollection<FinderItemViewModel> SelectedItems { get; } = [];
 
+    /// <summary>
+    /// Re-read one file's tags into its row(s) after the shared tag editor wrote them — a corrected
+    /// artist or key has to appear in the list at once, not after the next folder change.
+    /// <para>Goes over <see cref="_masterItems"/> (the unfiltered set) rather than <see cref="Items"/>,
+    /// because the edited row may currently be filtered out and would otherwise keep stale values
+    /// waiting for the filter to be cleared.</para>
+    /// </summary>
+    public void RefreshTagsFor(string path)
+    {
+        var target = NormalizePath(path);
+        foreach (var item in _masterItems)
+        {
+            if (!string.Equals(item.NormalizedPath, target, StringComparison.OrdinalIgnoreCase)) continue;
+            try { item.Track.Model.Metadata = _metadata.Read(path); } catch { continue; }
+            item.Track.Refresh();
+        }
+    }
+
     /// <summary>Set by the window: clears the file ListBox's live (multi-)selection. Invoked right before
     /// <see cref="Items"/> is reset, because Avalonia's SelectionModel throws (ArgumentOutOfRangeException,
     /// enumerating SelectedItems against stale indices) when the bound source resets while a selection is
@@ -1259,6 +1277,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             {
                 // Trust the blob as-is, any version — re-analyse stays an explicit action.
                 tvm.Model.Analysis = stored.Detected;
+                tvm.Model.AnalysedAtUtc = stored.AnalysedAtUtc;   // imported, not measured here
                 tvm.Model.AnalysisStatus = AnalysisStatus.Done;
             }
         }

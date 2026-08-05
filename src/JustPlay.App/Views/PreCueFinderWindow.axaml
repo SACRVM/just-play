@@ -720,6 +720,11 @@
                                                       Command="{Binding ReanalyzeSelectionCommand}"
                                                       IsVisible="{Binding HasFileSelection}"/>
                                             <Separator IsVisible="{Binding HasFileSelection}"/>
+                                            <!-- Opens the SHARED floating editor (JustPlay.UI) — it stays on
+                                                 top and follows the row cursor from here on. -->
+                                            <MenuItem Header="Edit tags…" Click="OnEditTags"
+                                                      IsVisible="{Binding HasFileSelection}"/>
+                                            <Separator IsVisible="{Binding HasFileSelection}"/>
                                             <MenuItem Header="Refresh" Command="{Binding RefreshFolderCommand}"/>
                                         </ContextMenu>
                                     </ListBox.ContextMenu>

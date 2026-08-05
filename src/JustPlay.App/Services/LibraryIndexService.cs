@@ -71,6 +71,12 @@ public interface ILibraryIndexService
     void ForgetFolderState(string folder);
 
     /// <summary>
+    /// The genres this library actually uses, most-used first — what the tag editor suggests from
+    /// before falling back to a canned list. Empty when there is no index yet (never creates one).
+    /// </summary>
+    IReadOnlyList<string> Genres();
+
+    /// <summary>
     /// Brings the index in line with the disk. Long-running on a first run (measured ~13.5 min for
     /// 14k files over SMB — the tag reads dominate), near-instant afterwards, because an unchanged
     /// file is recognised by its directory entry and never opened.
@@ -225,6 +231,19 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         {
             try { Open(createIfMissing: false)?.ForgetFolderState(folder); }
             catch (Exception ex) { Console.WriteLine($"[Library] forget folder failed: {ex.Message}"); }
+        }
+    }
+
+    public IReadOnlyList<string> Genres()
+    {
+        lock (_gate)
+        {
+            try { return Open(createIfMissing: false)?.DistinctGenres() ?? []; }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Library] genre list failed: {ex.Message}");
+                return [];
+            }
         }
     }
 

@@ -30,6 +30,12 @@ public static class AnalysisStateCodec
         var dto = new AnalysisStateDto
         {
             V = state.Version,
+            // Analysed-at (added post-L6): Unix seconds, UTC — compact, unambiguous, no timezone
+            // parsing. Omitted entirely (stays null) when the caller doesn't know it, so an old
+            // reader/writer round-trips this exactly like any other absent optional field.
+            Aat = state.AnalysedAtUtc is { } analysedAt
+                ? new DateTimeOffset(DateTime.SpecifyKind(analysedAt, DateTimeKind.Utc)).ToUnixTimeSeconds()
+                : null,
             Bpm = state.Detected.Bpm,
             KeyPc = k?.PitchClass,
             KeyMode = k is { } key ? (key.Mode == KeyMode.Major ? "maj" : "min") : null,
@@ -127,6 +133,9 @@ public static class AnalysisStateCodec
             return new TrackAnalysisState
             {
                 Version = dto.V,
+                AnalysedAtUtc = dto.Aat is { } aat
+                    ? DateTimeOffset.FromUnixTimeSeconds(aat).UtcDateTime
+                    : null,
                 Detected = new AnalysisResult
                 {
                     Bpm = dto.Bpm,
@@ -220,6 +229,10 @@ public static class AnalysisStateCodec
 internal sealed class AnalysisStateDto
 {
     [JsonPropertyName("v")]   public int V { get; set; }
+    // Analysed-at (added post-L6, 2026-08). Unix seconds UTC; absent on every blob written before
+    // this field existed — those are indistinguishable from "we didn't ask", which is correct:
+    // there is no way to recover the true DSP date from a blob that never recorded it.
+    [JsonPropertyName("aat")] public long? Aat { get; set; }
     [JsonPropertyName("bpm")] public double? Bpm { get; set; }
     [JsonPropertyName("kpc")] public int? KeyPc { get; set; }
     [JsonPropertyName("kmd")] public string? KeyMode { get; set; }

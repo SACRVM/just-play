@@ -20,6 +20,25 @@
                 <GradientStop Offset="0" Color="#16FFFFFF"/>
                 <GradientStop Offset="1" Color="#08FFFFFF"/>
             </LinearGradientBrush>
+
+            <!-- Accent wash for a small inline pill (the DEFAULT badge). Composed from the live
+                 AccentB Color so it follows a theme switch; Brush.Opacity keeps the fill a whisper
+                 without fading the label inside the Border. -->
+            <SolidColorBrush x:Key="PillBrush" Color="{DynamicResource AccentB}" Opacity="0.20"/>
+
+            <!--
+              CAUTION note tokens. The suite has no caution token yet, so these live here for now —
+              lift them into JustPlay.UI/Theming/JustPalette.axaml the moment a second JUST app needs
+              one (that file is untouchable tonight). Two deliberate choices:
+                · NOT accent-tinted — in this design system the accent means "selected/active", and a
+                  caution that borrows it would read as a chosen state.
+                · NOT red — the write-format setting is a legitimate choice, not an error. This is a
+                  warm, quiet sand that says "read me" and nothing louder.
+            -->
+            <Color x:Key="Caution">#f2c98c</Color>
+            <SolidColorBrush x:Key="CautionBrush" Color="{DynamicResource Caution}"/>
+            <SolidColorBrush x:Key="CautionSurfaceBrush" Color="{DynamicResource Caution}" Opacity="0.07"/>
+            <SolidColorBrush x:Key="CautionEdgeBrush" Color="{DynamicResource Caution}" Opacity="0.34"/>
         </ResourceDictionary>
     </Application.Resources>
 
@@ -45,6 +64,50 @@
         <Style Selector="TextBlock.value">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+        </Style>
+
+        <!-- ═══ Caution note — the frosted-card vocabulary (radius 9, hairline edge) in the warm
+             caution tone. Used where a legitimate choice has a consequence worth naming: the ID3
+             version conversion (Settings) and the per-file conversion notice (editor). ═══ -->
+        <Style Selector="Border.caution">
+            <Setter Property="Background" Value="{DynamicResource CautionSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CautionEdgeBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="13,11"/>
+        </Style>
+        <Style Selector="TextBlock.cautiontitle">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource CautionBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <!-- Body + the "how to avoid it" line: plain muted text, so the tone stays calm. -->
+        <Style Selector="TextBlock.cautionbody">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="TextBlock.cautionfix">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedDimBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
+        <!-- ═══ Small inline pill (DEFAULT badge on the shipped write format). The label styling is
+             set INLINE at the use site, not via a descendant selector — a selector that silently
+             fails to match is exactly the class of bug nobody sees until it ships. ═══ -->
+        <Style Selector="Border.pill">
+            <Setter Property="Background" Value="{DynamicResource PillBrush}"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.pilltext">
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1.2"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBBrush}"/>
         </Style>
 
         <!-- ═══ Editable field — themed TextBox (frosted, accent focus; OS red killed) ═══ -->

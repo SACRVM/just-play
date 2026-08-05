@@ -13,8 +13,8 @@ public sealed class TagSettings
     public string Theme { get; set; } = "Aurora";
 
     /// <summary>ID3v2 write mode — the <see cref="JustPlay.Core.Models.Id3WriteFormat"/> enum NAME.
-    /// Default = the mp3tag-default, max-compatibility v2.3/UTF-16.</summary>
-    public string WriteFormat { get; set; } = "Id3v23Utf16";
+    /// Default = KeepFileVersion: converting is a thing you choose, not something Save does to you.</summary>
+    public string WriteFormat { get; set; } = "KeepFileVersion";
 }
 
 /// <summary>Source-generated JSON context — trim/AOT-safe (no reflection serialization), per the repo's

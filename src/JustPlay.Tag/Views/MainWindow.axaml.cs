@@ -48,7 +48,7 @@ public partial class MainWindow : Window
         if (DataContext is TagEditorViewModel vm)
         {
             vm.PropertyChanged += OnVmPropertyChanged;
-            ResizeForState(vm.HasFile);
+            ResizeForState(vm);
         }
     }
 
@@ -60,22 +60,30 @@ public partial class MainWindow : Window
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(TagEditorViewModel.HasFile) && DataContext is TagEditorViewModel vm)
-            ResizeForState(vm.HasFile);
+        if (e.PropertyName is nameof(TagEditorViewModel.HasFile)
+                           or nameof(TagEditorViewModel.HasVersionNotice)
+            && DataContext is TagEditorViewModel vm)
+            ResizeForState(vm);
     }
 
-    private void ResizeForState(bool hasFile)
+    // The card grows for the ID3-version caution note too, so the Save button never slips below the
+    // fold on exactly the files where the note matters.
+    private void ResizeForState(TagEditorViewModel vm)
     {
+        var hasFile = vm.HasFile;
         Width = hasFile ? 560 : 440;
-        Height = hasFile ? 680 : 340;
+        Height = hasFile ? (vm.HasVersionNotice ? 816 : 680) : 340;
         // Keep the frameless card centred as it grows/shrinks.
         var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
         if (screen is { } s)
         {
             var wa = s.WorkingArea;
+            // Clamp the vertical centre at the top of the work area: the tallest state (editor +
+            // version notice) can exceed a short screen, and a negative Y would push the chrome bar
+            // — the only way to drag or close a frameless window — off the top edge.
             Position = new PixelPoint(
                 wa.X + (int)((wa.Width - Width * RenderScaling) / 2),
-                wa.Y + (int)((wa.Height - Height * RenderScaling) / 2));
+                wa.Y + Math.Max(0, (int)((wa.Height - Height * RenderScaling) / 2)));
         }
     }
 

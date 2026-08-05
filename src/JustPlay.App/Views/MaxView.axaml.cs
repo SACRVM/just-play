@@ -14,6 +14,7 @@ using JustPlay.App.Controls;
 using JustPlay.Core.Abstractions;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
+using JustPlay.UI.Views;
 using JustPlay.App.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -164,6 +165,40 @@ public partial class MaxView : UserControl
         vm.SelectedTracks.Clear();
         foreach (var t in lb.SelectedItems!.OfType<TrackViewModel>())
             vm.SelectedTracks.Add(t);
+
+        // The tag editor follows the CURSOR. Deliberately only here: auto-advance at the end of a
+        // track changes what is PLAYING, not what is selected, and must never retarget the editor
+        // mid-edit (Chloe 2026-08-02). Multi-select points it at the row the cursor landed on.
+        if (_tagEditor is not null)
+            _ = _tagEditor.SetTargetAsync((lb.SelectedItem as TrackViewModel)?.Model.FilePath);
+    }
+
+    // ── The shared, always-on-top tag editor ────────────────────────────────────────────────────
+    // Same window and same body the PRE CUE FINDER opens, and the one JUST TAG docks as its sidebar.
+
+    private TagEditorWindow? _tagEditor;
+
+    private void OnEditTags(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        if (vm.ContextTarget is not { } target) return;
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        if (_tagEditor is null)
+        {
+            var editor = vm.CreateTagEditor();
+            editor.Saved += vm.RefreshTagsFor;
+            _tagEditor = TagEditorWindow.Open(owner, null, editor);
+            // A closed Avalonia window cannot be shown again — drop the reference so the next
+            // "Edit tags…" builds a fresh one instead of raising a dead window.
+            _tagEditor.Closed += (_, _) => _tagEditor = null;
+        }
+        else
+        {
+            _tagEditor.Activate();
+        }
+
+        _ = _tagEditor.SetTargetAsync(target.Model.FilePath);
     }
 
     // Queue keyboard behaviour: Delete removes, Enter plays, a typed letter/digit jumps to the next

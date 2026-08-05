@@ -874,6 +874,11 @@
                                         <MenuItem Header="{Binding ReanalyzeHeader}" Command="{Binding ReanalyzeCommand}"
                                                   IsVisible="{Binding HasSelection}"/>
                                         <Separator IsVisible="{Binding HasSelection}"/>
+                                        <!-- Opens the SHARED floating editor (JustPlay.UI) — stays on top and
+                                             follows the queue cursor. Single row only; batch is JUST TAG's job. -->
+                                        <MenuItem Header="Edit tags…" Click="OnEditTags"
+                                                  IsVisible="{Binding ShowEditTags}"/>
+                                        <Separator IsVisible="{Binding ShowEditTags}"/>
                                         <MenuItem Header="{Binding ContextTarget.WriteBpmMenu}" CommandParameter="Bpm"
                                                   Command="{Binding WriteOneFieldCommand}" IsVisible="{Binding ShowBpmField}"/>
                                         <MenuItem Header="{Binding ContextTarget.KeepBpmMenu}" CommandParameter="Bpm"

@@ -16,6 +16,7 @@ using JustPlay.UI;
 using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
+using JustPlay.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace JustPlay.App.Views;
@@ -433,6 +434,41 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         vm.SelectedItems.Clear();
         foreach (var it in lb.SelectedItems!.OfType<FinderItemViewModel>())
             vm.SelectedItems.Add(it);
+
+        // The tag editor follows the CURSOR — this is the selection changing, which is the one
+        // signal it is allowed to follow (a track ending must never retarget it; see TagEditorWindow).
+        if (_tagEditor is not null)
+            _ = _tagEditor.SetTargetAsync(vm.Selected?.FullPath);
+    }
+
+    // ── The shared, always-on-top tag editor ────────────────────────────────────────────────────
+    // One window per finder. It is JustPlay.UI's TagEditorWindow, the exact control JUST TAG docks
+    // as its sidebar — so a fix made here is a fix in both, by construction.
+
+    private TagEditorWindow? _tagEditor;
+
+    private void OnEditTags(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } vm) return;
+
+        if (_tagEditor is null)
+        {
+            var editor = vm.Main.CreateTagEditor();
+            editor.Saved += path => vm.RefreshTagsFor(path);
+            // A renamed file's row is stale in a way a tag re-read cannot fix (the path itself moved),
+            // so the listing is reloaded — cheap, and it keeps the pane honest about what is on disk.
+            editor.Renamed += (_, _) => vm.RefreshFolderCommand.Execute(null);
+            _tagEditor = TagEditorWindow.Open(this, null, editor);
+            // A closed Avalonia window cannot be shown again — drop the reference so the next
+            // "Edit tags…" builds a fresh one instead of raising a dead window.
+            _tagEditor.Closed += (_, _) => _tagEditor = null;
+        }
+        else
+        {
+            _tagEditor.Activate();
+        }
+
+        _ = _tagEditor.SetTargetAsync(vm.Selected?.FullPath);
     }
 
     // Right-click a file row: if it isn't part of the current multi-selection, select just it (standard

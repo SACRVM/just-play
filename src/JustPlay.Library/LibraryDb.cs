@@ -501,6 +501,29 @@ public sealed class LibraryDb : IDisposable
         }
     }
 
+    /// <summary>
+    /// Every distinct genre the index holds, most-used first — the vocabulary THIS library actually
+    /// uses, which is what a genre suggestion should offer before any canned list. Blank genres are
+    /// skipped; ordering by count means the styles she files under daily come up first.
+    /// </summary>
+    public IReadOnlyList<string> DistinctGenres(int limit = 400)
+    {
+        lock (_gate)
+        {
+            using var cmd = _cx.CreateCommand();
+            cmd.CommandText =
+                "SELECT genre, COUNT(*) AS n FROM tracks " +
+                "WHERE genre IS NOT NULL AND TRIM(genre) <> '' " +
+                "GROUP BY genre ORDER BY n DESC, genre ASC LIMIT $limit;";
+            cmd.Parameters.AddWithValue("$limit", limit);
+
+            var genres = new List<string>();
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) genres.Add(r.GetString(0));
+            return genres;
+        }
+    }
+
     /// <summary>Runs a <see cref="LibraryQuery"/>. This is the set-building path.</summary>
     public IReadOnlyList<TrackIndexEntry> Query(LibraryQuery q)
     {

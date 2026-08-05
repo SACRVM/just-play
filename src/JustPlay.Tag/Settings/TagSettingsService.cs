@@ -25,9 +25,28 @@ public sealed class TagSettingsService
         Current = Load();
     }
 
-    /// <summary>The persisted write mode parsed to the enum (falls back to the safe default).</summary>
+    /// <summary>
+    /// The persisted write mode parsed to the enum. An unreadable / unknown value falls back to
+    /// <see cref="Id3WriteFormat.KeepFileVersion"/> — a settings file we can't understand must never
+    /// be the reason a file gets converted.
+    /// </summary>
     public Id3WriteFormat WriteFormat =>
-        Enum.TryParse<Id3WriteFormat>(Current.WriteFormat, out var f) ? f : Id3WriteFormat.Id3v23Utf16;
+        Enum.TryParse<Id3WriteFormat>(Current.WriteFormat, out var f) ? f : Id3WriteFormat.KeepFileVersion;
+
+    /// <summary>
+    /// Raised after <see cref="SetWriteFormat"/> persists a new mode. The editor listens so its
+    /// "saving converts this file to ID3v2.x" notice can't go stale while the Settings window is
+    /// open — a stale notice is worse than none.
+    /// </summary>
+    public event EventHandler? WriteFormatChanged;
+
+    /// <summary>Persist a new ID3 write mode and notify listeners.</summary>
+    public void SetWriteFormat(Id3WriteFormat format)
+    {
+        Current.WriteFormat = format.ToString();
+        Save();
+        WriteFormatChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     private TagSettings Load()
     {

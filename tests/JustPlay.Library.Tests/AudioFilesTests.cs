@@ -32,7 +32,9 @@ public sealed class AudioFilesTests : IDisposable
         File.WriteAllText(Path.Combine(genres, "cover.jpg"), "x");
         File.WriteAllText(Path.Combine(_root, "list.m3u"), "x");
 
-        var found = AudioFiles.Enumerate(_root).Select(Path.GetFileName).OrderBy(n => n).ToArray();
+        // GetFileName!() — the paths come from an enumeration of real files, so a null name is not a
+        // case this test can hit; without it the compiler infers string?[] and CS8631 fires on Equal.
+        var found = AudioFiles.Enumerate(_root).Select(p => Path.GetFileName(p)!).OrderBy(n => n).ToArray();
 
         Assert.Equal(["track.aiff", "track.flac", "track.mp3"], found);
     }

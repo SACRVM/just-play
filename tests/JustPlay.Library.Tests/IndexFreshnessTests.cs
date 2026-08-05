@@ -125,6 +125,14 @@ public sealed class IndexFreshnessTests : IDisposable
     [InlineData(@"C:\music\track.mp3",  "2026-06-12T17:53:00.0000000Z", false)] // MP3s were fine
     [InlineData(@"C:\music\track.flac", "2026-07-20T10:00:00.0000000Z", false)] // after the fix
     [InlineData(@"C:\music\track.flac", "not-a-timestamp",              true)]  // unknown → redo
+    // c687d46's own message: the bug hit WAV and AIFF too, not just FLAC (L6, 2026-08-01).
+    [InlineData(@"C:\music\track.wav",  "2026-06-12T17:53:00.0000000Z", true)]
+    [InlineData(@"C:\music\track.aiff", "2026-06-12T17:53:00.0000000Z", true)]
+    [InlineData(@"C:\music\track.AIFF", "2026-06-12T17:53:00.0000000Z", true)]  // case-insensitive
+    [InlineData(@"C:\music\track.aif",  "2026-06-12T17:53:00.0000000Z", true)]
+    [InlineData(@"C:\music\track.wav",  "2026-07-20T10:00:00.0000000Z", false)] // after the fix
+    [InlineData(@"C:\music\track.aiff", "2026-07-20T10:00:00.0000000Z", false)] // after the fix
+    [InlineData(@"C:\music\track.aif",  "2026-07-20T10:00:00.0000000Z", false)] // after the fix
     public void FlacMonoDecodeBug_targets_only_the_affected_entries(
         string path, string analysedAt, bool expectedStale)
     {
@@ -132,6 +140,25 @@ public sealed class IndexFreshnessTests : IDisposable
         var reason = policy.StaleReason(Entry(path: path, analysedAt: analysedAt));
 
         Assert.Equal(expectedStale, reason is not null);
+    }
+
+    [Theory]
+    [InlineData(".flac")]
+    [InlineData(".wav")]
+    [InlineData(".aiff")]
+    [InlineData(".aif")]
+    public void FlacMonoDecodeBug_treats_unknown_analysedAt_as_stale_not_clean(string extension)
+    {
+        // TrackIndexMapping.FromStoredBlob stamps TrackIndexEntry.UnknownAnalysedAt (the Unix
+        // epoch) when a blob carries no analysed-at of its own — the L6 fix. It must land on the
+        // "stale" side of the rule, never the "clean" side: the honest answer to "we don't know
+        // when this ran" is "assume the worst", not "assume it's fine".
+        var policy = new StalenessPolicy().With(StaleRule.FlacMonoDecodeBug());
+        var entry = Entry(
+            path: $@"C:\music\track{extension}",
+            analysedAt: TrackIndexEntry.FormatUtc(TrackIndexEntry.UnknownAnalysedAt));
+
+        Assert.NotNull(policy.StaleReason(entry));
     }
 
     [Fact]
@@ -149,7 +176,7 @@ public sealed class IndexFreshnessTests : IDisposable
 
         var counts = policy.CountByReason(index);
 
-        Assert.Equal(2, counts["FLAC mono-decode fix (c687d46)"]);
+        Assert.Equal(2, counts["FLAC/WAV/AIFF mono-decode fix (c687d46)"]);
         Assert.Equal(1, counts["analysis failed"]);
         Assert.Equal(2, counts.Count);
     }

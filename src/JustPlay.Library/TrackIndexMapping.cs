@@ -90,6 +90,15 @@ public static class TrackIndexMapping
     /// <see cref="TrackIndexEntry.DetectionVersion"/> — that field finally means something
     /// (⚠ entries produced by the CLI carry the legacy constant 1 instead; see
     /// <see cref="TrackIndex.CurrentDetectionVersion"/>).</para>
+    ///
+    /// <para><b>Analysed-at (post-L6):</b> when the blob itself knows when the DSP ran
+    /// (<see cref="TrackAnalysisState.AnalysedAtUtc"/>), the entry records THAT — not the moment
+    /// of this import. Older blobs carry no such timestamp; passing
+    /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> instead of leaving it null keeps this an
+    /// explicit "unknown" (see that field's doc) rather than falling through to
+    /// <see cref="ToIndexEntry"/>'s own <c>?? DateTime.UtcNow</c> default, which is correct for a
+    /// genuinely-fresh DSP run but was exactly the bug here: it made an import indistinguishable
+    /// from a real measurement.</para>
     /// </summary>
     public static TrackIndexEntry? FromStoredBlob(
         string filePath,
@@ -111,7 +120,8 @@ public static class TrackIndexMapping
             modifiedUtc,
             meta,
             state.Detected,
-            detectionVersion: state.Version);
+            detectionVersion: state.Version,
+            analysedAtUtc: state.AnalysedAtUtc ?? TrackIndexEntry.UnknownAnalysedAt);
     }
 
     // ── The other direction: index entry → the app's models ───────────────────

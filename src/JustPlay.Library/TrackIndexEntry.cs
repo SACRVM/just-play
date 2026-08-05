@@ -17,7 +17,10 @@ public sealed record TrackIndexEntry
     [JsonPropertyName("filePath")]       public required string FilePath       { get; init; }
     /// <summary>SHA-256 hex digest of the file bytes — used to detect file replacement.</summary>
     [JsonPropertyName("contentHash")]    public required string ContentHash    { get; init; }
-    /// <summary>ISO-8601 UTC timestamp of when this entry was written.</summary>
+    /// <summary>
+    /// ISO-8601 UTC timestamp of when this entry was analysed. ⚠ May be
+    /// <see cref="UnknownAnalysedAt"/> — see that field's doc before trusting this as a real date.
+    /// </summary>
     [JsonPropertyName("analysedAt")]     public required string AnalysedAt     { get; init; }
     /// <summary>Version token of the detection stack at analysis time (bump when DSP changes).</summary>
     [JsonPropertyName("detectionVersion")] public int DetectionVersion         { get; init; }
@@ -90,6 +93,27 @@ public sealed record TrackIndexEntry
 
     /// <summary>Formats a UTC timestamp the way the index stores them (round-trip "o").</summary>
     public static string FormatUtc(DateTime utc) => utc.ToUniversalTime().ToString("o");
+
+    /// <summary>
+    /// The <see cref="AnalysedAt"/> value used when we genuinely do not know when a row was
+    /// analysed — a blob imported from a file's tags that carries no
+    /// <c>TrackAnalysisState.AnalysedAtUtc</c> of its own (see
+    /// <see cref="TrackIndexMapping.FromStoredBlob"/>).
+    ///
+    /// <para><b>Why the Unix epoch and not "now".</b> Measured 2026-08-01 (night report, L6):
+    /// stamping an unknown analysed-at with the IMPORT moment made
+    /// <c>StaleRule.FlacMonoDecodeBug()</c> report 0 stale entries against a real 957-file debt —
+    /// every synced row looked freshly analysed because "now" is indistinguishable from a genuine
+    /// fresh timestamp to any "analysed before date X" rule. The epoch is the opposite of that: it
+    /// is always earlier than any real cutoff a <see cref="StaleRule.AnalysedBefore"/>-shaped rule
+    /// will ever use, so "we don't know" reads as "assume maximally stale" instead of "assume
+    /// clean" — the honest answer when the true date is unrecoverable. This is also why it is a
+    /// dedicated sentinel value rather than a new boolean column: the local SQLite index
+    /// (<c>LibraryDb</c>) has a fixed, hand-written column list, so a new field on this record
+    /// would silently NOT survive a DB round-trip, while this string keeps flowing through the
+    /// existing <c>analysed_at</c> TEXT column, the JSON index, AND the DB unchanged.</para>
+    /// </summary>
+    public static readonly DateTime UnknownAnalysedAt = DateTime.UnixEpoch;
 
     /// <summary>
     /// Filesystem timestamps are not equal across filesystems: FAT/exFAT round to 2 s and SMB

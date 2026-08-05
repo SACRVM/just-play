@@ -15,13 +15,13 @@ namespace JustPlay.Metadata;
 /// </summary>
 public sealed class TagLibMetadataWriter : IMetadataWriter
 {
-    public void Write(string filePath, TagWrite write)
+    public void Write(string filePath, TagWrite write, TagWritePolicy? policy = null)
     {
-        WriteCore(filePath, write);
+        WriteCore(filePath, write, policy ?? TagWritePolicy.AllowAll);
         RepairAiffFormSize(filePath);
     }
 
-    private static void WriteCore(string filePath, TagWrite write)
+    private static void WriteCore(string filePath, TagWrite write, TagWritePolicy policy)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
@@ -34,32 +34,37 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         // (the TagLib# equivalent of mutagen's save(v1=0)). No-op for AIFF/FLAC.
         file.RemoveTags(TagLib.TagTypes.Id3v1);
 
-        if (write.Bpm is { } bpm)
+        // One "&& policy.AllowX" per guard, gating each TagFrameFamily (see TagWritePolicy.cs
+        // for the family list). policy defaults to AllowAll, so every guard below behaves
+        // exactly as before this parameter existed unless a caller opts into a stricter policy.
+        if (write.Bpm is { } bpm && policy.AllowBpm)
             SetBpm(file, tag, bpm);
 
-        if (write.Key is { } key)
+        if (write.Key is { } key && policy.AllowKey)
             SetContractKey(file, tag, key);
 
-        if (write.Energy is { } energy)
+        if (write.Energy is { } energy && policy.AllowEnergy)
             TagCustomFields.Set(file, "ENERGY", energy.ToString(CultureInfo.InvariantCulture));
 
-        if (write.State is { } state)
+        if (write.State is { } state && policy.AllowJustPlayBlob)
             TagCustomFields.Set(file, "JUSTPLAY", AnalysisStateCodec.Serialize(state));
 
-        if (write.Comment is { } comment)
+        if (write.Comment is { } comment && policy.AllowComment)
             ApplyCleanComment(file, comment.Length == 0 ? null : comment);
 
-        if (write.Grouping is { } grouping)
+        if (write.Grouping is { } grouping && policy.AllowGrouping)
             tag.Grouping = grouping.Length == 0 ? null : grouping;
 
-        if (write.Favorite is { } favorite)
+        if (write.Favorite is { } favorite && policy.AllowRating)
             SetPopm(file, favorite);
 
-        if (write.ReplayGainDb is { } g)
+        // ReplayGain is one family covering both fields (they are always sourced from the
+        // same loudness measurement) — see TagFrameFamily.ReplayGain.
+        if (write.ReplayGainDb is { } g && policy.AllowReplayGain)
             TagCustomFields.Set(file, "REPLAYGAIN_TRACK_GAIN",
                 g.ToString("0.00", CultureInfo.InvariantCulture) + " dB");
 
-        if (write.Peak is { } pk)
+        if (write.Peak is { } pk && policy.AllowReplayGain)
             TagCustomFields.Set(file, "REPLAYGAIN_TRACK_PEAK",
                 pk.ToString("0.000000", CultureInfo.InvariantCulture));
 
@@ -199,15 +204,28 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     }
 
     /// <summary>
-    /// Set the global ID3v2 write version + encoding (mp3tag's three modes). <c>ForceDefault*</c> is the
-    /// key bit: without it TagLib# PRESERVES an existing tag's version/encoding on save, so a file already
-    /// in v2.4/UTF-8 would stay that way — we force-normalise instead (research dossier §"version" + §"encoding").
-    /// TagLib#'s own defaults are v2.3 / <see cref="TagLib.StringType.UTF8"/>, so encoding always needs forcing.
+    /// Set the global ID3v2 write version + encoding. <c>ForceDefault*</c> is the whole story: with it
+    /// OFF (TagLib#'s own default) an existing tag keeps its version and its frames keep their encodings,
+    /// and <c>Default*</c> only applies to a tag being created from scratch; with it ON, every save
+    /// re-serialises the tag into the configured shape — in BOTH directions, including a v2.4 file being
+    /// pulled down to v2.3.
+    /// <para>
+    /// So forcing is exactly what <see cref="Id3WriteFormat.KeepFileVersion"/> does not do, and what the
+    /// three converting modes exist for. Only JUST TAG ever calls this method; JUST PLAY, the Pre-Cue
+    /// Finder and the CLI never do and therefore always run in the non-forcing shape (see
+    /// <see cref="Id3WriteFormat"/> for why that separation matters to Serato / Mixed In Key).
+    /// </para>
+    /// Every branch sets all four statics — they are process-global and the mode can be switched live,
+    /// so leaving a flag from the previous mode standing would silently keep converting.
     /// </summary>
     public void ConfigureId3WriteFormat(Id3WriteFormat format)
     {
         switch (format)
         {
+            case Id3WriteFormat.Id3v23Utf16:
+                TagLib.Id3v2.Tag.DefaultVersion = 3;
+                TagLib.Id3v2.Tag.DefaultEncoding = TagLib.StringType.UTF16;
+                break;
             case Id3WriteFormat.Id3v23Latin1:
                 TagLib.Id3v2.Tag.DefaultVersion = 3;
                 TagLib.Id3v2.Tag.DefaultEncoding = TagLib.StringType.Latin1;
@@ -216,13 +234,16 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
                 TagLib.Id3v2.Tag.DefaultVersion = 4;
                 TagLib.Id3v2.Tag.DefaultEncoding = TagLib.StringType.UTF8;
                 break;
-            default: // Id3v23Utf16 — the safe, mp3tag-default, max-compatibility mode
+            default: // KeepFileVersion — Default* here only reaches a file that has NO ID3v2 tag yet,
+                     // and a fresh tag should be the maximally readable v2.3/UTF-16 one.
                 TagLib.Id3v2.Tag.DefaultVersion = 3;
                 TagLib.Id3v2.Tag.DefaultEncoding = TagLib.StringType.UTF16;
                 break;
         }
-        TagLib.Id3v2.Tag.ForceDefaultVersion = true;
-        TagLib.Id3v2.Tag.ForceDefaultEncoding = true;
+
+        var convert = format != Id3WriteFormat.KeepFileVersion;
+        TagLib.Id3v2.Tag.ForceDefaultVersion = convert;
+        TagLib.Id3v2.Tag.ForceDefaultEncoding = convert;
     }
 
     /// <summary>

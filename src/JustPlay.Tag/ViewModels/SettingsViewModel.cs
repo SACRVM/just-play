@@ -53,7 +53,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (!Enum.TryParse<Id3WriteFormat>(name, out var fmt)) return;
         WriteFormat = fmt;
         _writer.ConfigureId3WriteFormat(fmt);
-        _settings.Current.WriteFormat = fmt.ToString();
-        _settings.Save();
+        // Persist THROUGH the service (not by poking Current) so it can tell the editor to
+        // re-check the loaded file against the new format while this window is still open.
+        _settings.SetWriteFormat(fmt);
     }
 }

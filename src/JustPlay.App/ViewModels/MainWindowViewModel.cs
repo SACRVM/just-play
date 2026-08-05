@@ -9,6 +9,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.Analysis;
+using JustPlay.App.Services;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Logging;
 using JustPlay.Core.Models;
@@ -17,6 +18,7 @@ using JustPlay.Core.Playlists;
 using JustPlay.Core.Theming;
 using JustPlay.Metadata;
 using JustPlay.UI.Logging;
+using JustPlay.UI.ViewModels;
 using BroadcastState = JustPlay.Core.Abstractions.BroadcastState;
 
 namespace JustPlay.App.ViewModels;
@@ -27,6 +29,11 @@ public enum AnalysisField { Bpm, Key, Energy }
 public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly PlaybackController _controller;
+
+    /// <summary>Read-only here: the queue never scans or writes the index. It is used for the tag
+    /// editor's genre suggestions, which should offer the spellings this library already uses.</summary>
+    private readonly ILibraryIndexService _index;
+
     private readonly IAudioEngine _engine;
     private readonly IPreListenEngine _preListen;
     private readonly IMetadataReader _metadata;
@@ -121,8 +128,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ISettingsService settings,
         IThemeService themes,
         IBroadcastService broadcast,
+        ILibraryIndexService index,
         UpdateViewModel update)
     {
+        _index = index;
         _controller = controller;
         _engine = engine;
         _preListen = preListen;
@@ -300,6 +309,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool ShowFieldSeparator =>
         ShowBpmField || ShowKeyField || ShowEnergyField || ShowRestoreBpm || ShowRestoreKey || ShowRestoreEnergy;
 
+    /// <summary>Row context-menu "Edit tags…" — one row only. The floating editor edits a single
+    /// file; batch editing is JUST TAG's job and must not be implied here.</summary>
+    public bool ShowEditTags => ContextTarget is not null;
+
     /// <summary>Row context-menu "Pre-cue on headphones" — shown for a single right-clicked row only
     /// (ContextTarget null under multi-select, same rule as the per-field entries), and only while
     /// the experimental PRE-CUE tab exists in this build (mirrors the tab's own gate).</summary>
@@ -318,6 +331,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowRestoreKey));
         OnPropertyChanged(nameof(ShowRestoreEnergy));
         OnPropertyChanged(nameof(ShowFieldSeparator));
+        OnPropertyChanged(nameof(ShowEditTags));
     }
 
     private string WithCount(string verb) =>
@@ -2018,6 +2032,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             Version = TrackAnalysisState.CurrentVersion,
             Detected = a,
+            // WHEN the values in Detected were measured — never "now", which is merely when we are
+            // writing. Falls back to whatever the file already claimed, and stays null when nothing
+            // knows: a null reads as "unknown", which the staleness rules treat as stale rather than
+            // clean. Guessing a date here would re-create the exact blindness this fixed.
+            AnalysedAtUtc = tvm.Model.AnalysedAtUtc ?? prev?.AnalysedAtUtc,
             Original = original,
             BpmDecision = Dec(bpm, prev?.BpmDecision),
             KeyDecision = Dec(key, prev?.KeyDecision),
@@ -2119,6 +2138,90 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// silent.</summary>
     private void OnTagWriteDeferred(string path) =>
         EventLog.Append($"Tag write deferred — \"{Path.GetFileName(path)}\" is in use by another app, retrying…");
+
+    // ── The shared tag editor's way into this app's write machinery ──────────────────────────────
+
+    /// <summary>
+    /// Build a tag editor bound to THIS app's write path. The editor itself is shared
+    /// (<see cref="JustPlay.UI.ViewModels.TagEditorViewModel"/>, also JUST TAG's sidebar) and knows
+    /// nothing about playback — it hands each save to <see cref="ExecuteTagWrite"/>, which does.
+    /// </summary>
+    public TagEditorViewModel CreateTagEditor()
+    {
+        var editor = new TagEditorViewModel(_metadata, _writer, ExecuteTagWrite, _index.Genres);
+        editor.Renamed += OnFileRenamed;
+        return editor;
+    }
+
+    /// <summary>
+    /// A file was renamed in the tag editor: move the queue row with it. The identity of a row is
+    /// the audio, not the string — leaving it pointing at the old name would put a track that is
+    /// still right there into the "missing" state (standing rule: never leave a song behind).
+    /// </summary>
+    private void OnFileRenamed(string from, string to)
+    {
+        foreach (var tvm in Tracks)
+        {
+            if (!string.Equals(tvm.Model.FilePath, from, StringComparison.OrdinalIgnoreCase)) continue;
+            tvm.Model.Relocate(to);
+            Dispatcher.UIThread.Post(tvm.Refresh);
+        }
+        MarkPlaylistEdited();   // a saved playlist now names a file that no longer exists
+    }
+
+    /// <summary>
+    /// Carry out a tag-editor save. Editing the PLAYING track is the normal case (you hear something
+    /// wrong and fix it), so it must not fail on a locked handle: that write goes through the same
+    /// deferral the analysis writes use — playback is never interrupted and the write lands at the
+    /// track change. Any other file is written now, and a lock held by an EXTERNAL app falls into the
+    /// existing retry queue rather than being dropped.
+    /// </summary>
+    private TagWriteOutcome ExecuteTagWrite(string path, Action<string> write)
+    {
+        var current = _controller.CurrentTrack;
+        if (current is not null &&
+            string.Equals(current.FilePath, path, StringComparison.OrdinalIgnoreCase))
+        {
+            _controller.WithFileReleased(current, () => _tagWriteRetryQueue.EnqueueAndTryNow(
+                path, () => WriteThenRefresh(path, write), OnTagWriteGiveUp, OnTagWriteDeferred));
+            return TagWriteOutcome.Deferred;
+        }
+
+        var deferred = false;
+        var failed = false;
+        _tagWriteRetryQueue.EnqueueAndTryNow(
+            path,
+            () => WriteThenRefresh(path, write),
+            onGiveUp: (p, ex) => { failed = true; OnTagWriteGiveUp(p, ex); },
+            onDeferred: p => { deferred = true; OnTagWriteDeferred(p); });
+
+        // onDeferred fires synchronously the first time a file is locked, and onGiveUp does the same
+        // for a non-retryable failure — so by here both flags are settled for this attempt.
+        return failed ? TagWriteOutcome.Failed
+             : deferred ? TagWriteOutcome.Deferred
+             : TagWriteOutcome.Written;
+    }
+
+    /// <summary>The editor's write plus the row refresh — a corrected artist has to show up in the
+    /// queue immediately, not after the next load. Must not swallow <see cref="IOException"/>: the
+    /// retry queue needs it to tell a locked file from a broken one.</summary>
+    private void WriteThenRefresh(string path, Action<string> write)
+    {
+        write(path);
+        RefreshTagsFor(path);
+    }
+
+    /// <summary>Re-read one file's tags into every queue row pointing at it and repaint. Safe to call
+    /// from a background thread — the VM refresh marshals itself.</summary>
+    public void RefreshTagsFor(string path)
+    {
+        foreach (var tvm in Tracks)
+        {
+            if (!string.Equals(tvm.Model.FilePath, path, StringComparison.OrdinalIgnoreCase)) continue;
+            try { tvm.Model.Metadata = _metadata.Read(path); } catch { continue; }
+            Dispatcher.UIThread.Post(tvm.Refresh);
+        }
+    }
 
     /// <summary>Run a user write action as one undoable batch: clears the prior undo set, lets the
     /// nested DoWrite calls record their pre-state, then publishes the new undo availability.</summary>
@@ -2244,6 +2347,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 var result = await _analysis.AnalyzeAsync(tvm.Model.FilePath, null, ct);
                 tvm.Model.Analysis = result;
+                tvm.Model.AnalysedAtUtc = DateTime.UtcNow;   // the DSP ran HERE — the one honest stamp
                 tvm.Model.AnalysisStatus = AnalysisStatus.Done;
             }
             catch (Exception ex)
@@ -2296,10 +2400,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         var a = tvm.Model.Analysis;
         if (a is null) return;
+
+        // ⚠ A field the user has DECIDED is not ours to overwrite. FieldDecision.Kept means exactly
+        // "the user reviewed this and the tag stands" — set by Keep in the queue's context menu and
+        // by a hand correction in the shared tag editor. This auto-write used to ignore it and
+        // stamp our detected value over the top on the next analysis, so both gestures were silently
+        // undone: you fixed a wrong key, the track got re-analysed, and your fix was gone.
+        // An explicit Write / Fill-missing still overwrites — that is the user asking for it.
+        var prev = tvm.Model.Metadata?.StoredAnalysis;
         Persist(tvm,
-            a.Bpm is > 0 ? FieldAction.Write : FieldAction.None,
-            a.Key is not null ? FieldAction.Write : FieldAction.None,
-            a.Energy is not null ? FieldAction.Write : FieldAction.None);
+            a.Bpm is > 0 && prev?.BpmDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None,
+            a.Key is not null && prev?.KeyDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None,
+            a.Energy is not null && prev?.EnergyDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None);
     }
 
     /// <summary>Remove the selected rows from the session queue. Does NOT delete files from disk,
@@ -2615,6 +2727,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     // silently re-analysed (and, with AutoWriteOnAnalyze on, rewritten on disk) merely
                     // by loading it. (User decision, 2026-06-12.)
                     tvm.Model.Analysis = stored.Detected;
+                    // Imported, not measured — carry the blob's own date so a later write does not
+                    // restamp someone else's (or last year's) analysis with today.
+                    tvm.Model.AnalysedAtUtc = stored.AnalysedAtUtc;
                     tvm.Model.AnalysisStatus = AnalysisStatus.Done;
                     Dispatcher.UIThread.Post(() => tvm.Refresh());
                     // One exception: loudness normalization needs a ReplayGain figure. An older blob

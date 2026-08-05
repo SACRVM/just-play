@@ -15,7 +15,16 @@ public interface IMetadataWriter
     /// always written as the JUSTPLAY blob. Other tags (comment, title, …) are
     /// left untouched.
     /// </summary>
-    void Write(string filePath, TagWrite write);
+    /// <param name="filePath">Path to the audio file to update.</param>
+    /// <param name="write">Which fields to write (null field = leave untouched).</param>
+    /// <param name="policy">
+    /// Per-<see cref="TagFrameFamily"/> gate on top of <paramref name="write"/>: a family the
+    /// policy disallows is left untouched even when <paramref name="write"/> specifies a value
+    /// for it. Defaults to <see cref="TagWritePolicy.AllowAll"/> — every family allowed, which
+    /// reproduces the writer's behaviour from before this parameter existed exactly. Existing
+    /// callers that don't pass this argument are therefore unaffected.
+    /// </param>
+    void Write(string filePath, TagWrite write, TagWritePolicy? policy = null);
 
     /// <summary>
     /// Restore a file to a previously-captured tag state — the inverse of <see cref="Write"/>,
@@ -53,8 +62,12 @@ public interface IMetadataWriter
     /// <summary>
     /// Set the ID3v2 version + text encoding used when SAVING MP3 tags — process-global (TagLib#
     /// static config). Call once at startup and whenever the user changes the preference. Non-MP3
-    /// containers (FLAC / MP4 / Ogg) are unaffected. The default <see cref="Id3WriteFormat.Id3v23Utf16"/>
-    /// matches mp3tag and is the most broadly readable; see <see cref="Id3WriteFormat"/>.
+    /// containers (FLAC / MP4 / Ogg) are unaffected.
+    /// <para>
+    /// An app that never calls this writes in the shape of <see cref="Id3WriteFormat.KeepFileVersion"/>:
+    /// files keep their own version and encodings. Calling it with one of the three converting modes is
+    /// what turns saving into normalising — see <see cref="Id3WriteFormat"/> before you wire it up.
+    /// </para>
     /// </summary>
     void ConfigureId3WriteFormat(Id3WriteFormat format);
 }

@@ -40,8 +40,22 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
 
     /// <summary>
     /// Entries analysed before <paramref name="cutoffUtc"/> whose file has one of
-    /// <paramref name="extensions"/>. Entries with an unparsable <c>analysedAt</c> count as old —
-    /// erring toward re-analysis is the safe direction for a wrong measurement.
+    /// <paramref name="extensions"/>. Two independent "we don't actually know" cases both err
+    /// toward re-analysis, deliberately — a wrong "needs redoing" costs DSP time, a wrong "clean"
+    /// ships bad numbers forever:
+    /// <list type="bullet">
+    /// <item>An unparsable <c>AnalysedAt</c> (garbage/foreign data) counts as old.</item>
+    /// <item>
+    /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> (the sentinel <see cref="TrackIndexMapping.FromStoredBlob"/>
+    /// stamps when a blob carries no timestamp of its own) parses FINE and is simply always
+    /// earlier than any real-world <paramref name="cutoffUtc"/> — no special-casing needed here,
+    /// it falls straight through the normal comparison below. Measured 2026-08-01 (night report
+    /// L6): before that sentinel existed, this path stamped the IMPORT moment instead, which made
+    /// every rule built on this helper blind on any row that came from a tag import (i.e. most of
+    /// the library) — it always looked freshly analysed. See
+    /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> for the full reasoning.
+    /// </item>
+    /// </list>
     /// </summary>
     public static StaleRule AnalysedBefore(string reason, DateTime cutoffUtc, params string[] extensions) =>
         new(reason, e =>
@@ -58,19 +72,22 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
         });
 
     /// <summary>
-    /// ⚠ The FLAC mono-decode debt. <c>DecodeMono</c> handed BASS's interleaved stereo back as
-    /// "mono" until commit c687d46 (2026-07-10), which shifted every FLAC's vibe quartet, LUFS and
-    /// rhythm features (keys and BPM were unaffected). Every FLAC entry analysed before that date
-    /// carries wrong numbers.
+    /// ⚠ The FLAC/WAV/AIFF mono-decode debt. <c>DecodeMono</c> handed BASS's interleaved stereo
+    /// back as "mono" until commit c687d46 (2026-07-10), which shifted vibe quartet, LUFS and
+    /// rhythm features on every file whose BASS decoder plugin ignores the mono flag (keys and BPM
+    /// were unaffected — see that commit's message). That is FLAC, WAV and AIFF/AIF, not just
+    /// FLAC: measured 2026-08-01 (night report L6), the rule scoped to <c>.flac</c> alone missed
+    /// ~473 further WAV/AIFF/AIF files — AIFF alone is 23% of the library, so this was not a
+    /// rounding-error gap.
     ///
     /// <para>Our pipeline re-runs all detectors, so this re-measures key/BPM too — wasteful but
     /// correct. It is the rule that finally pays the debt off in the background instead of by hand.</para>
     /// </summary>
     public static StaleRule FlacMonoDecodeBug() =>
         AnalysedBefore(
-            "FLAC mono-decode fix (c687d46)",
+            "FLAC/WAV/AIFF mono-decode fix (c687d46)",
             new DateTime(2026, 7, 10, 0, 0, 0, DateTimeKind.Utc),
-            ".flac");
+            ".flac", ".wav", ".aiff", ".aif");
 }
 
 /// <summary>

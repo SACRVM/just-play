@@ -23,18 +23,27 @@ public sealed partial class TagEditorViewModel : ObservableObject
     private readonly IMetadataReader _reader;
     private readonly IMetadataWriter _writer;
     private readonly IThemeService _theme;
+    private readonly Settings.TagSettingsService _settings;
 
     // Cover state carried until Save: which action to apply + the bytes/mime for a Replace.
     private byte[]? _coverBytes;
     private string? _coverMime;
     private CoverAction _coverAction = CoverAction.Keep;
 
-    public TagEditorViewModel(IMetadataReader reader, IMetadataWriter writer, IThemeService theme)
+    // ID3v2 major version of the loaded file (null = no leading ID3v2 tag / not an MP3).
+    private int? _fileId3Major;
+
+    public TagEditorViewModel(IMetadataReader reader, IMetadataWriter writer, IThemeService theme,
+        Settings.TagSettingsService settings)
     {
         _reader = reader;
         _writer = writer;
         _theme = theme;
+        _settings = settings;
         _currentTheme = theme.Current.Name;
+
+        // Both are singletons that live as long as the app — no unsubscribe needed.
+        _settings.WriteFormatChanged += (_, _) => RefreshVersionNotice();
     }
 
     [ObservableProperty] private string? _filePath;
@@ -52,8 +61,23 @@ public sealed partial class TagEditorViewModel : ObservableObject
     [ObservableProperty] private string _status = "Open an audio file to edit its tags.";
     [ObservableProperty] private string _currentTheme;
 
+    /// <summary>
+    /// Set when saving this file would ALSO change its ID3v2 version, because the WRITE FORMAT
+    /// setting force-normalises every MP3 JUST TAG saves. Null the rest of the time — the notice
+    /// only shows up on the files it actually applies to.
+    /// </summary>
+    [ObservableProperty] private string? _versionNotice;
+
+    /// <summary>The way out of <see cref="VersionNotice"/>; null when no setting avoids it.</summary>
+    [ObservableProperty] private string? _versionNoticeFix;
+
     public bool HasFile => FilePath is not null;
     public bool HasCover => Cover is not null;
+    public bool HasVersionNotice => VersionNotice is not null;
+    public bool HasVersionNoticeFix => VersionNoticeFix is not null;
+
+    partial void OnVersionNoticeChanged(string? value) => OnPropertyChanged(nameof(HasVersionNotice));
+    partial void OnVersionNoticeFixChanged(string? value) => OnPropertyChanged(nameof(HasVersionNoticeFix));
 
     partial void OnFilePathChanged(string? value)
     {
@@ -98,12 +122,41 @@ public sealed partial class TagEditorViewModel : ObservableObject
             SetCoverBytes(m.CoverArt, GuessMime(m.CoverArt));
             _coverAction = CoverAction.Keep;
             FileInfo = BuildInfo(m, path);
+            _fileId3Major = Settings.Id3VersionProbe.Read(path);
+            RefreshVersionNotice();
             Status = $"Loaded · {FileName}";
         }
         catch (Exception ex)
         {
             Status = $"Couldn't read this file — {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Re-evaluate the ID3-version notice for the loaded file against the current WRITE FORMAT.
+    /// In one of the three converting modes <c>ForceDefaultVersion = true</c>, so a save converts any
+    /// MP3 whose version differs — in BOTH directions, including v2.3 · UTF-16 pulling a v2.4 file
+    /// down. That conversion re-encodes the GEOB descriptors Serato and Mixed In Key search by.
+    /// In the default KeepFileVersion mode there is no target version and no notice.
+    /// </summary>
+    private void RefreshVersionNotice()
+    {
+        if (FilePath is null
+            || Settings.Id3VersionProbe.MajorFor(_settings.WriteFormat) is not { } target
+            || _fileId3Major is not { } have
+            || have == target)
+        {
+            VersionNotice = null;
+            VersionNoticeFix = null;
+            return;
+        }
+
+        VersionNotice = $"This file is {Settings.Id3VersionProbe.Name(have)}. " +
+                        $"Saving converts it to {Settings.Id3VersionProbe.Name(target)}.";
+
+        // The escape hatch is the same one for every file, including an ID3v2.2 that no write format
+        // could reproduce: stop converting altogether.
+        VersionNoticeFix = "Keep it as it is: choose \"Keep each file's version\" under WRITE FORMAT in Settings.";
     }
 
     /// <summary>Replace the cover with a picked image (bytes + mime from the view).</summary>
@@ -145,6 +198,10 @@ public sealed partial class TagEditorViewModel : ObservableObject
                 _coverAction == CoverAction.Replace ? _coverMime : null);
 
             _coverAction = CoverAction.Keep; // the saved cover is now the file's cover
+            // The file now carries whatever version the save produced — re-probe so the notice
+            // reflects the file on disk instead of lingering as a warning about something done.
+            _fileId3Major = Settings.Id3VersionProbe.Read(path);
+            RefreshVersionNotice();
             Status = $"Saved ✓ · {FileName}";
         }
         catch (Exception ex)
