@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.UI.ViewModels"
+             xmlns:controls="using:JustPlay.UI.Controls"
              x:Class="JustPlay.UI.Controls.TagEditorPanel"
              x:DataType="vm:TagEditorViewModel">
 
@@ -139,6 +140,59 @@
         <Style Selector="Button.tag-save:disabled">
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
+
+        <!-- Tab switch. A pill rather than an underline: the panel is narrow and lives inside a
+             rounded card, where an underline reads as a stray rule. -->
+        <Style Selector="Button.tag-tab">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1.6"/>
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <!-- FluentTheme paints the templated ContentPresenter, so every state has to be answered
+             explicitly or the pill flickers back to the stock hover grey. -->
+        <Style Selector="Button.tag-tab /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.tag-tab:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#0FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.tag-tab:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="Button.tag-tab.selected">
+            <Setter Property="Foreground" Value="#F2FFFFFF"/>
+        </Style>
+        <Style Selector="Button.tag-tab.selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.tag-tab.selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#26FFFFFF"/>
+        </Style>
+
+        <!-- Character bar. Solid accent, not the gradient: a gradient compresses into the filled
+             part, so two different values would draw two different colour ramps. -->
+        <Style Selector="ProgressBar.tag-bar">
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <!-- A measured value: readable, but not as loud as an editable field. -->
+        <Style Selector="TextBlock.tag-value">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#DEFFFFFF"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -160,8 +214,22 @@
         <!-- ── THE EDITOR ───────────────────────────────────────────────────────────────────── -->
         <DockPanel IsVisible="{Binding HasFile}" LastChildFill="True">
 
+            <!-- TAGS = what the file tells other tools, and therefore editable.
+                 ANALYSIS = what WE heard, and therefore not. The split is by who reads a value,
+                 not by how many fields there are. -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="3"
+                        Margin="14,2,14,6">
+                <Button Classes="tag-tab" Content="TAGS" Click="OnShowTags"
+                        Classes.selected="{Binding !$parent[controls:TagEditorPanel].ShowAnalysis}"/>
+                <Button Classes="tag-tab" Content="ANALYSIS" Click="OnShowAnalysis"
+                        Classes.selected="{Binding $parent[controls:TagEditorPanel].ShowAnalysis}"/>
+            </StackPanel>
+
             <!-- Footer first (DockPanel fills with the LAST child) so the action row is pinned to
-                 the bottom and the fields scroll behind it. -->
+                 the bottom and the fields scroll behind it.
+                 The left cell is a MESSAGE line — what happened, not what is open. It stays empty
+                 until there is something to say; the file's identity lives in the FILE NAME field
+                 and in the host's own list. -->
             <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="16,10,16,14">
                 <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="tag-muted"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -173,54 +241,34 @@
                         Click="OnSave" IsEnabled="{Binding IsDirty}"/>
             </Grid>
 
+            <Panel>
+
             <!-- ⚠ Margin on the CONTENT, not Padding on the ScrollViewer: the ScrollViewer's own
                  padding is not subtracted from the width it offers its child, so every field came
                  out exactly Padding.Right too wide and the top row ran off the card
                  (Chloe's screenshot, 2026-08-03). -->
             <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
+                          HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding !$parent[controls:TagEditorPanel].ShowAnalysis}">
                 <StackPanel Spacing="12" Margin="16,4,16,4">
 
                     <!-- File identity -->
                     <TextBlock Text="{Binding FileInfo}" Classes="tag-muted" FontSize="10.5"
                                TextTrimming="CharacterEllipsis"/>
 
-                    <!-- FILE NAME — not a tag, but the thing you most want to fix while tidying up.
-                         The extension sits outside the box and is carried over verbatim, so a typo
-                         cannot make the file unplayable. -->
-                    <StackPanel Spacing="3">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Text="FILE NAME" Classes="tag-label"
-                                       VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Classes="tag-ghost" Padding="8,2" FontSize="10"
-                                    Content="Name from tags ▾"
-                                    ToolTip.Tip="Fill the name from the tags — nothing is renamed until you save">
-                                <Button.Flyout>
-                                    <MenuFlyout>
-                                        <MenuItem Header="Artist - Title"
-                                                  Tag="%artist% - %title%" Click="OnRenameMask"/>
-                                        <MenuItem Header="Title - Artist"
-                                                  Tag="%title% - %artist%" Click="OnRenameMask"/>
-                                        <MenuItem Header="Artist - Title (Album)"
-                                                  Tag="%artist% - %title% (%album%)" Click="OnRenameMask"/>
-                                        <MenuItem Header="Track - Artist - Title"
-                                                  Tag="%track% - %artist% - %title%" Click="OnRenameMask"/>
-                                    </MenuFlyout>
-                                </Button.Flyout>
-                            </Button>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0" Classes="tag-field" Text="{Binding BaseName}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="tag-ext"/>
-                        </Grid>
-                    </StackPanel>
-
-                    <Border Height="1" Background="#14FFFFFF"/>
-
-                    <!-- Cover + the two headline fields -->
-                    <Grid ColumnDefinitions="104,14,*">
-                        <StackPanel Grid.Column="0" Spacing="6">
-                            <Border Width="104" Height="104" CornerRadius="9" ClipToBounds="True"
+                    <!-- Cover + the four name fields.
+                         ⚠ The cover is NOT given a height: its row is `*`, so the picture takes
+                         exactly what the four fields beside it leave over and the buttons close
+                         flush with the last box (Chloe 2026-08-05: "perfekt mit 4 zeilen
+                         abschließen"). A hard-coded height would drift apart from the fields the
+                         moment a font metric or a padding changes. The COLUMN is 158 so the box
+                         comes out square at the window's own width. -->
+                    <Grid ColumnDefinitions="158,14,*">
+                        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
+                            <!-- The caption is what lines the cover up with the TITLE box beside it —
+                                 same label, same 3px gap, so the two columns start on one line. -->
+                            <TextBlock Grid.Row="0" Text="COVER" Classes="tag-label" Margin="0,0,0,3"/>
+                            <Border Grid.Row="1" CornerRadius="9" ClipToBounds="True"
                                     Background="#12FFFFFF"
                                     BorderBrush="#1FFFFFFF" BorderThickness="1">
                                 <Panel>
@@ -231,12 +279,13 @@
                                            IsVisible="{Binding HasCover}"/>
                                 </Panel>
                             </Border>
-                            <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
-                                <Button Classes="tag-ghost" Content="Change…" Padding="10,4" FontSize="11"
+                            <StackPanel Grid.Row="2" Margin="0,6,0,0"
+                                        Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
+                                <Button Classes="tag-ghost" Content="Change…" Padding="10,6"
                                         Click="OnChangeCover"/>
-                                <Button Classes="tag-ghost" Padding="7,4" Click="OnRemoveCover"
+                                <Button Classes="tag-ghost" Padding="9,6" Click="OnRemoveCover"
                                         ToolTip.Tip="Remove cover">
-                                    <Path Stretch="Uniform" Width="12" Height="12"
+                                    <Path Stretch="Uniform" Width="14" Height="14"
                                           Stroke="#E6FFFFFF" StrokeThickness="1.5"
                                           StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
                                           Data="M3 6 h18 M8 6 V4 a1 1 0 0 1 1 -1 h6 a1 1 0 0 1 1 1 v2
@@ -244,8 +293,11 @@
                                                 M10 11 v6 M14 11 v6"/>
                                 </Button>
                             </StackPanel>
-                        </StackPanel>
+                        </Grid>
 
+                        <!-- Four fields, and the cover measures itself against them. ALBUM ARTIST is
+                             up here rather than in a row of its own because that is the fourth line
+                             the cover needs — and it belongs with the other three names anyway. -->
                         <StackPanel Grid.Column="2" Spacing="9">
                             <StackPanel Spacing="3">
                                 <TextBlock Text="TITLE" Classes="tag-label"/>
@@ -259,32 +311,30 @@
                                 <TextBlock Text="ALBUM" Classes="tag-label"/>
                                 <TextBox Classes="tag-field" Text="{Binding Album}"/>
                             </StackPanel>
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="ALBUM ARTIST" Classes="tag-label"/>
+                                <TextBox Classes="tag-field" Text="{Binding AlbumArtist}"/>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
 
-                    <Grid ColumnDefinitions="*,12,*">
+                    <!-- Genre keeps twice the width: a style name runs long, a year is four digits.
+                         Suggestions come from the genres this library ALREADY uses (most-used
+                         first), then a fallback vocabulary — so the same style stops being spelled
+                         four ways. Free text is always accepted; this never restricts. -->
+                    <Grid ColumnDefinitions="2*,12,*,12,*">
                         <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="ALBUM ARTIST" Classes="tag-label"/>
-                            <TextBox Classes="tag-field" Text="{Binding AlbumArtist}"/>
-                        </StackPanel>
-                        <!-- Suggests from the genres this library ALREADY uses (most-used first),
-                             then a fallback vocabulary — so the same style stops being spelled four
-                             ways. Free text is always accepted; this never restricts. -->
-                        <StackPanel Grid.Column="2" Spacing="3">
                             <TextBlock Text="GENRE" Classes="tag-label"/>
                             <AutoCompleteBox Classes="tag-field" Text="{Binding Genre}"
                                              ItemsSource="{Binding GenreSuggestions}"
                                              FilterMode="Contains" MinimumPrefixLength="1"
                                              MaxDropDownHeight="220"/>
                         </StackPanel>
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*,12,*">
-                        <StackPanel Grid.Column="0" Spacing="3">
+                        <StackPanel Grid.Column="2" Spacing="3">
                             <TextBlock Text="YEAR" Classes="tag-label"/>
                             <TextBox Classes="tag-field" Text="{Binding Year}"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="3">
+                        <StackPanel Grid.Column="4" Spacing="3">
                             <TextBlock Text="TRACK #" Classes="tag-label"/>
                             <TextBox Classes="tag-field" Text="{Binding Track}"/>
                         </StackPanel>
@@ -326,8 +376,119 @@
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
 
+                    <!-- ── FILE NAME — LAST ───────────────────────────────────────────────────
+                         Not a tag: it renames the file on disk, which is the heaviest thing this
+                         panel can do. It sits at the END because the tags are what you came for
+                         (Chloe 2026-08-05: "datei namen ändern muss nach unten - letzter punkt").
+                         The extension stays outside the box and is carried over verbatim, so a
+                         typo cannot make the file unplayable. -->
+                    <Border Height="1" Background="#14FFFFFF" Margin="0,2,0,0"/>
+
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="FILE NAME" Classes="tag-label"/>
+                        <!-- The chevron belongs to the NAME BOX, not to the section: it offers ways
+                             to fill that one field, so it sits at its right end like any picker
+                             (Chloe 2026-08-05 — "logischer und optisch sauber"). The extension stays
+                             between them, outside the box, and is carried over verbatim so a typo
+                             cannot make the file unplayable. -->
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBox Grid.Column="0" Classes="tag-field" Text="{Binding BaseName}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="tag-ext"/>
+                            <Button Grid.Column="2" Classes="tag-ghost" Padding="8,6" Margin="7,0,0,0"
+                                    ToolTip.Tip="Fill the name from the tags — nothing is renamed until you save">
+                                <Path Stretch="Uniform" Width="12" Height="12"
+                                      Stroke="#E6FFFFFF" StrokeThickness="2"
+                                      StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
+                                      Data="M6 9 l6 6 l6 -6"/>
+                                <Button.Flyout>
+                                    <MenuFlyout>
+                                        <!-- The way BACK. A mask fills the box; without this the only
+                                             exit was Revert, which also drops the tag edits. -->
+                                        <MenuItem Header="Original name" Click="OnRenameOriginal"/>
+                                        <Separator/>
+                                        <MenuItem Header="Artist - Title"
+                                                  Tag="%artist% - %title%" Click="OnRenameMask"/>
+                                        <MenuItem Header="Title - Artist"
+                                                  Tag="%title% - %artist%" Click="OnRenameMask"/>
+                                        <MenuItem Header="Artist - Title (Album)"
+                                                  Tag="%artist% - %title% (%album%)" Click="OnRenameMask"/>
+                                        <MenuItem Header="Track - Artist - Title"
+                                                  Tag="%track% - %artist% - %title%" Click="OnRenameMask"/>
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+
                 </StackPanel>
             </ScrollViewer>
+
+            <!-- ── ANALYSIS ──────────────────────────────────────────────────────────────────────
+                 Read-only, and the note at the bottom says why out loud. These values live only in
+                 our blob: nothing else reads them, an ear has no ground truth for a 0..1 float, and
+                 they feed the harmonic sort — so a typed-over number would re-rank the library
+                 while hiding the detector's mistake instead of fixing it. -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding $parent[controls:TagEditorPanel].ShowAnalysis}">
+                <StackPanel Spacing="12" Margin="16,4,16,4">
+
+                    <StackPanel IsVisible="{Binding !HasAnalysis}" Spacing="6" Margin="0,8,0,0">
+                        <TextBlock Text="Nothing measured yet" Classes="tag-label"/>
+                        <TextBlock Classes="tag-muted" TextWrapping="Wrap"
+                                   Text="This track carries no analysis. Run it through the library scan and the numbers land here."/>
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding HasAnalysis}" Spacing="12">
+
+                        <TextBlock Text="{Binding AnalysedAt}" Classes="tag-muted" FontSize="10.5"/>
+
+                        <ItemsControl ItemsSource="{Binding Numbers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:Measurement">
+                                    <Grid ColumnDefinitions="112,*" Margin="0,0,0,7"
+                                          ToolTip.Tip="{Binding Hint}">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                   Classes="tag-label" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Text}"
+                                                   Classes="tag-value"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Height="1" Background="#14FFFFFF"
+                                IsVisible="{Binding HasCharacter}"/>
+
+                        <ItemsControl ItemsSource="{Binding Character}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:Measurement">
+                                    <Grid ColumnDefinitions="112,*,46" Margin="0,0,0,9"
+                                          ToolTip.Tip="{Binding Hint}">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                   Classes="tag-label" VerticalAlignment="Center"/>
+                                        <ProgressBar Grid.Column="1" Classes="tag-bar"
+                                                     Minimum="0" Maximum="1" Value="{Binding Bar}"
+                                                     VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Text}"
+                                                   Classes="tag-value" FontSize="12"
+                                                   Foreground="#B3FFFFFF"
+                                                   HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Height="1" Background="#14FFFFFF"/>
+
+                        <TextBlock Classes="tag-muted" TextWrapping="Wrap"
+                                   Text="These are measurements, not tags — no other tool reads them, and none of them is editable here. If a number is wrong, the honest fix is to analyse the track again: typing over it would hide the mistake from the detector instead of correcting it."/>
+
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            </Panel>
         </DockPanel>
     </Panel>
 </UserControl>

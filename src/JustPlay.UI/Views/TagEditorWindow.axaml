@@ -5,7 +5,7 @@
         x:Class="JustPlay.UI.Views.TagEditorWindow"
         x:DataType="vm:TagEditorViewModel"
         Title="Edit tags"
-        Width="560" Height="660"
+        Width="560" Height="780"
         MinWidth="480" MinHeight="440"
         Topmost="True"
         ShowInTaskbar="False"
@@ -76,5 +76,20 @@
                 </DockPanel>
             </Panel>
         </Border>
+
+        <!-- Edge/corner resize grips in the transparent shadow ring (shared FramelessResizeBehavior).
+             A frameless window gets no OS resize frame, so without these the editor would be stuck at
+             its start size — and its size is remembered per WindowPlacement, so resizing it once is
+             a lasting setting. -->
+        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+            <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="#01000000" Cursor="LeftSide"          Tag="West"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="#01000000" Cursor="RightSide"         Tag="East"/>
+            <Border Grid.Row="2" Grid.Column="0" Background="#01000000" Cursor="BottomLeftCorner"  Tag="SouthWest"/>
+            <Border Grid.Row="2" Grid.Column="1" Background="#01000000" Cursor="BottomSide"        Tag="South"/>
+            <Border Grid.Row="2" Grid.Column="2" Background="#01000000" Cursor="BottomRightCorner" Tag="SouthEast"/>
+        </Grid>
     </Panel>
 </Window>

@@ -1,8 +1,9 @@
 using System;
-using System.ComponentModel;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -18,76 +19,219 @@ using Microsoft.Extensions.DependencyInjection;
 namespace JustPlay.Tag.Views;
 
 /// <summary>
-/// JUST TAG main window — frameless floating-card shell shared with JUST PLAY / STREAM via the
-/// JustPlay.UI design system (drag predicate = <see cref="WindowChrome"/>; About = the shared
-/// <see cref="AboutWindow"/>). File pickers + drag-drop live here (they need the TopLevel) and
-/// call into the <see cref="TagEditorViewModel"/>.
+/// JUST TAG's window: the PRE CUE FINDER's frameless card and chrome, an mp3tag-shaped body
+/// (folders · files · editor), and the SHARED <see cref="TagEditorPanel"/> as the docked sidebar.
+///
+/// <para>The code-behind holds only what needs a <see cref="TopLevel"/> (the folder picker, the
+/// dialogs) and the clicks that move between folders. Every decision about a FILE lives in the
+/// shared view model, so JUST TAG and the floating editor in JUST PLAY cannot drift apart.</para>
 /// </summary>
 public partial class MainWindow : Window
 {
+    /// <summary>
+    /// Guards the selection handler while we put the selection BACK after a cancelled switch —
+    /// without it, restoring the row would re-enter the handler and ask about the same unsaved
+    /// edits a second time.
+    /// </summary>
+    private bool _restoringSelection;
+
+    private bool _forceClose;
+
     public MainWindow()
     {
         InitializeComponent();
 
-        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips
-        // Avalonia's macOS opaque-fallback (black surround); see JustPlay MainWindow ctor.
+        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips Avalonia's
+        // macOS opaque fallback (black surround); measured 2026-07-31.
 
-        // Drag-drop an audio file onto the window to load it.
+        FramelessResizeBehavior.Attach(this, ResizeGrips);
+        WindowPlacement.Track(this, "JustTag.Main");
+
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
-
-        WindowPlacement.Track(this, "JustTag.Main");
     }
 
-    // Adaptive window: a bare drop-zone when empty, grows to the editor once a file is loaded
-    // (Chloe's flow — drop one file → edit it straight away). Batch table for 2+ files lands next.
-    protected override void OnOpened(EventArgs e)
+    private TaggerViewModel? Vm => DataContext as TaggerViewModel;
+
+    // Editor / FileList / ResizeGrips come from Avalonia's x:Name generator — declaring them here
+    // as well is a CS0102 collision, not a convenience.
+
+    // ── Browsing ────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A single click on a folder row OPENS it — ".." goes up, a name goes in. One click is one
+    /// level, the same rule the Finder's folder pane follows.
+    /// </summary>
+    private void OnFolderTapped(object? sender, TappedEventArgs e)
     {
-        base.OnOpened(e);
-        if (DataContext is TagEditorViewModel vm)
+        if (sender is not ListBox { SelectedItem: FolderRow row } || Vm is not { } vm) return;
+
+        // A playlist is a virtual folder: clicking it fills the FILE pane with its tracks, it does
+        // not descend anywhere. Same rule as the Finder.
+        if (row.IsPlaylist) vm.OpenPlaylist(row.Path);
+        else vm.Open(row.Path);
+    }
+
+    private void OnClearSearch(object? sender, RoutedEventArgs e) => Vm?.ClearSearch();
+
+    private void OnToggleSecond(object? sender, RoutedEventArgs e) => Vm?.ToggleSecond();
+
+    private void OnShowEditor(object? sender, RoutedEventArgs e) => Vm?.ShowTab(filter: false);
+
+    private void OnShowFilter(object? sender, RoutedEventArgs e) => Vm?.ShowTab(filter: true);
+
+    // ── Preview ─────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Play or pause whatever the file list is pointing at.</summary>
+    private void PreviewSelected()
+    {
+        if (Vm is not { } vm || FileList.SelectedItem is not FileRow row) return;
+        vm.Preview.Toggle(row.Path);
+    }
+
+    private void OnPreviewToggle(object? sender, RoutedEventArgs e) => PreviewSelected();
+
+    /// <summary>A double-click starts listening — the gesture that means "open this" everywhere.</summary>
+    private void OnFileDoubleTapped(object? sender, TappedEventArgs e) => PreviewSelected();
+
+    /// <summary>
+    /// SPACE plays and pauses, and it is swallowed here so the list does not also treat it as a
+    /// selection key. It must NOT fire while a tag field has focus — space is a character there.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && FocusManager?.GetFocusedElement() is not TextBox)
         {
-            vm.PropertyChanged += OnVmPropertyChanged;
-            ResizeForState(vm);
+            PreviewSelected();
+            e.Handled = true;
+            return;
+        }
+        base.OnKeyDown(e);
+    }
+
+    private void OnCrumbClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: string path }) Vm?.Open(path);
+    }
+
+    private void OnFoldersGotFocus(object? sender, RoutedEventArgs e) => Vm?.Activate(folders: true);
+
+    private void OnFilesGotFocus(object? sender, RoutedEventArgs e) => Vm?.Activate(folders: false);
+
+    // ── Drop a folder ───────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A folder dropped anywhere on the window opens it. Dropping FILES opens the folder they are
+    /// in and selects the first one — the alternative (refusing the drop) would be pedantic about a
+    /// gesture whose intent is obvious.
+    /// </summary>
+    private void OnDragOver(object? sender, DragEventArgs e) =>
+        e.DragEffects = PathsFrom(e).Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+
+    private void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (Vm is not { } vm) return;
+
+        var dropped = PathsFrom(e);
+        if (dropped.Count == 0) return;
+
+        var first = dropped[0];
+        if (Directory.Exists(first))
+        {
+            vm.Open(first);
+            return;
+        }
+
+        var folder = Path.GetDirectoryName(first);
+        if (string.IsNullOrEmpty(folder)) return;
+
+        vm.Open(folder);
+        RestoreSelection(first);          // land on the file that was actually dropped
+        if (FileList.SelectedItem is FileRow row) vm.Editor.Load(row.Path);
+    }
+
+    /// <summary>The dropped local paths. Avalonia 12 exposes them via DataTransfer, not the old
+    /// <c>e.Data</c>; a drop from a flaky network share must never throw out of a handler.</summary>
+    private static IReadOnlyList<string> PathsFrom(DragEventArgs e)
+    {
+        try
+        {
+            return e.DataTransfer?.TryGetFiles()?
+                       .Select(f => f.TryGetLocalPath())
+                       .Where(p => !string.IsNullOrEmpty(p))
+                       .Select(p => p!)
+                       .ToList()
+                   ?? [];
+        }
+        catch (Exception)
+        {
+            return [];
         }
     }
 
-    protected override void OnClosed(EventArgs e)
+    /// <summary>
+    /// A different file was picked. The unsaved-edits question is asked BEFORE the editor
+    /// retargets, and a Cancel puts the selection back where it was — in a docked sidebar, a list
+    /// and an editor showing two different files would be a lie about what Save is about to write.
+    /// </summary>
+    private async void OnFileSelected(object? sender, SelectionChangedEventArgs e)
     {
-        if (DataContext is TagEditorViewModel vm) vm.PropertyChanged -= OnVmPropertyChanged;
-        base.OnClosed(e);
-    }
+        if (_restoringSelection || Vm is not { } vm || Editor is not { } panel) return;
 
-    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(TagEditorViewModel.HasFile)
-                           or nameof(TagEditorViewModel.HasVersionNotice)
-            && DataContext is TagEditorViewModel vm)
-            ResizeForState(vm);
-    }
+        var picked = (sender as ListBox)?.SelectedItem as FileRow;
+        if (picked is not null && string.Equals(picked.Path, vm.Editor.FilePath,
+                                                StringComparison.OrdinalIgnoreCase)) return;
 
-    // The card grows for the ID3-version caution note too, so the Save button never slips below the
-    // fold on exactly the files where the note matters.
-    private void ResizeForState(TagEditorViewModel vm)
-    {
-        var hasFile = vm.HasFile;
-        Width = hasFile ? 560 : 440;
-        Height = hasFile ? (vm.HasVersionNotice ? 816 : 680) : 340;
-        // Keep the frameless card centred as it grows/shrinks.
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is { } s)
+        if (!await panel.ConfirmLeaveAsync(this))
         {
-            var wa = s.WorkingArea;
-            // Clamp the vertical centre at the top of the work area: the tallest state (editor +
-            // version notice) can exceed a short screen, and a negative Y would push the chrome bar
-            // — the only way to drag or close a frameless window — off the top edge.
-            Position = new PixelPoint(
-                wa.X + (int)((wa.Width - Width * RenderScaling) / 2),
-                wa.Y + Math.Max(0, (int)((wa.Height - Height * RenderScaling) / 2)));
+            RestoreSelection(vm.Editor.FilePath);
+            return;
+        }
+
+        if (picked is null) vm.Editor.Clear();
+        else vm.Editor.Load(picked.Path);
+    }
+
+    /// <summary>Point the list back at whatever the editor is actually holding.</summary>
+    private void RestoreSelection(string? path)
+    {
+        if (FileList is not { } list || Vm is not { } vm) return;
+
+        _restoringSelection = true;
+        try
+        {
+            list.SelectedItem = path is null
+                ? null
+                : vm.Files.FirstOrDefault(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            _restoringSelection = false;
         }
     }
 
-    // Drag the window from the chrome bar (but not from interactive controls) — shared predicate.
+    private async void OnPickFolder(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picked = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Open folder",
+                AllowMultiple = false,
+            });
+
+            if (picked?.FirstOrDefault()?.TryGetLocalPath() is { Length: > 0 } path) Vm?.Open(path);
+        }
+        catch (Exception)
+        {
+            // Cancelled, or a provider that refused — leave the browser where it was. `async void`
+            // on an event handler must not let an exception escape.
+        }
+    }
+
+    // ── Chrome ──────────────────────────────────────────────────────────────────────────────────
+
     private void OnChromePressed(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
@@ -95,99 +239,53 @@ public partial class MainWindow : Window
         BeginMoveDrag(e);
     }
 
-    private void OnMinimize(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-    private void OnClose(object? sender, RoutedEventArgs e) => Close();
-
-    // Chrome gear → the separate frameless Settings card (theme + ID3 write mode). Shared singleton VM
-    // so changes persist + reflect live (theme switches repaint the whole suite immediately).
-    private void OnSettings(object? sender, RoutedEventArgs e)
+    /// <summary>Chrome gear → the frameless Settings card (theme + ID3 write mode). Shared singleton
+    /// view model, so a theme switch repaints the whole suite immediately.</summary>
+    private void OnSettingsClick(object? sender, RoutedEventArgs e)
     {
         var settings = new SettingsWindow
         {
-            DataContext = Program.Services.GetRequiredService<ViewModels.SettingsViewModel>(),
+            DataContext = Program.Services.GetRequiredService<SettingsViewModel>(),
         };
-        settings.ShowDialog(this);
+        _ = settings.ShowDialog(this);
     }
 
-    // Brand mark (top-left) → the SHARED themed About dialog (JustPlay.UI), parameterized with JUST TAG's
-    // name / tagline / version / tag glyph so it's identical to its siblings.
-    private void OnAbout(object? sender, RoutedEventArgs e)
+    /// <summary>Brand mark (top-left) → the SHARED About dialog, parameterised with JUST TAG's name
+    /// and glyph so it is identical to its siblings.</summary>
+    private void OnAboutClick(object? sender, RoutedEventArgs e)
     {
         var asm = typeof(App).Assembly;
         var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var ver = info?.Split('+')[0] ?? asm.GetName().Version?.ToString(3) ?? "";
+
         var about = new AboutWindow(new AboutInfo(
             AppName: "JUST TAG",
-            Tagline: "Single-file tag editor",
+            Tagline: "Tag editor",
             Version: string.IsNullOrEmpty(ver) ? "" : $"Version {ver}",
             Glyph: BrandGlyphs.Tag));
-        about.ShowDialog(this);
+        _ = about.ShowDialog(this);
     }
 
-    private async void OnOpenFile(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// Closing with unsaved edits asks the same three-way question as switching files. The close is
+    /// cancelled first and re-issued after the answer, because the dialog is async and a
+    /// <see cref="Window.Closing"/> handler cannot wait.
+    /// </summary>
+    protected override void OnClosing(WindowClosingEventArgs e)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        if (!_forceClose && Vm is { Editor.IsDirty: true })
         {
-            Title = "Open audio file",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("Audio")
-                {
-                    Patterns = new[]
-                    {
-                        "*.mp3", "*.flac", "*.m4a", "*.aac", "*.ogg", "*.opus",
-                        "*.wav", "*.aiff", "*.aif", "*.wma",
-                    },
-                },
-                FilePickerFileTypes.All,
-            },
-        });
-
-        var path = files?.FirstOrDefault()?.TryGetLocalPath();
-        if (!string.IsNullOrEmpty(path) && DataContext is TagEditorViewModel vm)
-            vm.LoadFile(path);
-    }
-
-    private async void OnChangeCover(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not TagEditorViewModel vm) return;
-
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Choose cover image",
-            AllowMultiple = false,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("Image") { Patterns = new[] { "*.jpg", "*.jpeg", "*.png", "*.webp" } },
-                FilePickerFileTypes.All,
-            },
-        });
-
-        var path = files?.FirstOrDefault()?.TryGetLocalPath();
-        if (string.IsNullOrEmpty(path)) return;
-
-        try
-        {
-            var bytes = await File.ReadAllBytesAsync(path);
-            var mime = Path.GetExtension(path).ToLowerInvariant() is ".png" ? "image/png" : "image/jpeg";
-            vm.SetNewCover(bytes, mime);
+            e.Cancel = true;
+            _ = ConfirmThenCloseAsync();
+            return;
         }
-        catch { /* unreadable image — leave the cover as-is */ }
+        base.OnClosing(e);
     }
 
-    private void OnDragOver(object? sender, DragEventArgs e)
-        => e.DragEffects = e.DataTransfer?.Contains(DataFormat.File) == true
-            ? DragDropEffects.Copy : DragDropEffects.None;
-
-    private void OnDrop(object? sender, DragEventArgs e)
+    private async Task ConfirmThenCloseAsync()
     {
-        if (DataContext is not TagEditorViewModel vm) return;
-        var files = e.DataTransfer?.TryGetFiles()?.ToList();
-        var path = files?.FirstOrDefault()?.TryGetLocalPath();
-        if (string.IsNullOrEmpty(path)) return;
-        vm.LoadFile(path);
-        // 1a interim: a single file edits immediately (the point). Several → the batch list lands next.
-        if (files!.Count > 1) vm.Status = $"Loaded 1 of {files.Count} — the batch list lands next.";
+        if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
+        _forceClose = true;
+        Close();
     }
 }

@@ -15,6 +15,11 @@ public sealed class TagSettings
     /// <summary>ID3v2 write mode — the <see cref="JustPlay.Core.Models.Id3WriteFormat"/> enum NAME.
     /// Default = KeepFileVersion: converting is a thing you choose, not something Save does to you.</summary>
     public string WriteFormat { get; set; } = "KeepFileVersion";
+
+    /// <summary>The folder the browser was last in, so a session picks up where it stopped. Null on
+    /// a first run, and silently ignored when the path no longer exists (a NAS that is not mounted
+    /// yet must not turn into an error on startup).</summary>
+    public string? LastFolder { get; set; }
 }
 
 /// <summary>Source-generated JSON context — trim/AOT-safe (no reflection serialization), per the repo's

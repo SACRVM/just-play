@@ -58,7 +58,34 @@ internal sealed class Program
         // Persisted preferences (theme + ID3 write mode) → %LOCALAPPDATA%\JustTag\settings.json.
         services.AddSingleton<Settings.TagSettingsService>();
 
-        services.AddSingleton<TagEditorViewModel>();
+        // Preview playback — the thing mp3tag cannot do. A tagger only ever needs one stream, so
+        // this is the plain engine with no mixer/queue on top.
+        services.AddSingleton<IAudioEngine, Audio.Bass.BassAudioEngine>();
+        services.AddSingleton<PreviewViewModel>();
+
+        // THE editor is the shared one from JustPlay.UI — JUST TAG docks the same panel + view model
+        // that JUST PLAY and the PRE CUE FINDER float. It used to have its own copy; that copy was
+        // the divergence (memory suite-unify-dont-patch-divergence) and is gone.
+        //
+        // The executor is what makes previewing safe: a file that is being played has an open
+        // handle, and a tag write on an open handle fails. JUST PLAY defers such a write to the
+        // track change because it is performing; a tagger has no reason to wait — it lets go of the
+        // file and writes immediately. Same abstraction, the answer each app can actually give.
+        services.AddSingleton(sp =>
+        {
+            var preview = sp.GetRequiredService<PreviewViewModel>();
+            return new UI.ViewModels.TagEditorViewModel(
+                sp.GetRequiredService<IMetadataReader>(),
+                sp.GetRequiredService<IMetadataWriter>(),
+                (path, write) =>
+                {
+                    preview.ReleaseIfPlaying(path);
+                    write(path);
+                    return UI.ViewModels.TagWriteOutcome.Written;
+                });
+        });
+
+        services.AddSingleton<TaggerViewModel>();
         services.AddSingleton<SettingsViewModel>();
 
         return services.BuildServiceProvider();

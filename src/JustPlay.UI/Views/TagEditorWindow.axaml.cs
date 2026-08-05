@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.ViewModels;
@@ -21,12 +22,14 @@ namespace JustPlay.UI.Views;
 ///
 /// <para>When there are unsaved edits and the user answers <see cref="SaveChoice.Cancel"/>, the
 /// editor KEEPS its current file — the list selection has already moved, and that is fine: the file
-/// being edited is named at the top of the panel, so the two being temporarily out of step is
+/// being edited is named in the panel's FILE NAME box, so the two being temporarily out of step is
 /// visible rather than silent. Yanking the list's selection back would be worse.</para>
 /// </summary>
 public partial class TagEditorWindow : Window
 {
     private bool _forceClose;
+    private readonly bool _hasRememberedSize;
+    private bool _autoSized;
 
     /// <summary>Parameterless ctor for the XAML previewer.</summary>
     public TagEditorWindow() : this(null) { }
@@ -43,7 +46,12 @@ public partial class TagEditorWindow : Window
             "The tag editor needs its view model; the parameterless ctor exists for the previewer only.");
 
         DataContext = Editor;
-        WindowPlacement.Track(this, "Just.TagEditor");
+        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!);
+        // ".v2" retires the sizes remembered while the height was hard-coded — those were never a
+        // choice, they were a wrong default that got persisted, and keeping them would mean the
+        // measure-once below never runs on the machines that need it most. From here on, a size in
+        // this store IS a choice and is left alone.
+        _hasRememberedSize = WindowPlacement.Track(this, "Just.TagEditor.v2");
     }
 
     /// <summary>The shared editor state. The host reads <see cref="TagEditorViewModel.Saved"/> to
@@ -62,8 +70,31 @@ public partial class TagEditorWindow : Window
         if (Body is { } body && !await body.ConfirmLeaveAsync(this)) return false;
 
         if (path is null) Editor.Clear();
-        else Editor.Load(path);
+        else { Editor.Load(path); FitHeightToContentOnce(); }
         return true;
+    }
+
+    /// <summary>
+    /// Make the window exactly as tall as the panel wants, once, the first time a file is in it.
+    /// <para>The alternative is a hard-coded <c>Height</c>, and that number goes stale the moment a
+    /// field is added — it did, twice in one afternoon (2026-08-05). Letting the layout answer the
+    /// question means it cannot be wrong again.</para>
+    /// <para>It runs only when there is NO remembered size: once you have resized the editor
+    /// yourself, that is the answer, and re-measuring would throw your choice away on every open.
+    /// Afterwards <see cref="Window.SizeToContent"/> goes back to Manual so switching to a taller
+    /// tab scrolls instead of making the window jump.</para>
+    /// </summary>
+    private void FitHeightToContentOnce()
+    {
+        if (_autoSized || _hasRememberedSize) return;
+        _autoSized = true;
+
+        SizeToContent = SizeToContent.Height;
+        Dispatcher.UIThread.Post(() =>
+        {
+            SizeToContent = SizeToContent.Manual;
+            WindowPlacement.EnsureVisible(this);   // a very long panel must not grow off the screen
+        }, DispatcherPriority.Loaded);
     }
 
     /// <summary>

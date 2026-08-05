@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -21,7 +22,26 @@ public partial class TagEditorPanel : UserControl
 {
     public TagEditorPanel() => AvaloniaXamlLoader.Load(this);
 
+    /// <summary>
+    /// Which tab is showing. It lives on the CONTROL, not the view model: the view model is the
+    /// file's state and is shared with whatever else a host wires to it, while "which tab am I
+    /// looking at" belongs to this panel. Bound from the markup with
+    /// <c>$parent[controls:TagEditorPanel]</c>, per the repo's rule for reusable controls.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowAnalysisProperty =
+        AvaloniaProperty.Register<TagEditorPanel, bool>(nameof(ShowAnalysis));
+
+    public bool ShowAnalysis
+    {
+        get => GetValue(ShowAnalysisProperty);
+        set => SetValue(ShowAnalysisProperty, value);
+    }
+
     private TagEditorViewModel? Vm => DataContext as TagEditorViewModel;
+
+    private void OnShowTags(object? sender, RoutedEventArgs e) => ShowAnalysis = false;
+
+    private void OnShowAnalysis(object? sender, RoutedEventArgs e) => ShowAnalysis = true;
 
     private void OnSave(object? sender, RoutedEventArgs e) => Vm?.Save();
 
@@ -35,6 +55,10 @@ public partial class TagEditorPanel : UserControl
     {
         if (sender is Control { Tag: string mask }) Vm?.ApplyRenameMask(mask);
     }
+
+    /// <summary>Put the file's real name back in the box — the exit from a rename that does not
+    /// throw the tag edits away with it.</summary>
+    private void OnRenameOriginal(object? sender, RoutedEventArgs e) => Vm?.RestoreOriginalName();
 
     private async void OnChangeCover(object? sender, RoutedEventArgs e)
     {

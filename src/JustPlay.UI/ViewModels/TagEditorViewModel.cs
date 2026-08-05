@@ -37,6 +37,14 @@ public enum TagWriteOutcome
 public delegate TagWriteOutcome TagWriteExecutor(string filePath, Action<string> write);
 
 /// <summary>
+/// One row on the editor's ANALYSIS tab — a value we measured, shown read-only.
+/// <para><paramref name="Bar"/> is the 0..1 fraction for the character axes, which are the only
+/// ones a bar can honestly draw; the rows with a unit (BPM, LUFS, dB) leave it at 0 and are
+/// rendered as text alone.</para>
+/// </summary>
+public sealed record Measurement(string Label, string Text, double Bar, string? Hint);
+
+/// <summary>
 /// The SHARED tag editor — one view model behind two shapes: the floating always-on-top window in
 /// JUST PLAY / the PRE CUE FINDER, and JUST TAG's docked sidebar. Written once so the two cannot
 /// drift (see memory <c>suite-unify-dont-patch-divergence</c>).
@@ -175,6 +183,20 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         Status = $"Renames to \"{name}{Extension}\" on save.";
     }
 
+    /// <summary>
+    /// Put the name the file actually has on disk back in the box — the way OUT of a rename.
+    /// Until this existed the only exit was Revert, which also throws the tag edits away
+    /// (Chloe 2026-08-05: "wie komm ich aus der file rename geschichte wieder raus?").
+    /// Nothing else is touched, so a half-typed comment survives changing your mind about the name.
+    /// </summary>
+    public void RestoreOriginalName()
+    {
+        if (!HasFile) return;
+
+        BaseName = _baselineBaseName;      // clears WillRename, so MarkDirty drops the rename again
+        Status = "";
+    }
+
     /// <summary>Collapse what empty placeholders leave behind, then strip anything a file name may
     /// not contain. A name is not worth refusing over a colon — fix it and say nothing.</summary>
     private static string TidyName(string s)
@@ -228,10 +250,62 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public string? BpmText { get => _bpm; set => SetField(ref _bpm, value); }
 
     private string? _key;
-    public string? KeyText { get => _key; set => SetField(ref _key, value); }
+    public string? KeyText { get => _key; set { SetField(ref _key, value); SyncDjComment(); } }
 
     private string? _energy;
-    public string? EnergyText { get => _energy; set => SetField(ref _energy, Digits(value)); }
+    public string? EnergyText { get => _energy; set { SetField(ref _energy, Digits(value)); SyncDjComment(); } }
+
+    /// <summary>
+    /// Keep the DJ segment at the head of the comment — <c>8A - Energy 7</c> — in step with the KEY
+    /// and ENERGY fields. It is the same segment <c>tag clean</c> and the WriteDjComment setting
+    /// produce, and Serato, rekordbox, Traktor and VirtualDJ all read it. Leaving it behind after a
+    /// correction would not be "not touching the comment": it would leave the file stating a key we
+    /// have just decided is wrong.
+    /// <para>
+    /// It only ever REWRITES a segment that is already there — it never adds one. Putting our text
+    /// into a field the user owns is an opt-in (<c>UserSettings.WriteDjComment</c>), not a side
+    /// effect of typing a key. Whatever stands after the <c>" | "</c> is carried over verbatim, and
+    /// an unparseable key or energy changes nothing at all.
+    /// </para>
+    /// The rewrite lands in the visible Comment box, before the save — you see it happen and can
+    /// still undo it by typing.
+    /// </summary>
+    private void SyncDjComment()
+    {
+        if (_loading || Comment is not { Length: > 0 } comment) return;
+
+        var cut = comment.IndexOf('|');
+        var head = cut < 0 ? comment : comment[..cut];
+        var tail = cut < 0 ? "" : comment[cut..];              // "| her own note", untouched
+        if (!IsDjSegment(head)) return;
+
+        if (MusicalKey.TryParse(KeyText?.Trim() ?? "")?.Camelot is not { Length: > 0 } camelot) return;
+        if (!int.TryParse(EnergyText?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var e)
+            || e is < 1 or > 10) return;
+
+        Comment = tail.Length == 0
+            ? $"{camelot} - Energy {e}"
+            : $"{camelot} - Energy {e} {tail}";
+    }
+
+    /// <summary>Does this read as our "8A - Energy 7" segment? Deliberately strict — anything else
+    /// is the user's own text and is left alone.</summary>
+    private static bool IsDjSegment(string head)
+    {
+        const string mid = " - Energy ";
+        var s = head.Trim();
+        var at = s.IndexOf(mid, StringComparison.OrdinalIgnoreCase);
+        if (at <= 0) return false;
+
+        var camelot = s[..at].Trim();
+        var energy = s[(at + mid.Length)..].Trim();
+
+        return camelot.Length is 2 or 3
+            && char.ToUpperInvariant(camelot[^1]) is 'A' or 'B'
+            && camelot[..^1].All(char.IsAsciiDigit)
+            && energy.Length is 1 or 2
+            && energy.All(char.IsAsciiDigit);
+    }
 
     /// <summary>What our DSP measured, for the line under the hand-editable fields — so a correction
     /// is made against a visible number instead of blind.</summary>
@@ -239,6 +313,34 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public string? DetectedSummary { get => _detectedSummary; private set => Set(ref _detectedSummary, value); }
 
     public bool HasDetected => DetectedSummary is not null;
+
+    // ── What we measured (ANALYSIS tab) ─────────────────────────────────────────────────────────
+    //
+    // READ-ONLY on purpose. BPM / KEY / ENERGY are editable because they live in standard tags
+    // (TBPM / TKEY / TXXX:EnergyLevel) that other DJ software reads — correcting one corrects what
+    // the file tells the world. Everything below exists only in OUR blob: there is no external
+    // reader, no ground truth in the ear for a 0..1 float, and every value here feeds the harmonic
+    // sort, so a typed-over number would silently re-rank the whole library. A wrong measurement is
+    // fixed by measuring again (the FLAC mono-decode bug is the proof), not by overwriting it.
+
+    private IReadOnlyList<Measurement> _numbers = [];
+    /// <summary>The values with a unit — tempo, key, loudness. Text, never a bar.</summary>
+    public IReadOnlyList<Measurement> Numbers { get => _numbers; private set => Set(ref _numbers, value); }
+
+    private IReadOnlyList<Measurement> _character = [];
+    /// <summary>The 0..1 character axes — the ones the sorter ranks on.</summary>
+    public IReadOnlyList<Measurement> Character { get => _character; private set => Set(ref _character, value); }
+
+    private string? _analysedAt;
+    /// <summary>When this was measured and by which detector version — "unknown" is the honest
+    /// answer for a blob written before we started stamping it, and reads as maximally stale.</summary>
+    public string? AnalysedAt { get => _analysedAt; private set => Set(ref _analysedAt, value); }
+
+    public bool HasAnalysis => Numbers.Count > 0 || Character.Count > 0;
+
+    /// <summary>Whether the character axes ran — a v5 blob has loudness but no character, and the
+    /// divider above them must not float over an empty list.</summary>
+    public bool HasCharacter => Character.Count > 0;
 
     // ── Cover ───────────────────────────────────────────────────────────────────────────────────
 
@@ -253,7 +355,13 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
 
     // ── State ───────────────────────────────────────────────────────────────────────────────────
 
-    private string _status = "No track selected.";
+    private string _status = "";
+    /// <summary>
+    /// The footer line — reserved for things that HAPPENED: a save, a rename preview, a value we
+    /// could not parse. It is deliberately empty while nothing has happened, and it never repeats
+    /// the file name: that already sits in the FILE NAME field and in whatever list the host is
+    /// showing behind this panel (Chloe 2026-08-05: "die info ist zig fach sonst in dem UI").
+    /// </summary>
     public string Status { get => _status; private set => Set(ref _status, value); }
 
     private bool _isDirty;
@@ -309,13 +417,14 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
 
             DetectedSummary = DescribeDetected(m.StoredAnalysis?.Detected);
             Raise(nameof(HasDetected));
+            BuildMeasurements(m.StoredAnalysis);
 
             SetCoverBytes(m.CoverArt, GuessMime(m.CoverArt));
             _coverAction = CoverAction.Keep;
 
             _baseline = Snapshot.From(this);
             IsDirty = false;
-            Status = FileName;
+            Status = "";                       // a fresh file is not news — see Status
         }
         catch (Exception ex)
         {
@@ -338,12 +447,13 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         Title = Artist = Album = AlbumArtist = Genre = Year = Track = Comment = null;
         BpmText = KeyText = EnergyText = null;
         DetectedSummary = null;
+        BuildMeasurements(null);
         SetCoverBytes(null, null);
         _coverAction = CoverAction.Keep;
         _baseline = Snapshot.Empty;
         IsDirty = false;
         _loading = false;
-        Status = "No track selected.";
+        Status = "";
         Raise(nameof(HasFile));
         Raise(nameof(HasDetected));
     }
@@ -651,6 +761,71 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
             catch { /* undecodable image bytes — show no cover rather than crash */ }
         }
         Cover = null;
+    }
+
+    /// <summary>
+    /// Turn the stored blob into the read-only rows of the ANALYSIS tab. Only values that are
+    /// actually present become rows — an absent measurement is left OUT rather than shown as 0,
+    /// which would read as "we measured, and it is nothing".
+    /// </summary>
+    private void BuildMeasurements(TrackAnalysisState? s)
+    {
+        if (s?.Detected is not { } a)
+        {
+            Numbers = [];
+            Character = [];
+            AnalysedAt = null;
+            Raise(nameof(HasAnalysis));
+        Raise(nameof(HasCharacter));
+            return;
+        }
+
+        var inv = CultureInfo.InvariantCulture;
+        var numbers = new List<Measurement>();
+
+        if (a.Bpm is > 0)
+            numbers.Add(new("BPM", a.Bpm.Value.ToString("0.#", inv), 0, null));
+        if (a.Key is { } k)
+            numbers.Add(new("KEY",
+                k.Camelot is { Length: > 0 } c ? $"{k.Name} · {c}" : k.Name, 0,
+                a.KeyConfidence is { } kc ? $"confidence {kc.ToString("0.00", inv)}" : null));
+        if (a.Energy is { } e)
+            numbers.Add(new("ENERGY", $"{e} / 10", 0, null));
+        if (a.LoudnessLufs is { } l)
+            numbers.Add(new("LOUDNESS", $"{l.ToString("0.0", inv)} LUFS", 0, "EBU R128, integrated"));
+        if (a.ReplayGainDb is { } g)
+            numbers.Add(new("GAIN", $"{g.ToString("+0.0;-0.0;0.0", inv)} dB", 0,
+                "what normalisation would apply"));
+        if (a.Peak is { } p)
+            numbers.Add(new("PEAK", p.ToString("0.###", inv), 0, "sample peak, not true peak"));
+
+        var character = new List<Measurement>();
+        Add(character, "DARK",        a.Dark,            "low end against the highs — high reads dark");
+        Add(character, "HARSHNESS",   a.Harshness,       "2–6 kHz fatigue — high wears the ear out");
+        Add(character, "BASS PUNCH",  a.BassPunch,       "how hard the bass transients hit");
+        Add(character, "BASS GROOVE", a.BassGroove,      "swung / off-grid bass against straight");
+        Add(character, "HYPNOTIC",    a.Hypnotic,        "how little the track changes over its length");
+        Add(character, "FLATNESS",    a.SpectralFlatness,"tonal (0) against noise-like (1)");
+        Add(character, "GRID",        a.GridConfidence,  "below 0.45 a beatgrid tends to fail — gig-validated");
+
+        Numbers = numbers;
+        Character = character;
+
+        // The epoch is how a blob written before we stamped the time says "unknown" — it must read
+        // as maximally stale, never as clean.
+        var when = s.AnalysedAtUtc is { } t && t > DateTime.UnixEpoch
+            ? t.ToLocalTime().ToString("yyyy-MM-dd", inv)
+            : "date unknown";
+        AnalysedAt = $"{when}  ·  detector v{s.Version.ToString(inv)}";
+        Raise(nameof(HasAnalysis));
+        Raise(nameof(HasCharacter));
+
+        static void Add(List<Measurement> into, string label, double? v, string hint)
+        {
+            if (v is not { } x) return;
+            into.Add(new Measurement(label, x.ToString("0.00", CultureInfo.InvariantCulture),
+                                     Math.Clamp(x, 0, 1), hint));
+        }
     }
 
     private static string? DescribeDetected(AnalysisResult? a)

@@ -37,11 +37,15 @@ public static class WindowPlacement
     /// a non-restorable mode (e.g. JUST PLAY's fixed-size MINI mode) — return false to not record the
     /// current bounds. Call once, from the window constructor (after InitializeComponent), so the saved
     /// bounds are applied before the window is shown — no reposition flicker.
+    /// <para>Returns whether a saved size was restored. A window that sizes itself to its content on
+    /// first run needs to know: doing that on top of a remembered size would throw the user's own
+    /// choice away every time they open it.</para>
     /// </summary>
-    public static void Track(Window window, string key, Func<bool>? canPersist = null)
+    public static bool Track(Window window, string key, Func<bool>? canPersist = null)
     {
         Cache.TryGetValue(key, out var latest);
         if (latest is not null) Apply(window, latest); // set before Show → window appears at the saved spot
+        var restoredSize = latest is not null && window.CanResize;
 
         void Capture()
         {
@@ -68,6 +72,8 @@ public static class WindowPlacement
             Cache[key] = latest;
             Save();
         };
+
+        return restoredSize;
     }
 
     private static void Apply(Window w, WindowBounds b)

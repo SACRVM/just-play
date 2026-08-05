@@ -31,7 +31,7 @@ public partial class App : Application
         {
             var window = new MainWindow
             {
-                DataContext = Program.Services.GetRequiredService<TagEditorViewModel>(),
+                DataContext = Program.Services.GetRequiredService<TaggerViewModel>(),
             };
 
             // JUST suite UI philosophy: the brand glyph (the TAG mark) on the active theme gradient as the
