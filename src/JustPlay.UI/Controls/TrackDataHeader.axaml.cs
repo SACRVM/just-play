@@ -1,9 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using JustPlay.App.ViewModels;
+using JustPlay.UI.ViewModels;
 
-namespace JustPlay.App.Controls;
+namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// The ONE column-header strip for the track tables — the JUST PLAY queue (MaxView) and the Pre-Cue Finder

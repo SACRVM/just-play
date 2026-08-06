@@ -24,17 +24,7 @@
          these 20/22 margins — proven in JUST PLAY. -->
     <Window.Styles>
         <!-- Maximized: square off card (margin/corners/shadow) + the inner aurora rectangles. -->
-        <Style Selector="Border#RootCard.maximized">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
-        </Style>
-        <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
-            <Setter Property="RadiusX" Value="0"/>
-            <Setter Property="RadiusY" Value="0"/>
-        </Style>
-
-        <!-- Limiter 2x2 mode buttons (LED left of the name). Active = green lit lamp + brighter text. -->
+<!-- Limiter 2x2 mode buttons (LED left of the name). Active = green lit lamp + brighter text. -->
         <Style Selector="Button.limbtn">
             <Setter Property="Padding" Value="11,8"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -139,15 +129,12 @@
     </Window.Styles>
 
     <Panel>
-        <Border Name="RootCard"
-                CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                Background="#40000000"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="RootCard" ClipToBounds="False"
+                Background="#40000000">
             <Panel>
-                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{StaticResource BgLinear}"/>
+                <Rectangle Fill="{StaticResource BgGlowA}"  />
+                <Rectangle Fill="{StaticResource BgGlowB}"  />
 
                 <DockPanel LastChildFill="True">
 

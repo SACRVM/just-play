@@ -105,6 +105,10 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         _themeSvc.ThemeChanged += _themeHandler;
 
         WindowPlacement.Track(this, "JustPlay.Finder");
+
+        // The suite's custom maximize (shared) — fills the work area, squares the card off, hides the
+        // grips. A borderless card's OS maximize would keep the shadow margin and the rounded corners.
+        _maximize = FramelessMaximize.Attach(this);
     }
 
     /// <summary>Open the finder (or surface the already-open one). The viewmodel is the
@@ -618,45 +622,16 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
     // ── Frameless chrome: drag + custom maximize (MainWindow pattern) ───────
 
-    private void OnChromePressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if (WindowChrome.IsInteractive(e.Source as Visual)) return;
-        BeginMoveDrag(e);
-    }
+    private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
+        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        WindowChrome.HandlePress(this, e);
 
-    private bool _isMaxed;
-    private PixelRect _restoreBounds;
+
+    private readonly FramelessMaximize _maximize;
 
     /// <summary>True while the custom work-area maximize is active (for WindowPlacement).</summary>
-    public bool IsMaximized => _isMaxed;
+    public bool IsMaximized => _maximize.IsMaximized;
 
-    /// <summary>Custom maximize into the screen's work area, squaring the card off via the
-    /// "maximized" class — a borderless window gets no OS maximize (see MainWindow).</summary>
-    public void ToggleMaximize()
-    {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null) return;
-
-        if (!_isMaxed)
-        {
-            _restoreBounds = new PixelRect(Position, PixelSize.FromSize(new Size(Width, Height), RenderScaling));
-            var wa = screen.WorkingArea;
-            Position = wa.Position;
-            Width = wa.Width / RenderScaling;
-            Height = wa.Height / RenderScaling;
-            _isMaxed = true;
-        }
-        else
-        {
-            Position = _restoreBounds.Position;
-            Width = _restoreBounds.Width / RenderScaling;
-            Height = _restoreBounds.Height / RenderScaling;
-            _isMaxed = false;
-        }
-
-        this.FindControl<Border>("RootCard")?.Classes.Set("maximized", _isMaxed);
-        if (this.FindControl<Grid>("ResizeGrips") is { } grips)
-            grips.IsVisible = !_isMaxed;
-    }
+    /// <summary>The shared custom maximize — a borderless card gets no usable OS one.</summary>
+    public void ToggleMaximize() => _maximize.Toggle();
 }

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
+             xmlns:uivm="using:JustPlay.UI.ViewModels"
              xmlns:controls="using:JustPlay.App.Controls"
              xmlns:ui="using:JustPlay.UI.Controls"
              xmlns:behaviors="using:JustPlay.UI.Behaviors"
@@ -103,26 +104,15 @@
         <!-- Button.primary / Button.ctrl / Button.iconbtn / Button.ghost now live in
              App.axaml (shared by both views). -->
 
-        <Style Selector="TextBlock.colhead">
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="LetterSpacing" Value="2"/>
-        </Style>
-        <!-- Active-sort arrow: smaller than the header label and snug against it. Defined after
-             .colhead so its FontSize/Margin win on elements carrying both classes. -->
-        <Style Selector="TextBlock.sortarrow">
-            <Setter Property="FontSize" Value="7"/>
-            <Setter Property="LetterSpacing" Value="0"/>
-            <Setter Property="Margin" Value="1,0,0,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <!-- Collapse the arrow when this column isn't the active sort (glyph = "") so the empty
-                 slot + its StackPanel spacing don't leave a gap (e.g. before the "·" track count). -->
-            <Setter Property="IsVisible"
-                    Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-        </Style>
+        <!-- .colhead / .sortarrow moved to the SHARED sheet (JustPlay.UI/Theming/JustStyles.axaml),
+             2026-08-05. There were THREE copies — here, in the Finder and inside TrackDataHeader — and
+             they had already drifted (this one lacked the flush-trailing fix and used a 1px arrow gap
+             instead of 2). A local copy also OVERRODE the shared header strip nested inside this view,
+             which is how the queue's own header and its data columns could disagree about the same
+             label. One definition now. -->
 
-<!-- likecell heart styles moved to App.axaml (shared with the finder via the TrackRow control). -->
+
+<!-- likecell heart styles live in JustPlay.UI/Theming/JustStyles.axaml, with the shared TrackRow. -->
 
         <!-- The underline-tab styles (Button.tab / Border.tabline) moved to App.axaml so the Tweaks
              panel can reuse them. The UP NEXT strip below still uses them unchanged (now global). -->
@@ -786,9 +776,13 @@
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
                                     <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="title"
                                                Tapped="OnHeaderTapped" Cursor="Hand"/>
-                                    <!-- Dirty dot: shown when the loaded playlist has unsaved edits. -->
-                                    <TextBlock Classes="colhead" Text="•" IsVisible="{Binding PlaylistDirty}"
-                                               Foreground="{DynamicResource AccentABrush}" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    <!-- The accent "dirty dot" that used to sit here is GONE (Chloe 2026-08-05:
+                                         "das rafft doch keiner - nicht mal ich - weg lassen"). It marked a loaded
+                                         playlist with unsaved edits, and it was read as a status light for the
+                                         analyzer instead. A symbol that has to be explained is not an indicator.
+                                         The STATE still exists (PlaylistDirty drives the Save command); it just no
+                                         longer claims a square of screen it cannot pay for. -->
+
                                     <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
                                     <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" Margin="10,0,4,0" VerticalAlignment="Center"/>
                                     <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
@@ -807,7 +801,7 @@
                                 <!-- Toggleable data columns — the shared header strip (Controls/TrackDataHeader): the SAME
                                      ColW* widths + sort glyphs + flush fix as the finder, defined once. The DURATION header
                                      carries the queue's set total (LetterSpacing 0 = tight digits, flush-right). -->
-                                <controls:TrackDataHeader Grid.Column="1" Columns="{Binding Columns}"
+                                <ui:TrackDataHeader Grid.Column="1" Columns="{Binding Columns}"
                                                           DurationHeader="{Binding TotalDurationText}"
                                                           DurationHeaderLetterSpacing="0"/>
                             </Grid>
@@ -914,7 +908,7 @@
                                     </ContextMenu>
                                 </ListBox.ContextMenu>
                                 <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:TrackViewModel">
+                                    <DataTemplate x:DataType="uivm:TrackViewModel">
                                         <!-- DockPanel row (mirrors the header): # left, toggleable data cells
                                              right (fixed widths, collapsed = 0 width), title fills the middle.
                                              Same widths + right-dock as the header → columns align without
@@ -953,12 +947,12 @@
                                                           IsVisible="{Binding IsAnalyzing}"/>
                                                 </Grid>
 
-                                                <!-- The shared track row (JustPlay.App.Controls.TrackRow): name+artist fill
+                                                <!-- The shared track row (JustPlay.UI.Controls.TrackRow): name+artist fill
                                                      the middle, all toggleable data cells dock right at the SAME fixed widths
                                                      as the header, and the like heart is clickable. Column visibility + sort
                                                      read the queue's Columns; the index gutter (left, above) stays host-side.
                                                      ONE row definition shared with the Pre-Cue Finder — no per-list drift. -->
-                                                <controls:TrackRow Columns="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).Columns}"/>
+                                                <ui:TrackRow Columns="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).Columns}"/>
                                             </DockPanel>
                                         </Panel>
                                     </DataTemplate>

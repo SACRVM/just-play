@@ -1,33 +1,17 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:controls="using:JustPlay.App.Controls"
-             x:Class="JustPlay.App.Controls.TrackDataHeader">
+             xmlns:controls="using:JustPlay.UI.Controls"
+             x:Class="JustPlay.UI.Controls.TrackDataHeader">
 
     <!-- The shared data-column header strip (docked right by the host). Every cell: fixed ColW* width (SAME
          resource as the TrackRow cell), Tag = lowercase column id (drives the sort click), IsVisible off the
          shared Columns, a label + a sort arrow that collapses when the column isn't the active sort. Column
          order + alignment are defined ONCE here and shared by both lists. -->
-    <UserControl.Styles>
-        <!-- Header label — tracked caps. FlushTrailing reclaims the trailing letter-spacing so right/centre
-             labels sit flush with the untracked row values below (single-source: derived from LetterSpacing). -->
-        <Style Selector="TextBlock.colhead">
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="LetterSpacing" Value="2"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="controls:HeaderText.FlushTrailing" Value="True"/>
-        </Style>
-        <!-- Active-sort arrow: smaller, snug, no tracking. Defined after .colhead so it wins on the shared cells.
-             Collapses (IsVisible off the glyph) when unsorted, so unsorted headers reserve no arrow gap → flush;
-             when sorted, its left margin is the gap that hangs on the arrow. -->
-        <Style Selector="TextBlock.sortarrow">
-            <Setter Property="FontSize" Value="7"/>
-            <Setter Property="LetterSpacing" Value="0"/>
-            <Setter Property="Margin" Value="2,0,0,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-    </UserControl.Styles>
+    <!-- The .colhead / .sortarrow label styles live in the SHARED sheet (JustPlay.UI/Theming/
+         JustStyles.axaml), not locally here: every host draws its OWN leading NAME cell next to this
+         strip, and that label has to be the same one. They were scoped to this control until JUST TAG
+         needed the same head (2026-08-05) — a second copy is how two headers start looking alike
+         instead of being alike. -->
 
     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 
@@ -41,6 +25,26 @@
             </StackPanel>
         </Border>
 
+        <!-- ALBUM (left) -->
+        <Border Width="{DynamicResource ColWAlbum}" Background="Transparent" Tag="album" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowAlbum}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="ALBUM"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.AlbumSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.AlbumSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ALBUM ARTIST (left) -->
+        <Border Width="{DynamicResource ColWAlbumArtist}" Background="Transparent" Tag="albumartist" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowAlbumArtist}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="ALBUM ARTIST"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.AlbumArtistSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.AlbumArtistSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
         <!-- GENRE (left) -->
         <Border Width="{DynamicResource ColWGenre}" Background="Transparent" Tag="genre" Cursor="Hand"
                 Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowGenre}">
@@ -48,6 +52,26 @@
                 <TextBlock Classes="colhead" Text="GENRE"/>
                 <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.GenreSortGlyph}"
                            IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.GenreSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- YEAR (right — over right-aligned digits) -->
+        <Border Width="{DynamicResource ColWYear}" Background="Transparent" Tag="year" Cursor="Hand"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowYear}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="YEAR"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.YearSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.YearSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- TRACK # (right) -->
+        <Border Width="{DynamicResource ColWTrackNo}" Background="Transparent" Tag="trackno" Cursor="Hand" ToolTip.Tip="Track number"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowTrackNo}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="#"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.TrackNoSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.TrackNoSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
         </Border>
 
@@ -161,6 +185,47 @@
             </StackPanel>
         </Border>
 
+        <!-- ANALYSIS (centre) — the traffic light. Sorting it groups the folder into
+             never-analysed / outdated / current, which is exactly the order you work through. -->
+        <Border Width="{DynamicResource ColWAnalysis}" Background="Transparent" Tag="analysis" Cursor="Hand"
+                ToolTip.Tip="Our analysis: green = current, sand = older version, ring = none"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowAnalysis}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="AN"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.AnalysisSortGlyph}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- COV (centre) -->
+        <Border Width="{DynamicResource ColWCover}" Background="Transparent" Tag="cover" Cursor="Hand" ToolTip.Tip="Has a cover"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowCover}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="COV"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.CoverSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.CoverSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ID3 (centre) -->
+        <Border Width="{DynamicResource ColWId3}" Background="Transparent" Tag="id3" Cursor="Hand" ToolTip.Tip="ID3v2 version in the file"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowId3}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="ID3"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.Id3SortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.Id3SortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- FILE TYPE (centre) -->
+        <Border Width="{DynamicResource ColWFileType}" Background="Transparent" Tag="filetype" Cursor="Hand" ToolTip.Tip="File format"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowFileType}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="TYPE"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.FileTypeSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.FileTypeSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
         <!-- DURATION (right) — the one host-specific label: queue = set total (LS 0), finder = "TIME" (LS 2). -->
         <Border Width="{DynamicResource ColWDuration}" Background="Transparent" Tag="duration" Cursor="Hand"
                 Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowDuration}">
@@ -180,6 +245,16 @@
                 <TextBlock Classes="colhead" Text="♥"/>
                 <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.LikeSortGlyph}"
                            IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.LikeSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- FILE NAME (left) — last, like the cell it heads. -->
+        <Border Width="{DynamicResource ColWFileName}" Background="Transparent" Tag="filename" Cursor="Hand" ToolTip.Tip="Name on disk"
+                Tapped="OnHeaderTapped" IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.ShowFileName}">
+            <StackPanel Orientation="Horizontal" Spacing="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <TextBlock Classes="colhead" Text="FILE NAME"/>
+                <TextBlock Classes="colhead sortarrow" Text="{Binding $parent[controls:TrackDataHeader].Columns.FileNameSortGlyph}"
+                           IsVisible="{Binding $parent[controls:TrackDataHeader].Columns.FileNameSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
             </StackPanel>
         </Border>
 

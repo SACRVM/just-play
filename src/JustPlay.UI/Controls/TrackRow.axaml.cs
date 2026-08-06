@@ -1,8 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
-using JustPlay.App.ViewModels;
+using JustPlay.UI.ViewModels;
 
-namespace JustPlay.App.Controls;
+namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// The ONE track-list row, shared by the JUST PLAY queue (MaxView) and the Pre-Cue Finder file list. Its
@@ -25,17 +25,10 @@ public partial class TrackRow : UserControl
         set => SetValue(ColumnsProperty, value);
     }
 
-    /// <summary>How the artist is shown. True (default, the JUST PLAY queue) = a second line under the title.
-    /// False (the Pre-Cue Finder) = suppressed here, because the finder shows the artist as its own SORTABLE
-    /// column instead (Chloe 2026-07-08: the finder must let you sort by artist, the main UI stacks it).</summary>
-    public static readonly StyledProperty<bool> ArtistUnderNameProperty =
-        AvaloniaProperty.Register<TrackRow, bool>(nameof(ArtistUnderName), defaultValue: true);
-
-    public bool ArtistUnderName
-    {
-        get => GetValue(ArtistUnderNameProperty);
-        set => SetValue(ArtistUnderNameProperty, value);
-    }
+    // How the artist is shown is NOT a host setting any more (it was ArtistUnderName until
+    // 2026-08-05). The row decides: a second line under the title exactly when ARTIST has no column of
+    // its own. Two hosts setting the same flag two ways is how the same list ends up showing the artist
+    // twice in one app and nowhere in another.
 
     public TrackRow() => InitializeComponent();
 }

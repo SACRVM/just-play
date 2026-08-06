@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 
-namespace JustPlay.App.Controls;
+namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// The final fix for Avalonia's trailing letter-spacing on header labels. Avalonia (like CSS)

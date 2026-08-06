@@ -141,39 +141,9 @@
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
 
-        <!-- Tab switch. A pill rather than an underline: the panel is narrow and lives inside a
-             rounded card, where an underline reads as a stray rule. -->
-        <Style Selector="Button.tag-tab">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,5"/>
-            <Setter Property="FontSize" Value="10.5"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="LetterSpacing" Value="1.6"/>
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <!-- FluentTheme paints the templated ContentPresenter, so every state has to be answered
-             explicitly or the pill flickers back to the stock hover grey. -->
-        <Style Selector="Button.tag-tab /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.tag-tab:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#0FFFFFFF"/>
-        </Style>
-        <Style Selector="Button.tag-tab:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-        </Style>
-        <Style Selector="Button.tag-tab.selected">
-            <Setter Property="Foreground" Value="#F2FFFFFF"/>
-        </Style>
-        <Style Selector="Button.tag-tab.selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1FFFFFFF"/>
-        </Style>
-        <Style Selector="Button.tag-tab.selected:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#26FFFFFF"/>
-        </Style>
+        <!-- The .tag-tab pill styles moved to the SHARED sheet (JustPlay.UI/Theming/JustStyles.axaml)
+             together with the switch itself: the buttons now live in each HOST's header, which is
+             outside this control and therefore outside its style scope. -->
 
         <!-- Character bar. Solid accent, not the gradient: a gradient compresses into the filled
              part, so two different values would draw two different colour ramps. -->
@@ -216,14 +186,11 @@
 
             <!-- TAGS = what the file tells other tools, and therefore editable.
                  ANALYSIS = what WE heard, and therefore not. The split is by who reads a value,
-                 not by how many fields there are. -->
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="3"
-                        Margin="14,2,14,6">
-                <Button Classes="tag-tab" Content="TAGS" Click="OnShowTags"
-                        Classes.selected="{Binding !$parent[controls:TagEditorPanel].ShowAnalysis}"/>
-                <Button Classes="tag-tab" Content="ANALYSIS" Click="OnShowAnalysis"
-                        Classes.selected="{Binding $parent[controls:TagEditorPanel].ShowAnalysis}"/>
-            </StackPanel>
+                 not by how many fields there are.
+                 ⚠ The SWITCH between the two is NOT here any more (Chloe 2026-08-05): a panel that
+                 carries its own tab bar gives its host a second row of tabs above the first. The host
+                 owns the pane header and drives this panel through the ShowAnalysis property —
+                 JUST TAG as EDITOR | ANALYSIS | FILTER, the floating window in its own chrome. -->
 
             <!-- Footer first (DockPanel fills with the LAST child) so the action row is pinned to
                  the bottom and the fields scroll behind it.

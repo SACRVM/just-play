@@ -405,28 +405,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         else
         {
+            // The comparison is the SHARED TrackSort — one definition for the queue, the finder and
+            // JUST TAG. (This copy read the genre off Model.Metadata while the finder read GenreText:
+            // the same answer today, and the kind of difference that stops being the same answer the
+            // moment one of them grows a fallback.)
             snap.Sort((a, b) =>
             {
-                var c = col switch
-                {
-                    TrackColumns.Title    => NaturalComparer.Instance.Compare(a.Title, b.Title),
-                    TrackColumns.Artist   => NaturalComparer.Instance.Compare(a.Artist, b.Artist),
-                    TrackColumns.Genre    => NaturalComparer.Instance.Compare(a.Model.Metadata?.Genre ?? "", b.Model.Metadata?.Genre ?? ""),
-                    TrackColumns.Key      => NaturalComparer.Instance.Compare(a.KeyText, b.KeyText),
-                    TrackColumns.Bpm      => Nullable.Compare(a.Bpm, b.Bpm),
-                    TrackColumns.Nrg      => Nullable.Compare(a.Energy, b.Energy),
-                    TrackColumns.Gain     => Nullable.Compare(a.ReplayGainDb, b.ReplayGainDb),
-                    TrackColumns.Lufs     => Nullable.Compare(a.LoudnessLufs, b.LoudnessLufs),
-                    TrackColumns.Dark     => a.DarkScore.CompareTo(b.DarkScore),
-                    TrackColumns.Hypnotic => a.HypnoticScore.CompareTo(b.HypnoticScore),
-                    TrackColumns.Groove   => a.GrooveScore.CompareTo(b.GrooveScore),
-                    TrackColumns.Punch    => a.PunchScore.CompareTo(b.PunchScore),
-                    TrackColumns.Harsh    => a.HarshScore.CompareTo(b.HarshScore),
-                    TrackColumns.Comment  => NaturalComparer.Instance.Compare(a.CommentText, b.CommentText),
-                    TrackColumns.Duration => Nullable.Compare(a.Model.Metadata?.Duration, b.Model.Metadata?.Duration),
-                    TrackColumns.Like     => a.IsFavorite.CompareTo(b.IsFavorite),
-                    _                     => 0,
-                };
+                var c = TrackSort.Compare(a, b, col);
                 return d ? -c : c;
             });
         }

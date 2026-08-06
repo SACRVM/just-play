@@ -17,16 +17,7 @@
              shadow margin, no rounded corners, no drop shadow. Driven by the "maximized" class set
              on RootCard from code-behind (WindowState watcher). The inner background rectangles
              carry their own 14-px radius, so they must square off too (descendant selector). -->
-        <Style Selector="Border#RootCard.maximized">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
-        </Style>
-        <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
-            <Setter Property="RadiusX" Value="0"/>
-            <Setter Property="RadiusY" Value="0"/>
-        </Style>
-    </Window.Styles>
+</Window.Styles>
 
     <Panel>
         <!--
@@ -37,16 +28,13 @@
           the card edge; the Aurora rectangles carry their own RadiusX/Y=14 so the corners stay
           rounded without squaring off when ClipToBounds is False.
         -->
-        <Border Name="RootCard"
-                CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
+        <Border Name="RootCard" ClipToBounds="False"
                 Background="#40FF3366"
-                DragDrop.AllowDrop="True"
-                BoxShadow="{DynamicResource WindowOuter}">
+                DragDrop.AllowDrop="True">
             <Panel DragDrop.AllowDrop="True">
-                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <Rectangle Fill="{DynamicResource BgLinear}"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"  />
+                <Rectangle Fill="{DynamicResource BgGlowB}"  />
 
                 <!-- View switch: Max vs Mini, same shared DataContext (the shell VM) -->
                 <Panel>

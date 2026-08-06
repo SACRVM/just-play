@@ -65,6 +65,20 @@
                                          ToolTip.Tip="Unsaved changes"/>
                             </StackPanel>
 
+                            <!-- TAGS | ANALYSIS — the panel's two halves, switched from the CHROME.
+                                 The switch used to live inside TagEditorPanel; it moved out so a host
+                                 with its own pane header (JUST TAG) does not end up with two rows of
+                                 tabs (Chloe 2026-08-05). Here the chrome IS the header, so this is
+                                 where it belongs. -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        IsVisible="{Binding HasFile}">
+                                <Button Classes="tag-tab" Content="TAGS" Click="OnShowTags"
+                                        Classes.selected="{Binding !#Panel.ShowAnalysis}"/>
+                                <Button Classes="tag-tab" Content="ANALYSIS" Click="OnShowAnalysis"
+                                        Classes.selected="{Binding #Panel.ShowAnalysis}"/>
+                            </StackPanel>
+
                             <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
                                     IsVisible="{x:Static controls:Platform.IsNotMac}">
                                 <TextBlock Text="✕" FontSize="13"/>

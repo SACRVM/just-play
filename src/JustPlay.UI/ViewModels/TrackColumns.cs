@@ -3,23 +3,34 @@ using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace JustPlay.App.ViewModels;
+namespace JustPlay.UI.ViewModels;
 
 /// <summary>
-/// Shared column-visibility + sort state for the track tables — the JUST PLAY queue (MaxView) AND the
-/// Pre-Cue Finder file list. ONE definition so the two lists can never drift on which columns exist, how the
-/// sort arrows render, or how a header click cycles asc → desc → off. This class holds no rows: the owning
-/// view-model keeps its own collection + comparer and re-sorts when <see cref="SortRequested"/> fires. The
-/// shared <see cref="Controls.TrackRow"/> and header bind their cell visibility + sort glyphs straight to
-/// this object, so a new column is added in exactly one place. (Chloe 2026-07-07 — the anti-drift refactor.)
+/// Shared column-visibility + sort state for the track tables — the JUST PLAY queue (MaxView), the Pre-Cue
+/// Finder file list AND JUST TAG's file pane. ONE definition so the lists can never drift on which columns
+/// exist, how the sort arrows render, or how a header click cycles asc → desc → off. This class holds no
+/// rows: the owning view-model keeps its own collection and re-sorts (via the shared <see cref="TrackSort"/>)
+/// when <see cref="SortRequested"/> fires. The shared <see cref="Controls.TrackRow"/> and header bind their
+/// cell visibility + sort glyphs straight to this object, so a new column is added in exactly one place.
+/// (Chloe 2026-07-07 — the anti-drift refactor; 2026-08-05 the tagging columns joined for JUST TAG.)
 /// </summary>
 public sealed partial class TrackColumns : ObservableObject
 {
-    // Canonical column ids (lowercase) — the SUPERSET across all track tables. A given list enables a subset;
-    // the queue never enables the vibe columns, the finder can enable all of them.
+    // Canonical column ids (lowercase) — the SUPERSET across all track tables. A given list enables a subset:
+    // the queue never enables the vibe columns, the finder leans on them, and JUST TAG enables the editorial
+    // and file-fact ones the DJ lists have no use for. One superset, three focuses.
     public const string Title = "title", Artist = "artist", Genre = "genre", Bpm = "bpm", Key = "key", Nrg = "nrg",
         Gain = "gain", Lufs = "lufs", Dark = "dark", Hypnotic = "hypnotic", Groove = "groove",
         Punch = "punch", Harsh = "harsh", Comment = "comment", Duration = "duration", Like = "like";
+
+    // The tagging columns (JUST TAG's focus). "What you can filter on, you must be able to see" —
+    // Chloe 2026-08-05: the search can aim at a cover, an ID3 version or a file type, so the table has
+    // to be able to show those too, or a hit is a claim you cannot check.
+    public const string Album = "album", AlbumArtist = "albumartist", Year = "year", TrackNo = "trackno",
+        Cover = "cover", Id3 = "id3", FileType = "filetype", FileName = "filename",
+        // The traffic light: is OUR analysis current, a version behind, or absent? JUST TAG is where
+        // you check and re-trigger it, so it earns a column of its own (Chloe 2026-08-05).
+        Analysis = "analysis";
 
     private HashSet<string> _enabled;
 
@@ -38,7 +49,11 @@ public sealed partial class TrackColumns : ObservableObject
     }
 
     public bool ShowArtist   => _enabled.Contains(Artist);
+    public bool ShowAlbum    => _enabled.Contains(Album);
+    public bool ShowAlbumArtist => _enabled.Contains(AlbumArtist);
     public bool ShowGenre    => _enabled.Contains(Genre);
+    public bool ShowYear     => _enabled.Contains(Year);
+    public bool ShowTrackNo  => _enabled.Contains(TrackNo);
     public bool ShowBpm      => _enabled.Contains(Bpm);
     public bool ShowKey      => _enabled.Contains(Key);
     public bool ShowNrg      => _enabled.Contains(Nrg);
@@ -50,8 +65,13 @@ public sealed partial class TrackColumns : ObservableObject
     public bool ShowPunch    => _enabled.Contains(Punch);
     public bool ShowHarsh    => _enabled.Contains(Harsh);
     public bool ShowComment  => _enabled.Contains(Comment);
+    public bool ShowAnalysis => _enabled.Contains(Analysis);
+    public bool ShowCover    => _enabled.Contains(Cover);
+    public bool ShowId3      => _enabled.Contains(Id3);
+    public bool ShowFileType => _enabled.Contains(FileType);
     public bool ShowDuration => _enabled.Contains(Duration);
     public bool ShowLike     => _enabled.Contains(Like);
+    public bool ShowFileName => _enabled.Contains(FileName);
 
     /// <summary>Fires after the visible set changes so the owner can persist it.</summary>
     public event Action? VisibilityChanged;
@@ -70,7 +90,11 @@ public sealed partial class TrackColumns : ObservableObject
     private void RaiseVisibility()
     {
         OnPropertyChanged(nameof(ShowArtist));
+        OnPropertyChanged(nameof(ShowAlbum));
+        OnPropertyChanged(nameof(ShowAlbumArtist));
         OnPropertyChanged(nameof(ShowGenre));
+        OnPropertyChanged(nameof(ShowYear));
+        OnPropertyChanged(nameof(ShowTrackNo));
         OnPropertyChanged(nameof(ShowBpm));
         OnPropertyChanged(nameof(ShowKey));
         OnPropertyChanged(nameof(ShowNrg));
@@ -82,8 +106,13 @@ public sealed partial class TrackColumns : ObservableObject
         OnPropertyChanged(nameof(ShowPunch));
         OnPropertyChanged(nameof(ShowHarsh));
         OnPropertyChanged(nameof(ShowComment));
+        OnPropertyChanged(nameof(ShowAnalysis));
+        OnPropertyChanged(nameof(ShowCover));
+        OnPropertyChanged(nameof(ShowId3));
+        OnPropertyChanged(nameof(ShowFileType));
         OnPropertyChanged(nameof(ShowDuration));
         OnPropertyChanged(nameof(ShowLike));
+        OnPropertyChanged(nameof(ShowFileName));
     }
 
     // ── Sort state (identical cycle in both lists; each owner sorts its own collection) ─────────────────
@@ -98,7 +127,11 @@ public sealed partial class TrackColumns : ObservableObject
 
     public string TitleSortGlyph    => Glyph(Title);
     public string ArtistSortGlyph   => Glyph(Artist);
+    public string AlbumSortGlyph    => Glyph(Album);
+    public string AlbumArtistSortGlyph => Glyph(AlbumArtist);
     public string GenreSortGlyph    => Glyph(Genre);
+    public string YearSortGlyph     => Glyph(Year);
+    public string TrackNoSortGlyph  => Glyph(TrackNo);
     public string BpmSortGlyph      => Glyph(Bpm);
     public string KeySortGlyph      => Glyph(Key);
     public string NrgSortGlyph      => Glyph(Nrg);
@@ -110,8 +143,13 @@ public sealed partial class TrackColumns : ObservableObject
     public string PunchSortGlyph    => Glyph(Punch);
     public string HarshSortGlyph    => Glyph(Harsh);
     public string CommentSortGlyph  => Glyph(Comment);
+    public string AnalysisSortGlyph => Glyph(Analysis);
+    public string CoverSortGlyph    => Glyph(Cover);
+    public string Id3SortGlyph      => Glyph(Id3);
+    public string FileTypeSortGlyph => Glyph(FileType);
     public string DurationSortGlyph => Glyph(Duration);
     public string LikeSortGlyph     => Glyph(Like);
+    public string FileNameSortGlyph => Glyph(FileName);
 
     partial void OnSortColumnChanged(string? value) => RaiseSortGlyphs();
     partial void OnSortDescendingChanged(bool value) => RaiseSortGlyphs();
@@ -120,7 +158,11 @@ public sealed partial class TrackColumns : ObservableObject
     {
         OnPropertyChanged(nameof(TitleSortGlyph));
         OnPropertyChanged(nameof(ArtistSortGlyph));
+        OnPropertyChanged(nameof(AlbumSortGlyph));
+        OnPropertyChanged(nameof(AlbumArtistSortGlyph));
         OnPropertyChanged(nameof(GenreSortGlyph));
+        OnPropertyChanged(nameof(YearSortGlyph));
+        OnPropertyChanged(nameof(TrackNoSortGlyph));
         OnPropertyChanged(nameof(BpmSortGlyph));
         OnPropertyChanged(nameof(KeySortGlyph));
         OnPropertyChanged(nameof(NrgSortGlyph));
@@ -132,8 +174,13 @@ public sealed partial class TrackColumns : ObservableObject
         OnPropertyChanged(nameof(PunchSortGlyph));
         OnPropertyChanged(nameof(HarshSortGlyph));
         OnPropertyChanged(nameof(CommentSortGlyph));
+        OnPropertyChanged(nameof(AnalysisSortGlyph));
+        OnPropertyChanged(nameof(CoverSortGlyph));
+        OnPropertyChanged(nameof(Id3SortGlyph));
+        OnPropertyChanged(nameof(FileTypeSortGlyph));
         OnPropertyChanged(nameof(DurationSortGlyph));
         OnPropertyChanged(nameof(LikeSortGlyph));
+        OnPropertyChanged(nameof(FileNameSortGlyph));
     }
 
     /// <summary>Header click: same column ascending → descending → off (natural order); a new column starts

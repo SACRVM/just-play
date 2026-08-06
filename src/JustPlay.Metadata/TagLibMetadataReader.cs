@@ -86,38 +86,13 @@ public sealed class TagLibMetadataReader : IMetadataReader
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    /// <summary>The cover bytes, if the tag carries real artwork. Which picture that IS — past
+    /// Serato's and MIK's GEOB blobs in the same array — is decided ONCE, in
+    /// <see cref="CoverProbe.Best"/>, because the "does it have a cover" probe has to agree with this
+    /// or the tick column and the editor would disagree about the same file.</summary>
     private static byte[]? FirstPicture(TagLib.Tag tag)
     {
-        var pics = tag.Pictures;
-        if (pics is null || pics.Length == 0) return null;
-
-        // Serato / Mixed In Key store performance data (Key, Energy, Serato Markers2,
-        // CuePoints, BeatGrid, …) as GEOB attachment frames, which TagLib# surfaces in
-        // Pictures[] with Type=NotAPicture (mime application/json). Taking pics[0]
-        // blindly hands the UI a JSON blob instead of the cover — on MIK/Serato-processed
-        // files the real FrontCover sits BEHIND up to six such frames. Prefer the
-        // designated FrontCover, then any actual picture type.
-        TagLib.IPicture? best = null;
-        foreach (var p in pics)
-        {
-            if (p.Type == TagLib.PictureType.FrontCover) { best = p; break; }
-            best ??= p.Type != TagLib.PictureType.NotAPicture ? p : null;
-        }
-
-        // Last resort: an image-mime attachment mislabelled NotAPicture (some taggers).
-        if (best is null)
-        {
-            foreach (var p in pics)
-            {
-                if (p.MimeType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    best = p;
-                    break;
-                }
-            }
-        }
-
-        var data = best?.Data;
+        var data = CoverProbe.Best(tag)?.Data;
         return data is { Count: > 0 } ? data.Data : null;
     }
 

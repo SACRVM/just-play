@@ -130,6 +130,13 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
             _db?.Dispose();
             _db  = null;
             Root = root;
+
+            // Announce the root to the suite as soon as it is set — but only when an index FILE really
+            // exists for it. Doing it here (and not only on the first open) is what lets JUST TAG know
+            // about the index without JUST PLAY's finder having been opened once in this session; the
+            // File.Exists guard is what stops a root that was never scanned from claiming to be indexed.
+            if (root is { Length: > 0 } r && File.Exists(LibraryDb.DefaultPathFor(r)))
+                LibraryIndexRegistry.Register(r);
         }
     }
 
@@ -151,6 +158,11 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         try
         {
             _db = LibraryDb.Open(path);
+            // This machine now has an index for this root — record it where the whole suite can see
+            // it, so JUST TAG (and anything after it) can answer "is this folder indexed?" without
+            // reading JUST PLAY's settings file. Only here, where an index actually EXISTS or was
+            // just created by an explicit scan; browsing alone never registers anything.
+            LibraryIndexRegistry.Register(root);
         }
         catch (Exception ex)
         {

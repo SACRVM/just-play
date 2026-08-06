@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
+using JustPlay.UI.ViewModels;
 
 namespace JustPlay.App.ViewModels;
 

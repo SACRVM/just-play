@@ -69,7 +69,20 @@ public partial class MainWindow : Window, IFramelessWindow
         AddHandler(KeyDownEvent, OnHotkeyDown, RoutingStrategies.Tunnel);
 
         WindowPlacement.Track(this, "JustStream.Main");
+
+        // The suite's custom maximize (shared): fills the work area and squares the card off. A
+        // borderless transparent window's OS maximize keeps the shadow margin and the rounded corners,
+        // which is not what "full screen" means.
+        _maximize = FramelessMaximize.Attach(this);
+        // JUST STREAM is a FIXED-SIZE window: its resize grips are hidden in the XAML and must stay
+        // hidden when it comes back from maximized. Stated here rather than relied on, because the
+        // shared behaviour otherwise restores them.
+        _maximize.GripsVisibleWhen = () => false;
     }
+
+    private readonly FramelessMaximize _maximize;
+
+    private void UpdateChromeForState() => _maximize.Apply();
 
     // C = connect toggle, R = record toggle. Plain keys only (no modifier), and never while a text
     // field or a ComboBox has focus (so its type-ahead / editing still works).
@@ -175,49 +188,16 @@ public partial class MainWindow : Window, IFramelessWindow
     }
 
     // Drag the window from the chrome bar (but not from interactive controls) — shared predicate.
-    private void OnChromePressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if (WindowChrome.IsInteractive(e.Source as Visual)) return;
-        BeginMoveDrag(e);
-    }
+    private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
+        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        WindowChrome.HandlePress(this, e);
 
     // ── Custom maximize (borderless window has no OS maximize) ───────────────
-    private bool _isMaxed;
-    private PixelRect _restoreBounds;
 
     /// <summary>True while the custom work-area maximize is active (for WindowPlacement).</summary>
-    public bool IsMaximized => _isMaxed;
+    public bool IsMaximized => _maximize.IsMaximized;
 
-    public void ToggleMaximize()
-    {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null) return;
-
-        if (!_isMaxed)
-        {
-            _restoreBounds = new PixelRect(Position, PixelSize.FromSize(new Size(Width, Height), RenderScaling));
-            var wa = screen.WorkingArea;
-            Position = wa.Position;
-            Width = wa.Width / RenderScaling;
-            Height = wa.Height / RenderScaling;
-            _isMaxed = true;
-        }
-        else
-        {
-            Position = _restoreBounds.Position;
-            Width = _restoreBounds.Width / RenderScaling;
-            Height = _restoreBounds.Height / RenderScaling;
-            _isMaxed = false;
-        }
-        UpdateChromeForState();
-    }
-
-    private void UpdateChromeForState()
-    {
-        // Fixed-size window: resize grips stay hidden (set in XAML); nothing to toggle here.
-        this.FindControl<Border>("RootCard")?.Classes.Set("maximized", _isMaxed);
-    }
+    public void ToggleMaximize() => _maximize.Toggle();
 
     // ── Custom edge/corner resize (manual; the borderless window has no OS resize frame) ──
     private bool _resizing, _wEdge, _eEdge, _nEdge, _sEdge;
@@ -226,7 +206,7 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private void OnResizePressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_isMaxed) return;
+        if (IsMaximized) return;
         if (sender is not Border { Tag: string name }) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         _wEdge = name.Contains("West"); _eEdge = name.Contains("East");

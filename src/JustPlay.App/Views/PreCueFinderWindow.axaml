@@ -36,17 +36,7 @@
 
     <Window.Styles>
         <!-- Maximized: card fills the screen — no shadow margin, no rounding (MainWindow pattern). -->
-        <Style Selector="Border#RootCard.maximized">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
-        </Style>
-        <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
-            <Setter Property="RadiusX" Value="0"/>
-            <Setter Property="RadiusY" Value="0"/>
-        </Style>
-
-        <!-- Listing rows (BOTH panes — folders + files share ONE look via the finder-list class).
+<!-- Listing rows (BOTH panes — folders + files share ONE look via the finder-list class).
              Flat, with the queue's hover/selected accent-gradient swipe (same design brushes as
              MaxView's queue — one look across the suite). -->
         <Style Selector="ListBox.finder-list ListBoxItem">
@@ -189,7 +179,11 @@
         </Style>
         <!-- Active-sort arrow: smaller than the header label, snug against it, collapses when idle.
              Mirrors MaxView's .sortarrow so the finder sorts look identical to the JUST PLAY queue. -->
-        <Style Selector="TextBlock.sortarrow">
+        <!-- The finder's OWN head arrows (accent-coloured). Scoped to .finderhead on purpose: the base
+             .sortarrow now lives in the shared sheet and styles the nested TrackDataHeader strip, and an
+             unscoped copy here would repaint that strip's arrows too — the finder's own NAME arrow and
+             its data-column arrows would stop matching the queue. -->
+        <Style Selector="TextBlock.finderhead.sortarrow">
             <Setter Property="FontSize" Value="7"/>
             <Setter Property="LetterSpacing" Value="0"/>
             <Setter Property="FontWeight" Value="Normal"/>
@@ -290,15 +284,12 @@
     </Window.Styles>
 
     <Panel>
-        <Border Name="RootCard"
-                CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="RootCard" ClipToBounds="False">
             <Panel>
-                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
-                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+                <Rectangle Fill="{DynamicResource BgLinear}"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"  />
+                <Rectangle Fill="{DynamicResource BgGlowB}"  />
+                <Border Classes="cardedge" BorderBrush="#1FFFFFFF" BorderThickness="1"/>
 
                 <!-- Margin 0 so the CHROME is flush to the card edges (window icons in the corner,
                      no phantom padding — Chloe 2026-07-05). Each content section below carries its own
@@ -659,7 +650,7 @@
                                                 <TextBlock Classes="finderhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
                                             </StackPanel>
                                             <Panel Grid.Column="1">
-                                                <controls:TrackDataHeader Columns="{Binding Columns}"
+                                                <uic:TrackDataHeader Columns="{Binding Columns}"
                                                                           CanSort="{Binding AllHydrated}"
                                                                           Opacity="{Binding LockedOpacity}"/>
                                                 <!-- While a folder loads: a transparent overlay intercepts hover (ONE
@@ -758,11 +749,14 @@
                                                         <TextBlock Text="{Binding CodecLabel}"/>
                                                     </Border>
                                                 </Panel>
-                                                <!-- Data columns + NAME/artist — the shared row (Controls/TrackRow): the
-                                                     SAME ColW* widths + cells + comment + like heart as the JUST PLAY
-                                                     queue, defined once. DataContext = the item's Track; the codec/cue
-                                                     gutter (left, above) stays host-side. Artist now shows (2nd line). -->
-                                                <controls:TrackRow DataContext="{Binding Track}" ArtistUnderName="False"
+                                                <!-- Data columns + NAME/artist — the shared row (JustPlay.UI TrackRow):
+                                                     the SAME ColW* widths + cells + comment + like heart as the JUST
+                                                     PLAY queue, defined once. DataContext = the item's Track; the
+                                                     codec/cue gutter (left, above) stays host-side. The artist line
+                                                     under the title is no longer switched off here — the row shows it
+                                                     exactly when the ARTIST column is off, so turning that column off
+                                                     in the finder puts the artist back instead of losing it. -->
+                                                <uic:TrackRow DataContext="{Binding Track}"
                                                                    Columns="{Binding $parent[ListBox].((vm:PreCueFinderViewModel)DataContext).Columns}"/>
                                             </DockPanel>
                                         </DataTemplate>

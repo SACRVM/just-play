@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
+using JustPlay.UI.Controls;
 using JustPlay.Core.Storage;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI.Behaviors;
@@ -24,12 +25,9 @@ public partial class SettingsWindow : Window
     }
 
     // Drag the frameless dialog from the chrome bar (but not from interactive controls).
-    private void OnChromePressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if (IsInteractive(e.Source as Visual)) return;
-        BeginMoveDrag(e);
-    }
+    private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
+        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        WindowChrome.HandlePress(this, e);
 
     private static bool IsInteractive(Visual? v)
     {

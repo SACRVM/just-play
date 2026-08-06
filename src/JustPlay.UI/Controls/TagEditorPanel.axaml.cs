@@ -23,10 +23,14 @@ public partial class TagEditorPanel : UserControl
     public TagEditorPanel() => AvaloniaXamlLoader.Load(this);
 
     /// <summary>
-    /// Which tab is showing. It lives on the CONTROL, not the view model: the view model is the
-    /// file's state and is shared with whatever else a host wires to it, while "which tab am I
-    /// looking at" belongs to this panel. Bound from the markup with
-    /// <c>$parent[controls:TagEditorPanel]</c>, per the repo's rule for reusable controls.
+    /// Which half is showing: the editable TAGS, or the read-only ANALYSIS. It lives on the CONTROL,
+    /// not the view model — the view model is the file's state and is shared with whatever else a host
+    /// wires to it, while "which half am I looking at" belongs to this panel.
+    ///
+    /// <para>The panel no longer draws the switch itself (Chloe 2026-08-05): the HOST owns its pane
+    /// header, and a panel with its own tab bar produced a second row of tabs right under the first.
+    /// Hosts bind this — JUST TAG from its EDITOR | ANALYSIS | FILTER header, the floating window from
+    /// its chrome.</para>
     /// </summary>
     public static readonly StyledProperty<bool> ShowAnalysisProperty =
         AvaloniaProperty.Register<TagEditorPanel, bool>(nameof(ShowAnalysis));
@@ -38,10 +42,6 @@ public partial class TagEditorPanel : UserControl
     }
 
     private TagEditorViewModel? Vm => DataContext as TagEditorViewModel;
-
-    private void OnShowTags(object? sender, RoutedEventArgs e) => ShowAnalysis = false;
-
-    private void OnShowAnalysis(object? sender, RoutedEventArgs e) => ShowAnalysis = true;
 
     private void OnSave(object? sender, RoutedEventArgs e) => Vm?.Save();
 

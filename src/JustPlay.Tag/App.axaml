@@ -13,6 +13,9 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <theming:JustPalette/>
+                <!-- Track-table layout tokens (ColW* widths, row margins) + the row's cell converters,
+                     so JUST TAG's file pane IS the suite's table rather than a look-alike of it. -->
+                <theming:TrackTable/>
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Frosted card surface: faint vertical glass gradient. -->
@@ -26,19 +29,9 @@
                  without fading the label inside the Border. -->
             <SolidColorBrush x:Key="PillBrush" Color="{DynamicResource AccentB}" Opacity="0.20"/>
 
-            <!--
-              CAUTION note tokens. The suite has no caution token yet, so these live here for now —
-              lift them into JustPlay.UI/Theming/JustPalette.axaml the moment a second JUST app needs
-              one (that file is untouchable tonight). Two deliberate choices:
-                · NOT accent-tinted — in this design system the accent means "selected/active", and a
-                  caution that borrows it would read as a chosen state.
-                · NOT red — the write-format setting is a legitimate choice, not an error. This is a
-                  warm, quiet sand that says "read me" and nothing louder.
-            -->
-            <Color x:Key="Caution">#f2c98c</Color>
-            <SolidColorBrush x:Key="CautionBrush" Color="{DynamicResource Caution}"/>
-            <SolidColorBrush x:Key="CautionSurfaceBrush" Color="{DynamicResource Caution}" Opacity="0.07"/>
-            <SolidColorBrush x:Key="CautionEdgeBrush" Color="{DynamicResource Caution}" Opacity="0.34"/>
+            <!-- The CAUTION tokens moved into the shared palette (JustPlay.UI/Theming/JustPalette.axaml)
+                 on 2026-08-05, exactly as their original note asked: a second surface — the analysis
+                 traffic light in the file table — needed them, so they stopped being JUST TAG's. -->
         </ResourceDictionary>
     </Application.Resources>
 

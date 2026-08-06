@@ -11,7 +11,7 @@
         ShowInTaskbar="False"
         RequestedThemeVariant="Dark"
         Background="#00000000"
-        TransparencyLevelHint="Transparent,Mica,Blur"
+        TransparencyLevelHint="AcrylicBlur,Transparent,Blur"
         WindowDecorations="None">
 
     <!--
@@ -28,10 +28,35 @@
             BoxShadow="{DynamicResource WindowOuter}"
             PointerPressed="OnCardPressed">
         <Panel>
-            <!-- Themed background layers (same recipe as the main windows). -->
-            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
-            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
-            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
+            <!--
+              ⚗ EXPERIMENT (Chloe 2026-08-06, "vllt sogar mit einem glass effect ... ich meine nur
+              blur direkt hinter dem fenster - nicht um das fenster herum"): the dialog as GLASS
+              instead of a second copy of the window recipe. Deliberately inline and on ONE dialog
+              until her eye rules on it — building the shared abstraction first would be backwards.
+
+              Why the shadow margin survives: ServerCompositionExperimentalAcrylicVisual.RenderCore
+              draws the material as a RoundedRect in the VISUAL's own bounds (verified against
+              Avalonia release/12.0.3), not window-wide. So the blur stops at the card and the
+              20/22 margin the drop shadow blooms into stays fully transparent.
+              On Win32 this resolves to DWMWA_USE_HOSTBACKDROPBRUSH + BlurEffect.Acrylic
+              (src/Windows/Avalonia.Win32/WindowImpl.cs) — it samples the windows BEHIND the dialog,
+              which is what "blur directly behind" means. Mica was dropped from the hint list on
+              purpose: it samples the desktop WALLPAPER, not the app underneath.
+
+              The two radial glows are gone here on purpose — BgGlowB is AccentC at FULL alpha and
+              would sit on the glass as an opaque blob. A dialog reading calmer than the main window
+              is the point, not a side effect.
+            -->
+            <ExperimentalAcrylicBorder CornerRadius="16">
+                <ExperimentalAcrylicBorder.Material>
+                    <ExperimentalAcrylicMaterial
+                        BackgroundSource="Digger"
+                        TintColor="{DynamicResource BgVia}"
+                        TintOpacity="0.85"
+                        MaterialOpacity="0.55"
+                        FallbackColor="{DynamicResource BgVia}"/>
+                </ExperimentalAcrylicBorder.Material>
+            </ExperimentalAcrylicBorder>
             <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
 
             <!-- Close (×) in the rounded top-right corner (shared Button.cap.close) — Windows.

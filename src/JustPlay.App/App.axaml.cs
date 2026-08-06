@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using JustPlay.UI.Theming;
+using JustPlay.App.Services;
 using JustPlay.App.ViewModels;
 using JustPlay.App.Views;
 using JustPlay.Core.Abstractions;
@@ -40,6 +41,14 @@ public partial class App : Application
         var settings = Program.Services.GetRequiredService<ISettingsService>();
         var themeSvc = Program.Services.GetRequiredService<IThemeService>();
         themeSvc.Apply(Themes.ByNameOrDefault(settings.Current.Theme));
+
+        // Tell the index service which root this machine uses, at STARTUP rather than when the PRE CUE
+        // FINDER first opens. Two reasons: HasIndex/Count answer correctly before the finder exists, and
+        // UseRoot is what announces an existing index to the suite (LibraryIndexRegistry) — so JUST TAG
+        // can find it without JUST PLAY's finder having been opened in this session. It only ever reads;
+        // a root that was never scanned has no database file and is not announced.
+        Program.Services.GetRequiredService<ILibraryIndexService>()
+               .UseRoot(Program.Services.GetRequiredService<IFinderSettingsService>().Current.LibraryRoot);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {

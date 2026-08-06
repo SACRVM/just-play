@@ -9,7 +9,9 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using JustPlay.Tag.ViewModels;
+using JustPlay.UI;
 using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
@@ -26,7 +28,7 @@ namespace JustPlay.Tag.Views;
 /// dialogs) and the clicks that move between folders. Every decision about a FILE lives in the
 /// shared view model, so JUST TAG and the floating editor in JUST PLAY cannot drift apart.</para>
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IFramelessWindow
 {
     /// <summary>
     /// Guards the selection handler while we put the selection BACK after a cancelled switch —
@@ -36,6 +38,15 @@ public partial class MainWindow : Window
     private bool _restoringSelection;
 
     private bool _forceClose;
+
+    private readonly FramelessMaximize _maximize;
+
+    /// <summary>True while the custom work-area maximize is active (read by WindowPlacement, so the
+    /// screen-filling bounds are never persisted as the window's normal size).</summary>
+    public bool IsMaximized => _maximize.IsMaximized;
+
+    /// <summary>The shared custom maximize — see FramelessMaximize for why the OS one will not do.</summary>
+    public void ToggleMaximize() => _maximize.Toggle();
 
     public MainWindow()
     {
@@ -47,9 +58,43 @@ public partial class MainWindow : Window
         FramelessResizeBehavior.Attach(this, ResizeGrips);
         WindowPlacement.Track(this, "JustTag.Main");
 
+        // ⚠ JUST TAG carried the .maximized STYLE from the day it was built, but nothing ever set the
+        // class — so its maximize left the transparent shadow frame and the rounded corners in place
+        // (Chloe 2026-08-05: "fullscreen heißt bildschirmfüllend"). It implements IFramelessWindow now,
+        // through the SHARED behaviour, so it cannot drift from its siblings again.
+        _maximize = FramelessMaximize.Attach(this);
+
         DragDrop.SetAllowDrop(this, true);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DropEvent, OnDrop);
+
+        // Fetch-what-you-see: a row that scrolls into view is read AHEAD of the background pass, so a
+        // 1,200-file folder fills the screen first instead of the top of the list first (the Finder's
+        // mechanic, verbatim).
+        FileList.ContainerPrepared += OnFileContainerPrepared;
+    }
+
+    private void OnFileContainerPrepared(object? sender, ContainerPreparedEventArgs e)
+    {
+        if (Vm is { } vm && e.Container.DataContext is FileRow row) vm.HydrateVisible(row);
+    }
+
+    /// <summary>
+    /// Launched ON a file (<c>JustTag.exe "…\track.flac"</c>, or a drop on the .exe): the view model has
+    /// already opened its folder, so all that is left is to land on the file itself. Posted after Loaded
+    /// because the list needs its containers before a selection means anything.
+    /// </summary>
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+
+        if (Vm is not { StartFile: { Length: > 0 } file } vm) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            RestoreSelection(file);
+            if (FileList.SelectedItem is FileRow row) vm.Editor.Load(row.Path);
+        }, DispatcherPriority.Loaded);
     }
 
     private TaggerViewModel? Vm => DataContext as TaggerViewModel;
@@ -73,13 +118,23 @@ public partial class MainWindow : Window
         else vm.Open(row.Path);
     }
 
+    /// <summary>The NAME header — the one column the host draws itself, so its sort click lands here
+    /// rather than inside the shared strip. Tag carries the column id.</summary>
+    private void OnHeaderTapped(object? sender, TappedEventArgs e)
+    {
+        if (Vm is not { AllHydrated: true } vm) return;   // locked while the folder is still being read
+        if (sender is Control { Tag: string id }) vm.Columns.SortBy(id);
+    }
+
     private void OnClearSearch(object? sender, RoutedEventArgs e) => Vm?.ClearSearch();
 
     private void OnToggleSecond(object? sender, RoutedEventArgs e) => Vm?.ToggleSecond();
 
-    private void OnShowEditor(object? sender, RoutedEventArgs e) => Vm?.ShowTab(filter: false);
+    private void OnShowEditor(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Editor);
 
-    private void OnShowFilter(object? sender, RoutedEventArgs e) => Vm?.ShowTab(filter: true);
+    private void OnShowAnalysis(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Analysis);
+
+    private void OnShowFilter(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Filter);
 
     // ── Preview ─────────────────────────────────────────────────────────────────────────────────
 
@@ -232,12 +287,9 @@ public partial class MainWindow : Window
 
     // ── Chrome ──────────────────────────────────────────────────────────────────────────────────
 
-    private void OnChromePressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if (WindowChrome.IsInteractive(e.Source as Visual)) return;
-        BeginMoveDrag(e);
-    }
+    private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
+        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        WindowChrome.HandlePress(this, e);
 
     /// <summary>Chrome gear → the frameless Settings card (theme + ID3 write mode). Shared singleton
     /// view model, so a theme switch repaints the whole suite immediately.</summary>

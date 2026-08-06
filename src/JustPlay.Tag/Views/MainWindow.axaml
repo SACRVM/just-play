@@ -6,8 +6,8 @@
         x:Class="JustPlay.Tag.Views.MainWindow"
         x:DataType="vm:TaggerViewModel"
         Title="JUST TAG"
-        Width="1240" Height="820"
-        MinWidth="980" MinHeight="600"
+        Width="1400" Height="820"
+        MinWidth="1080" MinHeight="600"
         Background="#00000000"
         TransparencyLevelHint="Transparent,Mica,Blur"
         WindowDecorations="None">
@@ -37,17 +37,7 @@
 
     <Window.Styles>
         <!-- Maximized: card fills the screen — no shadow margin, no rounding (MainWindow pattern). -->
-        <Style Selector="Border#RootCard.maximized">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="CornerRadius" Value="0"/>
-            <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
-        </Style>
-        <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
-            <Setter Property="RadiusX" Value="0"/>
-            <Setter Property="RadiusY" Value="0"/>
-        </Style>
-
-        <!-- ⚠ Row look COPIED VERBATIM from the PRE CUE FINDER (finder-list), not re-derived: the
+<!-- ⚠ Row look COPIED VERBATIM from the PRE CUE FINDER (finder-list), not re-derived: the
              hover/selected accent-gradient swipe, the brighter cursor in the pane that has focus,
              the header wash, the bottom fade. Writing my own flat-grey version is exactly how two
              JUST windows start looking like two different products (Chloe 2026-08-05). -->
@@ -214,15 +204,12 @@
     </Window.Styles>
 
     <Panel>
-        <Border Name="RootCard"
-                CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="RootCard" ClipToBounds="False">
             <Panel>
-                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
-                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+                <Rectangle Fill="{DynamicResource BgLinear}"/>
+                <Rectangle Fill="{DynamicResource BgGlowA}"  />
+                <Rectangle Fill="{DynamicResource BgGlowB}"  />
+                <Border Classes="cardedge" BorderBrush="#1FFFFFFF" BorderThickness="1"/>
 
                 <DockPanel Margin="0">
 
@@ -361,11 +348,29 @@
                         <DockPanel Grid.Column="2">
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding FilesActive}" Margin="0,0,0,3">
-                                <Grid ColumnDefinitions="Auto,*">
+                                <Grid ColumnDefinitions="Auto,Auto,*">
                                     <TextBlock Grid.Column="0" Text="FILES" Classes="panehead" Margin="8,0,0,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding FileCount}" FontSize="11"
                                                Foreground="{DynamicResource MutedBrush}"
                                                VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <!-- While the folder is being read: how far it has got. It replaces
+                                         the index note rather than sitting next to it, because during a
+                                         load "reading tags… 412 of 1203" is the only fact that matters
+                                         (Chloe 2026-08-05: "irgendwo muss man sehen dass der ordner noch
+                                         lädt"). Both vanish when there is nothing to say. -->
+                                    <TextBlock Grid.Column="2" Text="{Binding LoadingText}" FontSize="11"
+                                               IsVisible="{Binding !AllHydrated}"
+                                               Foreground="{DynamicResource CautionBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" Margin="10,0,8,0"/>
+                                    <!-- Where the rows came from. Only shown when the machine's library
+                                         index actually covered this folder — outside an indexed root
+                                         there is nothing to say, and silence is the honest answer. -->
+                                    <TextBlock Grid.Column="2" Text="{Binding IndexNote}" FontSize="11"
+                                               IsVisible="{Binding HasIndexNote}"
+                                               Foreground="{DynamicResource MutedDimBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" Margin="10,0,8,0"/>
                                 </Grid>
                             </Border>
 
@@ -397,6 +402,94 @@
                                            VerticalAlignment="Center" Margin="8,0,2,0"/>
                             </Grid>
 
+                            <!-- ── Column header ────────────────────────────────────────────────
+                                 The SHARED strip (JustPlay.UI TrackDataHeader) — the same widths,
+                                 sort glyphs and click-cycle as the JUST PLAY queue and the Finder,
+                                 with JUST TAG's columns switched on. Right-click picks the columns.
+                                 Same Grid as the row below it (NAME is the * column with MinWidth
+                                 150, the data strip is Auto and clips off the right), so header and
+                                 rows stay aligned while they clip. -->
+                            <Border DockPanel.Dock="Top" Height="26" IsVisible="{Binding HasFolder}"
+                                    Background="Transparent">
+                                <Border.ContextFlyout>
+                                    <!-- What you can filter on, you must be able to see. The order
+                                         matches the cells in the row. -->
+                                    <MenuFlyout x:DataType="vm:TaggerViewModel">
+                                        <MenuItem Header="Artist"       ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowArtist, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="artist"/>
+                                        <MenuItem Header="Album"        ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowAlbum, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="album"/>
+                                        <MenuItem Header="Album artist" ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowAlbumArtist, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="albumartist"/>
+                                        <MenuItem Header="Genre"        ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowGenre, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="genre"/>
+                                        <MenuItem Header="Year"         ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowYear, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="year"/>
+                                        <MenuItem Header="Track #"      ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowTrackNo, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="trackno"/>
+                                        <Separator/>
+                                        <MenuItem Header="BPM"          ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowBpm, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="bpm"/>
+                                        <MenuItem Header="Key"          ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowKey, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="key"/>
+                                        <MenuItem Header="Energy (NRG)" ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowNrg, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="nrg"/>
+                                        <MenuItem Header="Comment"      ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowComment, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="comment"/>
+                                        <Separator/>
+                                        <MenuItem Header="Analysis (AN)" ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowAnalysis, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="analysis"/>
+                                        <MenuItem Header="Cover (COV)"  ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowCover, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="cover"/>
+                                        <MenuItem Header="ID3 version"  ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowId3, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="id3"/>
+                                        <MenuItem Header="File type"    ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowFileType, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="filetype"/>
+                                        <MenuItem Header="Length"       ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="duration"/>
+                                        <MenuItem Header="File name"    ToggleType="CheckBox"
+                                                  IsChecked="{Binding Columns.ShowFileName, Mode=OneWay}"
+                                                  Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="filename"/>
+                                    </MenuFlyout>
+                                </Border.ContextFlyout>
+                                <Grid Margin="6,0,16,0" ClipToBounds="True">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="150"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                                                Background="Transparent" Tag="title" Tapped="OnHeaderTapped" Cursor="Hand">
+                                        <TextBlock Classes="colhead" Text="NAME"/>
+                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"
+                                                   IsVisible="{Binding Columns.TitleSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    </StackPanel>
+                                    <Panel Grid.Column="1">
+                                        <uic:TrackDataHeader Columns="{Binding Columns}"
+                                                             CanSort="{Binding AllHydrated}"
+                                                             Opacity="{Binding LockedOpacity}"/>
+                                        <!-- While the folder is still being read: one "locked" tooltip
+                                             over every column, and no sort clicks get through. -->
+                                        <Border Background="Transparent" IsVisible="{Binding !AllHydrated}"
+                                                ToolTip.Tip="{Binding LockedTip}"/>
+                                    </Panel>
+                                </Grid>
+                            </Border>
+
                             <!-- Nothing picked yet, or an unreadable folder: both say so where the
                                  list would be, instead of leaving an empty pane to be interpreted. -->
                             <Panel>
@@ -411,9 +504,14 @@
                                          IsVisible="{Binding HasFolder}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FileRow">
-                                            <TextBlock Text="{Binding Name}" FontSize="12.5"
-                                                       Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
-                                                       VerticalAlignment="Center" Margin="8,0,10,0"/>
+                                            <!-- The SHARED row (JustPlay.UI TrackRow) — the same cells,
+                                                 widths, key pill and heart as the JUST PLAY queue and
+                                                 the Finder. Artist under the title (the queue's shape),
+                                                 because the pane is narrow and ARTIST is one right-click
+                                                 away as its own sortable column. -->
+                                            <uic:TrackRow DataContext="{Binding Track}"
+                                                          Margin="6,0,16,0" MinHeight="30"
+                                                          Columns="{Binding $parent[ListBox].((vm:TaggerViewModel)DataContext).Columns}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -446,17 +544,28 @@
                         <!-- EDITOR — the shared panel, docked. Same control, same behaviour and same
                              copy as the floating window in JUST PLAY and the Finder. -->
                         <DockPanel Grid.Column="4">
-                            <!-- EDITOR | FILTER — the Finder's INFO | FILTER pane, adapted: the
-                                 third pane is where you look things up, and searching is looking
-                                 something up. The tab buttons use the Finder's tabhead recipe. -->
+                            <!-- EDITOR | ANALYSIS | FILTER — the Finder's INFO | FILTER pane, adapted.
+                                 ANALYSIS sits HERE, on the one tab row, and not inside the shared
+                                 panel: a panel that carries its own TAGS|ANALYSIS switch puts a second
+                                 row of tabs directly under this one (Chloe 2026-08-05). All three use
+                                 the Finder's tabhead recipe. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head" Margin="0,0,0,3">
                                 <StackPanel Orientation="Horizontal" Spacing="14" Margin="8,0,0,0">
                                     <Button Classes="tabhead" Classes.active="{Binding ShowEditor}"
                                             Click="OnShowEditor">
                                         <TextBlock Text="EDITOR" Classes="panehead"/>
                                     </Button>
+                                    <Button Classes="tabhead" Classes.active="{Binding ShowAnalysis}"
+                                            Click="OnShowAnalysis">
+                                        <TextBlock Text="ANALYSIS" Classes="panehead"/>
+                                    </Button>
+                                    <!-- Searching needs EVERY row, so the tab waits for the read and
+                                         says why — instead of quietly answering from the half that
+                                         happens to be loaded. Same rule as the sort lock on the
+                                         column header. -->
                                     <Button Classes="tabhead" Classes.active="{Binding ShowFilter}"
-                                            Click="OnShowFilter">
+                                            Click="OnShowFilter" IsEnabled="{Binding CanFilter}"
+                                            ToolTip.Tip="{Binding LockedTip}">
                                         <TextBlock Text="FILTER" Classes="panehead"/>
                                     </Button>
                                 </StackPanel>
@@ -466,9 +575,12 @@
                                 <!-- No card, no frame: this is a PANE, like the Finder's INFO pane.
                                      The visibility sits on the WRAPPER — on the panel itself it
                                      would bind against the editor's own DataContext, which knows
-                                     nothing about tabs. -->
-                                <Panel IsVisible="{Binding ShowEditor}">
-                                    <uic:TagEditorPanel Name="Editor" DataContext="{Binding Editor}"/>
+                                     nothing about tabs. EDITOR and ANALYSIS are the two halves of the
+                                     SAME control, so the panel stays up for both and only the header
+                                     decides which half it shows. -->
+                                <Panel IsVisible="{Binding ShowPanel}">
+                                    <uic:TagEditorPanel Name="Editor" DataContext="{Binding Editor}"
+                                                        ShowAnalysis="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowAnalysis}"/>
                                 </Panel>
 
                                 <!-- FILTER — the Finder's field, verbatim: the ✕ in the TextBox's own
@@ -494,23 +606,13 @@
                                              a word is the whole interaction; narrowing to a single
                                              field is a choice, not a second box (Chloe 2026-08-05:
                                              "think simple and allow complex things"). -->
+                                        <!-- Reading order = SENTENCE order: WHAT you search in, HOW it
+                                             compares, then the VALUE — "Genre · contains · hard techno"
+                                             (Chloe 2026-08-05). The simple case is untouched by it: both
+                                             pickers already stand on "All fields" / "contains", so
+                                             typing in the box below is still the whole interaction. -->
                                         <StackPanel Spacing="5">
                                             <TextBlock Text="SEARCH" Classes="panehead"/>
-                                            <TextBox Text="{Binding Value1}"
-                                                     IsVisible="{Binding NeedsValue1}"
-                                                     Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
-                                                     BorderThickness="1" CornerRadius="6"
-                                                     Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
-                                                     PlaceholderText="title, artist, genre or file name…">
-                                                <TextBox.InnerRightContent>
-                                                    <Button Classes="ghost" Content="✕" FontSize="11"
-                                                            Padding="7,0" MinWidth="0" MinHeight="0"
-                                                            Margin="0,0,3,0" VerticalAlignment="Center"
-                                                            IsVisible="{Binding HasValue1}"
-                                                            Click="OnClearSearch"
-                                                            ToolTip.Tip="Clear the search"/>
-                                                </TextBox.InnerRightContent>
-                                            </TextBox>
                                             <Grid ColumnDefinitions="*,8,*">
                                                 <ComboBox Grid.Column="0" ItemsSource="{Binding Fields}"
                                                           SelectedItem="{Binding Field1}"
@@ -533,6 +635,23 @@
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
                                             </Grid>
+                                            <!-- The placeholder follows the chosen field (Hint1) — a concrete
+                                                 EXAMPLE of the value, not a repeat of the label above it. -->
+                                            <TextBox Text="{Binding Value1}"
+                                                     IsVisible="{Binding NeedsValue1}"
+                                                     Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
+                                                     BorderThickness="1" CornerRadius="6"
+                                                     Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
+                                                     PlaceholderText="{Binding Hint1}">
+                                                <TextBox.InnerRightContent>
+                                                    <Button Classes="ghost" Content="✕" FontSize="11"
+                                                            Padding="7,0" MinWidth="0" MinHeight="0"
+                                                            Margin="0,0,3,0" VerticalAlignment="Center"
+                                                            IsVisible="{Binding HasValue1}"
+                                                            Click="OnClearSearch"
+                                                            ToolTip.Tip="Clear the search"/>
+                                                </TextBox.InnerRightContent>
+                                            </TextBox>
                                             <TextBlock Text="Reading tags…" FontSize="11"
                                                        Foreground="{DynamicResource MutedBrush}"
                                                        IsVisible="{Binding Searching}"/>
@@ -548,12 +667,7 @@
                                                              MinHeight="0" Foreground="#D9FFFFFF"
                                                              IsChecked="{Binding !JoinAnd}"/>
                                             </StackPanel>
-                                            <TextBox Text="{Binding Value2}"
-                                                     IsVisible="{Binding NeedsValue2}"
-                                                     Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
-                                                     BorderThickness="1" CornerRadius="6"
-                                                     Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
-                                                     PlaceholderText="value…"/>
+                                            <!-- Same sentence order as the first condition. -->
                                             <Grid ColumnDefinitions="*,8,*">
                                                 <ComboBox Grid.Column="0" ItemsSource="{Binding Fields}"
                                                           SelectedItem="{Binding Field2}"
@@ -576,6 +690,12 @@
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
                                             </Grid>
+                                            <TextBox Text="{Binding Value2}"
+                                                     IsVisible="{Binding NeedsValue2}"
+                                                     Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
+                                                     BorderThickness="1" CornerRadius="6"
+                                                     Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
+                                                     PlaceholderText="{Binding Hint2}"/>
                                         </StackPanel>
 
                                         <StackPanel Orientation="Horizontal" Spacing="8">

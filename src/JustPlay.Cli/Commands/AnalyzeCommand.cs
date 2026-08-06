@@ -56,6 +56,9 @@ internal static class AnalyzeCommand
             try
             {
                 db = LibraryDb.Open(dbLocation);
+                // Only the DEFAULT location means "this root's index" — an explicit --db-path is a
+                // one-off file and must not claim the root for the whole suite.
+                if (dbPath is null) LibraryIndexRegistry.Register(root);
             }
             catch (Exception ex)
             {

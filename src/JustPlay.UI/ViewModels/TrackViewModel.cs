@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Models;
 
-namespace JustPlay.App.ViewModels;
+namespace JustPlay.UI.ViewModels;
 
 /// <summary>
 /// UI wrapper around a <see cref="Track"/>. Metadata and analysis arrive asynchronously;
@@ -18,14 +18,14 @@ public sealed partial class TrackViewModel : ObservableObject
     private bool _coverResolved;
 
     /// <summary>
-    /// Injected by <see cref="MainWindowViewModel"/> so the toggle-favourite
-    /// command can run its file I/O there (where the writer and file-release
+    /// Injected by the hosting shell view model (JUST PLAY's MainWindowViewModel) so the
+    /// toggle-favourite command can run its file I/O there (where the writer and file-release
     /// logic live) without TrackViewModel needing a direct reference to them.
     /// </summary>
     public Func<TrackViewModel, bool, System.Threading.Tasks.Task>? ToggleFavoriteCallback { get; set; }
 
     // ── Pre-listen (PFL) row entry point ────────────────────────────────────
-    // Pre-Cue v2 (Phase A): the audition list is gone (ONE slot now — MainWindowViewModel.
+    // Pre-Cue v2 (Phase A): the audition list is gone (ONE slot now — the shell VM's
     // PreCueCurrent), so "add to main queue" / "discard" moved to slot-level VM commands
     // (CueAddCommand / CueKickCommand). This is the one entry point that stays on the row itself:
     // wired on every main-queue TrackViewModel (mirrors ToggleFavoriteCallback) so any row can be
@@ -95,6 +95,95 @@ public sealed partial class TrackViewModel : ObservableObject
     /// reads, so the finder/queue can surface it as a control column to eyeball what a track carries. Same
     /// Refresh()-driven pattern as <see cref="GenreText"/>.</summary>
     public string CommentText => Model.Metadata?.Comment ?? "";
+
+    // ── The editorial + file-fact cells (JUST TAG's focus) ───────────────────
+    // Same Refresh()-driven pattern as GenreText. Every one of them is BLANK when absent, never "0"
+    // or "unknown" — an empty cell is exactly the thing a tagger is looking for, so it must look empty.
+
+    public string AlbumText => Model.Metadata?.Album ?? "";
+
+    public string AlbumArtistText => Model.Metadata?.AlbumArtist ?? "";
+
+    /// <summary>Release year, or null when the file carries none (0 counts as none).</summary>
+    public uint? Year => Model.Metadata?.Year is > 0 ? Model.Metadata.Year : null;
+
+    public string YearText => Year?.ToString(CultureInfo.InvariantCulture) ?? "";
+
+    /// <summary>Track number within its album, or null when unset.</summary>
+    public uint? TrackNo => Model.Metadata?.TrackNumber is > 0 ? Model.Metadata.TrackNumber : null;
+
+    public string TrackNoText => TrackNo?.ToString(CultureInfo.InvariantCulture) ?? "";
+
+    /// <summary>
+    /// Whether the file carries artwork, when a host determined it WITHOUT the metadata. Null in the
+    /// normal case, where the metadata itself is the answer.
+    ///
+    /// <para>It exists because the library index stores tags and NOT pictures: a row filled from the
+    /// index has metadata with no <c>CoverArt</c>, and reporting "no cover" for it would be a lie about
+    /// almost every file (Chloe 2026-08-05). Hosts that use the index fetch this separately, on demand,
+    /// via <c>CoverProbe</c>.</para>
+    /// </summary>
+    public bool? Artwork { get; set; }
+
+    /// <summary>Whether the file carries embedded artwork at all — the thing you cannot see by looking
+    /// at a name, and the reason "cover is empty" is a search worth having.</summary>
+    public bool HasCover => Artwork ?? Model.Metadata?.CoverArt is { Length: > 0 };
+
+    /// <summary>
+    /// The ID3v2 version at the head of the file ("2.3"), when the host has read it. It is NOT part of
+    /// <c>TrackMetadata</c> — it is four bytes off the file head, not a tag — so the host fills it and
+    /// the column simply stays empty in the apps that never look (JUST PLAY, the Finder). JUST TAG
+    /// reads it because "find everything still on 2.2" has to be a search, not a guess.
+    /// </summary>
+    public string? Id3Version { get; set; }
+
+    public string Id3Text => Id3Version ?? "";
+
+    /// <summary>File extension without the dot, upper-case ("FLAC"). From the PATH, so it is known
+    /// before a single tag has been read.</summary>
+    public string FileTypeText =>
+        Path.GetExtension(Model.FilePath).TrimStart('.').ToUpperInvariant();
+
+    /// <summary>The name on disk, extension included — what the tagger is about to rename.</summary>
+    public string FileNameText => Path.GetFileName(Model.FilePath);
+
+    // ── Analysis freshness — the traffic light ───────────────────────────────
+    // Chloe 2026-08-05: JUST TAG is also where you CHECK and re-trigger our own analysis, so one
+    // column has to answer "is this file's analysis current, stale, or missing" at a glance.
+    // It reads the stored blob's VERSION, which is the only honest source: an old blob is trusted
+    // as-is everywhere in the suite (we never silently re-analyse), so "stale" is a recommendation
+    // to the user, never something the app does behind her back.
+
+    /// <summary>
+    /// The detector version a host knows about WITHOUT having opened the file — the library index
+    /// carries it per row (<c>TrackIndexEntry.DetectionVersion</c>, the same number as
+    /// <see cref="TrackAnalysisState.CurrentVersion"/> by definition). Null when the host has no such
+    /// knowledge, which is the normal case. The file's own blob always wins over it: the file is the
+    /// truth, the index is a snapshot of it.
+    /// </summary>
+    public int? IndexedAnalysisVersion { get; set; }
+
+    /// <summary>What the file's stored analysis is worth right now.</summary>
+    public AnalysisFreshness Freshness =>
+        (Model.Metadata?.StoredAnalysis?.Version ?? IndexedAnalysisVersion) is not { } version
+            ? AnalysisFreshness.None
+            : version == TrackAnalysisState.CurrentVersion
+                ? AnalysisFreshness.Current
+                : AnalysisFreshness.Outdated;
+
+    public bool IsAnalysisCurrent  => Freshness == AnalysisFreshness.Current;
+    public bool IsAnalysisOutdated => Freshness == AnalysisFreshness.Outdated;
+    public bool IsAnalysisMissing  => Freshness == AnalysisFreshness.None;
+
+    /// <summary>What the dot means, in words — the column is 34 px, so the sentence lives in the tip.</summary>
+    public string FreshnessTooltip => Freshness switch
+    {
+        AnalysisFreshness.Current  => $"Analysed — current (v{TrackAnalysisState.CurrentVersion})",
+        AnalysisFreshness.Outdated =>
+            $"Analysed with v{Model.Metadata?.StoredAnalysis?.Version ?? IndexedAnalysisVersion} — " +
+            $"v{TrackAnalysisState.CurrentVersion} is available, re-analysing is recommended",
+        _                          => "Never analysed",
+    };
 
     /// <summary>True while a BPM/key/energy analysis pass is in flight for this row — drives the
     /// rotating spinner in the index column (in place of the number / play-bars).</summary>
@@ -235,8 +324,21 @@ public sealed partial class TrackViewModel : ObservableObject
     // they Apply or Keep, the per-field decision in the stored JUSTPLAY blob clears the
     // bold. See memory analysis-tag-persistence-design.
 
-    private TrackAnalysisState? StoredCurrent =>
-        Model.Metadata?.StoredAnalysis is { Version: TrackAnalysisState.CurrentVersion } st ? st : null;
+    /// <summary>
+    /// The file's stored analysis blob — <b>whatever version it carries</b>.
+    ///
+    /// <para>⚠ This used to require <c>Version == CurrentVersion</c> and drop the blob otherwise, which
+    /// meant the next detector-version bump would blank GAIN, LUFS and every vibe cell across the whole
+    /// library at once — including files whose values are perfectly fine — until each one had been
+    /// re-analysed. That turns "re-analysing is recommended" into "re-analyse or lose your columns", and
+    /// it contradicts the rule the rest of the suite follows: trust the blob as-is, any version, because
+    /// re-analysis is an explicit action nobody takes on the user's behalf (memory
+    /// <c>analysis-tag-persistence-design</c>).</para>
+    ///
+    /// <para>Staleness is REPORTED instead, by <see cref="Freshness"/> — one job per thing: this one
+    /// hands over the values, that one says how old they are. (Chloe 2026-08-05.)</para>
+    /// </summary>
+    private TrackAnalysisState? StoredCurrent => Model.Metadata?.StoredAnalysis;
 
     private FieldDecision BpmDecision => StoredCurrent?.BpmDecision ?? FieldDecision.Pending;
     private FieldDecision KeyDecision => StoredCurrent?.KeyDecision ?? FieldDecision.Pending;
@@ -376,6 +478,10 @@ public sealed partial class TrackViewModel : ObservableObject
             return _cover;
         }
     }
+
+    // A downscaled CoverThumb for the table cell used to live here. It is gone (Chloe 2026-08-05:
+    // "ich will kein mini mini preview haben - sondern nur die info hat der song ein cover oder
+    // nicht"). The column is a TICK, so the row never decodes an image it is not going to show.
 
     /// <summary>Re-evaluate all derived properties after the model gains metadata/analysis.</summary>
     public void Refresh()

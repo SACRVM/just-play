@@ -20,6 +20,16 @@ public sealed class TagSettings
     /// a first run, and silently ignored when the path no longer exists (a NAS that is not mounted
     /// yet must not turn into an error on startup).</summary>
     public string? LastFolder { get; set; }
+
+    /// <summary>Visible file-table columns, as <see cref="JustPlay.UI.ViewModels.TrackColumns"/> ids.
+    /// Null = "never chosen", which is what makes a first run land on the tagging default instead of on
+    /// an empty table (an empty ARRAY is a legitimate choice and is kept).</summary>
+    public string[]? Columns { get; set; }
+
+    /// <summary>The sorted column id, or null for the folder's own order.</summary>
+    public string? SortColumn { get; set; }
+
+    public bool SortDescending { get; set; }
 }
 
 /// <summary>Source-generated JSON context — trim/AOT-safe (no reflection serialization), per the repo's

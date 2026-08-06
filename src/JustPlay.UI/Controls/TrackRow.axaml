@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:JustPlay.App.ViewModels"
-             xmlns:controls="using:JustPlay.App.Controls"
-             x:Class="JustPlay.App.Controls.TrackRow"
+             xmlns:vm="using:JustPlay.UI.ViewModels"
+             xmlns:controls="using:JustPlay.UI.Controls"
+             x:Class="JustPlay.UI.Controls.TrackRow"
              x:DataType="vm:TrackViewModel">
 
     <!-- The shared row: NAME + artist fill the middle; the toggleable data columns dock right at fixed
@@ -28,10 +28,26 @@
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowArtist}"/>
 
+            <!-- ALBUM / ALBUM ARTIST — editorial columns; JUST TAG's focus, off in the DJ lists. -->
+            <TextBlock Width="{DynamicResource ColWAlbum}" Text="{Binding AlbumText}" FontSize="12" Foreground="#B3FFFFFF"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AlbumText}"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowAlbum}"/>
+            <TextBlock Width="{DynamicResource ColWAlbumArtist}" Text="{Binding AlbumArtistText}" FontSize="12" Foreground="#B3FFFFFF"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AlbumArtistText}"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowAlbumArtist}"/>
+
             <!-- GENRE -->
             <TextBlock Width="{DynamicResource ColWGenre}" Text="{Binding GenreText}" FontSize="12" Foreground="#B3FFFFFF"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowGenre}"/>
+
+            <!-- YEAR / TRACK # — right-aligned numbers, so a column of them lines up on its digits. -->
+            <TextBlock Width="{DynamicResource ColWYear}" Text="{Binding YearText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Right" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowYear}"/>
+            <TextBlock Width="{DynamicResource ColWTrackNo}" Text="{Binding TrackNoText}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Right" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowTrackNo}"/>
 
             <!-- BPM (bold + bright when detected ≠ claimed tag). Tag="Bpm" so the queue's right-click
                  ClickedField can resolve which value cell was clicked (ignored by the finder). -->
@@ -100,6 +116,43 @@
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CommentText}"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowComment}"/>
 
+            <!-- ANALYSIS — the traffic light. Green = analysed with the current detector, warm sand =
+                 an older version (worth re-running, nothing broken), hollow grey ring = never analysed.
+                 A RING rather than a filled dot for "none", so "no analysis" is visibly an absence and
+                 not just a third colour. The sentence lives in the tooltip; the cell is 34 px. -->
+            <Panel Width="{DynamicResource ColWAnalysis}" VerticalAlignment="Center"
+                   ToolTip.Tip="{Binding FreshnessTooltip}"
+                   IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowAnalysis}">
+                <Ellipse Width="9" Height="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Fill="{DynamicResource OkBrush}" IsVisible="{Binding IsAnalysisCurrent}"/>
+                <Ellipse Width="9" Height="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Fill="{DynamicResource CautionBrush}" IsVisible="{Binding IsAnalysisOutdated}"/>
+                <Ellipse Width="9" Height="9" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Fill="Transparent" Stroke="#59FFFFFF" StrokeThickness="1"
+                         IsVisible="{Binding IsAnalysisMissing}"/>
+            </Panel>
+
+            <!-- COV — one fact, one tick: does this song have a cover. Not a thumbnail (Chloe
+                 2026-08-05: "ich will kein mini mini preview haben"), so the row never decodes an
+                 image to show it 22 pixels wide. Nothing at all when there is none — an empty cell in
+                 a column of ticks reads as "missing" without needing its own symbol. -->
+            <Panel Width="{DynamicResource ColWCover}" VerticalAlignment="Center"
+                   ToolTip.Tip="Has a cover"
+                   IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowCover}">
+                <TextBlock Text="✓" FontSize="12" Foreground="#CCFFFFFF"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           IsVisible="{Binding HasCover}"/>
+            </Panel>
+
+            <!-- ID3 version / FILE TYPE — file FACTS, not tags. Both are what you search on to find the
+                 files that need fixing, so both have to be visible to check the hit. -->
+            <TextBlock Width="{DynamicResource ColWId3}" Text="{Binding Id3Text}" FontSize="12" Foreground="#CCFFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center" ToolTip.Tip="ID3v2 version in the file"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowId3}"/>
+            <TextBlock Width="{DynamicResource ColWFileType}" Text="{Binding FileTypeText}" FontSize="11" Foreground="#B3FFFFFF"
+                       TextAlignment="Center" VerticalAlignment="Center"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowFileType}"/>
+
             <!-- DURATION -->
             <TextBlock Width="{DynamicResource ColWDuration}" Text="{Binding DurationText}" FontSize="12" Foreground="#B3FFFFFF"
                        TextAlignment="Right" VerticalAlignment="Center"
@@ -114,17 +167,30 @@
                 <TextBlock Text="♥" Classes="likecell" Classes.active="{Binding IsFavorite}"
                            FontSize="13" TextAlignment="Center" HorizontalAlignment="Center"/>
             </Button>
+
+            <!-- FILE NAME — LAST, deliberately. It is the heaviest thing on the row (renaming it moves a
+                 file on disk), and the NAME cell on the left already shows the title, which falls back to
+                 this when a file carries no tag. Same ordering as the tag editor panel. -->
+            <TextBlock Width="{DynamicResource ColWFileName}" Text="{Binding FileNameText}" FontSize="11.5"
+                       Foreground="#B3FFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                       ToolTip.Tip="{Binding FileNameText}"
+                       IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowFileName}"/>
         </StackPanel>
 
-        <!-- NAME (+ artist under it in the queue; the finder sets ArtistUnderName=False and shows the artist
-             as its own column instead) — the * column with MinWidth, so it holds a readable width and the data
-             columns clip instead. Shared TrackNameMargin. -->
+        <!-- NAME — the * column with MinWidth, so it holds a readable width and the data columns clip
+             instead. Shared TrackNameMargin.
+
+             The artist sits UNDER the title exactly when it does not have a column of its own
+             (Chloe 2026-08-05: "habe ich artist als eigene spalte gewählt wird dieser unter dem song
+             ausgeblendet"). One rule, decided by the row itself: no host can forget it, the artist is
+             never shown twice, and it is never missing either — switching the column off puts the line
+             back. That is why there is no ArtistUnderName flag any more. -->
         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
             <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
                        Foreground="White" TextTrimming="CharacterEllipsis"/>
             <TextBlock Text="{Binding Artist}" FontSize="11"
                        Foreground="#73FFFFFF" TextTrimming="CharacterEllipsis"
-                       IsVisible="{Binding $parent[controls:TrackRow].ArtistUnderName}"/>
+                       IsVisible="{Binding !$parent[controls:TrackRow].Columns.ShowArtist}"/>
         </StackPanel>
     </Grid>
 </UserControl>

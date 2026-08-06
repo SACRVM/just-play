@@ -16,6 +16,7 @@ using JustPlay.Core.Playback;
 using JustPlay.Core.Playlists;
 using JustPlay.Library;
 using JustPlay.UI.Controls;
+using JustPlay.UI.ViewModels;
 
 namespace JustPlay.App.ViewModels;
 
@@ -1818,8 +1819,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     // Columns (TrackColumns); a header tap calls Columns.SortBy, which fires SortRequested → RebuildView
     // (wired in the constructor). The finder only owns the actual re-order (SortList, below).
 
-    /// <summary>Reorder <see cref="Items"/> to the active sort (or back to load order). Same comparators
-    /// as the JUST PLAY queue's <c>ApplySort</c> (NaturalComparer for text, Nullable.Compare for numbers).</summary>
+    /// <summary>Reorder <see cref="Items"/> to the active sort (or back to load order). The comparison
+    /// itself is the SHARED <see cref="TrackSort"/> — the same one the JUST PLAY queue and JUST TAG use,
+    /// so "sort by genre" cannot mean three subtly different things.</summary>
     private void SortList(List<FinderItemViewModel> list)
     {
         if (list.Count < 2) return;
@@ -1834,29 +1836,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
 
         var d = Columns.SortDescending;
+        var col = Columns.SortColumn;
         list.Sort((a, b) =>
         {
-            var (ta, tb) = (a.Track, b.Track);
-            var c = Columns.SortColumn switch
-            {
-                "title"    => NaturalComparer.Instance.Compare(ta.Title, tb.Title),
-                "artist"   => NaturalComparer.Instance.Compare(ta.Artist, tb.Artist),
-                "genre"    => NaturalComparer.Instance.Compare(ta.GenreText, tb.GenreText),
-                "key"      => NaturalComparer.Instance.Compare(ta.KeyText, tb.KeyText),
-                "bpm"      => Nullable.Compare(ta.Bpm, tb.Bpm),
-                "nrg"      => Nullable.Compare(ta.Energy, tb.Energy),
-                "gain"     => Nullable.Compare(ta.ReplayGainDb, tb.ReplayGainDb),
-                "lufs"     => Nullable.Compare(ta.LoudnessLufs, tb.LoudnessLufs),
-                "comment"  => NaturalComparer.Instance.Compare(ta.CommentText, tb.CommentText),
-                "duration" => Nullable.Compare(ta.Model.Metadata?.Duration, tb.Model.Metadata?.Duration),
-                "like"     => ta.IsFavorite.CompareTo(tb.IsFavorite),
-                "dark"     => ta.DarkScore.CompareTo(tb.DarkScore),
-                "hypnotic" => ta.HypnoticScore.CompareTo(tb.HypnoticScore),
-                "groove"   => ta.GrooveScore.CompareTo(tb.GrooveScore),
-                "punch"    => ta.PunchScore.CompareTo(tb.PunchScore),
-                "harsh"    => ta.HarshScore.CompareTo(tb.HarshScore),
-                _          => 0,
-            };
+            var c = TrackSort.Compare(a.Track, b.Track, col);
             return d ? -c : c;
         });
     }

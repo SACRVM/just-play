@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using JustPlay.Core.Models;
+using JustPlay.UI.ViewModels;
 
 namespace JustPlay.App.ViewModels;
 

@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:beh="using:JustPlay.UI.Behaviors"
+        xmlns:controls="using:JustPlay.UI.Controls"
         xmlns:theming="using:JustPlay.UI.Theming"
         x:Class="JustPlay.UI.Theming.JustStyles">
     <!--
@@ -105,6 +106,89 @@
     </Style>
 
     <!--
+      ════════════════════════════════════════════════════════════════════════
+      THE WINDOW CARD — rounded, shadowed … and SQUARE when maximized
+      ════════════════════════════════════════════════════════════════════════
+      Every JUST window is one Border named RootCard: a rounded card inside a transparent margin
+      that the drop shadow blooms into (and that hosts the resize grips). Maximized, all three of
+      those have to go — full screen means filling the screen.
+
+      ⚠ THE DEFAULTS LIVE HERE, AS STYLES, ON PURPOSE. They used to sit INLINE on the Border
+      (Margin="20,20,20,22" CornerRadius="14" BoxShadow="..."), and an inline value is
+      BindingPriority.LocalValue = 0, which beats StyleTrigger — verified against Avalonia
+      release/12.0.3, src/Avalonia.Base/Data/BindingPriority.cs. So the .maximized setters below
+      could never win, in ANY of the four windows, and maximizing left the transparent frame and
+      the rounded corners exactly where they were (Chloe 2026-08-05: "gleiches verhalten wie
+      vorher"). It is the same precedence trap CLAUDE.md already records for BoxShadow inside a
+      ControlTemplate. With both states at style priority, the class selector wins because it comes
+      later and is more specific.
+
+      Per-app values that are NOT state-dependent (Background, ClipToBounds) stay on the element.
+    -->
+    <Style Selector="Border#RootCard">
+        <Setter Property="Margin" Value="20,20,20,22"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="BoxShadow" Value="{DynamicResource WindowOuter}"/>
+    </Style>
+    <!-- The layered background rectangles carry the card's radius themselves (the card is
+         ClipToBounds=False so a glow can bloom past its edge), so they square off too. -->
+    <Style Selector="Border#RootCard &gt; Panel &gt; Rectangle">
+        <Setter Property="RadiusX" Value="14"/>
+        <Setter Property="RadiusY" Value="14"/>
+    </Style>
+    <Style Selector="Border#RootCard.maximized">
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="CornerRadius" Value="0"/>
+        <Setter Property="BoxShadow" Value="0 0 0 0 #00000000"/>
+    </Style>
+    <Style Selector="Border#RootCard.maximized &gt; Panel &gt; Rectangle">
+        <Setter Property="RadiusX" Value="0"/>
+        <Setter Property="RadiusY" Value="0"/>
+    </Style>
+    <!-- The 1-px hairline outline drawn over the card edge (the finder and JUST TAG have one) —
+         it traces the same corner and has to square off with it. -->
+    <Style Selector="Border#RootCard Border.cardedge">
+        <Setter Property="CornerRadius" Value="14"/>
+    </Style>
+    <Style Selector="Border#RootCard.maximized Border.cardedge">
+        <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+
+    <!--
+      ════════════════════════════════════════════════════════════════════════
+      THE LIFTED SURFACE — controls:SurfaceCard (dialogs + slide-in panels)
+      ════════════════════════════════════════════════════════════════════════
+      ONE flat fill + the hairline edge — see JustPalette.axaml for why flat is the point and
+      not a shortcut (a low-contrast gradient bands on a tall narrow panel; Avalonia does not
+      dither gradient fills).
+
+      ClipToBounds stays False, matching the window card above ("so a glow can bloom past its
+      edge") and the Border this replaced, which never set it either. Worth knowing before anyone
+      "fixes" it: Border implements IVisualWithRoundRectClip (ClipToBoundsRadius => CornerRadius,
+      verified against Avalonia release/12.0.3, src/Avalonia.Controls/Border.cs), so its clip is
+      rounded — but ONLY when ClipToBounds is switched on. Off is a choice here, not an oversight.
+    -->
+    <Style Selector="controls|SurfaceCard">
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SurfaceEdge}"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{DynamicResource SurfaceFill}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                    <ContentPresenter Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <!--
       Frameless-window CHROME — square 36×36 caption buttons (pair with the shared
       WindowControls), transparent until hovered, dark grey on hover, Close goes red.
       Path icons inside Content scale via the button's Foreground so hover brightens
@@ -164,6 +248,31 @@
     </Style>
     <Style Selector="Button.cap.corner:pressed /template/ ContentPresenter">
         <Setter Property="CornerRadius" Value="0,14,0,0"/>
+    </Style>
+
+    <!-- ⚠ MAXIMIZED: these MUST come AFTER the rules above. Avalonia has no CSS specificity —
+         among styles of equal priority the LAST matching setter wins, so a "more specific"
+         selector placed earlier loses to a plainer one placed later. That is exactly how the
+         close button stayed rounded in full screen after the card itself had been squared off
+         (Chloe 2026-08-05: "sagte ich doch bereits"). Maximized there is no corner left to match,
+         so the button and its hover/pressed fills — which carry their own radius on the templated
+         ContentPresenter — all square off. -->
+    <Style Selector="Border#RootCard.maximized Button.cap.close">
+        <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <Style Selector="Border#RootCard.maximized Button.cap.close:pointerover /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <Style Selector="Border#RootCard.maximized Button.cap.close:pressed /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <!-- macOS puts the caption buttons LEFT, so the top-right corner belongs to whatever sits there
+         (JUST PLAY's log / update badge, JUST STREAM's gear) via Button.cap.corner. Same rule. -->
+    <Style Selector="Border#RootCard.maximized Button.cap.corner:pointerover /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="0"/>
+    </Style>
+    <Style Selector="Border#RootCard.maximized Button.cap.corner:pressed /template/ ContentPresenter">
+        <Setter Property="CornerRadius" Value="0"/>
     </Style>
 
     <!-- ════ Underline tabs (SHARED) ════
@@ -739,5 +848,111 @@
     </Style>
     <Style Selector="ScrollViewer:focus-within ScrollBar:horizontal">
         <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <!--
+      ════════════════════════════════════════════════════════════════════════
+      TRACK-ROW CELLS — the styling the shared TrackRow needs, wherever it runs
+      ════════════════════════════════════════════════════════════════════════
+      These belong WITH the control (JustPlay.UI/Controls/TrackRow.axaml), not with
+      whichever app happens to host it. They lived in JUST PLAY's App.axaml until the
+      row moved here (2026-08-05) — a second app rendering the row would otherwise have
+      had to copy them, which is exactly the drift this refactor exists to end.
+    -->
+
+    <!--
+      TAG-EDITOR tab pill (TAGS | ANALYSIS, EDITOR | ANALYSIS | FILTER). A pill rather than an
+      underline: these headers are narrow and sit inside rounded cards, where an underline reads as a
+      stray rule. Shared because the switch belongs to each HOST's header now, not to the panel.
+    -->
+    <!-- Tab switch. A pill rather than an underline: the panel is narrow and lives inside a
+         rounded card, where an underline reads as a stray rule. -->
+    <Style Selector="Button.tag-tab">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="12,5"/>
+        <Setter Property="FontSize" Value="10.5"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="LetterSpacing" Value="1.6"/>
+        <Setter Property="Foreground" Value="#73FFFFFF"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <!-- FluentTheme paints the templated ContentPresenter, so every state has to be answered
+         explicitly or the pill flickers back to the stock hover grey. -->
+    <Style Selector="Button.tag-tab /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.tag-tab:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#0FFFFFFF"/>
+    </Style>
+    <Style Selector="Button.tag-tab:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="#14FFFFFF"/>
+    </Style>
+    <Style Selector="Button.tag-tab.selected">
+        <Setter Property="Foreground" Value="#F2FFFFFF"/>
+    </Style>
+    <Style Selector="Button.tag-tab.selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="#1FFFFFFF"/>
+    </Style>
+    <Style Selector="Button.tag-tab.selected:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#26FFFFFF"/>
+    </Style>
+
+    <!-- Column-header label — tracked caps. FlushTrailing reclaims the trailing letter-spacing so
+         right/centre labels sit flush with the untracked row values below (single-source: derived from
+         LetterSpacing). Shared, because each host draws its own leading NAME cell beside the strip and
+         that label must be the identical one. -->
+    <Style Selector="TextBlock.colhead">
+        <Setter Property="Foreground" Value="#73FFFFFF"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="LetterSpacing" Value="2"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="(controls:HeaderText.FlushTrailing)" Value="True"/>
+    </Style>
+    <!-- Active-sort arrow: smaller, snug, no tracking. Defined after .colhead so it wins on the shared
+         cells. Collapses (IsVisible off the glyph) when unsorted, so unsorted headers reserve no arrow
+         gap → flush; when sorted, its left margin is the gap that hangs on the arrow. -->
+    <Style Selector="TextBlock.sortarrow">
+        <Setter Property="FontSize" Value="7"/>
+        <Setter Property="LetterSpacing" Value="0"/>
+        <Setter Property="Margin" Value="2,0,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <!-- Collapse the arrow when this column isn't the active sort (glyph = "") so the empty slot
+             + its StackPanel spacing don't leave a gap. Self-bound, so no call site has to remember it. -->
+        <Setter Property="IsVisible"
+                Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+    </Style>
+
+    <!--
+      PREP "GAIN" cell. Default + clip colour are BOTH styles (no inline Foreground): an inline
+      value has LocalValue precedence and would beat the .gain-clip setter, so the red would
+      silently never show (the documented Avalonia precedence trap). Red = the track would clip
+      on playback (brick-walled, or a positive gain overflows) — see TrackViewModel.GainClips.
+    -->
+    <Style Selector="TextBlock.gain-cell">
+        <Setter Property="Foreground" Value="#CCFFFFFF"/>
+    </Style>
+    <Style Selector="TextBlock.gain-cell.gain-clip">
+        <Setter Property="Foreground" Value="#FF6B6B"/>
+    </Style>
+
+    <!-- LIKE-column heart: dim by default, accent when the track is favorited. -->
+    <Style Selector="TextBlock.likecell">
+        <Setter Property="Foreground" Value="#33FFFFFF"/>
+    </Style>
+    <Style Selector="TextBlock.likecell.active">
+        <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+    </Style>
+    <!-- Transparent, no-chrome, hand-cursor heart button so the ♥ cell is clickable in the row. -->
+    <Style Selector="Button.heartcell">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="2,0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.heartcell /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
     </Style>
 </Styles>

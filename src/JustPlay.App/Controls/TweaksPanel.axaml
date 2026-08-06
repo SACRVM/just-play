@@ -3,6 +3,7 @@
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:models="using:JustPlay.Core.Models"
              xmlns:behaviors="using:JustPlay.UI.Behaviors"
+             xmlns:uic="using:JustPlay.UI.Controls"
              xmlns:theming="using:JustPlay.UI.Theming"
              x:Class="JustPlay.App.Controls.TweaksPanel"
              x:DataType="vm:MainWindowViewModel">
@@ -139,10 +140,17 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Width="370"
-            Background="#F01a1828"
-            CornerRadius="0,14,14,0"
-            BorderBrush="#1FFFFFFF" BorderThickness="1,0,0,0">
+    <!--
+      The SHARED surface (JustPlay.UI/Controls/SurfaceCard.cs). Same look this panel always had —
+      the hard-coded Background="#F01a1828" simply moved into the shared control, so the dialogs
+      can be put on the identical treatment and the two can never drift apart again.
+      The gradient version of this surface was built and REJECTED on sight (banding — see
+      JustPalette.axaml); flat is the decision, not the leftover.
+      Only the docking geometry stays here: rounded on the right, hairline on the left edge.
+    -->
+    <uic:SurfaceCard Width="370"
+                     CornerRadius="0,14,14,0"
+                     BorderThickness="1,0,0,0">
         <ScrollViewer Padding="22,16,18,16"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
@@ -534,5 +542,5 @@
 
             </StackPanel>
         </ScrollViewer>
-    </Border>
+    </uic:SurfaceCard>
 </UserControl>

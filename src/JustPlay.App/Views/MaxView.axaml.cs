@@ -14,6 +14,7 @@ using JustPlay.App.Controls;
 using JustPlay.Core.Abstractions;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
+using JustPlay.UI.ViewModels;
 using JustPlay.UI.Views;
 using JustPlay.App.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -90,12 +91,9 @@ public partial class MaxView : UserControl
         }
     }
 
-    private void OnChromePressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        if (e.Source is Visual v && WindowChrome.IsInteractive(v)) return;
-        (TopLevel.GetTopLevel(this) as Window)?.BeginMoveDrag(e);
-    }
+    private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
+        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        WindowChrome.HandlePress((TopLevel.GetTopLevel(this) as Window), e);
 
     // Title-bar brand → open the SHARED themed About dialog (JustPlay.UI), parameterized with
     // JUST PLAY's name / tagline / version / glyph so every JUST app's About is identical.

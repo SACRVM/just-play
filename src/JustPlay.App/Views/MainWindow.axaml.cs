@@ -43,7 +43,14 @@ public partial class MainWindow : Window, IFramelessWindow
 
         // Don't persist bounds while in mini mode (fixed compact size, not a "restorable" layout).
         WindowPlacement.Track(this, "JustPlay.Main", () => ViewModel is not { IsMini: true });
+
+        // The suite's custom maximize (shared). Mini mode hides the resize grips for its own reason,
+        // so that condition is handed in rather than baked into the behaviour.
+        _maximize = FramelessMaximize.Attach(this);
+        _maximize.GripsVisibleWhen = () => ViewModel is not { IsMini: true };
     }
+
+    private readonly FramelessMaximize _maximize;
 
     // Global Space → play/pause. Dialog windows (About/Transfer/Input) are separate focus roots and an
     // open flyout/menu is its own popup root, so this handler never steals their keys; the TextBox guard
@@ -119,45 +126,15 @@ public partial class MainWindow : Window, IFramelessWindow
     // WindowImpl), and any OS chrome (BorderOnly / ExtendClientArea) breaks the transparent
     // floating-card look (ugly border, or a dark DWM backdrop). So we drive resize + maximize
     // ourselves and keep the window fully custom.
-    private bool _isMaxed;
-    private PixelRect _restoreBounds;
 
     /// <summary>True while the custom work-area maximize is active (for WindowPlacement).</summary>
-    public bool IsMaximized => _isMaxed;
+    public bool IsMaximized => _maximize.IsMaximized;
 
-    /// <summary>Toggle a custom maximize that fills the current screen's work area (respects the
-    /// taskbar) and squares off the card (margin/corners/shadow via the "maximized" class),
-    /// restoring the exact prior bounds on toggle-off.</summary>
-    public void ToggleMaximize()
-    {
-        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-        if (screen is null) return;
+    /// <summary>Toggle the shared custom maximize: fills the current screen's work area (respects the
+    /// taskbar) and squares the card off. See FramelessMaximize for why the OS one will not do.</summary>
+    public void ToggleMaximize() => _maximize.Toggle();
 
-        if (!_isMaxed)
-        {
-            _restoreBounds = new PixelRect(Position, PixelSize.FromSize(new Size(Width, Height), RenderScaling));
-            var wa = screen.WorkingArea;
-            Position = wa.Position;
-            Width = wa.Width / RenderScaling;
-            Height = wa.Height / RenderScaling;
-            _isMaxed = true;
-        }
-        else
-        {
-            Position = _restoreBounds.Position;
-            Width = _restoreBounds.Width / RenderScaling;
-            Height = _restoreBounds.Height / RenderScaling;
-            _isMaxed = false;
-        }
-        UpdateChromeForState();
-    }
-
-    private void UpdateChromeForState()
-    {
-        this.FindControl<Border>("RootCard")?.Classes.Set("maximized", _isMaxed);
-        if (this.FindControl<Grid>("ResizeGrips") is { } grips)
-            grips.IsVisible = !_isMaxed && !(ViewModel?.IsMini ?? false);
-    }
+    private void UpdateChromeForState() => _maximize.Apply();
 
     // ── Custom edge/corner resize (manual; the borderless window has no OS resize frame) ──
     private bool _resizing, _wEdge, _eEdge, _nEdge, _sEdge;
@@ -166,7 +143,7 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private void OnResizePressed(object? sender, PointerPressedEventArgs e)
     {
-        if (_isMaxed || (ViewModel?.IsMini ?? false)) return;
+        if (IsMaximized || (ViewModel?.IsMini ?? false)) return;
         if (sender is not Border { Tag: string name }) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
         _wEdge = name.Contains("West"); _eEdge = name.Contains("East");

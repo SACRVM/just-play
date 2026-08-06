@@ -32,7 +32,7 @@ internal sealed class Program
             e.Handled = true; // keep the app alive
         };
 
-        Services = ConfigureServices();
+        Services = ConfigureServices(StartupTarget.From(args));
 
         try
         {
@@ -44,9 +44,12 @@ internal sealed class Program
         }
     }
 
-    private static IServiceProvider ConfigureServices()
+    private static IServiceProvider ConfigureServices(StartupTarget startup)
     {
         var services = new ServiceCollection();
+
+        // What we were launched ON, if anything — see StartupTarget.
+        services.AddSingleton(startup);
 
         // All tag I/O goes through JustPlay.Metadata (TagLib#) — the app never touches TagLib directly.
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
