@@ -401,7 +401,8 @@
                     <Border DockPanel.Dock="Bottom" Margin="16,8,16,2" Height="58"
                             Background="#14000000" CornerRadius="10" Padding="10,0">
                         <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
-                            <!-- Transport: seek-back - play/pause - seek-forward (buttons, not just Space/Shift+<-->). -->
+                            <!-- Transport: seek-back - play/pause - seek-forward (buttons, not just
+                                 Space and Shift+Left/Right). -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
                                 <Button Classes="xport" Click="OnCueSeekBack" IsEnabled="{Binding HasCue}"
                                         ToolTip.Tip="{Binding SeekLegendText}">

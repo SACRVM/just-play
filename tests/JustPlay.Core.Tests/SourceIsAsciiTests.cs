@@ -59,6 +59,65 @@ public class SourceIsAsciiTests
             + Environment.NewLine + string.Join(Environment.NewLine, offenders.Take(40)));
     }
 
+    /// <summary>
+    /// No XAML comment closes early.
+    ///
+    /// <para>This is a REAL bug that shipped past both the compiler and a full test run. Converting
+    /// an arrow to ASCII turned "Shift+&lt;-&gt;" inside a comment into "&lt;--&gt;", and "--&gt;"
+    /// ENDS a comment. The file was still perfectly valid XML - the comment simply stopped early and
+    /// the rest of the sentence became a text node inside a Grid. Nothing failed until the window was
+    /// opened, and then Avalonia threw "Unable to cast String to Control" at the user.</para>
+    ///
+    /// <para>So neither "it compiles" nor "the tests are green" covers this. Scanning for a
+    /// terminator that appears while we are not inside a comment does, in a millisecond.</para>
+    /// </summary>
+    [Fact]
+    public void No_xaml_comment_closes_early()
+    {
+        var offenders = new List<string>();
+
+        foreach (var file in SourceFiles().Where(f => f.EndsWith(".axaml", StringComparison.OrdinalIgnoreCase)))
+        {
+            var text = File.ReadAllText(file, Encoding.UTF8);
+            var i = 0;
+            var inComment = false;
+
+            while (i < text.Length)
+            {
+                if (inComment)
+                {
+                    var close = text.IndexOf("-->", i, StringComparison.Ordinal);
+                    if (close < 0)
+                    {
+                        offenders.Add($"{Path.GetRelativePath(RepoRoot, file)}: unclosed comment");
+                        break;
+                    }
+                    inComment = false;
+                    i = close + 3;
+                    continue;
+                }
+
+                var open = text.IndexOf("<!--", i, StringComparison.Ordinal);
+                var stray = text.IndexOf("-->", i, StringComparison.Ordinal);
+
+                if (stray >= 0 && (open < 0 || stray < open))
+                {
+                    var line = text.AsSpan(0, stray).Count('\n') + 1;
+                    offenders.Add($"{Path.GetRelativePath(RepoRoot, file)}:{line}  stray '-->'");
+                    i = stray + 3;
+                }
+                else if (open >= 0) { inComment = true; i = open + 4; }
+                else break;
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "A '-->' appears outside a comment, which means some comment closed earlier than its "
+            + "author intended and the rest of it is now CONTENT. This parses as valid XML and only "
+            + "fails when the view is opened:" + Environment.NewLine
+            + string.Join(Environment.NewLine, offenders));
+    }
+
     /// <summary>A guard for the guard: if the walk ever finds nothing (a moved test project, a
     /// renamed folder), the test above would pass vacuously and the rule would quietly stop being
     /// enforced.</summary>
