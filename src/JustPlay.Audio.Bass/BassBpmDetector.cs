@@ -8,11 +8,11 @@ namespace JustPlay.Audio.Bass;
 /// BPM detection backed by BASS_FX's built-in algorithm
 /// (<see cref="BassFx.BPMDecodeGet(int, double, double, int, BassFlags, BPMProgressProcedure, IntPtr)"/>).
 ///
-/// The algorithm detects repeating low-frequency (&lt;250 Hz) patterns — it
+/// The algorithm detects repeating low-frequency (&lt;250 Hz) patterns - it
 /// works well on rock/pop/EDM material with a distinct bass or drum beat,
 /// less well on classical, jazz, or hiphop pieces with complex/varying
 /// bass patterns. May report half/double the true tempo on syncopated
-/// material — that's a known limitation of the algorithm itself, not our
+/// material - that's a known limitation of the algorithm itself, not our
 /// wiring.
 ///
 /// Opens its own decode stream (separate from the playback stream owned by
@@ -58,7 +58,7 @@ public sealed class BassBpmDetector : IBpmDetector
             return null;
         }
 
-        // Always free the decode channel ourselves in a finally — do NOT rely on
+        // Always free the decode channel ourselves in a finally - do NOT rely on
         // BassFlags.FxFreeSource. If that flag fails to release the source (observed:
         // the file stayed locked after analysis, so a later "Write meta tags" hit a
         // sharing violation), the OS handle leaks and the file can never be tagged.
@@ -68,7 +68,7 @@ public sealed class BassBpmDetector : IBpmDetector
         {
             ct.ThrowIfCancellationRequested();
 
-            // 0 for MinMaxBPM → BASS_FX defaults (45..230 BPM), correct for typical
+            // 0 for MinMaxBPM -> BASS_FX defaults (45..230 BPM), correct for typical
             // western music. Procedure=null: synchronous call, no progress needed.
             var bpm = BassFx.BPMDecodeGet(
                 channel,

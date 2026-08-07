@@ -9,14 +9,14 @@ using Avalonia.Media;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// Click-to-seek waveform scrubber — centred vertical bars (SoundCloud / FUVI look), the played portion
+/// Click-to-seek waveform scrubber - centred vertical bars (SoundCloud / FUVI look), the played portion
 /// in the accent colour, the rest dimmed, a playhead at the current position (Chloe 2026-07-07, from the
 /// FUVI clan reference). <see cref="Peaks"/> is a normalised 0..1 envelope (see <c>IWaveformService</c>);
 /// the control resamples it to its own pixel width, so it's resize-robust and independent of the compute
 /// resolution. Click or drag anywhere runs <see cref="SeekCommand"/> with the 0..1 fraction.
 ///
 /// <para>Deliberately reusable: the JUST SPIN decks will want the same control, so it carries no finder-
-/// specific logic — just peaks in, progress in, a seek fraction out. Brushes are styled properties so the
+/// specific logic - just peaks in, progress in, a seek fraction out. Brushes are styled properties so the
 /// host themes it with the usual <c>DynamicResource</c> accent keys.</para>
 /// </summary>
 public sealed class WaveformView : Control
@@ -24,7 +24,7 @@ public sealed class WaveformView : Control
     public static readonly StyledProperty<IReadOnlyList<float>?> PeaksProperty =
         AvaloniaProperty.Register<WaveformView, IReadOnlyList<float>?>(nameof(Peaks));
 
-    /// <summary>Playhead position, 0..1 — also the boundary between the played (accent) and unplayed bars.</summary>
+    /// <summary>Playhead position, 0..1 - also the boundary between the played (accent) and unplayed bars.</summary>
     public static readonly StyledProperty<double> ProgressProperty =
         AvaloniaProperty.Register<WaveformView, double>(nameof(Progress));
 
@@ -37,14 +37,14 @@ public sealed class WaveformView : Control
     public static readonly StyledProperty<IBrush?> PlayheadBrushProperty =
         AvaloniaProperty.Register<WaveformView, IBrush?>(nameof(PlayheadBrush));
 
-    /// <summary>Invoked with the clicked/dragged position as a 0..1 <see cref="double"/> — the host binds
+    /// <summary>Invoked with the clicked/dragged position as a 0..1 <see cref="double"/> - the host binds
     /// this to its "seek to fraction" command.</summary>
     public static readonly StyledProperty<ICommand?> SeekCommandProperty =
         AvaloniaProperty.Register<WaveformView, ICommand?>(nameof(SeekCommand));
 
     /// <summary>Start of the visible view window as a 0..1 track fraction (zoom support: the control
     /// renders only [ViewStart, ViewEnd] across its width). Defaults 0..1 = whole track, so existing
-    /// hosts (finder player bar) are untouched. Progress and seek fractions stay in TRACK space —
+    /// hosts (finder player bar) are untouched. Progress and seek fractions stay in TRACK space -
     /// the window only changes what is painted where. JUST SPIN's decks share this.</summary>
     public static readonly StyledProperty<double> ViewStartProperty =
         AvaloniaProperty.Register<WaveformView, double>(nameof(ViewStart), 0.0);
@@ -110,7 +110,7 @@ public sealed class WaveformView : Control
         set => SetValue(ViewEndProperty, value);
     }
 
-    /// <summary>The sanitised view window — degenerate values fall back to the whole track.</summary>
+    /// <summary>The sanitised view window - degenerate values fall back to the whole track.</summary>
     private (double Start, double Span) View()
     {
         var vs = Math.Clamp(ViewStart, 0.0, 1.0);
@@ -118,7 +118,7 @@ public sealed class WaveformView : Control
         return ve > vs ? (vs, ve - vs) : (0.0, 1.0);
     }
 
-    // ── Click / drag to seek ─────────────────────────────────────────────────
+    // -- Click / drag to seek -------------------------------------------------
     private bool _scrubbing;
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -155,14 +155,14 @@ public sealed class WaveformView : Control
         if (SeekCommand is { } cmd && cmd.CanExecute(frac)) cmd.Execute(frac);
     }
 
-    // ── Draw ─────────────────────────────────────────────────────────────────
+    // -- Draw -----------------------------------------------------------------
     private const double Pitch = 3.0;   // 2 px bar + 1 px gap
     private const double BarWidth = 2.0;
 
     // Cached bar heights. The SampleAmp scan is the per-frame cost and depends only on the peaks, the
-    // width (bar count) and the view window — NOT on Progress. But ProgressProperty is in AffectsRender,
+    // width (bar count) and the view window - NOT on Progress. But ProgressProperty is in AffectsRender,
     // so Render re-runs on every playhead move; without this cache each frame re-scanned all peaks across
-    // ~300 bars × the stacked views (the exact cost that made JUST BOOTLEG's playhead judder). Progress
+    // ~300 bars x the stacked views (the exact cost that made JUST BOOTLEG's playhead judder). Progress
     // now only re-picks the played/unplayed brush per cached bar and moves the 1.5 px line.
     private double[]? _barAmps;
     private object? _cachePeaks;
@@ -193,7 +193,7 @@ public sealed class WaveformView : Control
         if (w <= 0 || h <= 0) return;
 
         // Full-bounds transparent layer FIRST: Avalonia's compositor hit-tests a control against its drawn
-        // geometry, not its layout rect — without this, only the painted bars (a central band) catch clicks,
+        // geometry, not its layout rect - without this, only the painted bars (a central band) catch clicks,
         // so the empty top/bottom aren't seekable (Chloe 2026-07-07). This makes the whole height clickable.
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
 
@@ -215,13 +215,13 @@ public sealed class WaveformView : Control
             ctx.FillRectangle(brush, new Rect(x, centreY - barH, BarWidth, barH * 2));
         }
 
-        // Playhead — only once there's a real track loaded AND it is inside the view window.
+        // Playhead - only once there's a real track loaded AND it is inside the view window.
         if (Peaks is { Count: > 0 } && progressX >= -1 && progressX <= w + 1)
             ctx.FillRectangle(PlayheadBrush ?? played, new Rect(progressX - 0.75, 0, 1.5, h));
     }
 
     /// <summary>Peak of the compute-resolution buckets between the track fractions
-    /// <paramref name="fracStart"/>..<paramref name="fracEnd"/> — the on-screen bar's slice of the
+    /// <paramref name="fracStart"/>..<paramref name="fracEnd"/> - the on-screen bar's slice of the
     /// (possibly zoomed) view window. More bars than buckets repeats, fewer averages down.</summary>
     private static float SampleAmp(IReadOnlyList<float>? peaks, double fracStart, double fracEnd)
     {

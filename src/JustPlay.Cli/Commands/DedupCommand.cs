@@ -7,7 +7,7 @@ namespace JustPlay.Cli.Commands;
 /// <summary>
 /// <c>justplay dedup &lt;root&gt; [--json &lt;out&gt;]</c>
 ///
-/// PHASE 0 — detects duplicate audio files in two passes:
+/// PHASE 0 - detects duplicate audio files in two passes:
 ///
 /// (a) EXACT dupes: files with the same byte count are SHA-256 hashed and grouped.
 ///     Only files that share a size collide, so the hash pass is fast.
@@ -16,7 +16,7 @@ namespace JustPlay.Cli.Commands;
 ///     AND whose durations are within ~2 seconds of each other.  The "same recording,
 ///     different encode" case common in DJ libraries.
 ///
-/// READ-ONLY — never deletes or modifies any file.
+/// READ-ONLY - never deletes or modifies any file.
 /// </summary>
 internal static class DedupCommand
 {
@@ -37,19 +37,19 @@ internal static class DedupCommand
         var files = AudioFiles.Enumerate(root).ToList();
         Console.WriteLine($"[dedup] Found {files.Count:N0} audio files.");
 
-        // ── Phase (a): exact dupes ────────────────────────────────────────────
-        Console.WriteLine("[dedup] Checking exact duplicates (size → SHA-256)…");
+        // -- Phase (a): exact dupes --------------------------------------------
+        Console.WriteLine("[dedup] Checking exact duplicates (size -> SHA-256)...");
         var exactGroups = FindExactDupes(files);
 
-        // ── Phase (b): near dupes ─────────────────────────────────────────────
-        Console.WriteLine("[dedup] Checking near-duplicates (artist+title+duration)…");
+        // -- Phase (b): near dupes ---------------------------------------------
+        Console.WriteLine("[dedup] Checking near-duplicates (artist+title+duration)...");
         var nearGroups = FindNearDupes(files);
 
-        // ── Build report ──────────────────────────────────────────────────────
+        // -- Build report ------------------------------------------------------
         long wastedBytes = exactGroups.Sum(g =>
         {
             // Wasted = all copies beyond the first. We assume each copy in the group
-            // is the same size (exact dupe), so wasted = (count − 1) × size_of_first.
+            // is the same size (exact dupe), so wasted = (count - 1) x size_of_first.
             var size = new FileInfo(g.FilePaths[0]).Length;
             return size * (g.FilePaths.Count - 1);
         });
@@ -68,7 +68,7 @@ internal static class DedupCommand
             NearGroups      = nearGroups,
         };
 
-        // ── Console summary ──────────────────────────────────────────────────
+        // -- Console summary --------------------------------------------------
         Console.WriteLine();
         Console.WriteLine($"  Files scanned       : {report.ScannedFiles:N0}");
         Console.WriteLine();
@@ -83,11 +83,11 @@ internal static class DedupCommand
             Console.WriteLine("  Top exact dupe groups (by wasted size):");
             foreach (var g in exactGroups.OrderByDescending(g => g.WastedBytes).Take(10))
             {
-                Console.WriteLine($"    {AudioFiles.FormatBytes(g.WastedBytes)} wasted — {g.Key[..Math.Min(16, g.Key.Length)]}…");
+                Console.WriteLine($"    {AudioFiles.FormatBytes(g.WastedBytes)} wasted - {g.Key[..Math.Min(16, g.Key.Length)]}...");
                 foreach (var p in g.FilePaths.Take(3))
                     Console.WriteLine($"      {p}");
                 if (g.FilePaths.Count > 3)
-                    Console.WriteLine($"      … +{g.FilePaths.Count - 3} more");
+                    Console.WriteLine($"      ... +{g.FilePaths.Count - 3} more");
             }
         }
 
@@ -101,13 +101,13 @@ internal static class DedupCommand
                 foreach (var p in g.FilePaths.Take(4))
                     Console.WriteLine($"      {p}");
                 if (g.FilePaths.Count > 4)
-                    Console.WriteLine($"      … +{g.FilePaths.Count - 4} more");
+                    Console.WriteLine($"      ... +{g.FilePaths.Count - 4} more");
             }
             if (nearGroups.Count > 10)
-                Console.WriteLine($"  … and {nearGroups.Count - 10} more near-dupe groups (see JSON).");
+                Console.WriteLine($"  ... and {nearGroups.Count - 10} more near-dupe groups (see JSON).");
         }
 
-        // ── JSON output ──────────────────────────────────────────────────────
+        // -- JSON output ------------------------------------------------------
         if (jsonOut is not null)
         {
             var json = JsonSerializer.Serialize(report, CliJsonContext.Default.DedupReport);
@@ -121,7 +121,7 @@ internal static class DedupCommand
         return 0;
     }
 
-    // ── Exact-dupe detection ─────────────────────────────────────────────────
+    // -- Exact-dupe detection -------------------------------------------------
 
     /// <summary>
     /// Groups files by size first (cheap), then SHA-256 within each size-collision group.
@@ -185,7 +185,7 @@ internal static class DedupCommand
         return [.. result.OrderByDescending(g => g.WastedBytes)];
     }
 
-    // ── Near-dupe detection ──────────────────────────────────────────────────
+    // -- Near-dupe detection --------------------------------------------------
 
     /// <summary>
     /// Groups files by normalised (artist + "|" + title) + duration window.

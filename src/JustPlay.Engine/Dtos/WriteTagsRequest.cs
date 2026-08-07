@@ -27,7 +27,7 @@ public sealed record WriteTagsRequest
     [JsonPropertyName("comment")] public string? Comment  { get; init; }
     /// <summary>
     /// When non-null, write this string into the Content Group / Grouping tag
-    /// (ID3v2 TIT1, MP4 ©grp, FLAC GROUPING).  Null = leave untouched.
+    /// (ID3v2 TIT1, MP4 (c)grp, FLAC GROUPING).  Null = leave untouched.
     /// </summary>
     [JsonPropertyName("grouping")]public string? Grouping { get; init; }
 }

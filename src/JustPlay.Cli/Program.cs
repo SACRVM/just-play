@@ -1,7 +1,7 @@
 using JustPlay.Analysis;
 using JustPlay.Cli.Commands;
 
-// ── Just Sort CLI ─────────────────────────────────────────────────────────────
+// -- Just Sort CLI -------------------------------------------------------------
 // Usage:
 //   justplay scan    <root> [--json <out>]
 //   justplay dedup   <root> [--json <out>]
@@ -22,7 +22,7 @@ using JustPlay.Cli.Commands;
 // Phase 0 = scan + dedup. Phase 1 = analyze + stats. Phase 2 = tag write.
 // N15 = promote (make our analysis the authoritative truth, kill conflict dots).
 // spectrum = offline DSP tuning tool (Phase 1 of spectral diagram feature).
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
 {
@@ -45,7 +45,7 @@ return verb switch
     _ => Fail($"Unknown command '{args[0]}'. Run 'justplay --help' for usage."),
 };
 
-// ── Scan ────────────────────────────────────────────────────────────────────
+// -- Scan --------------------------------------------------------------------
 static int RunScan(string[] args)
 {
     if (args.Length == 0)
@@ -56,7 +56,7 @@ static int RunScan(string[] args)
     return ScanCommand.Run(root, jsonOut);
 }
 
-// ── Dedup ───────────────────────────────────────────────────────────────────
+// -- Dedup -------------------------------------------------------------------
 static int RunDedup(string[] args)
 {
     if (args.Length == 0)
@@ -67,7 +67,7 @@ static int RunDedup(string[] args)
     return DedupCommand.Run(root, jsonOut);
 }
 
-// ── Analyze ─────────────────────────────────────────────────────────────────
+// -- Analyze -----------------------------------------------------------------
 static int RunAnalyze(string[] args)
 {
     if (args.Length == 0)
@@ -86,7 +86,7 @@ static int RunAnalyze(string[] args)
     return AnalyzeCommand.Run(root, indexPath, threads, limit, dbPath, noDb, force);
 }
 
-// ── Stats ────────────────────────────────────────────────────────────────────
+// -- Stats --------------------------------------------------------------------
 static int RunStats(string[] args)
 {
     var indexPath = ParseStringFlag(args, "--index");
@@ -96,7 +96,7 @@ static int RunStats(string[] args)
     return StatsCommand.Run(indexPath, jsonOut);
 }
 
-// ── Promote ─────────────────────────────────────────────────────────────────
+// -- Promote -----------------------------------------------------------------
 static int RunPromote(string[] args)
 {
     var indexPath = ParseStringFlag(args, "--index");
@@ -113,18 +113,18 @@ static int RunPromote(string[] args)
     // N21: --retag forces re-stamping of TKEY/TBPM/ENERGY even for fully-Applied files
     // (fixes ~4% of files where N15 left a stale TKEY despite the blob being Applied).
     var retag      = ParseBoolFlag(args, "--retag");
-    // Scope to an explicit file list (one path per line) instead of the whole root walk —
+    // Scope to an explicit file list (one path per line) instead of the whole root walk -
     // an ingest promotes ONLY its new files and physically cannot touch the rest of the lib.
     var filesList  = ParseStringFlag(args, "--files");
 
     return PromoteCommand.Run(indexPath, root, apply, noGrouping, backupDir, retag, filesList);
 }
 
-// ── Tag ──────────────────────────────────────────────────────────────────────
+// -- Tag ----------------------------------------------------------------------
 static int RunTag(string[] args)
 {
     if (args.Length == 0)
-        return Fail("Unknown 'tag' sub-command. Usage: justplay tag write … | tag clean …");
+        return Fail("Unknown 'tag' sub-command. Usage: justplay tag write ... | tag clean ...");
 
     var sub  = args[0].ToLowerInvariant();
     var rest = args[1..];
@@ -163,11 +163,11 @@ static int RunTag(string[] args)
         }
 
         default:
-            return Fail("Unknown 'tag' sub-command. Usage: justplay tag write … | tag clean …");
+            return Fail("Unknown 'tag' sub-command. Usage: justplay tag write ... | tag clean ...");
     }
 }
 
-// ── Squeeze ──────────────────────────────────────────────────────────────────
+// -- Squeeze ------------------------------------------------------------------
 static int RunSqueeze(string[] args)
 {
     var indexPath = ParseStringFlag(args, "--index");
@@ -187,7 +187,7 @@ static int RunSqueeze(string[] args)
     return SqueezeCommand.Run(indexPath, keep, root, playlist, threshold, sequence, outPath);
 }
 
-// ── Spectrum ─────────────────────────────────────────────────────────────────
+// -- Spectrum -----------------------------------------------------------------
 static int RunSpectrum(string[] args)
 {
     if (args.Length == 0)
@@ -210,7 +210,7 @@ static int RunSpectrum(string[] args)
     return SpectrumCommand.Run(file, outPath, opts);
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 
 static int Fail(string msg)
 {
@@ -247,8 +247,8 @@ static double ParseDoubleFlag(string[] args, string flag, double defaultValue)
 static void PrintHelp()
 {
     Console.WriteLine("""
-        J.U.S.T. — Just Useful Sound Tools
-        JustPlayCLI — headless library tools (analyze · tag · sort)
+        J.U.S.T. - Just Useful Sound Tools
+        JustPlayCLI - headless library tools (analyze - tag - sort)
 
         COMMANDS
 
@@ -257,21 +257,21 @@ static void PrintHelp()
               by-format and by-folder breakdown. Optionally writes JSON to <out>.
 
           dedup <root> [--json <out>]
-              Phase 0 — detect duplicates without decoding:
-              (a) Exact dupes: same size → SHA-256 match.
+              Phase 0 - detect duplicates without decoding:
+              (a) Exact dupes: same size -> SHA-256 match.
               (b) Near dupes: same artist+title AND duration within ~2s.
               READ-ONLY. Optionally writes JSON to <out>.
 
           analyze <root> --index <path> [--threads N] [--limit N] [--db <path>|--no-db] [--force]
-              Phase 1 — full resumable analysis pass.
+              Phase 1 - full resumable analysis pass.
               Runs BPM / key / energy / loudness / beat-fingerprint / RhythmPattern
               on every audio file and writes results to the sidecar index at <path>
               AND to this machine's library database.
               READ-ONLY on audio files. Writes only the index and the database.
 
               Work it does NOT redo:
-                · unchanged + already analysed (size+mtime match) -> skipped, file never opened
-                · a JUSTPLAY blob at the current detection version -> imported from the tags,
+                - unchanged + already analysed (size+mtime match) -> skipped, file never opened
+                - a JUSTPLAY blob at the current detection version -> imported from the tags,
                   no DSP. This is what makes a second machine cheap: whichever machine
                   analysed a track first already wrote the answer into the file.
               Files are hashed only when they are actually analysed (hashing reads every
@@ -289,18 +289,18 @@ static void PrintHelp()
               Use the output to tune beat-type bucket thresholds before apply phase.
 
           tag write --index <path> [--root <dir>] [--apply]
-              Phase 2 — batch-write analysis tags from the sidecar index into each
+              Phase 2 - batch-write analysis tags from the sidecar index into each
               audio file. Writes: BPM (standard tempo tag), Key (standard key tag),
               Energy (TXXX:ENERGY), and a clean Mixed-In-Key-style Comment ("8A - Energy 7",
               user text preserved). The machine-readable vibe data is NOT written to the
-              Comment/Grouping anymore — it lives in the JUSTPLAY blob (promote) + the index.
+              Comment/Grouping anymore - it lives in the JUSTPLAY blob (promote) + the index.
 
-              Default: DRY-RUN — prints every planned change without touching files.
+              Default: DRY-RUN - prints every planned change without touching files.
               --root <dir>    Only process files whose path starts with <dir>.
               --apply         Commit the writes (required to actually modify files).
 
           tag clean (--root <dir> | --playlist <m3u>) [--apply] [--backup-dir <dir>]
-              One-shot cleanup: replace the cryptic legacy "JP|E7|K8A|bpm140|gc.57|…" vibe
+              One-shot cleanup: replace the cryptic legacy "JP|E7|K8A|bpm140|gc.57|..." vibe
               blob in the Comment with the clean "8A - Energy 7" form, and strip the blob from
               Grouping. Uses each file's own tags (no index needed): Key/Energy come from the
               standard tags, falling back to the JUSTPLAY blob.
@@ -308,8 +308,8 @@ static void PrintHelp()
 
               --root <dir>        Clean every audio file under <dir> (recursive).
               --playlist <m3u>    Clean ONLY the tracks in a playlist (paths resolved against
-                                  the .m3u's folder) — e.g. re-tag exactly one set.
-              Default: DRY-RUN — prints sample before/after changes without touching files.
+                                  the .m3u's folder) - e.g. re-tag exactly one set.
+              Default: DRY-RUN - prints sample before/after changes without touching files.
               --apply             Commit the writes.
               --backup-dir        Directory for the comment-clean-backup.json undo file
                                   (default: the root dir / the playlist's folder).
@@ -338,7 +338,7 @@ static void PrintHelp()
               Files not in the index: logged as "needs fresh analysis", skipped safely.
 
               Writes a pre-write tag backup to --backup-dir (default: same dir as --index).
-              Default: DRY-RUN — prints every planned change without touching files.
+              Default: DRY-RUN - prints every planned change without touching files.
               --apply         Commit the writes.
               --backup-dir    Directory for the n15-promote-backup.json undo file.
 
@@ -348,7 +348,7 @@ static void PrintHelp()
 
           squeeze --index <v9-index> --keep N [--root <dir>] [--playlist <m3u>]
                   [--threshold 0..1] [--no-sequence] [--out <file.m3u|.json>]
-              Phase 2 of harmonic sort — compress a pool down to the N tracks that mix best
+              Phase 2 of harmonic sort - compress a pool down to the N tracks that mix best
               together (the densest mutually-compatible core), drop the outliers, and report
               HONESTLY if fewer than N are truly coherent. Uses the SAME MixCompatibility scorer
               as Harmonic Sort; pure over the index, no audio decode.
@@ -359,7 +359,7 @@ static void PrintHelp()
               --threshold x    Coherence cut for "counts as part of the set" (default 0.60).
               --no-sequence    Keep greedy growth order instead of HarmonicSequencer play order.
               --out <file>     Write the kept set: .m3u/.m3u8 (portable paths) or .json (report).
-              Default: DRY-RUN — prints the plan; writes nothing without --out.
+              Default: DRY-RUN - prints the plan; writes nothing without --out.
 
           EXAMPLES
           justplay squeeze --index C:\tmp\sets.v9.index.json --keep 20
@@ -374,7 +374,7 @@ static void PrintHelp()
               Decodes <audiofile>, computes DRY and WET long-term-average spectra
               (LTAS via Welch's method), compares against a pink-noise reference
               target curve, and saves a before/after PNG plot.
-              DSP chain: EQ → Tilt → Transient → Limiter.
+              DSP chain: EQ -> Tilt -> Transient -> Limiter.
               All DSP flags default to NEUTRAL (all-bypass).  Pass at least one flag
               to see the chain's effect on the WET curve.
               --limiter: off (default) | soft (0 dB drive) | club (3 dB) | loud (6 dB)

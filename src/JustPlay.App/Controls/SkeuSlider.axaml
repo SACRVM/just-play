@@ -19,11 +19,11 @@
             </Border.Background>
         </Border>
 
-        <!-- Filled portion (cyan → pink). Hidden by code-behind when Value=0.
+        <!-- Filled portion (cyan -> pink). Hidden by code-behind when Value=0.
              Height MUST stay even: the slider grid is 22 px tall, so an even-height
              child centres on an integer pixel (y=11, same as the 6 px rail). An odd
-             height (was 3) lands the fill on a half-pixel → it renders ~1 px out of the
-             rail's centre — the offset Chloe spotted. 4 keeps it pixel-aligned. -->
+             height (was 3) lands the fill on a half-pixel -> it renders ~1 px out of the
+             rail's centre - the offset Chloe spotted. 4 keeps it pixel-aligned. -->
         <!-- BoxShadow (inset bevel + outer accent glow) is bound in code-behind to the
              theme-driven SkeuSlider*FillGlow resource, picked by IsChrome. -->
         <Border Name="Fill" Height="4" CornerRadius="2"
@@ -33,9 +33,9 @@
 
         <!--
           BOTH thumbs (progress + volume) now share the same skeu treatment as the play
-          button: cyan→pink linear gradient, inset bevel via multi-layer BoxShadow, top-left
+          button: cyan->pink linear gradient, inset bevel via multi-layer BoxShadow, top-left
           glossy specular Ellipse, soft pink outer glow. Volume thumb is just a smaller
-          version of the progress thumb — same material, different size. No more grey chrome.
+          version of the progress thumb - same material, different size. No more grey chrome.
         -->
 
         <!-- Accent thumb (progress). Visibility toggled in code-behind.
@@ -52,7 +52,7 @@
                     <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
                 </LinearGradientBrush>
             </Border.Background>
-            <!-- Top-left glossy specular (radial white spot) — same trick as play button. -->
+            <!-- Top-left glossy specular (radial white spot) - same trick as play button. -->
             <Border CornerRadius="9" IsHitTestVisible="False">
                 <Border.Background>
                     <RadialGradientBrush Center="0.3,0.25" GradientOrigin="0.3,0.25" RadiusX="0.55" RadiusY="0.55">

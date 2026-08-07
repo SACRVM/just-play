@@ -5,7 +5,7 @@ using JustPlay.Metadata;
 namespace JustPlay.Metadata.Tests;
 
 /// <summary>
-/// Integration tests for the "DJ Software compatible" comment feature — round-trip
+/// Integration tests for the "DJ Software compatible" comment feature - round-trip
 /// through a real (temp) file via <see cref="TagLibMetadataWriter"/> and
 /// <see cref="TagLibMetadataReader"/>, verifying idempotency and undo (Restore).
 ///
@@ -30,7 +30,7 @@ public class DjCommentRoundTripTests : IDisposable
         if (File.Exists(_tempFile)) File.Delete(_tempFile);
     }
 
-    // ── Helper: A minor = pitch class 9 → Camelot "8A" ───────────────────
+    // -- Helper: A minor = pitch class 9 -> Camelot "8A" -------------------
 
     private static readonly MusicalKey AMinor = new(9, KeyMode.Minor);
 
@@ -45,7 +45,7 @@ public class DjCommentRoundTripTests : IDisposable
         };
     }
 
-    // ── Round-trip: write → reload → assert comment ────────────────────────
+    // -- Round-trip: write -> reload -> assert comment ------------------------
 
     [Fact]
     public void Write_WithDjCommentOn_PrependsCamelotAndEnergy()
@@ -114,7 +114,7 @@ public class DjCommentRoundTripTests : IDisposable
         var afterWrite = _reader.Read(_tempFile);
         Assert.Equal("8A - Energy 7 | my note", afterWrite.Comment);
 
-        // Restore with CommentCaptured = false (feature was off) — comment must not change.
+        // Restore with CommentCaptured = false (feature was off) - comment must not change.
         var snapshot = new TagRestore { CommentCaptured = false };
         _writer.Restore(_tempFile, snapshot);
 
@@ -125,7 +125,7 @@ public class DjCommentRoundTripTests : IDisposable
     [Fact]
     public void Write_SettingOff_CommentUntouched()
     {
-        // When WriteDjComment is off, Comment in TagWrite is null → file comment untouched.
+        // When WriteDjComment is off, Comment in TagWrite is null -> file comment untouched.
         var before = _reader.Read(_tempFile);
         Assert.Equal("my note", before.Comment);
 
@@ -137,13 +137,13 @@ public class DjCommentRoundTripTests : IDisposable
         Assert.Equal("my note", after.Comment);
     }
 
-    // ── Synthesise a minimal valid ID3v2-tagged MP3 ────────────────────────
+    // -- Synthesise a minimal valid ID3v2-tagged MP3 ------------------------
     // Structure:
     //   ID3v2.3 header (10 bytes) + ID3v2 COMM frame with "my note"
     //   + zero-padded to fill declared tag size + a silent MPEG frame.
     //
     // TagLib# is lenient on the audio content; it reads tags first and only
-    // probes audio properties on demand — which we never trigger here.
+    // probes audio properties on demand - which we never trigger here.
 
     private static byte[] MinimalMp3WithComment(string commentText)
     {
@@ -158,7 +158,7 @@ public class DjCommentRoundTripTests : IDisposable
             // ID3v2 header: "ID3" + version 2.3.0 + flags 0 + syncsafe size (0 = 0 bytes of frames)
             bare[0] = (byte)'I'; bare[1] = (byte)'D'; bare[2] = (byte)'3';
             bare[3] = 3; bare[4] = 0; bare[5] = 0; // version 2.3, rev 0, flags 0
-            // syncsafe int: 0 (no frames yet — TagLib will extend on Save)
+            // syncsafe int: 0 (no frames yet - TagLib will extend on Save)
             bare[6] = 0; bare[7] = 0; bare[8] = 0; bare[9] = 0;
             // One silent MPEG frame header (sync + layer3 + 128kbps + 44100 + stereo)
             bare[10] = 0xFF; bare[11] = 0xFB; bare[12] = 0x90; bare[13] = 0x00;

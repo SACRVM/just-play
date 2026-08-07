@@ -9,7 +9,7 @@ namespace JustPlay.UI.Views;
 /// Shared tiny themed single-line text-input dialog for the J.U.S.T. suite. <see cref="AskAsync"/>
 /// shows it modally over an owner window and returns the trimmed entry, or null if the user cancels /
 /// leaves it empty. Enter confirms, Esc cancels. (Lifted from JUST PLAY into JustPlay.UI so both apps
-/// share one dialog — used e.g. for naming a Sound preset.)
+/// share one dialog - used e.g. for naming a Sound preset.)
 /// </summary>
 public partial class InputDialog : Window
 {

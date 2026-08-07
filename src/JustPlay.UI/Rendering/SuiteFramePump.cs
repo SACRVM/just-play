@@ -5,18 +5,18 @@ namespace JustPlay.UI.Rendering;
 
 /// <summary>
 /// The J.U.S.T. suite's ONE vsync frame pump. Drives a per-frame callback off a <see cref="TopLevel"/>'s
-/// <c>RequestAnimationFrame</c> clock — the single place the suite hooks vsync, so no window re-implements
+/// <c>RequestAnimationFrame</c> clock - the single place the suite hooks vsync, so no window re-implements
 /// the re-arm + dt-clamp dance (SpectrumWindow, JUST STREAM's MainWindow and JUST BOOTLEG each hand-rolled
 /// their own copy of it before this).
 ///
 /// <para><b>Why not a <c>DispatcherTimer</c>:</b> a free-running timer ticks on its own clock, unrelated to
 /// when Avalonia actually paints a frame. The two drift, so the painted value lands late and beats against
-/// vsync — visible judder, and a picture drawn from a stale position (Chloe saw exactly this on STREAM's
+/// vsync - visible judder, and a picture drawn from a stale position (Chloe saw exactly this on STREAM's
 /// meter and BOOTLEG's playhead; JUST BEAT's playhead ran on a 50 ms / 20 fps timer and lagged the sound by
 /// up to a frame-and-a-half). <c>RequestAnimationFrame</c> runs the callback at the START of each rendered
-/// frame, at the display's refresh rate — the update lands ON the frame, every frame.</para>
+/// frame, at the display's refresh rate - the update lands ON the frame, every frame.</para>
 ///
-/// <para><b>Usage — the VIEW owns the pump, the ViewModel exposes a per-frame method:</b>
+/// <para><b>Usage - the VIEW owns the pump, the ViewModel exposes a per-frame method:</b>
 /// <code>
 /// private SuiteFramePump? _pump;
 ///
@@ -35,7 +35,7 @@ namespace JustPlay.UI.Rendering;
 /// </summary>
 public sealed class SuiteFramePump
 {
-    /// <summary>Fallback dt for the very first frame and for any hitch — one 60 Hz step. Callbacks stay
+    /// <summary>Fallback dt for the very first frame and for any hitch - one 60 Hz step. Callbacks stay
     /// refresh-rate independent because their ballistics scale by this dt, not by a fixed per-frame amount.</summary>
     private const double RefStep = 1.0 / 60.0;
 
@@ -48,7 +48,7 @@ public sealed class SuiteFramePump
     /// while it renders, so <see cref="Start"/> from <c>OnOpened</c> (or a later state flip) and
     /// <see cref="Stop"/> from <c>OnClosed</c>.</param>
     /// <param name="onFrame">Invoked once per rendered frame with the seconds elapsed since the previous
-    /// frame — clamped to <see cref="RefStep"/> on the first frame and on any hitch &gt; 0.25 s, so the
+    /// frame - clamped to <see cref="RefStep"/> on the first frame and on any hitch &gt; 0.25 s, so the
     /// caller never sees a zero, a negative, or a giant dt after the app was suspended.</param>
     public SuiteFramePump(TopLevel top, Action<double> onFrame)
     {
@@ -59,7 +59,7 @@ public sealed class SuiteFramePump
     /// <summary>Whether the pump is currently armed.</summary>
     public bool IsRunning => _running;
 
-    /// <summary>Arm the pump — schedule the first frame. Idempotent: a second call while already running is
+    /// <summary>Arm the pump - schedule the first frame. Idempotent: a second call while already running is
     /// a no-op (two live RequestAnimationFrame chains would double the callback rate).</summary>
     public void Start()
     {

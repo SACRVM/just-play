@@ -22,8 +22,8 @@ public sealed class StringEqualsConverter : IValueConverter
 }
 
 /// <summary>
-/// Maps a linear monitor volume (0..1) to a dB string with one decimal: 1.0→"0.0 dB", 0.5→"-6.0 dB",
-/// ≤0→"-∞". Same visual style as GainDbConverter.
+/// Maps a linear monitor volume (0..1) to a dB string with one decimal: 1.0->"0.0 dB", 0.5->"-6.0 dB",
+/// <=0->"-inf". Same visual style as GainDbConverter.
 /// </summary>
 public sealed class VolumeDbConverter : IValueConverter
 {
@@ -35,11 +35,11 @@ public sealed class VolumeDbConverter : IValueConverter
     {
         if (value is double d)
         {
-            if (d <= 0.0) return "-∞";
+            if (d <= 0.0) return "-inf";
             var db = 20.0 * Math.Log10(d);
             return $"{db:F1} dB";
         }
-        return "-∞";
+        return "-inf";
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -69,7 +69,7 @@ public sealed class AppChannelsLabelConverter : IValueConverter
 }
 
 /// <summary>
-/// Maps a <see cref="RecordingFormat"/> to its friendly label for the Settings → Recording
+/// Maps a <see cref="RecordingFormat"/> to its friendly label for the Settings -> Recording
 /// FORMAT ComboBox. "Same as stream" is the self-check default: the file mirrors the live
 /// codec + bitrate, artifacts included (Chloe, 2026-07-04).
 /// </summary>
@@ -87,7 +87,7 @@ public sealed class RecordingFormatLabelConverter : IValueConverter
             RecordingFormat.Flac => "FLAC (lossless)",
             RecordingFormat.Aiff => "AIFF (lossless, 16-bit)",
             RecordingFormat.Wav => "WAV (lossless, 16-bit)",
-            _ => "—",
+            _ => "-",
         };
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -110,7 +110,7 @@ public sealed class SampleRateLabelConverter : IValueConverter
             44100 => "44.1 kHz",
             48000 => "48 kHz",
             int v => $"{v} Hz",
-            _ => "—",
+            _ => "-",
         };
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

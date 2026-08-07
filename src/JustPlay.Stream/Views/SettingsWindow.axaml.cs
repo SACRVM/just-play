@@ -26,7 +26,7 @@ public partial class SettingsWindow : Window
 
     // Drag the frameless dialog from the chrome bar (but not from interactive controls).
     private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
-        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        // Drag from empty chrome, DOUBLE-click to maximize/restore - one shared gesture.
         WindowChrome.HandlePress(this, e);
 
     private static bool IsInteractive(Visual? v)
@@ -41,7 +41,7 @@ public partial class SettingsWindow : Window
 
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
 
-    // Advanced tab → "SETTINGS & LOG FOLDER" right-click → open %LOCALAPPDATA%\JustStream in the OS
+    // Advanced tab -> "SETTINGS & LOG FOLDER" right-click -> open %LOCALAPPDATA%\JustStream in the OS
     // file manager (settings.json + crash logs live there). Same path JsonStreamSettingsService uses;
     // created if missing. Mirrors the REC button's "Open recordings folder".
     private void OnOpenSettingsFolder(object? sender, RoutedEventArgs e)
@@ -59,7 +59,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    // Recording tab → FOLDER "Browse…": OS folder picker via StorageProvider. Click handler
+    // Recording tab -> FOLDER "Browse...": OS folder picker via StorageProvider. Click handler
     // (not a command) because the picker needs the Window's StorageProvider. Cancel = no change.
     private async void OnBrowseRecordingFolder(object? sender, RoutedEventArgs e)
     {
@@ -69,7 +69,7 @@ public partial class SettingsWindow : Window
 
             // Start the picker where the setting currently POINTS (Chloe 2026-07-05). The
             // recordings folder itself is created lazily on the first record start, so it may
-            // not exist yet — walk up to the nearest EXISTING ancestor (typically Music)
+            // not exist yet - walk up to the nearest EXISTING ancestor (typically Music)
             // instead of letting the OS drop us at some unrelated last-used location.
             var start = (string?)vm.Stream.EffectiveRecordingFolder;
             while (!string.IsNullOrEmpty(start) && !Directory.Exists(start))

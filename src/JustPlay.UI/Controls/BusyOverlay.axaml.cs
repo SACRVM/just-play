@@ -6,15 +6,15 @@ using Avalonia.Threading;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// Shared J.U.S.T. progress overlay — a floating "busy" pill for a card's OVERLAY layer, so showing
+/// Shared J.U.S.T. progress overlay - a floating "busy" pill for a card's OVERLAY layer, so showing
 /// progress never reflows the layout (Chloe 2026-07-15: an inline progress bar "schiebt unten alles
-/// rechts raus"; she asked for "ein generelles overlay was wir überall nutzen können"). One
+/// rechts raus"; she asked for "ein generelles overlay was wir ueberall nutzen koennen"). One
 /// implementation, one look, used across the suite. Drop it as the LAST child of a card's Panel,
 /// bind <see cref="IsActive"/> to a busy flag and (optionally) <see cref="Message"/> to a status
 /// line. It is <c>IsHitTestVisible=False</c>, so it is purely visual and never blocks a click.
 ///
 /// <para><b>Anti-flicker.</b> The pill only appears after <see cref="ShowDelayMs"/> of continuous
-/// busy — so the fast, constant per-knob re-renders that make a lab feel instant never flash a
+/// busy - so the fast, constant per-knob re-renders that make a lab feel instant never flash a
 /// spinner; only work that actually takes a beat (an export, a heavy render) surfaces it.</para>
 /// </summary>
 public partial class BusyOverlay : UserControl
@@ -50,7 +50,7 @@ public partial class BusyOverlay : UserControl
         set => SetValue(IsActiveProperty, value);
     }
 
-    /// <summary>Optional text beside the spinner — a short "Exporting…" style line.</summary>
+    /// <summary>Optional text beside the spinner - a short "Exporting..." style line.</summary>
     public string? Message
     {
         get => GetValue(MessageProperty);
@@ -58,7 +58,7 @@ public partial class BusyOverlay : UserControl
     }
 
     /// <summary>
-    /// Completion as 0..1, or null when the length is unknown — then the ring travels instead of
+    /// Completion as 0..1, or null when the length is unknown - then the ring travels instead of
     /// filling. The ring eases toward whatever it is given, so reporting per item is fine.
     /// </summary>
     public double? Progress
@@ -68,7 +68,7 @@ public partial class BusyOverlay : UserControl
     }
 
     /// <summary>
-    /// Optional second line under the message — the counter ("1,203 / 4,096") or anything else that
+    /// Optional second line under the message - the counter ("1,203 / 4,096") or anything else that
     /// changes often. It lives in its own fixed-height row so it can churn without moving the card.
     /// </summary>
     public string? Detail
@@ -77,7 +77,7 @@ public partial class BusyOverlay : UserControl
         set => SetValue(DetailProperty, value);
     }
 
-    /// <summary>How long a busy state must persist before the pill appears — the anti-flicker guard.
+    /// <summary>How long a busy state must persist before the pill appears - the anti-flicker guard.
     /// Default 180 ms: long enough that an instant per-knob re-render never flashes it.</summary>
     public int ShowDelayMs
     {
@@ -90,7 +90,7 @@ public partial class BusyOverlay : UserControl
         base.OnPropertyChanged(change);
 
         // Guarded on IsActiveProperty, which only ever changes AFTER InitializeComponent (a host
-        // binds it) — so Pill is always the real element here, never null.
+        // binds it) - so Pill is always the real element here, never null.
         if (change.Property != IsActiveProperty) return;
 
         if (IsActive)

@@ -4,8 +4,8 @@ namespace JustPlay.Core.Abstractions;
 
 /// <summary>
 /// A source of live spectrum + limiter telemetry for the SHARED in-app spectrum analyzer
-/// (JustPlay.UI's <c>SpectrumWindow</c>). Implemented by each app's audio engine — JUST PLAY's
-/// playback <see cref="IAudioEngine"/> today, JUST STREAM's input engine and JUST MASTER later — so
+/// (JustPlay.UI's <c>SpectrumWindow</c>). Implemented by each app's audio engine - JUST PLAY's
+/// playback <see cref="IAudioEngine"/> today, JUST STREAM's input engine and JUST MASTER later - so
 /// the analyzer window is written ONCE and reused across the suite instead of bound to one app's
 /// engine type.
 /// </summary>
@@ -19,7 +19,7 @@ public interface ISpectrumSource
     /// <c>60</c> to match the offline <c>SpectralProfile</c>/<c>SpectralTarget</c>). Each value is the
     /// summed linear POWER in that band (the caller converts to dB), so the curve is directly
     /// comparable to a golden target curve. Zeros when nothing is playing or the tap is disabled.
-    /// UI-thread safe and cheap — call each render frame.
+    /// UI-thread safe and cheap - call each render frame.
     /// </summary>
     void GetSpectrum(Span<float> dryMagnitudes, Span<float> wetMagnitudes);
 
@@ -32,14 +32,14 @@ public interface ISpectrumSource
     /// <summary>
     /// The output limiter's CURRENT gain reduction in dB as a non-negative value (0 = not limiting /
     /// limiter off / nothing playing; e.g. 2.3 = pulling peaks down by 2.3 dB). Drives the analyzer's
-    /// "where does it flatten" meter. UI-thread safe and cheap — call each render frame.
+    /// "where does it flatten" meter. UI-thread safe and cheap - call each render frame.
     /// </summary>
     double GetLimiterGainReductionDb();
 
     /// <summary>
-    /// Current per-channel OUTPUT peak level (POST-bus — what is actually heard / streamed) as linear
+    /// Current per-channel OUTPUT peak level (POST-bus - what is actually heard / streamed) as linear
     /// 0..1: <paramref name="leftPeak"/> / <paramref name="rightPeak"/>. Drives the analyzer's vertical
-    /// L/R level meter. 0 when nothing is playing. UI-thread safe and cheap — call each render frame.
+    /// L/R level meter. 0 when nothing is playing. UI-thread safe and cheap - call each render frame.
     /// </summary>
     void GetOutputLevels(out float leftPeak, out float rightPeak);
 }

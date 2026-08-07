@@ -5,12 +5,12 @@ namespace JustPlay.Core.Tests;
 
 /// <summary>
 /// Verifies that the <see cref="BeatFingerprint"/> round-trips correctly through
-/// <see cref="AnalysisStateCodec"/> — i.e. that a fingerprint stored in the JUSTPLAY
+/// <see cref="AnalysisStateCodec"/> - i.e. that a fingerprint stored in the JUSTPLAY
 /// blob is restored exactly after deserialisation.
 ///
 /// These tests live in JustPlay.Core.Tests because all types involved
 /// (BeatFingerprint, AnalysisResult, TrackAnalysisState, AnalysisStateCodec) are in
-/// JustPlay.Core — no dependency on JustPlay.Analysis is needed.
+/// JustPlay.Core - no dependency on JustPlay.Analysis is needed.
 /// </summary>
 public class BeatFingerprintCodecTests
 {
@@ -101,7 +101,7 @@ public class BeatFingerprintCodecTests
 
         var fpRestored = restored!.Detected.Fingerprint!;
 
-        // Single float serialised as JSON number — precision to 5 decimal places is fine.
+        // Single float serialised as JSON number - precision to 5 decimal places is fine.
         Assert.Equal(fp.Danceability, fpRestored.Danceability, precision: 5);
     }
 
@@ -141,7 +141,7 @@ public class BeatFingerprintCodecTests
 
     // -------------------------------------------------------------------------
     // 4. Blob without fingerprint fields (simulating an older v3 blob) is parsed
-    //    gracefully — Fingerprint stays null, no exception.
+    //    gracefully - Fingerprint stays null, no exception.
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -158,13 +158,13 @@ public class BeatFingerprintCodecTests
     }
 
     // -------------------------------------------------------------------------
-    // 5. Blob with partial fingerprint fields (only fpst, no fpct) → Fingerprint null
+    // 5. Blob with partial fingerprint fields (only fpst, no fpct) -> Fingerprint null
     // -------------------------------------------------------------------------
 
     [Fact]
     public void PartialFingerprintFields_GiveNullFingerprint()
     {
-        // fpst present but fpct absent — should not reconstruct a partial fingerprint.
+        // fpst present but fpct absent - should not reconstruct a partial fingerprint.
         const string partialBlob =
             "{\"v\":4,\"bpm\":128.0,\"fpst\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"}";
 
@@ -186,7 +186,7 @@ public class BeatFingerprintCodecTests
     }
 
     // -------------------------------------------------------------------------
-    // 7. Blob size is compact — fingerprint adds at most ~600 base64 chars
+    // 7. Blob size is compact - fingerprint adds at most ~600 base64 chars
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -196,18 +196,18 @@ public class BeatFingerprintCodecTests
         var state = MakeState(fp);
         var blob  = AnalysisStateCodec.Serialize(state);
 
-        // ST:  64 floats × 4 bytes = 256 bytes → base64 ≈ 344 chars (+ JSON key + quotes ≈ 357)
-        // CT:  24 floats × 4 bytes =  96 bytes → base64 ≈ 128 chars (+ JSON key + quotes ≈ 141)
-        // DA:  float as JSON number ≈ 8-10 chars (+ key ≈ 17 chars)
+        // ST:  64 floats x 4 bytes = 256 bytes -> base64 ~ 344 chars (+ JSON key + quotes ~ 357)
+        // CT:  24 floats x 4 bytes =  96 bytes -> base64 ~ 128 chars (+ JSON key + quotes ~ 141)
+        // DA:  float as JSON number ~ 8-10 chars (+ key ~ 17 chars)
         // JSON commas and structure: ~15 chars
-        // Total delta budget: ≤ 550 chars is the theoretical minimum; we allow ≤ 700 in practice
+        // Total delta budget: <= 550 chars is the theoretical minimum; we allow <= 700 in practice
         // to leave room for the JSON serialiser's formatting choices (extra whitespace-free but
         // still possible small overhead from the source-generated context).
         var noFpBlob = AnalysisStateCodec.Serialize(MakeState(null));
         var delta    = blob.Length - noFpBlob.Length;
 
         Assert.True(delta <= 700,
-            $"Fingerprint added {delta} chars to the blob; expected ≤ 700. " +
+            $"Fingerprint added {delta} chars to the blob; expected <= 700. " +
             $"Blob size with FP: {blob.Length} chars, without: {noFpBlob.Length} chars.");
     }
 }

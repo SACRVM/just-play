@@ -8,16 +8,16 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="CharacterClassifier"/> (vibe quartet: punch / groove / dark / hypnotic).
 ///
 /// Coverage:
-/// 1. Guard cases: null/too-short input → null (no throw).
+/// 1. Guard cases: null/too-short input -> null (no throw).
 /// 2. All returned scalars are in [0, 1].
-/// 3. Dark: bright HF-rich signal (white noise) → dark≈0; low-passed dull sine → dark≈1.
-/// 4. Hypnotic: a highly repetitive loop (constant spectrum) → hypnotic≈1;
-///             an evolving signal (centroid sweeps) → hypnotic&lt;hypnotic_of_repetitive.
+/// 3. Dark: bright HF-rich signal (white noise) -> dark~0; low-passed dull sine -> dark~1.
+/// 4. Hypnotic: a highly repetitive loop (constant spectrum) -> hypnotic~1;
+///             an evolving signal (centroid sweeps) -> hypnotic&lt;hypnotic_of_repetitive.
 /// 5. Harshness elevated for white noise (noisy fatigue flag).
 /// 6. SpectralFlatness white noise > kick train.
 /// 7. BassPunch: kick train > silence.
 /// 8. BassGroove: groovy RhythmPattern > straight.
-/// 9. Low FoF → punch and groove clamped down.
+/// 9. Low FoF -> punch and groove clamped down.
 /// 10. SpectralEnergyDetector.BlendedScore in [0,1].
 /// </summary>
 public class CharacterClassifierTests
@@ -78,13 +78,13 @@ public class CharacterClassifierTests
     }
 
     // =========================================================================
-    // 3. Dark: bright signal → dark≈0; dull/bass-only signal → dark≈1
+    // 3. Dark: bright signal -> dark~0; dull/bass-only signal -> dark~1
     // =========================================================================
 
     [Fact]
     public void BrightSignal_WhiteNoise_Dark_IsLow()
     {
-        // White noise has energy spread across all frequencies including high — bright → dark≈0.
+        // White noise has energy spread across all frequencies including high - bright -> dark~0.
         var samples = WhiteNoiseSamples(DurationSeconds, SampleRate);
         var cf = CharacterClassifier.Compute(
             samples, SampleRate, 128.0,
@@ -92,7 +92,7 @@ public class CharacterClassifierTests
 
         Assert.NotNull(cf);
         // White noise centroid should be well above the CentroidLo=300 Hz threshold,
-        // giving a high nBright → dark should be clearly below 0.5.
+        // giving a high nBright -> dark should be clearly below 0.5.
         Assert.True(cf!.Dark < 0.5,
             $"White noise (broadband) should give dark < 0.5, got {cf.Dark:F3}");
     }
@@ -100,8 +100,8 @@ public class CharacterClassifierTests
     [Fact]
     public void DullLowFreqSignal_Dark_IsHigherThanBrightSignal()
     {
-        // A low-frequency sine (100 Hz) has all energy in the bass region — low centroid → dark≈1.
-        // A white-noise signal has broadband content — high centroid → dark≈0.
+        // A low-frequency sine (100 Hz) has all energy in the bass region - low centroid -> dark~1.
+        // A white-noise signal has broadband content - high centroid -> dark~0.
         var dullSamples   = QuietSine(100.0, DurationSeconds, SampleRate, amplitude: 0.5f);
         var brightSamples = WhiteNoiseSamples(DurationSeconds, SampleRate);
 
@@ -117,9 +117,9 @@ public class CharacterClassifierTests
     [Fact]
     public void HighFreqSine_Dark_IsLow()
     {
-        // A high-frequency sine (4000 Hz → above analysis range, but a 2000 Hz sine still gives
-        // a high centroid) → should score low dark.
-        // Use 2000 Hz which is near CentroidHi = 3000 Hz → nBright close to 1 → dark close to 0.
+        // A high-frequency sine (4000 Hz -> above analysis range, but a 2000 Hz sine still gives
+        // a high centroid) -> should score low dark.
+        // Use 2000 Hz which is near CentroidHi = 3000 Hz -> nBright close to 1 -> dark close to 0.
         var brightSine = QuietSine(2000.0, DurationSeconds, SampleRate, amplitude: 0.5f);
         var darkSine   = QuietSine(100.0,  DurationSeconds, SampleRate, amplitude: 0.5f);
 
@@ -133,16 +133,16 @@ public class CharacterClassifierTests
     }
 
     // =========================================================================
-    // 4. Hypnotic: highly repetitive → higher than evolving signal
+    // 4. Hypnotic: highly repetitive -> higher than evolving signal
     // =========================================================================
 
     [Fact]
     public void RepetitiveLoop_Hypnotic_HigherThan_EvolvingSignal()
     {
-        // A pure sine wave has a constant spectrum (same centroid every frame) → low centroid variance
-        // → Hypnotic≈1.
-        // An AM-modulated signal whose carrier sweeps in frequency = evolving → high centroid variance
-        // → Hypnotic low.
+        // A pure sine wave has a constant spectrum (same centroid every frame) -> low centroid variance
+        // -> Hypnotic~1.
+        // An AM-modulated signal whose carrier sweeps in frequency = evolving -> high centroid variance
+        // -> Hypnotic low.
         var repetitiveSamples = QuietSine(440.0, DurationSeconds, SampleRate, amplitude: 0.5f);
 
         // Evolving: a linear-chirp from 200 Hz to 4000 Hz over the track duration.
@@ -161,7 +161,7 @@ public class CharacterClassifierTests
     public void PureSine_Hypnotic_IsHigh()
     {
         // A pure sine at constant frequency: all frames have the same spectral centroid.
-        // Centroid std-dev ≈ 0 → Hypnotic should be close to 1.
+        // Centroid std-dev ~ 0 -> Hypnotic should be close to 1.
         var samples = QuietSine(440.0, DurationSeconds, SampleRate, amplitude: 0.5f);
         var cf = CharacterClassifier.Compute(
             samples, SampleRate, null,
@@ -190,7 +190,7 @@ public class CharacterClassifierTests
 
         Assert.NotNull(cf);
         Assert.True(cf!.Harshness >= 0.30,
-            $"White noise harshness ({cf.Harshness:F3}) should be elevated (≥ 0.30)");
+            $"White noise harshness ({cf.Harshness:F3}) should be elevated (>= 0.30)");
     }
 
     // =========================================================================
@@ -265,7 +265,7 @@ public class CharacterClassifierTests
     }
 
     // =========================================================================
-    // 9. Low FoF → punch and groove clamped down
+    // 9. Low FoF -> punch and groove clamped down
     // =========================================================================
 
     [Fact]
@@ -324,7 +324,7 @@ public class CharacterClassifierTests
     [Fact]
     public void Hypnotic_IsNotAllZero_AcrossSignals()
     {
-        // Before the CV fix all three signals returned Hypnotic ≈ 0.
+        // Before the CV fix all three signals returned Hypnotic ~ 0.
         // After the fix they should differ meaningfully.
         var sine440  = QuietSine(440.0,  DurationSeconds, SampleRate, amplitude: 0.5f);
         var sine2000 = QuietSine(2000.0, DurationSeconds, SampleRate, amplitude: 0.5f);
@@ -338,19 +338,19 @@ public class CharacterClassifierTests
         Assert.NotNull(cf2000);
         Assert.NotNull(cfChirp);
 
-        // Pure sines have constant spectrum → should score high.
+        // Pure sines have constant spectrum -> should score high.
         Assert.True(cf440!.Hypnotic  > 0.5,
             $"440 Hz sine should be hypnotic (>0.5), got {cf440.Hypnotic:F3}");
         Assert.True(cf2000!.Hypnotic > 0.5,
             $"2000 Hz sine should be hypnotic (>0.5), got {cf2000.Hypnotic:F3}");
-        // Chirp sweeps from 200→4000 Hz → should score low (evolving).
+        // Chirp sweeps from 200->4000 Hz -> should score low (evolving).
         Assert.True(cfChirp!.Hypnotic < 0.3,
-            $"Chirp (200→4000 Hz) should NOT be hypnotic (<0.3), got {cfChirp.Hypnotic:F3}");
-        // The three values must NOT all be equal — that would indicate the saturation bug is back.
+            $"Chirp (200->4000 Hz) should NOT be hypnotic (<0.3), got {cfChirp.Hypnotic:F3}");
+        // The three values must NOT all be equal - that would indicate the saturation bug is back.
         Assert.False(
             Math.Abs(cf440.Hypnotic - cfChirp.Hypnotic) < 0.05,
             $"Sine (hypnotic={cf440.Hypnotic:F3}) and chirp (hypnotic={cfChirp.Hypnotic:F3}) " +
-            "should differ significantly — saturation bug may have returned");
+            "should differ significantly - saturation bug may have returned");
     }
 
     // =========================================================================
@@ -360,7 +360,7 @@ public class CharacterClassifierTests
     [Fact]
     public void Clean4x4_GridConfidence_IsAboveGridSoftThreshold()
     {
-        // Calibrated values from rhythm-similarity.md §6 (pure 4/4 click train):
+        // Calibrated values from rhythm-similarity.md Sec.6 (pure 4/4 click train):
         // FourOnFloor=0.977, HalfTimeFeel=0.498, Syncopation=0.000.
         var clean4x4 = new JustPlay.Core.Models.RhythmPattern
         {
@@ -371,7 +371,7 @@ public class CharacterClassifierTests
             Swing         = 0.0,
             BeatType      = "4x4-driving",
         };
-        // Sharp ACF from a clean click train — use high value.
+        // Sharp ACF from a clean click train - use high value.
         const double cleanAcfSharpness = 0.85;
 
         var gc = CharacterClassifier.ComputeGridConfidence(clean4x4, cleanAcfSharpness);
@@ -385,7 +385,7 @@ public class CharacterClassifierTests
     [Fact]
     public void SyncopatedUKG_GridConfidence_IsBelowGridSoftThreshold()
     {
-        // Calibrated values from rhythm-similarity.md §6 (broken kick + syncopation):
+        // Calibrated values from rhythm-similarity.md Sec.6 (broken kick + syncopation):
         // FourOnFloor=0.488, HalfTimeFeel=0.631, Syncopation=0.293.
         var ukgPattern = new JustPlay.Core.Models.RhythmPattern
         {
@@ -396,7 +396,7 @@ public class CharacterClassifierTests
             Swing         = 0.30,
             BeatType      = "breaks",
         };
-        // Ambiguous ACF from competing meter levels — use low value.
+        // Ambiguous ACF from competing meter levels - use low value.
         const double ambiguousAcfSharpness = 0.25;
 
         var gc = CharacterClassifier.ComputeGridConfidence(ukgPattern, ambiguousAcfSharpness);
@@ -415,7 +415,7 @@ public class CharacterClassifierTests
     [Fact]
     public void GridConfidence_IsInUnitInterval_ForExtremeInputs()
     {
-        // Max everything → should clamp to [0, 1].
+        // Max everything -> should clamp to [0, 1].
         var maxPattern = new JustPlay.Core.Models.RhythmPattern
         {
             FourOnFloor = 1.0, HalfTimeFeel = 0.0, Syncopation = 0.0,
@@ -464,7 +464,7 @@ public class CharacterClassifierTests
         return samples;
     }
 
-    /// <summary>White noise — maximum spectral flatness, broadband (bright).</summary>
+    /// <summary>White noise - maximum spectral flatness, broadband (bright).</summary>
     private static float[] WhiteNoiseSamples(double durationSeconds, int sampleRate)
     {
         var n = (int)(durationSeconds * sampleRate);
@@ -476,8 +476,8 @@ public class CharacterClassifierTests
     }
 
     /// <summary>
-    /// Quiet single-frequency sine — maximally tonal, constant spectrum
-    /// (low centroid variance → hypnotic≈1 for low freq; dark≈1 for low freq).
+    /// Quiet single-frequency sine - maximally tonal, constant spectrum
+    /// (low centroid variance -> hypnotic~1 for low freq; dark~1 for low freq).
     /// </summary>
     private static float[] QuietSine(double freqHz, double durationSeconds, int sampleRate, float amplitude)
     {
@@ -491,7 +491,7 @@ public class CharacterClassifierTests
     /// <summary>
     /// Linear chirp: frequency sweeps linearly from <paramref name="startHz"/> to
     /// <paramref name="endHz"/> over the track duration. Produces high centroid variance
-    /// → hypnotic≈0 (evolving/progressive).
+    /// -> hypnotic~0 (evolving/progressive).
     /// </summary>
     private static float[] LinearChirp(
         double startHz, double endHz, double durationSeconds, int sampleRate, float amplitude)

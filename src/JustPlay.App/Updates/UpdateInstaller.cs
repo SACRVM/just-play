@@ -17,7 +17,7 @@ namespace JustPlay.App.Updates;
 /// Downloads a release's installer and hands off to it so JustPlay can update itself while
 /// running. The hand-off works around Windows file-locking: a detached PowerShell helper waits
 /// for this process to exit, runs the Inno installer silently (an over-install into the same
-/// per-user directory — no UAC, since the installer is <c>PrivilegesRequired=lowest</c>), then
+/// per-user directory - no UAC, since the installer is <c>PrivilegesRequired=lowest</c>), then
 /// relaunches JustPlay. Self-update only applies to installer builds; a portable copy (no
 /// <c>unins000.exe</c> alongside the exe) falls back to the browser.
 /// <para>
@@ -92,7 +92,7 @@ internal static class UpdateInstaller
     {
         // Installed exe name comes from installer/justplay.iss (#define AppExe). Fall back to any
         // JustPlay*.exe (never the CLI or the uninstaller) so a FUTURE exe rename can't strand the
-        // relaunch — that is exactly what broke 0.3.0 -> 0.3.1: the old build relaunched a
+        // relaunch - that is exactly what broke 0.3.0 -> 0.3.1: the old build relaunched a
         // since-renamed exe and the orphaned old exe kept coming back up.
         var exe = Path.Combine(installDir, "JustPlay.exe");
         if (!File.Exists(exe))

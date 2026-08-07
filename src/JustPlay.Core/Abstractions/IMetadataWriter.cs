@@ -5,14 +5,14 @@ namespace JustPlay.Core.Abstractions;
 /// <summary>
 /// Writes analysis values back into a file's tags. The counterpart to
 /// <see cref="IMetadataReader"/>; implemented in the metadata adapter (TagLib#).
-/// Only ever called on an explicit user action — JustPlay never auto-writes files.
+/// Only ever called on an explicit user action - JustPlay never auto-writes files.
 /// </summary>
 public interface IMetadataWriter
 {
     /// <summary>
     /// Apply <paramref name="write"/> to the file and save. Only the non-null
     /// standard fields are written; <see cref="TagWrite.State"/>, when set, is
-    /// always written as the JUSTPLAY blob. Other tags (comment, title, …) are
+    /// always written as the JUSTPLAY blob. Other tags (comment, title, ...) are
     /// left untouched.
     /// </summary>
     /// <param name="filePath">Path to the audio file to update.</param>
@@ -20,16 +20,16 @@ public interface IMetadataWriter
     /// <param name="policy">
     /// Per-<see cref="TagFrameFamily"/> gate on top of <paramref name="write"/>: a family the
     /// policy disallows is left untouched even when <paramref name="write"/> specifies a value
-    /// for it. Defaults to <see cref="TagWritePolicy.AllowAll"/> — every family allowed, which
+    /// for it. Defaults to <see cref="TagWritePolicy.AllowAll"/> - every family allowed, which
     /// reproduces the writer's behaviour from before this parameter existed exactly. Existing
     /// callers that don't pass this argument are therefore unaffected.
     /// </param>
     void Write(string filePath, TagWrite write, TagWritePolicy? policy = null);
 
     /// <summary>
-    /// Restore a file to a previously-captured tag state — the inverse of <see cref="Write"/>,
+    /// Restore a file to a previously-captured tag state - the inverse of <see cref="Write"/>,
     /// used by "Undo last write". Unlike <see cref="Write"/>, a null field here means CLEAR (the
-    /// field had no value before the undone write): BPM → 0, key → blank, and the ENERGY /
+    /// field had no value before the undone write): BPM -> 0, key -> blank, and the ENERGY /
     /// JUSTPLAY custom fields are removed. Non-null fields are written back verbatim.
     /// </summary>
     void Restore(string filePath, TagRestore restore);
@@ -38,7 +38,7 @@ public interface IMetadataWriter
     /// Write the editorial fields from <paramref name="tags"/> to the file and save.
     /// <para>
     /// Analysis fields (BPM, key, energy, JUSTPLAY blob, ReplayGain, POPM) are
-    /// intentionally NOT touched — this method is purely editorial.
+    /// intentionally NOT touched - this method is purely editorial.
     /// </para>
     /// </summary>
     /// <param name="filePath">Path to the audio file to update.</param>
@@ -60,13 +60,13 @@ public interface IMetadataWriter
         byte[]? newCover, string? coverMimeType);
 
     /// <summary>
-    /// Set the ID3v2 version + text encoding used when SAVING MP3 tags — process-global (TagLib#
+    /// Set the ID3v2 version + text encoding used when SAVING MP3 tags - process-global (TagLib#
     /// static config). Call once at startup and whenever the user changes the preference. Non-MP3
     /// containers (FLAC / MP4 / Ogg) are unaffected.
     /// <para>
     /// An app that never calls this writes in the shape of <see cref="Id3WriteFormat.KeepFileVersion"/>:
     /// files keep their own version and encodings. Calling it with one of the three converting modes is
-    /// what turns saving into normalising — see <see cref="Id3WriteFormat"/> before you wire it up.
+    /// what turns saving into normalising - see <see cref="Id3WriteFormat"/> before you wire it up.
     /// </para>
     /// </summary>
     void ConfigureId3WriteFormat(Id3WriteFormat format);
@@ -74,7 +74,7 @@ public interface IMetadataWriter
 
 /// <summary>
 /// Describes a single write: which standard fields to set (null = leave as-is) and
-/// the full <see cref="TrackAnalysisState"/> blob to stamp. Camelot is NOT written —
+/// the full <see cref="TrackAnalysisState"/> blob to stamp. Camelot is NOT written -
 /// it is derived from the musical key on read, so the comment stays the user's
 /// unless <see cref="Comment"/> is explicitly set (opt-in DJ Software compatible mode).
 /// </summary>
@@ -100,8 +100,8 @@ public sealed record TagWrite
     public string? Comment { get; init; }
 
     /// <summary>
-    /// When non-null, set or clear the POPM favourite flag. True → write POPM rating 255
-    /// ("loved", the Windows Media Player convention); false → remove the POPM frame.
+    /// When non-null, set or clear the POPM favourite flag. True -> write POPM rating 255
+    /// ("loved", the Windows Media Player convention); false -> remove the POPM frame.
     /// Null = leave the POPM frame untouched.
     /// </summary>
     public bool? Favorite { get; init; }
@@ -120,7 +120,7 @@ public sealed record TagWrite
 
     /// <summary>
     /// When non-null, write this string into the file's Content Group (Grouping) tag.
-    /// ID3v2: TIT1 frame; MP4: ©grp; FLAC: GROUPING comment.
+    /// ID3v2: TIT1 frame; MP4: (c)grp; FLAC: GROUPING comment.
     /// Used by the CLI batch tagger to stamp the JP vibe tag where DJ software
     /// surfaces the Grouping column.  Null = leave the field untouched.
     /// </summary>
@@ -129,27 +129,27 @@ public sealed record TagWrite
 
 /// <summary>
 /// A snapshot of the tag fields JustPlay touches, captured before a write so the write can be
-/// undone. Null means the field was empty before — <see cref="IMetadataWriter.Restore"/> clears
+/// undone. Null means the field was empty before - <see cref="IMetadataWriter.Restore"/> clears
 /// it rather than leaving it (the key difference from <see cref="TagWrite"/>).
 /// </summary>
 public sealed record TagRestore
 {
-    /// <summary>Previous standard tempo tag; null → clear (BPM 0).</summary>
+    /// <summary>Previous standard tempo tag; null -> clear (BPM 0).</summary>
     public double? Bpm { get; init; }
 
-    /// <summary>Previous standard key tag; null → clear.</summary>
+    /// <summary>Previous standard key tag; null -> clear.</summary>
     public MusicalKey? Key { get; init; }
 
-    /// <summary>Previous ENERGY custom field; null → remove the field.</summary>
+    /// <summary>Previous ENERGY custom field; null -> remove the field.</summary>
     public int? Energy { get; init; }
 
-    /// <summary>Previous JUSTPLAY blob (parsed); null → remove the field.</summary>
+    /// <summary>Previous JUSTPLAY blob (parsed); null -> remove the field.</summary>
     public TrackAnalysisState? State { get; init; }
 
     /// <summary>
     /// Previous comment field value, captured only when the "DJ Software compatible" comment
     /// feature was active at write time. Null = the feature was off, or the comment was not
-    /// captured — <see cref="IMetadataWriter.Restore"/> leaves the comment untouched in that case.
+    /// captured - <see cref="IMetadataWriter.Restore"/> leaves the comment untouched in that case.
     /// A non-null value (including empty string) is written back verbatim so even a previously-
     /// empty comment is correctly restored.
     /// </summary>
@@ -163,12 +163,12 @@ public sealed record TagRestore
     public bool CommentCaptured { get; init; }
 
     /// <summary>
-    /// Previous <c>REPLAYGAIN_TRACK_GAIN</c> value; null → remove the field on restore.
+    /// Previous <c>REPLAYGAIN_TRACK_GAIN</c> value; null -> remove the field on restore.
     /// </summary>
     public double? ReplayGainDb { get; init; }
 
     /// <summary>
-    /// Previous <c>REPLAYGAIN_TRACK_PEAK</c> value; null → remove the field on restore.
+    /// Previous <c>REPLAYGAIN_TRACK_PEAK</c> value; null -> remove the field on restore.
     /// </summary>
     public double? Peak { get; init; }
 }

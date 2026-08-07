@@ -25,7 +25,7 @@ public sealed class JsonStreamSettingsService
     public StreamSettings Current { get; private set; }
 
     /// <summary>
-    /// Invoked ONCE with a human message when a settings save fails (disk full, denied path) — so it
+    /// Invoked ONCE with a human message when a settings save fails (disk full, denied path) - so it
     /// surfaces in the log WINDOW instead of dying silently. Same "storage never crashes; worst case
     /// log-window only" rule as <see cref="Logging.SessionLog"/> (Chloe 2026-07-05).
     /// </summary>
@@ -65,13 +65,13 @@ public sealed class JsonStreamSettingsService
         }
         catch (Exception ex)
         {
-            // Never crash on a failed save — the change stays live in memory for this session.
-            // Surface the first failure to the log window (once — a full disk would spam otherwise).
+            // Never crash on a failed save - the change stays live in memory for this session.
+            // Surface the first failure to the log window (once - a full disk would spam otherwise).
             Console.WriteLine($"[Settings] Save failed: {ex.Message}");
             if (!_reportedSaveFailure)
             {
                 _reportedSaveFailure = true;
-                try { OnSaveFailed?.Invoke($"Settings could not be saved ({ex.Message}) — your changes stay active for this session but may not persist."); }
+                try { OnSaveFailed?.Invoke($"Settings could not be saved ({ex.Message}) - your changes stay active for this session but may not persist."); }
                 catch { /* the error reporter must never become the error */ }
             }
         }

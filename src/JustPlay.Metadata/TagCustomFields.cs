@@ -2,7 +2,7 @@ namespace JustPlay.Metadata;
 
 /// <summary>
 /// Reads/writes JustPlay's non-standard fields (ENERGY, JUSTPLAY blob) in whatever
-/// tag system the file uses — ID3v2 <c>TXXX</c> frames (MP3) or Xiph comment fields
+/// tag system the file uses - ID3v2 <c>TXXX</c> frames (MP3) or Xiph comment fields
 /// (FLAC/OGG). Formats with neither (e.g. some MP4s) degrade gracefully: the custom
 /// field is simply not persisted and the track falls back to re-analysis.
 /// </summary>
@@ -30,7 +30,7 @@ internal static class TagCustomFields
             return;
         }
 
-        // Default to ID3v2 (covers MP3, including tagless — created on demand).
+        // Default to ID3v2 (covers MP3, including tagless - created on demand).
         if (file.GetTag(TagLib.TagTypes.Id3v2, true) is TagLib.Id3v2.Tag id3)
         {
             var frame = TagLib.Id3v2.UserTextInformationFrame.Get(id3, key, true);

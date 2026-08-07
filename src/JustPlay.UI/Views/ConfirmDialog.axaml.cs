@@ -8,7 +8,7 @@ namespace JustPlay.UI.Views;
 /// <summary>What the user chose when asked about unsaved work.</summary>
 public enum SaveChoice
 {
-    /// <summary>Stay where we are and change nothing — the safe answer, and the one a stray
+    /// <summary>Stay where we are and change nothing - the safe answer, and the one a stray
     /// keystroke or a click outside must land on.</summary>
     Cancel,
 
@@ -20,7 +20,7 @@ public enum SaveChoice
 }
 
 /// <summary>
-/// Shared tiny themed confirmation dialog for the J.U.S.T. suite — the counterpart
+/// Shared tiny themed confirmation dialog for the J.U.S.T. suite - the counterpart
 /// to <see cref="InputDialog"/> for actions that would discard work ("New project?",
 /// destructive resets). <see cref="AskAsync"/> shows it modally and returns true only on
 /// an explicit confirm; Esc / Cancel / closing = false. Enter confirms, Esc cancels.
@@ -40,13 +40,13 @@ public partial class ConfirmDialog : Window
         dlg.MessageText.Text = message;
         dlg.ConfirmButton.Content = confirmLabel;
         dlg.CancelButton.Content = cancelLabel;
-        dlg.CancelButton.Focus();   // safe default — Enter is the deliberate gesture
+        dlg.CancelButton.Focus();   // safe default - Enter is the deliberate gesture
         return await dlg.ShowDialog<bool?>(owner) == true;
     }
 
     /// <summary>
     /// Ask about unsaved edits: Save / Discard / Cancel. Anything that is not an explicit Save or
-    /// Discard — Esc, the close button, clicking away — is <see cref="SaveChoice.Cancel"/>, because
+    /// Discard - Esc, the close button, clicking away - is <see cref="SaveChoice.Cancel"/>, because
     /// the only harmless answer to "you have unsaved work" is to leave it alone.
     /// </summary>
     public static async Task<SaveChoice> AskSaveDiscardCancelAsync(
@@ -65,7 +65,7 @@ public partial class ConfirmDialog : Window
         return await dlg.ShowDialog<SaveChoice?>(owner) ?? SaveChoice.Cancel;
     }
 
-    /// <summary>Which result type this instance closes with — the two entry points are answered by
+    /// <summary>Which result type this instance closes with - the two entry points are answered by
     /// different callers awaiting different types, so the close value has to match the question.</summary>
     private bool _threeWay;
 

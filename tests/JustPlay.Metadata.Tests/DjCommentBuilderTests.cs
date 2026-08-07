@@ -4,17 +4,17 @@ using JustPlay.Metadata;
 namespace JustPlay.Metadata.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="DjCommentBuilder"/> — format, strip, and edge cases.
+/// Unit tests for <see cref="DjCommentBuilder"/> - format, strip, and edge cases.
 /// These are pure-logic tests with no file I/O.
 /// </summary>
 public class DjCommentBuilderTests
 {
-    // Convenience: A minor = pitch class 9, mode Minor → Camelot "8A".
+    // Convenience: A minor = pitch class 9, mode Minor -> Camelot "8A".
     private static readonly MusicalKey AMinor = new(9, KeyMode.Minor);
-    // C major = pitch class 0, mode Major → Camelot "8B".
+    // C major = pitch class 0, mode Major -> Camelot "8B".
     private static readonly MusicalKey CMajor = new(0, KeyMode.Major);
 
-    // ── BuildSegment ───────────────────────────────────────────────────────
+    // -- BuildSegment -------------------------------------------------------
 
     [Fact]
     public void BuildSegment_KeyAndEnergy_FullFormat()
@@ -52,7 +52,7 @@ public class DjCommentBuilderTests
         Assert.Equal("8B - Energy 5", result);
     }
 
-    // ── Build (with existing comment handling) ─────────────────────────────
+    // -- Build (with existing comment handling) -----------------------------
 
     [Fact]
     public void Build_NoExistingComment_SegmentOnly()
@@ -78,12 +78,12 @@ public class DjCommentBuilderTests
     [Fact]
     public void Build_NullKeyAndEnergy_ReturnsNull()
     {
-        // Nothing to write — caller should leave comment untouched.
+        // Nothing to write - caller should leave comment untouched.
         var result = DjCommentBuilder.Build(null, null, "my note");
         Assert.Null(result);
     }
 
-    // ── Idempotency (strip old prefix before re-prepending) ────────────────
+    // -- Idempotency (strip old prefix before re-prepending) ----------------
 
     [Fact]
     public void Build_Idempotent_WritingTwiceDoesNotDuplicate()
@@ -128,7 +128,7 @@ public class DjCommentBuilderTests
         Assert.Equal("8A - Energy 9 | my note", second);
     }
 
-    // ── Strip ──────────────────────────────────────────────────────────────
+    // -- Strip --------------------------------------------------------------
 
     [Fact]
     public void Strip_FullSegmentWithUserText_ReturnsUserTextOnly()
@@ -172,7 +172,7 @@ public class DjCommentBuilderTests
         Assert.Equal("", result);
     }
 
-    // ── Strip: legacy JP vibe blob (the cryptic "Romane" we're cleaning up) ───
+    // -- Strip: legacy JP vibe blob (the cryptic "Romane" we're cleaning up) ---
 
     [Fact]
     public void Strip_JpBlobOnly_ReturnsEmpty()
@@ -203,7 +203,7 @@ public class DjCommentBuilderTests
         Assert.Equal("JPlayed this at Awakenings", result);
     }
 
-    // ── Build: rebuild a clean MIK comment from a file polluted with the JP blob ──
+    // -- Build: rebuild a clean MIK comment from a file polluted with the JP blob --
 
     [Fact]
     public void Build_OverJpBlob_ProducesCleanMikComment()
@@ -221,7 +221,7 @@ public class DjCommentBuilderTests
         Assert.Equal("8A - Energy 7 | banger", result);
     }
 
-    // ── N21 AIFF edge case: some AIFF files had "{MIK segment} | {JP blob}" ──
+    // -- N21 AIFF edge case: some AIFF files had "{MIK segment} | {JP blob}" --
     // The early batch writer produced this form for AIFF files. After the MIK
     // prefix is stripped, the JP blob should also be stripped from the tail.
 
@@ -241,7 +241,7 @@ public class DjCommentBuilderTests
         // AIFF comment format: "{MIK segment} | {JP blob}"
         var aiffComment = "6A - Energy 6 | JP|E6|K6A|bpm126|gc.55|gr.25|pu.22|hy.00|dk.77|hx.29";
         var result = DjCommentBuilder.Build(AMinor, 7, aiffComment);
-        // The result must NOT contain "JP|" — only the clean segment.
+        // The result must NOT contain "JP|" - only the clean segment.
         Assert.Equal("8A - Energy 7", result);
         Assert.DoesNotContain("JP|", result);
     }
@@ -253,8 +253,8 @@ public class DjCommentBuilderTests
         // (hypothetical; the JP blob's " | " separator separates it from user text)
         var aiffComment = "6A - Energy 6 | JP|E6|K6A|bpm126|gc.55 | my note";
         var result = DjCommentBuilder.Build(AMinor, 7, aiffComment);
-        // Strip: remove "6A - Energy 6 | " → "JP|E6|K6A|bpm126|gc.55 | my note"
-        // Strip: remove JP blob → "my note"
+        // Strip: remove "6A - Energy 6 | " -> "JP|E6|K6A|bpm126|gc.55 | my note"
+        // Strip: remove JP blob -> "my note"
         // Build: "8A - Energy 7 | my note"
         Assert.Equal("8A - Energy 7 | my note", result);
     }

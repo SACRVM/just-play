@@ -14,13 +14,13 @@ namespace JustPlay.Stream;
 
 internal sealed class Program
 {
-    /// <summary>Composition root — the one place that knows the concrete BASS backends.</summary>
+    /// <summary>Composition root - the one place that knows the concrete BASS backends.</summary>
     public static IServiceProvider Services { get; private set; } = default!;
 
     [STAThread]
     public static void Main(string[] args)
     {
-        // Crash safety net (memory: never-crash-error-reporter) — log instead of dying silently.
+        // Crash safety net (memory: never-crash-error-reporter) - log instead of dying silently.
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             LogCrash(e.ExceptionObject as Exception, "AppDomain.UnhandledException (fatal)");
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -68,7 +68,7 @@ internal sealed class Program
         services.AddSingleton<IBassMixerSource>(sp => sp.GetRequiredService<BassInputCaptureEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
         // "Record your set": a SECOND, independent encoder on the same post-DSP mixer the
-        // broadcast taps — its failure (disk full etc.) can never touch the stream.
+        // broadcast taps - its failure (disk full etc.) can never touch the stream.
         services.AddSingleton<IRecordingService, BassRecordingService>();
 
         services.AddSingleton<JsonStreamSettingsService>();
@@ -76,7 +76,7 @@ internal sealed class Program
         // Shared SessionLog (JustPlay.Core), parameterised with this app's LocalAppData folder.
         services.AddSingleton<JustPlay.Core.Logging.ISessionLog>(_ => new JustPlay.Core.Logging.SessionLog("JustStream"));
 
-        // Shared J.U.S.T. live-theme engine (JustPlay.UI) — same palettes as JUST PLAY, applied at
+        // Shared J.U.S.T. live-theme engine (JustPlay.UI) - same palettes as JUST PLAY, applied at
         // startup so the design system + brand icon track the active theme (and can switch live).
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
 

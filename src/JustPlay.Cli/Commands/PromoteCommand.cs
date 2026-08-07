@@ -21,19 +21,19 @@ namespace JustPlay.Cli.Commands;
 /// <see cref="TrackViewModel.KeyConflict"/> fires when
 /// <c>KeyDecision == Pending AND DetectedKey != null AND TKEY is set AND TKEY.Camelot != DetectedKey.Camelot</c>.
 /// After N12 wrote TKEY from the v9 index but NOT the JUSTPLAY blob, ~89 % of files
-/// have TKEY but no blob → in-session analysis creates the conflict dot.
+/// have TKEY but no blob -> in-session analysis creates the conflict dot.
 /// </para>
 ///
 /// <para>
 /// <b>Strategy (no re-DSP):</b>
 /// <list type="number">
-///   <item>Files that ALREADY have all decisions = Applied → skip (already correct).</item>
-///   <item>Files with a blob but not fully Applied → update decisions to Applied, re-stamp
+///   <item>Files that ALREADY have all decisions = Applied -> skip (already correct).</item>
+///   <item>Files with a blob but not fully Applied -> update decisions to Applied, re-stamp
 ///     the blob with CurrentVersion, leave Detected values untouched.</item>
-///   <item>Files with NO blob → compute SHA-256, look up in the v9 SETS index by hash,
+///   <item>Files with NO blob -> compute SHA-256, look up in the v9 SETS index by hash,
 ///     build a full <see cref="TrackAnalysisState"/> from the index entry, stamp
 ///     decisions = Applied, write TKEY + blob in one TagLib# save.</item>
-///   <item>Files not found in the index → skip with a warning (needs manual analysis).</item>
+///   <item>Files not found in the index -> skip with a warning (needs manual analysis).</item>
 /// </list>
 /// </para>
 ///
@@ -41,7 +41,7 @@ namespace JustPlay.Cli.Commands;
 /// </summary>
 internal static class PromoteCommand
 {
-    // ─── Backup JSON: (filePath, tkey, energy, blobJson) before first write ───
+    // --- Backup JSON: (filePath, tkey, energy, blobJson) before first write ---
     private const string BackupFileName = "n15-promote-backup.json";
 
     public static int Run(
@@ -56,7 +56,7 @@ internal static class PromoteCommand
         bool    retag = false,
         // Path to a text file with one audio-file path per line: promote exactly these
         // files (each must live under root) instead of walking the whole root. Ingest
-        // scoping — new files only, the rest of the library is out of reach by construction.
+        // scoping - new files only, the rest of the library is out of reach by construction.
         string? filesListPath = null)
     {
         indexPath = Path.GetFullPath(indexPath);
@@ -80,13 +80,13 @@ internal static class PromoteCommand
             Console.WriteLine($"[promote] --retag : ON (will re-stamp TKEY/TBPM/ENERGY even for Applied files)");
         Console.WriteLine();
 
-        // ─── Load index, build lookup tables ─────────────────────────────
+        // --- Load index, build lookup tables -----------------------------
         Console.WriteLine("[promote] Loading index...");
         var index = TrackIndex.Load(indexPath);
         Console.WriteLine($"[promote] Index entries: {index.Entries.Count:N0}");
 
-        // Primary: hash → entry (exact match, robust to rename; fails after tag-writes change bytes).
-        // Fallback: filename (case-insensitive) → entry (the N12 tag-writes changed hashes,
+        // Primary: hash -> entry (exact match, robust to rename; fails after tag-writes change bytes).
+        // Fallback: filename (case-insensitive) -> entry (the N12 tag-writes changed hashes,
         //           so hash-matching fails for all tagged files; filenames are stable).
         var byHash     = new Dictionary<string, TrackIndexEntry>(StringComparer.OrdinalIgnoreCase);
         var byFileName = new Dictionary<string, TrackIndexEntry>(StringComparer.OrdinalIgnoreCase);
@@ -110,7 +110,7 @@ internal static class PromoteCommand
             Console.WriteLine($"[promote] Filename collisions (first entry wins): {string.Join(", ", fileNameCollisions)}");
         Console.WriteLine();
 
-        // ─── Enumerate GENRES audio files (or take the explicit --files scope) ───
+        // --- Enumerate GENRES audio files (or take the explicit --files scope) ---
         List<string> files;
         if (filesListPath is not null)
         {
@@ -124,14 +124,14 @@ internal static class PromoteCommand
             if (outside.Count > 0)
             {
                 Console.Error.WriteLine($"[promote] ERROR: {outside.Count} --files entries are outside root " +
-                                        $"(first: {outside[0]}) — refusing to run.");
+                                        $"(first: {outside[0]}) - refusing to run.");
                 return 1;
             }
             var missing = files.Where(f => !File.Exists(f)).ToList();
             if (missing.Count > 0)
             {
                 Console.Error.WriteLine($"[promote] ERROR: {missing.Count} --files entries do not exist " +
-                                        $"(first: {missing[0]}) — refusing to run.");
+                                        $"(first: {missing[0]}) - refusing to run.");
                 return 1;
             }
             Console.WriteLine($"[promote] Scoped to --files list: {files.Count:N0} files");
@@ -143,13 +143,13 @@ internal static class PromoteCommand
         }
         Console.WriteLine();
 
-        // ─── Backup: record current tags before any write ─────────────────
+        // --- Backup: record current tags before any write -----------------
         //   N12 may already have left a backup. This command's backup is separate
         //   and covers the CURRENT state (post-N12) as the undo source for this run.
         var backupPath = Path.Combine(backupDir ?? Path.GetDirectoryName(indexPath)!, BackupFileName);
         var backupExists = File.Exists(backupPath);
         if (backupExists)
-            Console.WriteLine($"[promote] Backup already exists at {backupPath} — will NOT overwrite.");
+            Console.WriteLine($"[promote] Backup already exists at {backupPath} - will NOT overwrite.");
         else
             Console.WriteLine($"[promote] Backup will be written to: {backupPath}");
         Console.WriteLine();
@@ -169,7 +169,7 @@ internal static class PromoteCommand
 
         foreach (var filePath in files)
         {
-            // ── 1. Read current metadata (tag-I/O, no decode) ─────────────
+            // -- 1. Read current metadata (tag-I/O, no decode) -------------
             TrackMetadata meta;
             try
             {
@@ -184,7 +184,7 @@ internal static class PromoteCommand
 
             var existingBlob = meta.StoredAnalysis;
 
-            // ── 2. Check if already fully Applied ──────────────────────────
+            // -- 2. Check if already fully Applied --------------------------
             // N21 --retag: even if decisions=Applied, re-stamp the standard tags
             // (TKEY/TBPM/ENERGY) from the blob to fix the ~4% of files where N15
             // left a stale TKEY. In retag mode we never skip Applied files entirely;
@@ -196,7 +196,7 @@ internal static class PromoteCommand
                 continue; // already correct, no write needed
             }
 
-            // ── 3. Determine the new state ─────────────────────────────────
+            // -- 3. Determine the new state ---------------------------------
             TrackAnalysisState? newState;
             string? detectedKeyStr = null; // Camelot string, for display
 
@@ -204,7 +204,7 @@ internal static class PromoteCommand
             {
                 // Has blob but decisions not fully Applied (or --retag forces re-stamp).
                 // N21 --retag path: blob is Applied but TKEY may be stale. Check if
-                // TKEY already matches the blob key — if yes, skip the write to avoid
+                // TKEY already matches the blob key - if yes, skip the write to avoid
                 // touching files unnecessarily (only ~4% of Applied files need this fix).
                 if (retag && IsFullyApplied(existingBlob))
                 {
@@ -224,7 +224,7 @@ internal static class PromoteCommand
                     if (keyMatch && bpmMatch && energyMatch)
                     {
                         alreadyDone++;
-                        continue; // standard tags are already consistent with blob — skip
+                        continue; // standard tags are already consistent with blob - skip
                     }
                     // Falls through: standard tags need updating (TKEY/TBPM/ENERGY stale).
                 }
@@ -242,12 +242,12 @@ internal static class PromoteCommand
             }
             else
             {
-                // No blob → match to v9 index.
+                // No blob -> match to v9 index.
                 // Strategy: filename first (fast, zero file I/O), hash as fallback.
                 //
                 // After N12's tag writes (which changed SHA-256 for all tagged files),
                 // hash-first would read every file fully over the NAS just to miss.
-                // Filename is stable across the SETS→GENRES move and across tag writes.
+                // Filename is stable across the SETS->GENRES move and across tag writes.
                 //
                 // Hash fallback catches the rare edge case where two files share a name
                 // (only 2 such collisions exist in this index) by disambiguating via hash.
@@ -256,7 +256,7 @@ internal static class PromoteCommand
 
                 // Primary: filename lookup.
                 if (fileNameCollisions.Contains(fname))
-                    Console.Error.WriteLine($"  [WARN] filename-collision {fname} — using first index entry");
+                    Console.Error.WriteLine($"  [WARN] filename-collision {fname} - using first index entry");
                 if (byFileName.TryGetValue(fname, out entry))
                     matchedByName++;
 
@@ -278,7 +278,7 @@ internal static class PromoteCommand
 
                 if (entry is null)
                 {
-                    // Not found by hash OR filename → needs fresh analysis.
+                    // Not found by hash OR filename -> needs fresh analysis.
                     Console.Error.WriteLine($"  [skip] not-in-index  {fname}");
                     notInIndex++;
                     continue;
@@ -289,12 +289,12 @@ internal static class PromoteCommand
                 detectedKeyStr = entry.KeyCamelot;
 
                 // The "original" is what TKEY / TBPM / ENERGY currently hold.
-                // This mirrors what Persist() does in MainWindowViewModel — stash the
+                // This mirrors what Persist() does in MainWindowViewModel - stash the
                 // pre-overwrite foreign value so the write is reversible in the app.
                 // NOTE: N12 already wrote TKEY = detected key from the same v9 analysis,
                 // so Original.Key will equal Detected.Key for most files. The "Restore
                 // original" menu in the app will be available but will restore the same
-                // value — harmless, since the true pre-N12 original is no longer in the file.
+                // value - harmless, since the true pre-N12 original is no longer in the file.
                 var origKey    = MusicalKey.TryParse(meta.TaggedKey);
                 var origBpm    = meta.TaggedBpm;
                 var origEnergy = meta.TaggedEnergy;
@@ -313,7 +313,7 @@ internal static class PromoteCommand
                 };
             }
 
-            // ── 4. Collect backup entry (before the first actual write) ────
+            // -- 4. Collect backup entry (before the first actual write) ----
             backupRecords.Add(new PromoteBackupEntry
             {
                 FilePath   = filePath,
@@ -326,18 +326,18 @@ internal static class PromoteCommand
                     : null,
             });
 
-            // ── 5. Build the write: standard tags + blob ───────────────────
-            //   §4 tag contract (NAS CLAUDE.md): TKEY = Camelot, TBPM always set,
+            // -- 5. Build the write: standard tags + blob -------------------
+            //   Sec.4 tag contract (NAS CLAUDE.md): TKEY = Camelot, TBPM always set,
             //   TXXX:ENERGY, and EXACTLY ONE clean COMM "<Camelot> - Energy <nrg>"
-            //   rebuilt from the SAME detected values — so standard tag == COMM ==
+            //   rebuilt from the SAME detected values - so standard tag == COMM ==
             //   blob and no field can drift (the 2026-07-16 ingest shipped files
             //   whose COMM disagreed with TKEY/ENERGY; fixed by fix_contract.py).
             //   Also preserves the ReplayGain tag if we have loudness data.
 
-            // TBPM fallback: detected BPM, else the ORIGINAL tag BPM (blob 'obpm') —
+            // TBPM fallback: detected BPM, else the ORIGINAL tag BPM (blob 'obpm') -
             // the analyzer leaves Detected.Bpm null when it finds no confident beat
             // ("Billie Jean"). NOTE: the serialized blob's 'abpm' is the BPM DECISION
-            // code (a letter, e.g. 'A' = Applied), never a tempo — only these two
+            // code (a letter, e.g. 'A' = Applied), never a tempo - only these two
             // numeric sources are eligible.
             var contractBpm = newState.Detected.Bpm ?? newState.Original?.Bpm;
 
@@ -346,7 +346,7 @@ internal static class PromoteCommand
             // and keeps genuine user text behind " | ".
             string? existingComment = null;
             try { existingComment = composer.MetadataReader.ReadEditable(filePath).Comment; }
-            catch { /* unreadable comment → build the bare segment */ }
+            catch { /* unreadable comment -> build the bare segment */ }
 
             var tagWrite = new TagWrite
             {
@@ -386,7 +386,7 @@ internal static class PromoteCommand
             }
         }
 
-        // ── 6. Save backup (only if applying and we have records) ─────────
+        // -- 6. Save backup (only if applying and we have records) ---------
         if (apply && backupRecords.Count > 0 && !backupExists)
         {
             try
@@ -405,7 +405,7 @@ internal static class PromoteCommand
             }
         }
 
-        // ── Summary ───────────────────────────────────────────────────────
+        // -- Summary -------------------------------------------------------
         Console.WriteLine();
         Console.WriteLine($"[promote] Done.");
         Console.WriteLine($"  Already Applied  : {alreadyDone,6:N0}");
@@ -418,17 +418,17 @@ internal static class PromoteCommand
         if (!apply)
         {
             Console.WriteLine();
-            Console.WriteLine("[promote] DRY-RUN only — no files were written. Re-run with --apply to commit.");
+            Console.WriteLine("[promote] DRY-RUN only - no files were written. Re-run with --apply to commit.");
         }
 
         return failed > 0 ? 2 : 0;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
-    /// <summary>All three decisions = Applied → no conflict dots possible.</summary>
+    /// <summary>All three decisions = Applied -> no conflict dots possible.</summary>
     private static bool IsFullyApplied(TrackAnalysisState? state) =>
         state is
         {
@@ -446,7 +446,7 @@ internal static class PromoteCommand
     }
 }
 
-// ─── Backup DTO + JSON context ────────────────────────────────────────────────
+// --- Backup DTO + JSON context ------------------------------------------------
 
 /// <summary>One entry in the promote-backup JSON: the pre-write tag state.</summary>
 internal sealed record PromoteBackupEntry

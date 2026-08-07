@@ -1,6 +1,6 @@
 namespace JustPlay.Library;
 
-/// <summary>Tunables for <see cref="AnalysisBatchRunner"/>. All optional — see each property.</summary>
+/// <summary>Tunables for <see cref="AnalysisBatchRunner"/>. All optional - see each property.</summary>
 public sealed record AnalysisBatchOptions
 {
     /// <summary>
@@ -11,7 +11,7 @@ public sealed record AnalysisBatchOptions
 
     /// <summary>
     /// How many files may be analysed at once. Comes from <c>UserSettings.AnalysisThreads</c>
-    /// (default 4) — ⚠ passed IN by the caller: the library layer never reads settings. Clamped to
+    /// (default 4) - (!) passed IN by the caller: the library layer never reads settings. Clamped to
     /// 1..<see cref="MaxSupportedConcurrency"/>.
     /// </summary>
     public int MaxConcurrency { get; init; } = 4;
@@ -42,58 +42,58 @@ public sealed record AnalysisBatchReport
     /// <summary>Files that no longer needed analysis when their turn came.</summary>
     public int Skipped { get; init; }
 
-    /// <summary>Still queued — non-zero only for a cancelled run. The queue kept them.</summary>
+    /// <summary>Still queued - non-zero only for a cancelled run. The queue kept them.</summary>
     public int Remaining { get; init; }
 
     /// <summary>True when the run stopped because its <see cref="CancellationToken"/> fired.</summary>
     public bool Cancelled { get; init; }
 
-    /// <summary>Every track that failed, by name. ⛔ Never truncated — a dropped name is a dropped track.</summary>
+    /// <summary>Every track that failed, by name. (!!) Never truncated - a dropped name is a dropped track.</summary>
     public IReadOnlyList<AnalysisFailure> Failures { get; init; } = [];
 
-    /// <summary>Working time — pauses and gate-closed stretches excluded.</summary>
+    /// <summary>Working time - pauses and gate-closed stretches excluded.</summary>
     public TimeSpan Elapsed { get; init; }
 
     /// <summary>One line for the log / library panel.</summary>
     public override string ToString() =>
-        $"{Succeeded:N0} analysed · {Skipped:N0} already done · {Failed:N0} failed · " +
-        $"{Remaining:N0} left{(Cancelled ? " (stopped)" : "")} · {Elapsed.TotalMinutes:F1} min working";
+        $"{Succeeded:N0} analysed - {Skipped:N0} already done - {Failed:N0} failed - " +
+        $"{Remaining:N0} left{(Cancelled ? " (stopped)" : "")} - {Elapsed.TotalMinutes:F1} min working";
 }
 
 /// <summary>
-/// Runs the analysis queue that <see cref="LibrarySync.Reconcile"/> hands back — the thin adapter
+/// Runs the analysis queue that <see cref="LibrarySync.Reconcile"/> hands back - the thin adapter
 /// around <see cref="AnalysisQueue"/> (milestone 0.6, P2). It owns the workers and the waiting;
 /// <see cref="AnalysisQueue"/> owns every decision.
 ///
 /// <para><b>It does not know what analysis IS.</b> The DSP arrives as an injected
 /// <c>Func&lt;string, CancellationToken, Task&gt;</c>, so this project keeps its layering: no
-/// Avalonia, no ManagedBass, no reference to <c>JustPlay.Analysis</c> — and the tests never decode a
-/// single sample. ⚠ One delegate, not an "analyse" plus a "persist" pair: the runner never inspects
+/// Avalonia, no ManagedBass, no reference to <c>JustPlay.Analysis</c> - and the tests never decode a
+/// single sample. (!) One delegate, not an "analyse" plus a "persist" pair: the runner never inspects
 /// a result, so splitting it would only fix an ordering the caller may legitimately want to own.</para>
 ///
 /// <para><b>The tag-write seam (do NOT build a second write path).</b> Everything the caller wants to
-/// happen per file goes INSIDE that one delegate — run the DSP, map the result with
+/// happen per file goes INSIDE that one delegate - run the DSP, map the result with
 /// <see cref="TrackIndexMapping.ToIndexEntry"/>, upsert it into <see cref="LibraryDb"/>, and, if
 /// <c>UserSettings.AutoWriteOnAnalyze</c> is on, hand it to the EXISTING write path
-/// (<c>MainWindowViewModel.WriteDetected</c> → <c>Persist</c> → <c>PlaybackController.WithFileReleased</c>
+/// (<c>MainWindowViewModel.WriteDetected</c> -> <c>Persist</c> -> <c>PlaybackController.WithFileReleased</c>
 /// / <c>PendingTagWriteQueue</c>), which already defers a write for the currently playing track. The
-/// runner deliberately writes nothing itself — not a tag, not a database row.</para>
+/// runner deliberately writes nothing itself - not a tag, not a database row.</para>
 ///
 /// <para><b>Gig-safe: it yields to playback and to being on air.</b> <c>mayWorkNow</c> is polled
 /// before EVERY file. When it closes:</para>
 /// <list type="bullet">
-/// <item><description>no new file is leased — so the batch actually stops within one track's decode,
+/// <item><description>no new file is leased - so the batch actually stops within one track's decode,
 /// with a tail bounded by the worker count;</description></item>
 /// <item><description><b>a file already in flight FINISHES.</b> Deliberate, and the opposite choice
 /// would be worse: aborting a half-decoded track throws away everything already pulled over SMB and
 /// guarantees the same file is read from byte zero again later, so an abort costs MORE NAS traffic
 /// than finishing, not less. Finishing also produces a row, which is what makes resume exact. Same
 /// shape as <see cref="LibraryWatcher"/>, which checks the gate at tick start and lets the in-flight
-/// sweep finish — one rule for the observer and the batch instead of two (memory
+/// sweep finish - one rule for the observer and the batch instead of two (memory
 /// <c>suite-unify-dont-patch-divergence</c>).</description></item>
 /// <item><description>a caller that genuinely needs a HARD stop (app shutdown) has one: the
 /// <see cref="CancellationToken"/> is passed straight into the DSP delegate. Yield and cancel are
-/// separate controls on purpose — yield is "later", cancel is "stop".</description></item>
+/// separate controls on purpose - yield is "later", cancel is "stop".</description></item>
 /// </list>
 ///
 /// <para><b>Resume across restarts, with no second bookkeeping file.</b> Two mechanisms, both
@@ -107,7 +107,7 @@ public sealed record AnalysisBatchReport
 /// <item><description><c>stillNeedsAnalysis</c> is re-checked at LEASE time, not at queue-build time.
 /// A 3,015-file batch runs for hours; meanwhile the observer, the CLI, or the other machine's tag
 /// write may have analysed some of them. An indexed lookup costs microseconds against seconds of DSP,
-/// so re-asking is free — and files skipped that way are counted, never silently dropped.</description></item>
+/// so re-asking is free - and files skipped that way are counted, never silently dropped.</description></item>
 /// </list>
 ///
 /// <para><b>A failure never stops the batch.</b> The file is recorded by name in
@@ -127,13 +127,13 @@ public sealed class AnalysisBatchRunner
 
     /// <param name="analyse">The DSP, injected. Called once per file, off the UI thread, with the
     /// run's cancellation token. Whatever else should happen per file (index upsert, tag write via
-    /// the existing path) belongs in here — see the class doc's "tag-write seam".</param>
+    /// the existing path) belongs in here - see the class doc's "tag-write seam".</param>
     /// <param name="mayWorkNow">The gig-safe gate: false while a track is playing or JUST STREAM is
     /// on air. Polled before every file. This project stays platform-agnostic by not knowing WHAT the
-    /// predicate checks — exactly like <see cref="LibraryWatcher"/>'s parameter of the same name. A
+    /// predicate checks - exactly like <see cref="LibraryWatcher"/>'s parameter of the same name. A
     /// predicate that throws is read as CLOSED (yielding is the conservative answer).</param>
     /// <param name="options">Tunables; <see cref="AnalysisBatchOptions.Default"/> if omitted.</param>
-    /// <param name="stillNeedsAnalysis">Optional re-check at lease time — "does this file still have
+    /// <param name="stillNeedsAnalysis">Optional re-check at lease time - "does this file still have
     /// no analysis?". Typically a <see cref="LibraryDb.TryGet"/> plus
     /// <see cref="TrackIndexEntry.NeedsAnalysis"/>. Omitted = always analyse. If it throws, the file
     /// IS analysed: when we cannot tell, doing the work is the answer that cannot lose a track.</param>
@@ -158,18 +158,18 @@ public sealed class AnalysisBatchRunner
     }
 
     /// <summary>The decision core. Exposed so the caller can enqueue more, inspect counts, or keep
-    /// the remainder of a cancelled run — the runner never replaces it.</summary>
+    /// the remainder of a cancelled run - the runner never replaces it.</summary>
     public AnalysisQueue Queue => _queue;
 
     /// <summary>True between entering and leaving <see cref="RunAsync"/>.</summary>
     public bool IsRunning => Volatile.Read(ref _running) != 0;
 
-    /// <summary>True while paused. Independent of the gig-safe gate — the two are different reasons
+    /// <summary>True while paused. Independent of the gig-safe gate - the two are different reasons
     /// with different copy on screen.</summary>
     public bool IsPaused => _queue.IsPaused;
 
     /// <summary>
-    /// Stops new files from starting. ⚠ Does NOT lose the queue and does not interrupt the tail of
+    /// Stops new files from starting. (!) Does NOT lose the queue and does not interrupt the tail of
     /// files already in flight (see the class doc). Safe to call before, during or after a run.
     /// </summary>
     public void Pause() => _queue.Pause();
@@ -181,14 +181,14 @@ public sealed class AnalysisBatchRunner
     /// Runs the batch to completion (or until <paramref name="ct"/> fires).
     ///
     /// <para>Call it with the paths from a sync report; call it again with no paths to resume a
-    /// cancelled run — the queue kept the remainder, including the file that was in flight when the
+    /// cancelled run - the queue kept the remainder, including the file that was in flight when the
     /// cancellation landed. Only one run at a time per instance.</para>
     ///
-    /// <para>⚠ A cancelled run RETURNS a report with <see cref="AnalysisBatchReport.Cancelled"/> set
+    /// <para>(!) A cancelled run RETURNS a report with <see cref="AnalysisBatchReport.Cancelled"/> set
     /// rather than throwing <see cref="OperationCanceledException"/>. "Stopped after 412 of 3,015, 4
     /// failed" is information she needs; an exception would throw the counts away with it.</para>
     ///
-    /// <para>⚠ While the gate is closed or the batch is paused this task simply does not complete —
+    /// <para>(!) While the gate is closed or the batch is paused this task simply does not complete -
     /// the work is postponed, which is the whole point. Cancel to stop for real.</para>
     /// </summary>
     /// <param name="paths">Files to add before starting, typically
@@ -202,7 +202,7 @@ public sealed class AnalysisBatchRunner
         IProgress<AnalysisBatchProgress>? progress = null,
         CancellationToken ct = default)
     {
-        // ⚠ Guard BEFORE enqueuing: a rejected call must not have quietly changed the queue of the
+        // (!) Guard BEFORE enqueuing: a rejected call must not have quietly changed the queue of the
         // run that is already going. To add work to a live batch, use Queue.Enqueue deliberately.
         if (Interlocked.CompareExchange(ref _running, 1, 0) != 0)
             throw new InvalidOperationException("This runner already has a batch in progress.");
@@ -242,7 +242,7 @@ public sealed class AnalysisBatchRunner
         };
     }
 
-    // ── The worker ───────────────────────────────────────────────────────────
+    // -- The worker -----------------------------------------------------------
     //
     // Every real decision already happened in AnalysisQueue, which is why nothing below needs its own
     // seam: the tests drive RunAsync itself with a fake DSP delegate, where a "long analysis" is a
@@ -311,14 +311,14 @@ public sealed class AnalysisBatchRunner
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Our own cancellation, mid-file. Not a failure — it never finished. Back to the front of
+            // Our own cancellation, mid-file. Not a failure - it never finished. Back to the front of
             // the queue so resuming tries this exact file first.
             _queue.Release(path);
             return;
         }
         catch (Exception ex)
         {
-            // ⛔ One bad file must not cost the other 3,014. Recorded by name, counted, carry on.
+            // (!!) One bad file must not cost the other 3,014. Recorded by name, counted, carry on.
             _queue.NoteFailed(path, ex.Message);
             _log?.Invoke($"[AnalysisBatch] analysis failed for '{path}': {ex.Message}");
         }

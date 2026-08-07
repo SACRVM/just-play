@@ -1,7 +1,7 @@
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// Compact, allocation-light iterative radix-2 Cooley–Tukey FFT for power-of-two
+/// Compact, allocation-light iterative radix-2 Cooley-Tukey FFT for power-of-two
 /// frame sizes. Hand-rolled (no NuGet, no reflection) so the analysis pipeline
 /// stays trim-safe / AOT-friendly per the repo conventions.
 ///
@@ -27,7 +27,7 @@ public static class Fft
     /// then divides by N. <paramref name="re"/> and <paramref name="im"/> hold complex
     /// spectrum on entry; on return they hold the real-valued reconstructed samples in
     /// <paramref name="re"/> (the imaginary part is near-zero for a real signal).
-    /// Used by the HPSS drum suppressor (N19 experiment — not on the shipped path).
+    /// Used by the HPSS drum suppressor (N19 experiment - not on the shipped path).
     /// </summary>
     public static void Inverse(float[] re, float[] im)
     {
@@ -50,7 +50,7 @@ public static class Fft
             if (i < j) { (re[i], re[j]) = (re[j], re[i]); (im[i], im[j]) = (im[j], im[i]); }
         }
 
-        // Danielson–Lanczos butterflies (positive angle = inverse direction).
+        // Danielson-Lanczos butterflies (positive angle = inverse direction).
         for (var len = 2; len <= n; len <<= 1)
         {
             var ang = -2.0 * Math.PI / len;   // same as forward after the conjugation
@@ -110,10 +110,10 @@ public static class Fft
             }
         }
 
-        // --- Danielson–Lanczos butterflies ----------------------------------
+        // --- Danielson-Lanczos butterflies ----------------------------------
         for (var len = 2; len <= n; len <<= 1)
         {
-            // Negative angle => forward transform (e^{-2πi k / len}).
+            // Negative angle => forward transform (e^{-2pii k / len}).
             var ang = -2.0 * Math.PI / len;
             var wReal = (float)Math.Cos(ang);
             var wImag = (float)Math.Sin(ang);

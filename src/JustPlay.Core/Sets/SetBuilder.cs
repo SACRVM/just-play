@@ -6,7 +6,7 @@ namespace JustPlay.Core.Sets;
 
 /// <summary>
 /// The "Set Maker": an ordered, in-memory collection the user assembles by hand.
-/// Nothing is persisted automatically — but a set can be exported to a standard
+/// Nothing is persisted automatically - but a set can be exported to a standard
 /// .m3u8 playlist on demand. This is the one place JustPlay produces a saved artifact,
 /// and only because the user explicitly asks for it.
 /// </summary>

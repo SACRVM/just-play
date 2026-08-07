@@ -27,11 +27,11 @@ public sealed class BassAudioDecoder : IAudioDecoder
             var sourceRate = info.Frequency;
 
             // BASS honours BassFlags.Mono only for formats whose decoder implements it
-            // (the MP3 family + OGG). Add-on codecs (FLAC, …) and WAV/AIFF IGNORE the
-            // flag and deliver interleaved multi-channel data — silently, with
+            // (the MP3 family + OGG). Add-on codecs (FLAC, ...) and WAV/AIFF IGNORE the
+            // flag and deliver interleaved multi-channel data - silently, with
             // info.Channels telling the truth. Downmix HERE so the mono contract holds
             // for every format. (Found 2026-07-10 via the beatbed click-check: FLAC
-            // "mono" decodes returned 2× samples → half-speed renders, and every
+            // "mono" decodes returned 2x samples -> half-speed renders, and every
             // sample-based analyzer saw octave-shifted pseudo-audio on FLAC input.)
             var channels = Math.Max(1, info.Channels);
 
@@ -88,7 +88,7 @@ public sealed class BassAudioDecoder : IAudioDecoder
                 pendingCount = 0;
             }
 
-            // Whole frames in this read → average channels down to one sample.
+            // Whole frames in this read -> average channels down to one sample.
             while (idx + channels <= floatsRead)
             {
                 var sum = 0f;

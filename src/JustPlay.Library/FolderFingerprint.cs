@@ -2,16 +2,16 @@ namespace JustPlay.Library;
 
 /// <summary>
 /// A folder boiled down to two numbers: how many tracks it holds, and the newest modification time
-/// among them. Chloe's check (2026-07-30): <i>"dateien sortierend nach änderung abfragen und top 1
+/// among them. Chloe's check (2026-07-30): <i>"dateien sortierend nach aenderung abfragen und top 1
 /// nehmen"</i>.
 ///
 /// <para>Why those two and not the FOLDER's own timestamp: a directory's mtime moves when an entry
-/// is created, deleted or renamed, but NOT when a file's contents change — so it would miss every
+/// is created, deleted or renamed, but NOT when a file's contents change - so it would miss every
 /// retag. Measured proof on 2026-07-30: <c>GENRES\Bass_House</c> held a file modified 07-29 22:05
 /// while the directory still said 07-17 11:35. The newest FILE mtime moves for all three cases.</para>
 ///
-/// <para>This never replaces the per-file check — it is the early-out that decides whether a folder
-/// needs one at all. Computing it costs the same directory enumeration either way (0.12–0.25 ms per
+/// <para>This never replaces the per-file check - it is the early-out that decides whether a folder
+/// needs one at all. Computing it costs the same directory enumeration either way (0.12-0.25 ms per
 /// file, measured), which is why that work belongs in the background, off the path that paints the
 /// list.</para>
 /// </summary>

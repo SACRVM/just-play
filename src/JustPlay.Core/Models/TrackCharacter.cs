@@ -1,14 +1,14 @@
 namespace JustPlay.Core.Models;
 
 /// <summary>
-/// Perceptual character constants — kept for backward-compat with existing serialised blobs
+/// Perceptual character constants - kept for backward-compat with existing serialised blobs
 /// and for any code that compares against the noisy/punchy/groovy strings.
 ///
 /// <para>The vibe model changed in v8 (2026-06-09): the discrete four-way label
 /// (punchy/groovy/noisy/dreamy) was dropped. The continuous <b>vibe quartet</b>
 /// (BassPunch, BassGroove, Hypnotic, Dark) now describes each track. The "noisy"
 /// concept lives on as <c>Harshness</c> (a separate fatigue flag, not a mix axis).
-/// "dreamy" was retired — low-energy tracks are now identified by low
+/// "dreamy" was retired - low-energy tracks are now identified by low
 /// <see cref="JustPlay.Core.Models.AnalysisResult.RawEnergyScore"/> directly.
 /// </para>
 ///
@@ -22,5 +22,5 @@ public static class TrackCharacter
     public const string Punchy = "punchy";
     public const string Groovy = "groovy";
     public const string Noisy  = "noisy";
-    // Dreamy was retired in v8 — do NOT add it back; use RawEnergyScore instead.
+    // Dreamy was retired in v8 - do NOT add it back; use RawEnergyScore instead.
 }

@@ -7,8 +7,8 @@ namespace JustPlay.Core.Abstractions;
 /// <summary>
 /// The JUST STREAM capture engine: the counterpart of <see cref="IAudioEngine"/> for a
 /// broadcast tool. Instead of loading and playing a file, it captures a live audio INPUT
-/// (sound card / loopback), runs it through the shared bus DSP rack (EQ → AutoTilt → Punch →
-/// MasteringLimiter), and exposes a persistent mixer the Icecast encoder taps — so the
+/// (sound card / loopback), runs it through the shared bus DSP rack (EQ -> AutoTilt -> Punch ->
+/// MasteringLimiter), and exposes a persistent mixer the Icecast encoder taps - so the
 /// broadcast is loud-and-clean automatically, the DJ touches nothing.
 ///
 /// Implemented per platform (ManagedBass today: BassInputCaptureEngine). The UI only ever
@@ -22,7 +22,7 @@ namespace JustPlay.Core.Abstractions;
 /// </summary>
 public interface IAudioInputEngine : IDisposable, ISpectrumSource
 {
-    // ── Capture lifecycle ────────────────────────────────────────────────
+    // -- Capture lifecycle ------------------------------------------------
 
     /// <summary>True while audio is being captured and fed to the mixer/encoder.</summary>
     bool IsCapturing { get; }
@@ -54,18 +54,18 @@ public interface IAudioInputEngine : IDisposable, ISpectrumSource
     /// </summary>
     void StopCapture();
 
-    /// <summary>Raised when <see cref="IsCapturing"/> changes. May fire on a BASS thread — marshal to UI.</summary>
+    /// <summary>Raised when <see cref="IsCapturing"/> changes. May fire on a BASS thread - marshal to UI.</summary>
     event EventHandler<bool>? CaptureStateChanged;
 
-    // ── Input device enumeration ─────────────────────────────────────────
+    // -- Input device enumeration -----------------------------------------
 
     /// <summary>
     /// The recording devices currently available, enumerated fresh on each call (devices may
-    /// appear/disappear at runtime — e.g. a USB interface). Disabled/absent devices are excluded.
+    /// appear/disappear at runtime - e.g. a USB interface). Disabled/absent devices are excluded.
     /// </summary>
     IReadOnlyList<AudioInputDevice> GetInputDevices();
 
-    // ── Application (per-process) capture — Phase 0 "capture a specific APP" source ──────────
+    // -- Application (per-process) capture - Phase 0 "capture a specific APP" source ----------
 
     /// <summary>
     /// True when this platform/build can capture a SINGLE application's audio directly (per-process
@@ -82,7 +82,7 @@ public interface IAudioInputEngine : IDisposable, ISpectrumSource
     IReadOnlyList<CaptureApp> GetCaptureApps();
 
     /// <summary>
-    /// Start capturing ONE application's audio (by process id) into the broadcast bus — invisibly,
+    /// Start capturing ONE application's audio (by process id) into the broadcast bus - invisibly,
     /// with NO system-sound leak, no virtual cable, and no reconfiguration (the app renders to its
     /// own device normally, unaware). Runs through the exact same DSP rack / limiter / encoder as a
     /// device source. Switches source seamlessly like <see cref="StartCapture"/>. Throws
@@ -93,7 +93,7 @@ public interface IAudioInputEngine : IDisposable, ISpectrumSource
     /// </summary>
     void StartApplicationCapture(int processId, AppCaptureChannels channels = AppCaptureChannels.FullMix);
 
-    // ── Levels / metering ────────────────────────────────────────────────
+    // -- Levels / metering ------------------------------------------------
 
     /// <summary>
     /// Sample the current post-DSP output level as linear peak per channel (0..1), for the
@@ -104,16 +104,16 @@ public interface IAudioInputEngine : IDisposable, ISpectrumSource
     /// <summary>
     /// Drain the limiter's activity since the previous call, for the output-level gain-reduction
     /// lamp. Returns false when the limiter is disabled (lamp stays dark). <paramref name="gainReductionDb"/>
-    /// is the deepest reduction in the interval (≤ 0); <paramref name="dutyCycle"/> the fraction of
-    /// time it was reducing (0..1) — together they say healthy-catch vs. crushing. The per-channel
+    /// is the deepest reduction in the interval (<= 0); <paramref name="dutyCycle"/> the fraction of
+    /// time it was reducing (0..1) - together they say healthy-catch vs. crushing. The per-channel
     /// flags say which channel's true-peak hit the ceiling (drove the limiter). Poll at UI rate.
     /// </summary>
     bool TryGetLimiterActivity(out double gainReductionDb, out double dutyCycle, out bool leftAtCeiling, out bool rightAtCeiling);
 
-    // ── Output / gain ────────────────────────────────────────────────────
+    // -- Output / gain ----------------------------------------------------
 
     /// <summary>
-    /// Local monitor volume, 0..1. This is ONLY the level you hear on this machine's output —
+    /// Local monitor volume, 0..1. This is ONLY the level you hear on this machine's output -
     /// it does NOT affect the encoded stream (the encoder taps the mixer pre-volume). Default 0
     /// (no local monitoring), because a DJ usually already hears their own audio directly and a
     /// monitor would double it / risk feedback.
@@ -126,32 +126,32 @@ public interface IAudioInputEngine : IDisposable, ISpectrumSource
     /// </summary>
     double InputGainDb { get; set; }
 
-    // ── Bus DSP rack (mirrors IAudioEngine; shapes the stream + monitor) ──
+    // -- Bus DSP rack (mirrors IAudioEngine; shapes the stream + monitor) --
 
-    /// <summary>3-band DJ EQ (Low/Mid/High), linear gains; all unity → true bypass. See <see cref="IAudioEngine.SetEqualizer"/>.</summary>
+    /// <summary>3-band DJ EQ (Low/Mid/High), linear gains; all unity -> true bypass. See <see cref="IAudioEngine.SetEqualizer"/>.</summary>
     void SetEqualizer(double lowGain, double midGain, double highGain);
 
-    /// <summary>True-peak limiter / maximizer. enabled=false → true bypass. See <see cref="IAudioEngine.SetLimiter"/>.</summary>
+    /// <summary>True-peak limiter / maximizer. enabled=false -> true bypass. See <see cref="IAudioEngine.SetLimiter"/>.</summary>
     void SetLimiter(bool enabled, double driveDb, double ceilingDbTp);
 
-    /// <summary>Adaptive spectral tilt ("auto-master"). strength 0 → bypass. See <see cref="IAudioEngine.SetAdaptiveTilt"/>.</summary>
+    /// <summary>Adaptive spectral tilt ("auto-master"). strength 0 -> bypass. See <see cref="IAudioEngine.SetAdaptiveTilt"/>.</summary>
     void SetAdaptiveTilt(double strength);
 
-    /// <summary>Transient designer (punch). punch 0 → bypass. See <see cref="IAudioEngine.SetTransientDesigner"/>.</summary>
+    /// <summary>Transient designer (punch). punch 0 -> bypass. See <see cref="IAudioEngine.SetTransientDesigner"/>.</summary>
     void SetTransientDesigner(double punch);
 
-    // ── Local monitor output device ──────────────────────────────────────
+    // -- Local monitor output device --------------------------------------
 
     /// <summary>
     /// Output devices available for LOCAL monitoring of the broadcast bus, mirroring
     /// <see cref="IAudioEngine.GetOutputDevices"/>. Includes a "No output (stream only)" entry
-    /// (BASS device 0) — the default: nothing reaches this PC's speakers, the stream still goes out.
+    /// (BASS device 0) - the default: nothing reaches this PC's speakers, the stream still goes out.
     /// </summary>
     IReadOnlyList<AudioOutputDevice> GetOutputDevices();
 
     /// <summary>
     /// Route the local monitor (the mixer's playback) to the given BASS device index. 0 =
-    /// "No output (stream only)" — no local monitor. Does NOT affect the encoded stream: the
+    /// "No output (stream only)" - no local monitor. Does NOT affect the encoded stream: the
     /// encoder taps the mixer regardless of which device it plays on (channel-scoped DSP).
     /// Mirrors <see cref="IAudioEngine.SetOutputDevice"/>.
     /// </summary>

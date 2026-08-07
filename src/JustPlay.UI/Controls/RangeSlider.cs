@@ -9,12 +9,12 @@ using Avalonia.Media;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// A distribution-histogram range picker — deliberately NOT a classic slider (Chloe 2026-07-07: "die Slider
+/// A distribution-histogram range picker - deliberately NOT a classic slider (Chloe 2026-07-07: "die Slider
 /// selbst weg, wir machen die Bars klickbar"). It draws the folder's value distribution as bars; the bars
 /// inside the chosen [<see cref="LowerValue"/>, <see cref="UpperValue"/>] band glow with
 /// <see cref="RangeBrush"/>, the rest stay dim so the selection reads at a glance. The BARS are the control:
 /// a plain click nudges the nearer edge to it; a click-drag paints a whole new band. Every bar carries a
-/// ~3 px floor so there are no click-dead gaps even where a bucket is empty. Reusable — the finder FILTER
+/// ~3 px floor so there are no click-dead gaps even where a bucket is empty. Reusable - the finder FILTER
 /// ranges use it, and it fits any "pick a band over a distribution" job.
 /// </summary>
 public sealed class RangeSlider : Control
@@ -36,7 +36,7 @@ public sealed class RangeSlider : Control
     public static readonly StyledProperty<IBrush?> RangeBrushProperty =
         AvaloniaProperty.Register<RangeSlider, IBrush?>(nameof(RangeBrush));
 
-    /// <summary>Normalised (0..1) per-bucket counts — the distribution the control draws and clicks on.</summary>
+    /// <summary>Normalised (0..1) per-bucket counts - the distribution the control draws and clicks on.</summary>
     public static readonly StyledProperty<IReadOnlyList<double>?> HistogramProperty =
         AvaloniaProperty.Register<RangeSlider, IReadOnlyList<double>?>(nameof(Histogram));
 
@@ -59,9 +59,9 @@ public sealed class RangeSlider : Control
     public IBrush? RangeBrush { get => GetValue(RangeBrushProperty); set => SetValue(RangeBrushProperty, value); }
     public IReadOnlyList<double>? Histogram { get => GetValue(HistogramProperty); set => SetValue(HistogramProperty, value); }
 
-    // ── The bars ARE the control: click the nearer edge, or drag to paint a new band ──────────────
-    private const double BaseBarPx = 3.0;     // every bar shows at least this — no click-dead gaps
-    private const double DragThreshold = 4.0; // moved past this since press → it's a drag-new-band, not a click
+    // -- The bars ARE the control: click the nearer edge, or drag to paint a new band --------------
+    private const double BaseBarPx = 3.0;     // every bar shows at least this - no click-dead gaps
+    private const double DragThreshold = 4.0; // moved past this since press -> it's a drag-new-band, not a click
 
     private bool _pressed;
     private bool _dragged;
@@ -101,7 +101,7 @@ public sealed class RangeSlider : Control
         e.Handled = true;
         if (_dragged) return; // the drag already set the band
 
-        // Plain click → move whichever edge is nearer the click toward it.
+        // Plain click -> move whichever edge is nearer the click toward it.
         var v = XToValue(_pressX);
         if (Math.Abs(v - LowerValue) <= Math.Abs(v - UpperValue)) LowerValue = Math.Min(v, UpperValue);
         else UpperValue = Math.Max(v, LowerValue);
@@ -127,7 +127,7 @@ public sealed class RangeSlider : Control
         var h = Bounds.Height;
         if (w <= 0 || h <= 0) return;
 
-        // Full-bounds transparent layer so the WHOLE strip is clickable — Avalonia hit-tests drawn pixels,
+        // Full-bounds transparent layer so the WHOLE strip is clickable - Avalonia hit-tests drawn pixels,
         // not layout bounds, so the gaps above short bars would otherwise be dead.
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
 

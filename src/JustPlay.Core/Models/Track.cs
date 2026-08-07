@@ -1,7 +1,7 @@
 namespace JustPlay.Core.Models;
 
 /// <summary>
-/// A track the user has thrown into the current session. Lives only in memory —
+/// A track the user has thrown into the current session. Lives only in memory -
 /// JustPlay keeps no library and remembers nothing between runs.
 /// Metadata and analysis are filled in asynchronously after the file is added.
 /// </summary>
@@ -16,7 +16,7 @@ public sealed class Track
 
     /// <summary>
     /// Point this track at the same audio under a new path, after the user renamed the file in the
-    /// tag editor. The identity of a track is the FILE, not the string — a rename must move the
+    /// tag editor. The identity of a track is the FILE, not the string - a rename must move the
     /// existing row rather than leave it pointing at something that is no longer there (standing
     /// rule: never leave a song behind). Analysis and metadata carry over untouched; nothing about
     /// the audio changed.
@@ -24,7 +24,7 @@ public sealed class Track
     public void Relocate(string newFilePath) => FilePath = newFilePath;
 
     /// <summary>
-    /// When the analysis in <see cref="Analysis"/> was actually MEASURED — set to now when our DSP
+    /// When the analysis in <see cref="Analysis"/> was actually MEASURED - set to now when our DSP
     /// runs, and carried over from the file's blob when the values were imported instead of computed.
     /// Null when neither is known.
     /// <para>Without this, a write stamps the blob with the moment of WRITING, which is why every

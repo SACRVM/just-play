@@ -5,7 +5,7 @@ namespace JustPlay.UI;
 
 /// <summary>
 /// macOS Dock attention ("bouncing icon"), the Ladiocast pattern: a critical request keeps
-/// the Dock icon bouncing until the user activates the app — and only while the app is in
+/// the Dock icon bouncing until the user activates the app - and only while the app is in
 /// the BACKGROUND, which is exactly the "DJ is in fullscreen Traktor and must notice the
 /// stream died" case. No-ops on every other OS and never throws (a missed bounce must not
 /// take down the broadcast path).

@@ -11,7 +11,7 @@ namespace JustPlay.App;
 /// <summary>
 /// Single-instance gate + file-argument forwarding. The first JustPlay process owns a named
 /// mutex and listens on a named pipe; any later process started by a double-click / file
-/// association forwards its file paths to the owner and exits — so songs land in the existing
+/// association forwards its file paths to the owner and exits - so songs land in the existing
 /// queue instead of opening a second window. Cross-platform: Mutex and named pipes both work
 /// on Windows, Linux and macOS.
 ///
@@ -19,11 +19,11 @@ namespace JustPlay.App;
 /// instance (matches the per-user install), AND with the data directory, so an instance running
 /// on a redirected <c>JUSTPLAY_DATA_DIR</c> is a different INSTALLATION and gets its own gate.
 ///
-/// <para>⚠ Without that second part the fresh-install run is unusable: launching it while the real
+/// <para>(!) Without that second part the fresh-install run is unusable: launching it while the real
 /// JUST PLAY is open makes the new process forward-and-exit, and you sit there looking at your real
 /// library wondering why nothing reset (Chloe 2026-07-31: "mein just play music lib ordner und index
-/// wurden nicht zurück gesetzt - konnte die neue logik nicht testen"). The gate exists to keep ONE
-/// instance owning ONE queue and ONE settings file — two different data roots are not that case.</para>
+/// wurden nicht zurueck gesetzt - konnte die neue logik nicht testen"). The gate exists to keep ONE
+/// instance owning ONE queue and ONE settings file - two different data roots are not that case.</para>
 /// </summary>
 public sealed class SingleInstance : IDisposable
 {
@@ -84,13 +84,13 @@ public sealed class SingleInstance : IDisposable
         }
         catch
         {
-            // Primary went away between the mutex check and the connect, or is busy — best
+            // Primary went away between the mutex check and the connect, or is busy - best
             // effort. Worst case the file just isn't added; never crash a forwarding launch.
         }
     }
 
     /// <summary>Start listening (on a background thread) for files forwarded by later launches.
-    /// <paramref name="onReceived"/> is invoked off the UI thread — marshal inside it.</summary>
+    /// <paramref name="onReceived"/> is invoked off the UI thread - marshal inside it.</summary>
     public void StartServer(Action<IReadOnlyList<string>, bool> onReceived)
     {
         var t = new Thread(() => ServerLoop(onReceived))

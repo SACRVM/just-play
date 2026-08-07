@@ -23,7 +23,7 @@ public class M3uPlaylistTests
         var outsideDir = Directory.CreateTempSubdirectory("jp-m3u-out").FullName;
         try
         {
-            // One track UNDER the save folder, one in a SIBLING folder (the real SETS→GENRES case).
+            // One track UNDER the save folder, one in a SIBLING folder (the real SETS->GENRES case).
             var under = Path.Combine(dir, "a.mp3");
             var outside = Path.Combine(outsideDir, "b.mp3");
             File.WriteAllText(under, "");
@@ -40,8 +40,8 @@ public class M3uPlaylistTests
             Assert.Contains("\r\n", text);                              // CRLF line endings (Traktor/Mac)
             var lines = text.Replace("\r", "").Split('\n');
             Assert.Equal("#EXTM3U", lines[0]);
-            Assert.Equal("a.mp3", lines[2]);                            // under → relative
-            // sibling → RELATIVE with "../" + forward slashes (NEVER absolute) — the fix.
+            Assert.Equal("a.mp3", lines[2]);                            // under -> relative
+            // sibling -> RELATIVE with "../" + forward slashes (NEVER absolute) - the fix.
             var expectedSibling = Path.GetRelativePath(dir, outside).Replace('\\', '/');
             Assert.StartsWith("../", expectedSibling);
             Assert.Equal(expectedSibling, lines[4]);

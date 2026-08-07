@@ -16,11 +16,11 @@ namespace JustPlay.Audio.Bass;
 /// Signal path:
 /// <code>
 ///   [BASS recording device]
-///     → RecordProc (copies PCM into a Push decode stream, with the input-gain trim)
-///     → Push decode stream  ──► added to ──►  persistent mixer (MixerNonStop, 44.1k stereo float)
-///          on the mixer: ThreeBandEqualizer(200) → AdaptiveTilt(180) → TransientDesigner(140) → MasteringLimiter(0)
-///     → mixer plays on the default OUTPUT device (clock source; local monitor, volume default 0)
-///     → BassBroadcastService attaches BASSenc at priority −1000 → taps the mixer AFTER all DSP → Icecast
+///     -> RecordProc (copies PCM into a Push decode stream, with the input-gain trim)
+///     -> Push decode stream  --> added to -->  persistent mixer (MixerNonStop, 44.1k stereo float)
+///          on the mixer: ThreeBandEqualizer(200) -> AdaptiveTilt(180) -> TransientDesigner(140) -> MasteringLimiter(0)
+///     -> mixer plays on the default OUTPUT device (clock source; local monitor, volume default 0)
+///     -> BassBroadcastService attaches BASSenc at priority -1000 -> taps the mixer AFTER all DSP -> Icecast
 /// </code>
 ///
 /// This deliberately mirrors <see cref="BassAudioEngine"/>'s mixer + DSP wiring (same processors,
@@ -29,22 +29,22 @@ namespace JustPlay.Audio.Bass;
 /// instead of a file decode stream.
 ///
 /// <para>Clock note: when the input is a LOOPBACK device it shares the output device's clock, so
-/// capture and playback are sample-locked (no drift — the primary DJ use case: streaming the
+/// capture and playback are sample-locked (no drift - the primary DJ use case: streaming the
 /// audio your DJ software is already outputting). A physical input feeding a DIFFERENT output
 /// device runs on two clocks and can drift very slowly over a long stream; the generous push
 /// buffer absorbs it for typical sessions. (A future hardening pass could add a drift-resampling
-/// bridge or WASAPI loopback with event sync — see just-stream-blueprint.md §7.)</para>
+/// bridge or WASAPI loopback with event sync - see just-stream-blueprint.md Sec.7.)</para>
 ///
 /// API signatures verified against managedbass.github.io/api:
-///   Bass.RecordGetDeviceInfo(int, out DeviceInfo) · Bass.RecordInit(int) · Bass.RecordStart(int,int,BassFlags,RecordProcedure,IntPtr)
-///   Bass.CreateStream(int,int,BassFlags,StreamProcedureType) [Push] · Bass.StreamPutData(int,IntPtr,int)
-///   BassMix.CreateMixerStream / MixerAddChannel · Bass.ChannelGetLevel(int,float[],float,LevelRetrievalFlags)
+///   Bass.RecordGetDeviceInfo(int, out DeviceInfo) - Bass.RecordInit(int) - Bass.RecordStart(int,int,BassFlags,RecordProcedure,IntPtr)
+///   Bass.CreateStream(int,int,BassFlags,StreamProcedureType) [Push] - Bass.StreamPutData(int,IntPtr,int)
+///   BassMix.CreateMixerStream / MixerAddChannel - Bass.ChannelGetLevel(int,float[],float,LevelRetrievalFlags)
 /// </summary>
 public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 {
-    private int _mixer;    // persistent output mixer (encoder taps this) — created lazily
+    private int _mixer;    // persistent output mixer (encoder taps this) - created lazily
     private int _record;   // HRECORD handle from RecordStart, 0 when not capturing
-    private int _push;     // Push decode stream bridging RecordProc → mixer, 0 when not capturing
+    private int _push;     // Push decode stream bridging RecordProc -> mixer, 0 when not capturing
     private int _currentDevice = -1;
     private bool _capturing;
     private int _outputDevice;   // local monitor device; 0 = "No output (stream only)" (default)
@@ -53,20 +53,20 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     private double _monitorVolume; // 0..1, local only (default 0 = no monitor)
     private double _inputGainDb;    // dB trim applied to the capture source (stream + monitor)
 
-    // Pinned callback delegates — BASS holds native function pointers; if these are GC'd while
+    // Pinned callback delegates - BASS holds native function pointers; if these are GC'd while
     // BASS still references them we get a CallbackOnCollectedDelegate crash. Same rule as
     // BassAudioEngine._endSync / BassBroadcastService._notifyProc.
     private RecordProcedure? _recordProc;
 
-    // ── Per-process "capture a specific APP" source (Phase 0, Path A) ─────
+    // -- Per-process "capture a specific APP" source (Phase 0, Path A) -----
     // Injected platform provider (Windows WASAPI process-loopback, or Null where unsupported). When
-    // active it feeds float PCM straight into the SAME _push → mixer → DSP → encoder path a device
+    // active it feeds float PCM straight into the SAME _push -> mixer -> DSP -> encoder path a device
     // source uses, so a captured app rides the identical broadcast chain.
     private readonly IProcessAudioCapture _appCapture;
     private Action<float[], int>? _onAppFrames;
     private bool _appActive;
 
-    // ── DSP rack (identical processors + priorities to BassAudioEngine) ───
+    // -- DSP rack (identical processors + priorities to BassAudioEngine) ---
     private readonly object _limiterLock = new();
     private readonly object _equalizerLock = new();
     private readonly object _tiltLock = new();
@@ -89,10 +89,10 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 
     private readonly float[] _levels = new float[2];
 
-    // ── Spectrum taps: DRY pre-bus + WET post-bus capture ─────────────────────────────────────────
+    // -- Spectrum taps: DRY pre-bus + WET post-bus capture -----------------------------------------
     // Mirrors BassAudioEngine exactly: two passive read-only DSPs straddling the bus rack.
-    //   DRY @ priority 1000 — runs BEFORE EQ(200)/Tilt(180)/Punch(140)/Limiter(0)/Encoder(−1000)
-    //   WET @ priority −500 — runs BELOW the limiter and ABOVE the encoder (what is actually streamed)
+    //   DRY @ priority 1000 - runs BEFORE EQ(200)/Tilt(180)/Punch(140)/Limiter(0)/Encoder(-1000)
+    //   WET @ priority -500 - runs BELOW the limiter and ABOVE the encoder (what is actually streamed)
     // Taps are gated together via _spectrumTapLock; each snapshot has its own lock.
     private readonly object _spectrumTapLock = new();
     private DSPProcedure? _dryTapProc;
@@ -103,7 +103,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     private int _wetTapHandle;
     private readonly float[] _wetSnapshot = new float[2048];
     private readonly object _wetSnapshotLock = new();
-    // FFT work buffers — accessed only from the UI thread in GetSpectrum; no lock needed.
+    // FFT work buffers - accessed only from the UI thread in GetSpectrum; no lock needed.
     private readonly float[] _dryFftRe = new float[2048];
     private readonly float[] _dryFftIm = new float[2048];
     private readonly float[] _wetFftRe = new float[2048];
@@ -122,7 +122,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     {
         _appCapture = appCapture;
         // Initialise the default OUTPUT device so the mixer has a clock to play on (the encoder
-        // taps the mixer; the device just drives it — monitor volume defaults to 0). Errors.Already
+        // taps the mixer; the device just drives it - monitor volume defaults to 0). Errors.Already
         // is success (some other component may have init'd already).
         if (!ManagedBass.Bass.Init() && ManagedBass.Bass.LastError != Errors.Already)
             Console.WriteLine($"[Capture] Bass.Init failed: {ManagedBass.Bass.LastError}");
@@ -148,7 +148,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
             var clamped = (value == 48000) ? 48000 : 44100;
             if (clamped == _sampleRate) return;
             _sampleRate = clamped;
-            // Tear down capture + mixer — next StartCapture rebuilds at the new rate.
+            // Tear down capture + mixer - next StartCapture rebuilds at the new rate.
             TeardownCapture();
             if (_mixer != 0)
             {
@@ -161,17 +161,17 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
             _equalizerDspHandle = 0;
             _tiltDspHandle = 0;
             _transientDspHandle = 0;
-            // Null spectrum tap handles — mixer is gone, BASS already removed the DSPs.
+            // Null spectrum tap handles - mixer is gone, BASS already removed the DSPs.
             _dryTapHandle = 0;
             _dryTapProc   = null;
             _wetTapHandle = 0;
             _wetTapProc   = null;
-            // Null processor objects — they were tuned to the old sample rate.
+            // Null processor objects - they were tuned to the old sample rate.
             _limiter = null;
             _equalizer = null;
             _tilt = null;
             _transient = null;
-            // Null pinned delegates — they are no longer registered with BASS.
+            // Null pinned delegates - they are no longer registered with BASS.
             _limiterDsp = null;
             _equalizerDsp = null;
             _tiltDsp = null;
@@ -182,7 +182,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 
     public event EventHandler<bool>? CaptureStateChanged;
 
-    // ── Device enumeration ───────────────────────────────────────────────
+    // -- Device enumeration -----------------------------------------------
 
     public IReadOnlyList<AudioInputDevice> GetInputDevices()
     {
@@ -195,13 +195,13 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         return list;
     }
 
-    /// <summary>Friendly name for BASS device 0 ("No sound") — the stream-only / no-monitor option.</summary>
+    /// <summary>Friendly name for BASS device 0 ("No sound") - the stream-only / no-monitor option.</summary>
     internal const string NoOutputDeviceName = "No output (stream only)";
 
     /// <summary>
     /// Enumerate enabled output devices for LOCAL monitoring, plus device 0 = "No output (stream
     /// only)". Mirrors <see cref="BassAudioEngine.GetOutputDevices"/>: real devices start at index 1
-    /// (0 is BASS's "No sound" device, appended as the explicit no-monitor option — the stream still
+    /// (0 is BASS's "No sound" device, appended as the explicit no-monitor option - the stream still
     /// goes out, nothing touches the OS audio stack).
     /// </summary>
     public IReadOnlyList<AudioOutputDevice> GetOutputDevices()
@@ -216,7 +216,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         return list;
     }
 
-    // ── Capture lifecycle ────────────────────────────────────────────────
+    // -- Capture lifecycle ------------------------------------------------
 
     public void StartCapture(int deviceIndex)
     {
@@ -249,7 +249,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
             throw new InvalidOperationException($"RecordStart failed: {err}");
         }
 
-        // Feed the bridge into the mixer (playing — no MixerChanPause). MixerChanBuffer keeps the
+        // Feed the bridge into the mixer (playing - no MixerChanPause). MixerChanBuffer keeps the
         // source buffered so level/position reads on it stay accurate.
         if (!BassMix.MixerAddChannel(_mixer, _push, BassFlags.MixerChanBuffer))
         {
@@ -270,7 +270,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         SetCapturing(false);
     }
 
-    // ── Application (per-process) capture ─────────────────────────────────
+    // -- Application (per-process) capture ---------------------------------
 
     public bool SupportsApplicationCapture => _appCapture.IsSupported;
 
@@ -287,7 +287,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         // (and any active Icecast stream) running so the switch is seamless.
         TeardownCapture();
 
-        // Bridge: a Push DECODE stream the app-capture frames feed and the mixer pulls from — the
+        // Bridge: a Push DECODE stream the app-capture frames feed and the mixer pulls from - the
         // SAME path a device source uses, so the captured app rides the identical DSP/limiter/encoder.
         _push = ManagedBass.Bass.CreateStream(_sampleRate, 2, BassFlags.Decode | BassFlags.Float, StreamProcedureType.Push);
         if (_push == 0)
@@ -322,7 +322,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     }
 
     /// <summary>
-    /// App-capture frame sink — fires on the provider's capture thread with interleaved-stereo float
+    /// App-capture frame sink - fires on the provider's capture thread with interleaved-stereo float
     /// PCM. Hand it straight to the push stream; the mixer pulls it through the DSP chain. Must NOT
     /// touch UI APIs. Same discipline as <see cref="RecordCallback"/>.
     /// </summary>
@@ -333,7 +333,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     }
 
     /// <summary>
-    /// RecordProc — fires on a BASS recording thread with a block of interleaved-stereo float PCM.
+    /// RecordProc - fires on a BASS recording thread with a block of interleaved-stereo float PCM.
     /// We hand it straight to the push stream; the mixer pulls it through the DSP chain. Returning
     /// true keeps recording. Must NOT touch UI APIs.
     /// </summary>
@@ -377,14 +377,14 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         CaptureStateChanged?.Invoke(this, value);
     }
 
-    // ── Levels ───────────────────────────────────────────────────────────
+    // -- Levels -----------------------------------------------------------
 
     public void GetLevels(out float leftPeak, out float rightPeak)
     {
         leftPeak = rightPeak = 0f;
         if (_mixer == 0 || !_capturing) return;
         // Peak over a ~20 ms window on the post-DSP mixer output (what the stream gets).
-        // Stereo (per-channel) peak — RMS flag omitted ⇒ peak retrieval, one value per channel.
+        // Stereo (per-channel) peak - RMS flag omitted => peak retrieval, one value per channel.
         if (ManagedBass.Bass.ChannelGetLevel(_mixer, _levels, 0.02f, LevelRetrievalFlags.Stereo))
         {
             leftPeak = _levels[0];
@@ -392,7 +392,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         }
     }
 
-    // ── Output / gain ────────────────────────────────────────────────────
+    // -- Output / gain ----------------------------------------------------
 
     public double MonitorVolume
     {
@@ -408,7 +408,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     /// <summary>
     /// Route the monitor (the mixer's playback) to a BASS output device. 0 = "No output (stream
     /// only)". The encoder is attached to the mixer as channel-scoped DSP, so moving the device
-    /// changes ONLY where the local monitor is heard — the stream is never disturbed (same proven
+    /// changes ONLY where the local monitor is heard - the stream is never disturbed (same proven
     /// behaviour as <see cref="BassAudioEngine.SetOutputDevice"/>).
     /// </summary>
     public void SetOutputDevice(int index)
@@ -446,7 +446,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         ManagedBass.Bass.ChannelSetAttribute(_push, ChannelAttribute.Volume, linear);
     }
 
-    // ── Mixer ────────────────────────────────────────────────────────────
+    // -- Mixer ------------------------------------------------------------
 
     private void EnsureMixer()
     {
@@ -459,7 +459,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         ApplyOutputDevice(); // honour the chosen monitor device (default 0 = no local output)
     }
 
-    // ── Bus DSP rack — identical wiring to BassAudioEngine (priorities 200/180/140/0) ─────────────
+    // -- Bus DSP rack - identical wiring to BassAudioEngine (priorities 200/180/140/0) -------------
 
     public void SetLimiter(bool enabled, double driveDb, double ceilingDbTp)
     {
@@ -613,9 +613,9 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         tr.ProcessInterleavedStereo(samples);
     }
 
-    // ── Spectrum source (ISpectrumSource) — DRY/WET tonal balance + limiter GR + output levels ─────
+    // -- Spectrum source (ISpectrumSource) - DRY/WET tonal balance + limiter GR + output levels -----
     // Identical to BassAudioEngine so the SHARED spectrum window (JustPlay.UI) opens over the broadcast
-    // bus exactly as it does over playout. Gated on _capturing (silence ⇒ dark) instead of a play state.
+    // bus exactly as it does over playout. Gated on _capturing (silence => dark) instead of a play state.
 
     /// <inheritdoc/>
     public double GetLimiterGainReductionDb()
@@ -628,12 +628,12 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     }
 
     /// <inheritdoc/>
-    // Same post-DSP mixer peak as the L/R meters — GetLevels already does exactly this.
+    // Same post-DSP mixer peak as the L/R meters - GetLevels already does exactly this.
     public void GetOutputLevels(out float leftPeak, out float rightPeak) => GetLevels(out leftPeak, out rightPeak);
 
     /// <summary>
     /// Enable or disable BOTH spectrum capture taps together (DRY @ priority 1000, pre-rack; WET @
-    /// priority −500, post-rack). Passive read-only DSPs straddling the rack so DRY and WET are
+    /// priority -500, post-rack). Passive read-only DSPs straddling the rack so DRY and WET are
     /// captured block-synchronously. EnsureMixer() first because STREAM's mixer is lazy. Idempotent.
     /// </summary>
     public void SetSpectrumTapEnabled(bool enabled)
@@ -679,7 +679,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         CaptureMonoSnapshot(new ReadOnlySpan<float>((void*)buffer, length / sizeof(float)), _drySnapshot, _drySnapshotLock);
     }
 
-    // WET tap (priority −500, post-rack — below the limiter, above the encoder): snapshot what is streamed.
+    // WET tap (priority -500, post-rack - below the limiter, above the encoder): snapshot what is streamed.
     private unsafe void WetTapDspCallback(int handle, int channel, IntPtr buffer, int length, IntPtr user)
     {
         if (length <= 0) return;
@@ -724,7 +724,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     /// <summary>
     /// Fill <paramref name="dryMagnitudes"/> (pre-rack) and <paramref name="wetMagnitudes"/> (post-rack)
     /// with 60 log-spaced summed-power bands, matching <c>SpectralProfile.BandCount</c>. Both taps are
-    /// measured identically from block-synchronous snapshots, so the only DRY→WET offset is the limiter's
+    /// measured identically from block-synchronous snapshots, so the only DRY->WET offset is the limiter's
     /// look-ahead. Returns zeros when not capturing or the taps are disabled. UI-thread safe.
     /// </summary>
     public void GetSpectrum(Span<float> dryMagnitudes, Span<float> wetMagnitudes)
@@ -772,7 +772,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
 
     /// <summary>
     /// Collapse <paramref name="magnitudeBins"/> into 60 log-spaced 1/6-octave summed-power bands from
-    /// 20 Hz to 20 kHz (band b: 20·2^(b/6) .. 20·2^((b+1)/6) Hz; power = magnitude²).
+    /// 20 Hz to 20 kHz (band b: 20-2^(b/6) .. 20-2^((b+1)/6) Hz; power = magnitude^2).
     /// </summary>
     private static void BinsToBands(ReadOnlySpan<float> magnitudeBins, double binHz, Span<float> bands)
     {
@@ -799,7 +799,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
     {
         TeardownCapture();
         // Remove the spectrum taps before freeing the mixer (StreamFree would drop them anyway, but
-        // null the pinned delegates explicitly — same hygiene as the rest of the rack).
+        // null the pinned delegates explicitly - same hygiene as the rest of the rack).
         lock (_spectrumTapLock)
         {
             if (_mixer != 0 && _dryTapHandle != 0) ManagedBass.Bass.ChannelRemoveDSP(_mixer, _dryTapHandle);

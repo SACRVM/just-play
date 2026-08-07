@@ -26,13 +26,13 @@ public partial class UpdateDialog : Window
         var dlg = new UpdateDialog();
         var currentText = current is null ? "?" : current.ToString(3);
 
-        dlg.TitleText.Text = $"Update available — v{info.Version.ToString(3)}";
+        dlg.TitleText.Text = $"Update available - v{info.Version.ToString(3)}";
         dlg.InstalledText.Text = $"v{currentText}";
         dlg.AvailableText.Text = $"v{info.Version.ToString(3)}";
         dlg.PrimaryButton.Content = canSelfUpdate ? "Update & restart" : "Open in browser";
         dlg.ExplainText.Text = canSelfUpdate
             ? "JustPlay will download the update, close, and reopen on the new version. Playback stops while it installs."
-            : "This copy can't update itself automatically — the release page will open in your browser so you can download it.";
+            : "This copy can't update itself automatically - the release page will open in your browser so you can download it.";
 
         var notes = info.ReleaseNotes?.Trim();
         if (!string.IsNullOrEmpty(notes))
@@ -57,5 +57,5 @@ public partial class UpdateDialog : Window
     }
 
     private static string Truncate(string s, int max) =>
-        s.Length <= max ? s : s[..max].TrimEnd() + " …";
+        s.Length <= max ? s : s[..max].TrimEnd() + " ...";
 }

@@ -10,7 +10,7 @@ public enum AnalysisFreshness
     /// <summary>No analysis blob in the file at all. Grey.</summary>
     None,
 
-    /// <summary>A blob from an older detector version — the values are real, just older than what we
+    /// <summary>A blob from an older detector version - the values are real, just older than what we
     /// measure today. Yellow: worth re-running, nothing is broken.</summary>
     Outdated,
 

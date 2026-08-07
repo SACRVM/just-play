@@ -8,7 +8,7 @@
     <!--
       The SHARED tag editor body. Two hosts, one implementation: the floating always-on-top window
       (JUST PLAY / PRE CUE FINDER) and JUST TAG's docked sidebar. Nothing in here knows which one it
-      is sitting in — that is the whole point, and why it must never grow a host-specific branch.
+      is sitting in - that is the whole point, and why it must never grow a host-specific branch.
 
       Styling is SELF-CONTAINED (tag-* classes, theme keys via DynamicResource): the app-level
       .label / .field / .ghost classes are defined per app today and differ, so relying on them
@@ -29,7 +29,7 @@
             <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
         </Style>
 
-        <!-- Editable field — frosted box, accent focus ring (the OS red is never allowed through). -->
+        <!-- Editable field - frosted box, accent focus ring (the OS red is never allowed through). -->
         <Style Selector="TextBox.tag-field">
             <Setter Property="Background" Value="#14FFFFFF"/>
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -71,7 +71,7 @@
             <Setter Property="SelectionBrush" Value="#448a5fff"/>
             <Setter Property="CaretBrush" Value="{DynamicResource AccentBBrush}"/>
         </Style>
-        <!-- The suggestion list — never left in stock chrome. -->
+        <!-- The suggestion list - never left in stock chrome. -->
         <Style Selector="AutoCompleteBox.tag-field /template/ ListBox">
             <Setter Property="Background" Value="#F01a1828"/>
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -113,7 +113,7 @@
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
 
-        <!-- Save — the one primary action in this panel. -->
+        <!-- Save - the one primary action in this panel. -->
         <Style Selector="Button.tag-save">
             <Setter Property="Background" Value="{DynamicResource AccentGradient}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -136,7 +136,7 @@
             </Setter>
         </Style>
         <!-- State-dependent, so OUTSIDE the template (an inline value would beat the pseudo-class
-             setter — see CLAUDE.md "Styles in App.axaml"). -->
+             setter - see CLAUDE.md "Styles in App.axaml"). -->
         <Style Selector="Button.tag-save:disabled">
             <Setter Property="Opacity" Value="0.4"/>
         </Style>
@@ -167,7 +167,7 @@
 
     <Panel>
 
-        <!-- ── NOTHING SELECTED ─────────────────────────────────────────────────────────────── -->
+        <!-- == NOTHING SELECTED =============================================================== -->
         <StackPanel IsVisible="{Binding !HasFile}" VerticalAlignment="Center"
                     HorizontalAlignment="Center" Spacing="8" Margin="24">
             <Path Stretch="Uniform" Width="26" Height="26" HorizontalAlignment="Center"
@@ -181,20 +181,20 @@
                        HorizontalAlignment="Center"/>
         </StackPanel>
 
-        <!-- ── THE EDITOR ───────────────────────────────────────────────────────────────────── -->
+        <!-- == THE EDITOR ===================================================================== -->
         <DockPanel IsVisible="{Binding HasFile}" LastChildFill="True">
 
             <!-- TAGS = what the file tells other tools, and therefore editable.
                  ANALYSIS = what WE heard, and therefore not. The split is by who reads a value,
                  not by how many fields there are.
-                 ⚠ The SWITCH between the two is NOT here any more (Chloe 2026-08-05): a panel that
+                 (!) The SWITCH between the two is NOT here any more (Chloe 2026-08-05): a panel that
                  carries its own tab bar gives its host a second row of tabs above the first. The host
-                 owns the pane header and drives this panel through the ShowAnalysis property —
+                 owns the pane header and drives this panel through the ShowAnalysis property -
                  JUST TAG as EDITOR | ANALYSIS | FILTER, the floating window in its own chrome. -->
 
             <!-- Footer first (DockPanel fills with the LAST child) so the action row is pinned to
                  the bottom and the fields scroll behind it.
-                 The left cell is a MESSAGE line — what happened, not what is open. It stays empty
+                 The left cell is a MESSAGE line - what happened, not what is open. It stays empty
                  until there is something to say; the file's identity lives in the FILE NAME field
                  and in the host's own list. -->
             <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="16,10,16,14">
@@ -210,7 +210,7 @@
 
             <Panel>
 
-            <!-- ⚠ Margin on the CONTENT, not Padding on the ScrollViewer: the ScrollViewer's own
+            <!-- (!) Margin on the CONTENT, not Padding on the ScrollViewer: the ScrollViewer's own
                  padding is not subtracted from the width it offers its child, so every field came
                  out exactly Padding.Right too wide and the top row ran off the card
                  (Chloe's screenshot, 2026-08-03). -->
@@ -224,15 +224,15 @@
                                TextTrimming="CharacterEllipsis"/>
 
                     <!-- Cover + the four name fields.
-                         ⚠ The cover is NOT given a height: its row is `*`, so the picture takes
+                         (!) The cover is NOT given a height: its row is `*`, so the picture takes
                          exactly what the four fields beside it leave over and the buttons close
                          flush with the last box (Chloe 2026-08-05: "perfekt mit 4 zeilen
-                         abschließen"). A hard-coded height would drift apart from the fields the
+                         abschliessen"). A hard-coded height would drift apart from the fields the
                          moment a font metric or a padding changes. The COLUMN is 158 so the box
                          comes out square at the window's own width. -->
                     <Grid ColumnDefinitions="158,14,*">
                         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
-                            <!-- The caption is what lines the cover up with the TITLE box beside it —
+                            <!-- The caption is what lines the cover up with the TITLE box beside it -
                                  same label, same 3px gap, so the two columns start on one line. -->
                             <TextBlock Grid.Row="0" Text="COVER" Classes="tag-label" Margin="0,0,0,3"/>
                             <Border Grid.Row="1" CornerRadius="9" ClipToBounds="True"
@@ -248,7 +248,7 @@
                             </Border>
                             <StackPanel Grid.Row="2" Margin="0,6,0,0"
                                         Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
-                                <Button Classes="tag-ghost" Content="Change…" Padding="10,6"
+                                <Button Classes="tag-ghost" Content="Change..." Padding="10,6"
                                         Click="OnChangeCover"/>
                                 <Button Classes="tag-ghost" Padding="9,6" Click="OnRemoveCover"
                                         ToolTip.Tip="Remove cover">
@@ -264,7 +264,7 @@
 
                         <!-- Four fields, and the cover measures itself against them. ALBUM ARTIST is
                              up here rather than in a row of its own because that is the fourth line
-                             the cover needs — and it belongs with the other three names anyway. -->
+                             the cover needs - and it belongs with the other three names anyway. -->
                         <StackPanel Grid.Column="2" Spacing="9">
                             <StackPanel Spacing="3">
                                 <TextBlock Text="TITLE" Classes="tag-label"/>
@@ -287,7 +287,7 @@
 
                     <!-- Genre keeps twice the width: a style name runs long, a year is four digits.
                          Suggestions come from the genres this library ALREADY uses (most-used
-                         first), then a fallback vocabulary — so the same style stops being spelled
+                         first), then a fallback vocabulary - so the same style stops being spelled
                          four ways. Free text is always accepted; this never restricts. -->
                     <Grid ColumnDefinitions="2*,12,*,12,*">
                         <StackPanel Grid.Column="0" Spacing="3">
@@ -313,7 +313,7 @@
                                  AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"/>
                     </StackPanel>
 
-                    <!-- ── ANALYSIS — hand-correctable ────────────────────────────────────────
+                    <!-- == ANALYSIS - hand-correctable ========================================
                          These three are OUR measurements, so correcting one is a statement about
                          the detector, not a typo fix. What the DSP measured stays visible right
                          underneath, so the correction is made against a number instead of blind. -->
@@ -327,7 +327,7 @@
                         <StackPanel Grid.Column="2" Spacing="3">
                             <TextBlock Text="KEY" Classes="tag-label"/>
                             <TextBox Classes="tag-field" Text="{Binding KeyText}"
-                                     ToolTip.Tip="Am, F#m, 8A — Camelot works too"/>
+                                     ToolTip.Tip="Am, F#m, 8A - Camelot works too"/>
                         </StackPanel>
                         <StackPanel Grid.Column="4" Spacing="3">
                             <TextBlock Text="ENERGY" Classes="tag-label"/>
@@ -343,10 +343,10 @@
                                    TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
 
-                    <!-- ── FILE NAME — LAST ───────────────────────────────────────────────────
+                    <!-- == FILE NAME - LAST ===================================================
                          Not a tag: it renames the file on disk, which is the heaviest thing this
                          panel can do. It sits at the END because the tags are what you came for
-                         (Chloe 2026-08-05: "datei namen ändern muss nach unten - letzter punkt").
+                         (Chloe 2026-08-05: "datei namen aendern muss nach unten - letzter punkt").
                          The extension stays outside the box and is carried over verbatim, so a
                          typo cannot make the file unplayable. -->
                     <Border Height="1" Background="#14FFFFFF" Margin="0,2,0,0"/>
@@ -355,14 +355,14 @@
                         <TextBlock Text="FILE NAME" Classes="tag-label"/>
                         <!-- The chevron belongs to the NAME BOX, not to the section: it offers ways
                              to fill that one field, so it sits at its right end like any picker
-                             (Chloe 2026-08-05 — "logischer und optisch sauber"). The extension stays
+                             (Chloe 2026-08-05 - "logischer und optisch sauber"). The extension stays
                              between them, outside the box, and is carried over verbatim so a typo
                              cannot make the file unplayable. -->
                         <Grid ColumnDefinitions="*,Auto,Auto">
                             <TextBox Grid.Column="0" Classes="tag-field" Text="{Binding BaseName}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="tag-ext"/>
                             <Button Grid.Column="2" Classes="tag-ghost" Padding="8,6" Margin="7,0,0,0"
-                                    ToolTip.Tip="Fill the name from the tags — nothing is renamed until you save">
+                                    ToolTip.Tip="Fill the name from the tags - nothing is renamed until you save">
                                 <Path Stretch="Uniform" Width="12" Height="12"
                                       Stroke="#E6FFFFFF" StrokeThickness="2"
                                       StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
@@ -390,10 +390,10 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- ── ANALYSIS ──────────────────────────────────────────────────────────────────────
+            <!-- == ANALYSIS ======================================================================
                  Read-only, and the note at the bottom says why out loud. These values live only in
                  our blob: nothing else reads them, an ear has no ground truth for a 0..1 float, and
-                 they feed the harmonic sort — so a typed-over number would re-rank the library
+                 they feed the harmonic sort - so a typed-over number would re-rank the library
                  while hiding the detector's mistake instead of fixing it. -->
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
@@ -449,7 +449,7 @@
                         <Border Height="1" Background="#14FFFFFF"/>
 
                         <TextBlock Classes="tag-muted" TextWrapping="Wrap"
-                                   Text="These are measurements, not tags — no other tool reads them, and none of them is editable here. If a number is wrong, the honest fix is to analyse the track again: typing over it would hide the mistake from the detector instead of correcting it."/>
+                                   Text="These are measurements, not tags - no other tool reads them, and none of them is editable here. If a number is wrong, the honest fix is to analyse the track again: typing over it would hide the mistake from the detector instead of correcting it."/>
 
                     </StackPanel>
                 </StackPanel>

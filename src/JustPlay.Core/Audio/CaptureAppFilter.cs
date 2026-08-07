@@ -14,7 +14,7 @@ namespace JustPlay.Core.Audio;
 /// <param name="ProcessId">OS process id.</param>
 /// <param name="ExecutableName">Executable name WITHOUT path or extension (e.g. "rekordbox").
 /// Case-insensitive; the filter lower-cases it.</param>
-/// <param name="HasMainWindow">True if the process owns a visible main window — a cheap proxy for
+/// <param name="HasMainWindow">True if the process owns a visible main window - a cheap proxy for
 /// "a user-facing app" vs a background service.</param>
 public readonly record struct RunningProcess(int ProcessId, string ExecutableName, bool HasMainWindow);
 
@@ -29,9 +29,9 @@ public readonly record struct RunningProcess(int ProcessId, string ExecutableNam
 /// </summary>
 public static class CaptureAppFilter
 {
-    // Recognised DJ applications: a distinctive token to look for → the friendly display name.
+    // Recognised DJ applications: a distinctive token to look for -> the friendly display name.
     // Matched by CONTAINS on the letters-only, lower-cased exe name (see Normalize) so versioned /
-    // spaced names work too — "Traktor Pro 4" → "traktorpro" contains "traktor"; "Serato DJ Pro" →
+    // spaced names work too - "Traktor Pro 4" -> "traktorpro" contains "traktor"; "Serato DJ Pro" ->
     // "seratodjpro" contains "serato". Order = most specific first (djaypro before djay).
     private static readonly (string Token, string Name)[] DjApps =
     {
@@ -46,7 +46,7 @@ public static class CaptureAppFilter
         ("djay",      "djay"),
     };
 
-    // Recognised general media sources (players + browsers) — useful but ranked below DJ apps.
+    // Recognised general media sources (players + browsers) - useful but ranked below DJ apps.
     private static readonly IReadOnlyDictionary<string, string> MediaApps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["spotify"] = "Spotify",
@@ -69,8 +69,8 @@ public static class CaptureAppFilter
     private static string PrettyName(string exe) =>
         exe.Length == 0 ? exe : char.ToUpperInvariant(exe[0]) + exe[1..];
 
-    /// <summary>Letters-only, lower-cased form of an exe name — so DJ matching ignores version
-    /// numbers, spaces and separators ("Traktor Pro 4" → "traktorpro", "Serato_DJ" → "seratodj").</summary>
+    /// <summary>Letters-only, lower-cased form of an exe name - so DJ matching ignores version
+    /// numbers, spaces and separators ("Traktor Pro 4" -> "traktorpro", "Serato_DJ" -> "seratodj").</summary>
     private static string Normalize(string exe)
     {
         var chars = new List<char>(exe.Length);
@@ -79,7 +79,7 @@ public static class CaptureAppFilter
         return new string(chars.ToArray());
     }
 
-    /// <summary>Match a DJ app by distinctive token (contains — version/space tolerant).</summary>
+    /// <summary>Match a DJ app by distinctive token (contains - version/space tolerant).</summary>
     private static bool TryMatchDj(string exe, out string friendly)
     {
         var norm = Normalize(exe);
@@ -96,7 +96,7 @@ public static class CaptureAppFilter
     /// </summary>
     public static IReadOnlyList<CaptureApp> ToCaptureApps(IEnumerable<RunningProcess> processes)
     {
-        // Collapse duplicates by exe name → keep the lowest pid (the main instance, not a child helper).
+        // Collapse duplicates by exe name -> keep the lowest pid (the main instance, not a child helper).
         var byExe = new Dictionary<string, RunningProcess>(StringComparer.OrdinalIgnoreCase);
         foreach (var p in processes)
         {
@@ -119,7 +119,7 @@ public static class CaptureAppFilter
                 media.Add(new CaptureApp(p.ProcessId, mediaName, exe.ToLowerInvariant(), IsDjApp: false));
             else if (p.HasMainWindow)
                 other.Add(new CaptureApp(p.ProcessId, PrettyName(exe), exe.ToLowerInvariant(), IsDjApp: false));
-            // else: background service / helper with no window and not a known audio app → drop.
+            // else: background service / helper with no window and not a known audio app -> drop.
         }
 
         // Stable, readable ordering inside each tier: DJ apps + media by display name; keep it deterministic.

@@ -3,7 +3,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.Core.Abstractions;
 
 /// <summary>
-/// Detects musical key from decoded audio. The headline DJ feature — implementations
+/// Detects musical key from decoded audio. The headline DJ feature - implementations
 /// are free to evolve (chromagram + key profiles today, ML later) behind this contract.
 /// </summary>
 public interface IKeyDetector

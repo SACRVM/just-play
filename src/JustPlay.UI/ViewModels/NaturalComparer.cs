@@ -6,7 +6,7 @@ namespace JustPlay.UI.ViewModels;
 /// <summary>Explorer-style natural/logical string ordering: compares digit runs by numeric value
 /// ("track2" &lt; "track10") and the rest case-insensitively. Managed (no P/Invoke) so it stays
 /// portable and trim/AOT-safe. Shared by the queue (sorting, folder drops), the PRE CUE FINDER
-/// listing and JUST TAG — it was nested in MainWindowViewModel until the finder needed it too, and
+/// listing and JUST TAG - it was nested in MainWindowViewModel until the finder needed it too, and
 /// moved here with <see cref="TrackSort"/> when a third app started sorting the same rows.</summary>
 public sealed class NaturalComparer : IComparer<string?>
 {

@@ -5,14 +5,14 @@
              x:DataType="vm:MainWindowViewModel">
 
     <!--
-      Shared shuffle + repeat cluster — used by BOTH MaxView and MiniView (was
+      Shared shuffle + repeat cluster - used by BOTH MaxView and MiniView (was
       duplicated verbatim in both). Inherits the view's DataContext
       (MainWindowViewModel). Both buttons use the shared Button.iconbtn style
       (App.axaml); .active recolours the glyph to the live accent.
 
-      Shuffle  → ToggleShuffleCommand,  active when Shuffle is on.
-      Repeat   → CycleRepeatCommand (Off → All → One), active when RepeatActive.
-                 The squared-up loop fits a centred "1" (Repeat-One) — see the
+      Shuffle  -> ToggleShuffleCommand,  active when Shuffle is on.
+      Repeat   -> CycleRepeatCommand (Off -> All -> One), active when RepeatActive.
+                 The squared-up loop fits a centred "1" (Repeat-One) - see the
                  second Path, gated on RepeatOne. Geometry notes: top arrow points
                  right, bottom arrow points left; connectors only cover top-left /
                  bottom-right so the centre stays clear for the "1".

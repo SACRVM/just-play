@@ -8,12 +8,12 @@ public class ChannelExtractorTests
     [Fact]
     public void FourChannel_Offset0_TakesMasterPair_DropsCue()
     {
-        // 2 frames, 4 ch interleaved: [M-L M-R C-L C-R] — Master on 0/1, Cue on 2/3.
+        // 2 frames, 4 ch interleaved: [M-L M-R C-L C-R] - Master on 0/1, Cue on 2/3.
         var src = new float[] { 1f, 2f, 90f, 91f,   3f, 4f, 92f, 93f };
         var dst = new float[1];
         int n = ChannelExtractor.ToStereoPair(src, src.Length, channels: 4, masterOffset: 0, ref dst);
 
-        Assert.Equal(4, n); // 2 frames × 2
+        Assert.Equal(4, n); // 2 frames x 2
         Assert.Equal(new[] { 1f, 2f, 3f, 4f }, dst[..n]); // only Master survives; Cue dropped
     }
 
@@ -42,12 +42,12 @@ public class ChannelExtractorTests
     [Fact]
     public void OffsetPastEnd_IsClampedIntoRange()
     {
-        // offset 4 on a 4-ch buffer would read out of bounds → clamp to channels-2 (=2).
+        // offset 4 on a 4-ch buffer would read out of bounds -> clamp to channels-2 (=2).
         var src = new float[] { 1f, 2f, 5f, 6f };
         var dst = new float[4];
         int n = ChannelExtractor.ToStereoPair(src, src.Length, channels: 4, masterOffset: 4, ref dst);
 
-        Assert.Equal(2, n); // 1 frame × 2
+        Assert.Equal(2, n); // 1 frame x 2
         Assert.Equal(new[] { 5f, 6f }, dst[..n]);
     }
 
@@ -77,7 +77,7 @@ public class ChannelExtractorTests
 
     [Theory]
     [InlineData(AppCaptureChannels.FullMix, 2, 0)]
-    [InlineData(AppCaptureChannels.Master12, 4, 0)] // the default — capture 4ch, broadcast pair 1/2
+    [InlineData(AppCaptureChannels.Master12, 4, 0)] // the default - capture 4ch, broadcast pair 1/2
     [InlineData(AppCaptureChannels.Master34, 4, 2)]
     public void AppCaptureFormat_MapsSelectionToChannelsAndOffset(AppCaptureChannels sel, int channels, int offset)
     {

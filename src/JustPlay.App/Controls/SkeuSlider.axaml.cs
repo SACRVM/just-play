@@ -7,15 +7,15 @@ using Avalonia.Media;
 namespace JustPlay.App.Controls;
 
 /// <summary>
-/// Replacement for <see cref="Slider"/> with the design's skeuomorphic look — inset rail,
-/// cyan→pink filled portion, glossy 3D ball thumb. Drag/click to seek.
+/// Replacement for <see cref="Slider"/> with the design's skeuomorphic look - inset rail,
+/// cyan->pink filled portion, glossy 3D ball thumb. Drag/click to seek.
 /// Bind <see cref="Value"/> two-way like a normal Slider.
 /// Set <see cref="IsChrome"/>=true for the volume-style monochrome ball.
 /// </summary>
 public partial class SkeuSlider : UserControl
 {
     // Inner Grid in the XAML has Margin="9,0". The thumb is positioned with HA=Left + Margin.Left
-    // from that inner grid's left edge — so the thumb's left edge in control coords is 9 + Margin.Left.
+    // from that inner grid's left edge - so the thumb's left edge in control coords is 9 + Margin.Left.
     private const double SidePad = 9;
 
     public static readonly StyledProperty<double> MinimumProperty =
@@ -62,7 +62,7 @@ public partial class SkeuSlider : UserControl
         PointerWheelChanged += OnPointerWheel;
     }
 
-    /// <summary>Scroll the mouse wheel while hovering to nudge the value — the usability touch most
+    /// <summary>Scroll the mouse wheel while hovering to nudge the value - the usability touch most
     /// players skip. ~3% of the range per notch; covers BOTH the volume knob and the seek bar (the
     /// transport progress bar hosts a SkeuSlider), so wheel-to-seek and wheel-to-volume both work.</summary>
     private void OnPointerWheel(object? sender, PointerWheelEventArgs e)
@@ -83,7 +83,7 @@ public partial class SkeuSlider : UserControl
 
     private double ActiveThumbWidth => IsChrome ? 14 : 18;
 
-    /// <summary>Distance the thumb's left edge travels along the inner Grid as Value goes 0→1.</summary>
+    /// <summary>Distance the thumb's left edge travels along the inner Grid as Value goes 0->1.</summary>
     private double TrackRange => Math.Max(0, Bounds.Width - 2 * SidePad - ActiveThumbWidth);
 
     /// <summary>Deterministically hide whichever thumb isn't in use right now, and
@@ -146,7 +146,7 @@ public partial class SkeuSlider : UserControl
     {
         if (TrackRange <= 0) return;
         var clickX = e.GetPosition(this).X;
-        // Centre at click → thumb left edge = clickX - half. Subtract padding + half-thumb to map to p.
+        // Centre at click -> thumb left edge = clickX - half. Subtract padding + half-thumb to map to p.
         var halfThumb = ActiveThumbWidth / 2;
         var p = Math.Clamp((clickX - SidePad - halfThumb) / TrackRange, 0, 1);
         Value = Minimum + p * (Maximum - Minimum);

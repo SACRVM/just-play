@@ -4,10 +4,10 @@
                     x:Class="JustPlay.UI.Theming.TrackTable">
 
     <!--
-      ══ TRACK TABLE — ONE source of truth for every list of tracks in the suite ══════════════════
+      == TRACK TABLE - ONE source of truth for every list of tracks in the suite ==================
       Column widths, the two shared margins, and the cell converters that TrackRow / TrackDataHeader
       bind. JUST PLAY's queue, the PRE CUE FINDER and JUST TAG all merge THIS dictionary, so a
-      column's width is defined in exactly one place and header ↔ row ↔ the other app can never
+      column's width is defined in exactly one place and header <-> row <-> the other app can never
       drift. (Chloe 2026-07-08 drift-proofed the two lists inside JUST PLAY; 2026-08-05 the row
       itself moved into JustPlay.UI so a third app could join without copying anything.)
     -->
@@ -25,7 +25,7 @@
     <x:Double x:Key="ColWGain">56</x:Double>
     <x:Double x:Key="ColWLufs">56</x:Double>
     <x:Double x:Key="ColWVibe">42</x:Double>
-    <!-- Comment (the DJ-software COMM field) — sized to the clean MIK-style segment JustPlay writes,
+    <!-- Comment (the DJ-software COMM field) - sized to the clean MIK-style segment JustPlay writes,
          "{Camelot} - Energy {N}", widest "12A - Energy 10" (~90px). 120 fits it with slack; any appended
          user text ellipsises (full text in the tooltip). Left-aligned. Off by default in every list. -->
     <x:Double x:Key="ColWComment">120</x:Double>
@@ -33,7 +33,7 @@
     <x:Double x:Key="ColWLike">34</x:Double>
 
     <!-- The tagging columns (JUST TAG's focus; off in the DJ lists). ART is a 22 px thumbnail in a
-         34 px cell so it has the same air as the ♥. FILE NAME is the widest because a real file name
+         34 px cell so it has the same air as the heart. FILE NAME is the widest because a real file name
          is long, and it is the last cell in the row. -->
     <x:Double x:Key="ColWAlbum">140</x:Double>
     <x:Double x:Key="ColWAlbumArtist">130</x:Double>
@@ -45,7 +45,7 @@
     <x:Double x:Key="ColWFileType">48</x:Double>
     <x:Double x:Key="ColWFileName">220</x:Double>
 
-    <!-- Outer row margin (also on the header DockPanel) — the 16 right = scrollbar gap; and the
+    <!-- Outer row margin (also on the header DockPanel) - the 16 right = scrollbar gap; and the
          name/title fill-middle margin. Both were duplicated literals; now single-sourced. -->
     <Thickness x:Key="TrackRowMargin">6,0,16,0</Thickness>
     <Thickness x:Key="TrackNameMargin">4,0,8,0</Thickness>

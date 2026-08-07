@@ -6,10 +6,10 @@ using System.Text.Json.Serialization;
 namespace JustPlay.Core.Models;
 
 /// <summary>
-/// Stream codec family. MP3 is the primary codec for JUST STREAM — live ICY now-playing
+/// Stream codec family. MP3 is the primary codec for JUST STREAM - live ICY now-playing
 /// metadata and universal player compat win over Opus's per-bit quality advantage.
 /// Opus is an optional later mode; it will not support live title display (Icecast cannot
-/// relay out-of-band metadata for Ogg/Opus streams). See streaming-broadcast.md §1.3.
+/// relay out-of-band metadata for Ogg/Opus streams). See streaming-broadcast.md Sec.1.3.
 /// </summary>
 public enum StreamFormat
 {
@@ -28,12 +28,12 @@ public enum StreamFormat
 
 /// <summary>
 /// HTTP method used to connect to the Icecast source endpoint.
-/// See streaming-broadcast.md §1.1.
+/// See streaming-broadcast.md Sec.1.1.
 /// </summary>
 public enum IcecastProtocol
 {
     /// <summary>
-    /// Modern PUT method (Icecast ≥ 2.4.0). Supports <c>Expect: 100-continue</c>.
+    /// Modern PUT method (Icecast >= 2.4.0). Supports <c>Expect: 100-continue</c>.
     /// Preferred for all new servers. Falls back to <see cref="Source"/> on 405.
     /// </summary>
     Put = 0,
@@ -49,7 +49,7 @@ public enum IcecastProtocol
 /// A named Icecast / SHOUTcast server profile. Users can configure multiple profiles
 /// (e.g. "My 3DX server", "Test server") and switch between them in one click.
 ///
-/// This is a plain data model — no behaviour, no IO. The concrete adapter
+/// This is a plain data model - no behaviour, no IO. The concrete adapter
 /// (<c>JustPlay.Streaming</c>, S2) reads this and drives the TCP source-client.
 /// </summary>
 public sealed record StreamServerProfile
@@ -72,7 +72,7 @@ public sealed record StreamServerProfile
     /// <summary>
     /// Mountpoint path including the leading slash, e.g. <c>/live.mp3</c>.
     /// Must end in <c>.mp3</c> for <see cref="StreamFormat.Mp3"/> or <c>.opus</c> for
-    /// <see cref="StreamFormat.Opus"/> — Icecast infers Content-Type from the extension.
+    /// <see cref="StreamFormat.Opus"/> - Icecast infers Content-Type from the extension.
     /// </summary>
     public string Mount { get; init; } = "/live.mp3";
 
@@ -86,19 +86,19 @@ public sealed record StreamServerProfile
     // This is acceptable for a local DJ tool where the settings file lives in the user's
     // own %LOCALAPPDATA%. Future hardening: DPAPI (Windows) / Keychain (macOS) / libsecret
     // (Linux) via a platform abstraction in JustPlay.Core. Track in: S-security-1.
-    /// <summary>Icecast source password. Plaintext — see the security note above.</summary>
+    /// <summary>Icecast source password. Plaintext - see the security note above.</summary>
     public string Password { get; init; } = string.Empty;
 
     /// <summary>
-    /// Stream codec. <see cref="StreamFormat.Mp3"/> is the JUST STREAM default — live
+    /// Stream codec. <see cref="StreamFormat.Mp3"/> is the JUST STREAM default - live
     /// now-playing via ICY out-of-band metadata and universal client compatibility.
     /// </summary>
     public StreamFormat Format { get; init; } = StreamFormat.Mp3;
 
     /// <summary>
     /// Encoder bitrate in kbps. For MP3 CBR: 128 / 192 / 256 / 320. Default 320 kbps
-    /// (Chloe's call, 2026-06-04 — "loud and clean, sound-first"; bandwidth is cheap for
-    /// a club stream, so max out quality). See streaming-broadcast.md §2.2.
+    /// (Chloe's call, 2026-06-04 - "loud and clean, sound-first"; bandwidth is cheap for
+    /// a club stream, so max out quality). See streaming-broadcast.md Sec.2.2.
     /// </summary>
     public int BitrateKbps { get; init; } = 320;
 
@@ -107,17 +107,17 @@ public sealed record StreamServerProfile
 
     /// <summary>
     /// HTTP method for the Icecast source handshake. <see cref="IcecastProtocol.Put"/> is the
-    /// modern default (Icecast ≥ 2.4.0). Switch to <see cref="IcecastProtocol.Source"/> only
-    /// for legacy servers that reject PUT. See streaming-broadcast.md §1.1.
+    /// modern default (Icecast >= 2.4.0). Switch to <see cref="IcecastProtocol.Source"/> only
+    /// for legacy servers that reject PUT. See streaming-broadcast.md Sec.1.1.
     /// </summary>
     public IcecastProtocol Protocol { get; init; } = IcecastProtocol.Put;
 
-    // ── Station info (ICY mount metadata: ice-url / ice-genre / ice-description / ice-public) ──
+    // -- Station info (ICY mount metadata: ice-url / ice-genre / ice-description / ice-public) --
     // The public-facing directory fields set once at connect. All optional and DJ-owned: we fill
-    // NOTHING promotional ourselves (no "Powered by …" — that's the spammy-encoder anti-pattern).
+    // NOTHING promotional ourselves (no "Powered by ..." - that's the spammy-encoder anti-pattern).
     // Empty strings are sent as null (omitted) by the broadcast adapter. See BassBroadcastService.
 
-    /// <summary>Station website URL (<c>ice-url</c>) — shown in players and the public directory. Optional.</summary>
+    /// <summary>Station website URL (<c>ice-url</c>) - shown in players and the public directory. Optional.</summary>
     public string Url { get; init; } = string.Empty;
 
     /// <summary>Station genre (<c>ice-genre</c>), e.g. "Hard Dance". Optional.</summary>
@@ -126,7 +126,7 @@ public sealed record StreamServerProfile
     /// <summary>One-line station description (<c>ice-description</c>). Optional.</summary>
     public string Description { get; init; } = string.Empty;
 
-    /// <summary>List this stream in the server's public YP directory (<c>ice-public</c>). Default off —
+    /// <summary>List this stream in the server's public YP directory (<c>ice-public</c>). Default off -
     /// a club/private stream stays unlisted unless the DJ opts in.</summary>
     public bool IsPublic { get; init; } = false;
 }
@@ -138,7 +138,7 @@ public sealed record StreamServerProfile
 ///
 /// The main settings file (<c>JsonSettingsService</c>) uses its own reflection-based
 /// <see cref="JsonSerializerOptions"/> (that's the established pattern for UserSettings);
-/// this context provides a source-gen path for code that cannot use reflection — e.g. the
+/// this context provides a source-gen path for code that cannot use reflection - e.g. the
 /// JustPlay.Core layer in a NativeAOT build, and the test suite.
 /// </summary>
 [JsonSourceGenerationOptions(

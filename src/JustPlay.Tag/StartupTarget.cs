@@ -7,9 +7,9 @@ namespace JustPlay.Tag;
 /// <summary>
 /// What JUST TAG was launched ON, taken off the command line.
 ///
-/// <para><c>JustTag.exe "D:\music\new drops"</c> opens that folder; <c>JustTag.exe "…\track.flac"</c>
+/// <para><c>JustTag.exe "D:\music\new drops"</c> opens that folder; <c>JustTag.exe "...\track.flac"</c>
 /// opens the folder the file is in and lands on the file. This is the entry point the planned Explorer
-/// integration ("Open in JUST TAG" on a folder's right-click menu) will call — the shell only ever hands
+/// integration ("Open in JUST TAG" on a folder's right-click menu) will call - the shell only ever hands
 /// a program a path, so the path handling is the whole mechanism and it is worth having before the
 /// registry keys exist. It also means you can already do it from a terminal or a shortcut.</para>
 ///

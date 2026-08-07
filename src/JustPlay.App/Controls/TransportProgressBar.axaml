@@ -7,13 +7,13 @@
              ClipToBounds="False">
 
     <!--
-      Shared seek bar: position · slider · duration. Used by both views (was
+      Shared seek bar: position - slider - duration. Used by both views (was
       duplicated). Defaults to MaxView sizing; Compact=True switches to MiniView's
       smaller text / min-widths / slider inset (the code-behind applies it, mirroring
       TransportButtons). The outer Dock/Margin stays on the consumer.
 
       ClipToBounds=False on the root + Grid: the SkeuSlider thumb's drop-shadow/glow
-      extends below the 22 px slider; this wrapper must not crop it (repo rule — glow
+      extends below the 22 px slider; this wrapper must not crop it (repo rule - glow
       needs ClipToBounds=False all the way up the chain).
     -->
     <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" ClipToBounds="False">

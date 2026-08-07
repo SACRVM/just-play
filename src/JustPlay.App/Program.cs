@@ -19,7 +19,7 @@ namespace JustPlay.App;
 
 sealed class Program
 {
-    /// <summary>Composition root — the one place that knows the concrete backends.</summary>
+    /// <summary>Composition root - the one place that knows the concrete backends.</summary>
     public static IServiceProvider Services { get; private set; } = default!;
 
     /// <summary>The single-instance gate (owned by the primary process). App wires its pipe
@@ -35,7 +35,7 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // ── Crash safety net (2026: try/catch is table stakes) ───────────────────────────────────
+        // -- Crash safety net (2026: try/catch is table stakes) -----------------------------------
         // Anything that escapes a local try/catch is logged + shown in a copyable Oops dialog instead
         // of killing the app. The UI-thread handler marks the error Handled so the app keeps running;
         // background-task and AppDomain-fatal throws are at least captured + reported.
@@ -89,7 +89,7 @@ sealed class Program
             return;
         }
 
-        // HPCP matching sweep: build chroma once, A/B profile × (cosine|pearson).
+        // HPCP matching sweep: build chroma once, A/B profile x (cosine|pearson).
         if (args is ["--giantsteps-hpcp-sweep", var sRoot, ..])
         {
             var max = args.Length > 2 && int.TryParse(args[2], out var m) ? m : int.MaxValue;
@@ -107,7 +107,7 @@ sealed class Program
         // Energy calibration: dump per-file raw+normalised features to CSV.
         // Used to calibrate normalisation ranges and blend weights against the DEAM arousal dataset.
         // Usage: --dump-energy-features <audioFolder> <out.csv>
-        // [energy-detection.md §Grounding the 1–10 scale, ml/calibrate_energy.py]
+        // [energy-detection.md Sec.Grounding the 1-10 scale, ml/calibrate_energy.py]
         if (args is ["--dump-energy-features", var efFolder, var efOut, ..])
         {
             KeyReport.RunDumpEnergyFeatures(Services, efFolder, efOut);
@@ -151,26 +151,26 @@ sealed class Program
         }
 
         // BPM batch validation: compare old vs new corrector against tagged BPM ground truth.
-        // Usage: --bpm-validate "<folder>"   (READ-ONLY — never writes to the folder)
+        // Usage: --bpm-validate "<folder>"   (READ-ONLY - never writes to the folder)
         if (args is ["--bpm-validate", var bpmFolder, ..])
         {
             BpmDebug.RunValidate(Services, bpmFolder);
             return;
         }
 
-        // Beat / groove fingerprint similarity matrix (N8 — beat axis of the compat score).
-        // Usage: --beat-sim "<folder>"  (READ-ONLY — decode + analyse only, no writes)
+        // Beat / groove fingerprint similarity matrix (N8 - beat axis of the compat score).
+        // Usage: --beat-sim "<folder>"  (READ-ONLY - decode + analyse only, no writes)
         // Builds a BeatFingerprint (Scale Transform + Cyclic Tempogram + DFA danceability)
-        // for each audio file, then prints the N×N cosine similarity matrix, per-track
+        // for each audio file, then prints the NxN cosine similarity matrix, per-track
         // nearest neighbours, and highest/lowest similar pairs.
-        // Reference: rhythm-similarity.md §"Concrete recommendation".
+        // Reference: rhythm-similarity.md Sec."Concrete recommendation".
         if (args is ["--beat-sim", var beatSimFolder, ..])
         {
             BeatSimReport.Run(Services, beatSimFolder);
             return;
         }
 
-        // ── Single-instance gate (GUI path only) ─────────────────────────────
+        // -- Single-instance gate (GUI path only) -----------------------------
         // A double-click on an associated file launches us with the file as an arg. If
         // JustPlay is already running, forward the file(s) to that instance and exit, so the
         // song joins the existing queue instead of opening a second window. ConfigureServices
@@ -199,7 +199,7 @@ sealed class Program
     {
         var services = new ServiceCollection();
 
-        // Backends — swapped here (and only here) when going cross-platform.
+        // Backends - swapped here (and only here) when going cross-platform.
         // S2: BassAudioEngine is registered as IAudioEngine AND as IBassMixerSource so that
         // BassBroadcastService can read the mixer's OutputChannel without a concrete dependency
         // (the same seam lets JUST STREAM swap in BassInputCaptureEngine). One singleton instance
@@ -210,28 +210,28 @@ sealed class Program
         // N26: narrow seam so the pre-listen (cue) engine can duck/restore the main engine's
         // device-bound audible output when the two share an output device (BassPreListenEngine's
         // constructor takes IDuckableAudioOutput?; this registration is what makes it non-null in
-        // the running app — see BassAudioEngine.SetDucked / JustPlay.Core.Playback.CueArbiter).
+        // the running app - see BassAudioEngine.SetDucked / JustPlay.Core.Playback.CueArbiter).
         services.AddSingleton<IDuckableAudioOutput>(sp => sp.GetRequiredService<BassAudioEngine>());
         services.AddSingleton<IBroadcastService, BassBroadcastService>();
         services.AddSingleton<IAudioDecoder, BassAudioDecoder>();
-        // Waveform overview (finder scrubber, later the JUST SPIN decks): decodes via IAudioDecoder →
+        // Waveform overview (finder scrubber, later the JUST SPIN decks): decodes via IAudioDecoder ->
         // normalised peaks, platform-agnostic so it lives in Core. Cached by path for instant re-cue.
         services.AddSingleton<IWaveformService, JustPlay.Core.Audio.WaveformService>();
-        // Pre-listen (PFL) cue engine — structurally isolated from the main engine (separate
+        // Pre-listen (PFL) cue engine - structurally isolated from the main engine (separate
         // BASS mixer, separate device, no encoder). Singleton for the process lifetime.
         services.AddSingleton<IPreListenEngine, BassPreListenEngine>();
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
         services.AddSingleton<IMetadataWriter, TagLibMetadataWriter>();
 
-        // Analysis stack — BPM detector + the orchestrator that fans tracks
+        // Analysis stack - BPM detector + the orchestrator that fans tracks
         // out to all registered detectors. Singletons so the BASS_FX side has
         // a single initialised instance for the process lifetime.
         services.AddSingleton<IBpmDetector, BassBpmDetector>();
-        // Key detection: ONE canonical detector for the whole product — the app AND the headless
+        // Key detection: ONE canonical detector for the whole product - the app AND the headless
         // CLI both use BestKeyDetector, so a track keyed by the console shows the SAME key in the UI
         // (the fix for the key-conflict-dot root cause). Always the best method: the trained ML model
         // (MlKeyDetector, ONNX, MIREX ~0.75) when the model+runtime loaded, else the always-available
-        // DSP template (HpcpKeyDetector, ~0.71). No user toggle — best method, always. Both analyse at
+        // DSP template (HpcpKeyDetector, ~0.71). No user toggle - best method, always. Both analyse at
         // 44.1 kHz (TrackAnalysisService.KeySampleRate). See JustPlay.ML.BestKeyDetector.
         services.AddSingleton<HpcpKeyDetector>();
         services.AddSingleton<MlKeyDetector>();
@@ -248,9 +248,9 @@ sealed class Program
         // singletons so MainWindowViewModel and App.OnFrameworkInitialization
         // can share the same instance.
         services.AddSingleton<ISettingsService, JsonSettingsService>();
-        // PRE CUE FINDER add-on settings — separate file (finder.settings.json), source-gen JSON.
+        // PRE CUE FINDER add-on settings - separate file (finder.settings.json), source-gen JSON.
         services.AddSingleton<IFinderSettingsService, FinderSettingsService>();
-        // 0.6: this machine's library index. Per library root, opened lazily — see
+        // 0.6: this machine's library index. Per library root, opened lazily - see
         // milestone-0.6-scope.md for why it is local and the files stay the shared truth.
         services.AddSingleton<ILibraryIndexService, LibraryIndexService>();
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
@@ -280,7 +280,7 @@ sealed class Program
         return services.BuildServiceProvider();
     }
 
-    // Parameterless — used by Main and by the Avalonia visual designer.
+    // Parameterless - used by Main and by the Avalonia visual designer.
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()

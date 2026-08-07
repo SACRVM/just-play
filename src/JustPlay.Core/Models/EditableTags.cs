@@ -3,7 +3,7 @@ namespace JustPlay.Core.Models;
 /// <summary>
 /// The editorial fields a user can change in a tag editor (JUST TAG).
 /// Analysis-computed fields (BPM, key, energy, JUSTPLAY blob, ReplayGain) are
-/// intentionally absent — those travel via <see cref="TagWrite"/> / <see cref="TagRestore"/>.
+/// intentionally absent - those travel via <see cref="TagWrite"/> / <see cref="TagRestore"/>.
 /// </summary>
 public sealed record EditableTags
 {

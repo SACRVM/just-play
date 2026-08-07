@@ -7,11 +7,11 @@ namespace JustPlay.Cli.Commands;
 /// <c>justplay stats --index &lt;path&gt; [--json &lt;out&gt;]</c>
 ///
 /// Reads the sidecar analysis index and emits distribution histograms for:
-///   • BPM in 10-decade bands (100-109, 110-119, 120-129, …, 170-179, 180+, unknown)
-///   • Energy (1..10)
-///   • Danceability (bucketed by 0.5)
-///   • BeatType (from RhythmPattern, if populated)
-///   • Rhythm scalar averages (FourOnFloor, OffbeatEnergy, Swing, Syncopation, HalfTimeFeel)
+///   - BPM in 10-decade bands (100-109, 110-119, 120-129, ..., 170-179, 180+, unknown)
+///   - Energy (1..10)
+///   - Danceability (bucketed by 0.5)
+///   - BeatType (from RhythmPattern, if populated)
+///   - Rhythm scalar averages (FourOnFloor, OffbeatEnergy, Swing, Syncopation, HalfTimeFeel)
 ///
 /// This is the data Chloe uses to tune the beat-type bucket thresholds before the apply phase.
 /// </summary>
@@ -38,24 +38,24 @@ internal static class StatsCommand
         Console.WriteLine($"  Failed        : {failed:N0}");
         Console.WriteLine();
 
-        // ── BPM histogram (10-decade bands, 100..180+) ───────────────────────
+        // -- BPM histogram (10-decade bands, 100..180+) -----------------------
         var bpmBuckets = BuildBpmBuckets(analysed);
         Console.WriteLine("  BPM distribution (10-decade bands):");
         PrintHist(bpmBuckets.Select(b => (b.Label, b.Count)));
 
-        // ── Energy histogram ──────────────────────────────────────────────────
+        // -- Energy histogram --------------------------------------------------
         var energyHist = BuildEnergyHist(analysed);
         Console.WriteLine();
         Console.WriteLine("  Energy distribution (1..10):");
         PrintHist(energyHist.Select(kv => (kv.Key, kv.Value)));
 
-        // ── Danceability histogram ────────────────────────────────────────────
+        // -- Danceability histogram --------------------------------------------
         var danceHist = BuildDanceabilityHist(analysed);
         Console.WriteLine();
         Console.WriteLine("  Danceability distribution (0.5 buckets):");
         PrintHist(danceHist.Select(kv => (kv.Key, kv.Value)));
 
-        // ── BeatType histogram ────────────────────────────────────────────────
+        // -- BeatType histogram ------------------------------------------------
         var beatTypeHist = BuildBeatTypeHist(analysed);
         Console.WriteLine();
         if (beatTypeHist.Count == 0)
@@ -66,7 +66,7 @@ internal static class StatsCommand
             PrintHist(beatTypeHist.Select(kv => (kv.Key, kv.Value)));
         }
 
-        // ── Rhythm scalar averages ────────────────────────────────────────────
+        // -- Rhythm scalar averages --------------------------------------------
         var rhythmAvg = BuildRhythmAverages(analysed);
         Console.WriteLine();
         if (rhythmAvg.Count == 0)
@@ -78,7 +78,7 @@ internal static class StatsCommand
                 Console.WriteLine($"    {k,-20} {v:F4}");
         }
 
-        // ── Vibe quartet histograms (v8+) ─────────────────────────────────────
+        // -- Vibe quartet histograms (v8+) -------------------------------------
         var harshnessHist   = BuildDecileHist(analysed, e => e.Harshness);
         var basePunchHist   = BuildDecileHist(analysed, e => e.BassPunch);
         var bassGrooveHist  = BuildDecileHist(analysed, e => e.BassGroove);
@@ -86,7 +86,7 @@ internal static class StatsCommand
         var darkHist        = BuildDecileHist(analysed, e => e.Dark);
         var hypnoticHist    = BuildDecileHist(analysed, e => e.Hypnotic);
 
-        // ── Grid-confidence (v9+) ─────────────────────────────────────────────
+        // -- Grid-confidence (v9+) ---------------------------------------------
         var gridConfHist    = BuildDecileHist(analysed, e => e.GridConfidence);
         var gridSoftCount   = analysed.Count(e => e.GridConfidence is { } gc && gc < 0.45);
 
@@ -127,17 +127,17 @@ internal static class StatsCommand
             PrintHist(rawEnergyHist.Select(kv => (kv.Key, kv.Value)));
         }
 
-        // ── Grid-confidence histogram + grid-soft count (v9+) ────────────────
+        // -- Grid-confidence histogram + grid-soft count (v9+) ----------------
         if (gridConfHist.Count > 0)
         {
             Console.WriteLine();
-            Console.WriteLine("  GridConfidence distribution (0.1 buckets; <0.45 = grid-soft ⚠):");
+            Console.WriteLine("  GridConfidence distribution (0.1 buckets; <0.45 = grid-soft (!)):");
             PrintHist(gridConfHist.Select(kv => (kv.Key, kv.Value)));
             Console.WriteLine($"  Grid-soft tracks (GridConfidence < 0.45): {gridSoftCount:N0}" +
                               $"  ({(analysed.Count > 0 ? (double)gridSoftCount / analysed.Count * 100 : 0):F1}% of analysed)");
         }
 
-        // ── Build report + optionally write JSON ─────────────────────────────
+        // -- Build report + optionally write JSON -----------------------------
         var report = new StatsReport
         {
             IndexPath      = indexPath,
@@ -173,11 +173,11 @@ internal static class StatsCommand
         return 0;
     }
 
-    // ── Histogram builders ───────────────────────────────────────────────────
+    // -- Histogram builders ---------------------------------------------------
 
     private static List<BpmBucket> BuildBpmBuckets(IReadOnlyList<TrackIndexEntry> entries)
     {
-        // Bands: 60-69, 70-79, …, 170-179, 180+, Unknown
+        // Bands: 60-69, 70-79, ..., 170-179, 180+, Unknown
         var bandMin = 60;
         var bandMax = 180;
         var step    = 10;
@@ -299,7 +299,7 @@ internal static class StatsCommand
         };
     }
 
-    // ── Console helpers ──────────────────────────────────────────────────────
+    // -- Console helpers ------------------------------------------------------
 
     private static void PrintHist(IEnumerable<(string Label, int Count)> items)
     {
@@ -309,7 +309,7 @@ internal static class StatsCommand
         foreach (var (label, count) in list)
         {
             var bar = count > 0
-                ? new string('█', (int)Math.Ceiling((double)count / max * barW))
+                ? new string('#', (int)Math.Ceiling((double)count / max * barW))
                 : "";
             Console.WriteLine($"    {label,-12} {count,6:N0}  {bar}");
         }

@@ -4,7 +4,7 @@ using System.Text;
 namespace JustPlay.Cli.Tags;
 
 /// <summary>
-/// Encodes and decodes the JustPlay vibe tag string — a compact, pipe-delimited,
+/// Encodes and decodes the JustPlay vibe tag string - a compact, pipe-delimited,
 /// machine-parseable summary of the analysis results for use in Comment / Grouping tags.
 ///
 /// <para>
@@ -15,16 +15,16 @@ namespace JustPlay.Cli.Tags;
 /// <para>
 /// <b>Field table:</b>
 /// <list type="bullet">
-///   <item><c>JP</c>       — required namespace prefix; marks this as a JustPlay tag.</item>
-///   <item><c>E{N}</c>     — perceived energy 1–10 (e.g. <c>E7</c>).</item>
-///   <item><c>K{c}</c>     — Camelot key (e.g. <c>K8A</c>, <c>K11B</c>).</item>
-///   <item><c>bpm{N}</c>   — integer BPM, rounded (e.g. <c>bpm140</c>).</item>
-///   <item><c>gc.{NN}</c>  — gridConfidence × 100, 2-digit zero-padded int 00–99 (e.g. <c>gc.57</c>).</item>
-///   <item><c>gr.{NN}</c>  — bassGroove × 100 (e.g. <c>gr.14</c>).</item>
-///   <item><c>pu.{NN}</c>  — bassPunch × 100 (e.g. <c>pu.18</c>).</item>
-///   <item><c>hy.{NN}</c>  — hypnotic × 100 (e.g. <c>hy.02</c>).</item>
-///   <item><c>dk.{NN}</c>  — dark × 100 (e.g. <c>dk.55</c>).</item>
-///   <item><c>hx.{NN}</c>  — harshness × 100 (e.g. <c>hx.41</c>).</item>
+///   <item><c>JP</c>       - required namespace prefix; marks this as a JustPlay tag.</item>
+///   <item><c>E{N}</c>     - perceived energy 1-10 (e.g. <c>E7</c>).</item>
+///   <item><c>K{c}</c>     - Camelot key (e.g. <c>K8A</c>, <c>K11B</c>).</item>
+///   <item><c>bpm{N}</c>   - integer BPM, rounded (e.g. <c>bpm140</c>).</item>
+///   <item><c>gc.{NN}</c>  - gridConfidence x 100, 2-digit zero-padded int 00-99 (e.g. <c>gc.57</c>).</item>
+///   <item><c>gr.{NN}</c>  - bassGroove x 100 (e.g. <c>gr.14</c>).</item>
+///   <item><c>pu.{NN}</c>  - bassPunch x 100 (e.g. <c>pu.18</c>).</item>
+///   <item><c>hy.{NN}</c>  - hypnotic x 100 (e.g. <c>hy.02</c>).</item>
+///   <item><c>dk.{NN}</c>  - dark x 100 (e.g. <c>dk.55</c>).</item>
+///   <item><c>hx.{NN}</c>  - harshness x 100 (e.g. <c>hx.41</c>).</item>
 /// </list>
 /// </para>
 ///
@@ -44,7 +44,7 @@ namespace JustPlay.Cli.Tags;
 /// with a <c> | </c> separator (e.g. <c>JP|E7|K8A|bpm140|... | my crate note</c>).
 /// <see cref="BuildComment"/> handles the idempotent prepend; <see cref="StripJpPrefix"/>
 /// strips it. The existing MIK-style <c>8A - Energy 7</c> comment prefix (written by the
-/// in-app DJ-comment feature) is preserved if present — it starts with a digit, not "JP".
+/// in-app DJ-comment feature) is preserved if present - it starts with a digit, not "JP".
 /// </para>
 ///
 /// <para>
@@ -75,7 +75,7 @@ public static class VibeTagEncoder
     /// <summary>The required namespace prefix that identifies a JP vibe tag.</summary>
     public const string Prefix = "JP";
 
-    // ── Encode ─────────────────────────────────────────────────────────────────
+    // -- Encode -----------------------------------------------------------------
 
     /// <summary>
     /// Encode analysis values into a JP vibe tag string.
@@ -117,7 +117,7 @@ public static class VibeTagEncoder
         return sb.ToString();
     }
 
-    // ── Comment helpers ────────────────────────────────────────────────────────
+    // -- Comment helpers --------------------------------------------------------
 
     /// <summary>
     /// Prepend a JP vibe tag to an existing comment string (idempotent).
@@ -147,7 +147,7 @@ public static class VibeTagEncoder
         return sep >= 0 ? comment[(sep + 3)..] : "";
     }
 
-    // ── Decode ────────────────────────────────────────────────────────────────
+    // -- Decode ----------------------------------------------------------------
 
     /// <summary>Parsed fields from a JP vibe tag string.</summary>
     public sealed record VibeFields(
@@ -238,9 +238,9 @@ public static class VibeTagEncoder
         return new VibeFields(energy, camelot, bpm, gc, gr, pu, hy, dk, hx);
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    // -- Private helpers --------------------------------------------------------
 
-    /// <summary>Convert a [0,1] double to a 0–100 integer percentage (clamped, rounded).</summary>
+    /// <summary>Convert a [0,1] double to a 0-100 integer percentage (clamped, rounded).</summary>
     private static int ToPct(double v)
         => (int)Math.Round(Math.Clamp(v, 0.0, 1.0) * 100.0);
 }

@@ -5,10 +5,10 @@ namespace JustPlay.Core.Tests;
 
 /// <summary>
 /// Verifies that <see cref="RhythmPattern"/> round-trips correctly through
-/// <see cref="AnalysisStateCodec"/> — i.e. that a pattern stored in the JUSTPLAY
+/// <see cref="AnalysisStateCodec"/> - i.e. that a pattern stored in the JUSTPLAY
 /// blob is restored exactly after deserialisation.
 ///
-/// All types involved are in JustPlay.Core — no dependency on JustPlay.Analysis needed.
+/// All types involved are in JustPlay.Core - no dependency on JustPlay.Analysis needed.
 /// </summary>
 public class RhythmPatternCodecTests
 {
@@ -94,13 +94,13 @@ public class RhythmPatternCodecTests
     }
 
     // =========================================================================
-    // 3. Older blob (v5, no rp_* keys) parses without error → Rhythm is null
+    // 3. Older blob (v5, no rp_* keys) parses without error -> Rhythm is null
     // =========================================================================
 
     [Fact]
     public void OlderBlob_WithoutRhythmFields_ParsesAsNull()
     {
-        // Hand-crafted v5 blob — no rp_* keys.
+        // Hand-crafted v5 blob - no rp_* keys.
         const string v5Blob = "{\"v\":5,\"bpm\":128.0,\"kpc\":0,\"kmd\":\"maj\",\"nrg\":7," +
                               "\"lufs\":-9.5,\"rg\":8.5,\"pk\":0.988}";
 
@@ -112,13 +112,13 @@ public class RhythmPatternCodecTests
     }
 
     // =========================================================================
-    // 4. Blob with partial rp_* fields (only fof) → Rhythm is null
+    // 4. Blob with partial rp_* fields (only fof) -> Rhythm is null
     // =========================================================================
 
     [Fact]
     public void PartialRhythmFields_GiveNullRhythm()
     {
-        // Only rp_fof present — not enough to reconstruct the pattern.
+        // Only rp_fof present - not enough to reconstruct the pattern.
         const string partialBlob = "{\"v\":6,\"bpm\":128.0,\"rp_fof\":0.81}";
 
         var restored = AnalysisStateCodec.TryParse(partialBlob);
@@ -170,7 +170,7 @@ public class RhythmPatternCodecTests
     }
 
     // =========================================================================
-    // 7. Blob size remains reasonable — RhythmPattern adds at most ~140 chars
+    // 7. Blob size remains reasonable - RhythmPattern adds at most ~140 chars
     // =========================================================================
 
     [Fact]
@@ -182,10 +182,10 @@ public class RhythmPatternCodecTests
         var noRpBlob  = AnalysisStateCodec.Serialize(noRpState);
         var delta     = rpBlob.Length - noRpBlob.Length;
 
-        // 6 fields × ~15 chars average (key + colon + value + comma) ≈ 90 chars;
+        // 6 fields x ~15 chars average (key + colon + value + comma) ~ 90 chars;
         // allow 200 to be generous.
         Assert.True(delta <= 200,
-            $"RhythmPattern added {delta} chars to the blob (expected ≤ 200). " +
+            $"RhythmPattern added {delta} chars to the blob (expected <= 200). " +
             $"With: {rpBlob.Length}, without: {noRpBlob.Length}.");
     }
 }

@@ -16,7 +16,7 @@ namespace JustPlay.Analysis;
 public sealed class TrackAnalysisService : ITrackAnalysisService
 {
     // Energy runs at 11025 Hz (cheap, and its calibration is fixed to this rate).
-    // The octave corrector reuses this same decode — no extra I/O required.
+    // The octave corrector reuses this same decode - no extra I/O required.
     private const int EnergySampleRate = 11025;
     // Key (HpcpKeyDetector) runs at 44100 Hz: its HPCP harmonic summation needs the upper
     // harmonics that an 11 kHz Nyquist (~5.5 kHz) would cut off. Measured on the GiantSteps
@@ -30,7 +30,7 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
     private readonly IKeyDetector _key;
     private readonly IEnergyDetector _energy;
     private readonly ILoudnessDetector _loudness;
-    // Stateless — one instance is fine for the process lifetime.
+    // Stateless - one instance is fine for the process lifetime.
     private readonly TempoOctaveCorrector _octaveCorrector = new();
 
     public TrackAnalysisService(IBpmDetector bpm, IAudioDecoder decoder, IKeyDetector key, IEnergyDetector energy, ILoudnessDetector loudness)
@@ -67,13 +67,13 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             }
 
             // Energy: separate decode at 11.025 kHz (its calibration is fixed to this rate).
-            // The same 11 kHz buffer is also used for BPM octave correction — no extra I/O.
+            // The same 11 kHz buffer is also used for BPM octave correction - no extra I/O.
             ct.ThrowIfCancellationRequested();
             var energyAudio = _decoder.DecodeMono(filePath, EnergySampleRate, ct);
 
             // BPM octave correction (half/double-tempo fix via onset autocorrelation +
-            // log-Gaussian prior). Runs on the 11 kHz decode — cheap, no extra I/O.
-            // Also yields the ACF peak sharpness ratio (v9+) at zero additional cost —
+            // log-Gaussian prior). Runs on the 11 kHz decode - cheap, no extra I/O.
+            // Also yields the ACF peak sharpness ratio (v9+) at zero additional cost -
             // it's derived from the same ACF that the corrector already computes.
             double? acfSharpness = null;
             if (bpm is { } rawBpm && energyAudio.Samples?.Length > 0)
@@ -83,7 +83,7 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
                 acfSharpness = sharp;
                 if (Math.Abs(correctedBpm - rawBpm) > 0.01)
                 {
-                    // Correction was applied — update result so the final stored value is corrected.
+                    // Correction was applied - update result so the final stored value is corrected.
                     result = result with { Bpm = correctedBpm };
                 }
             }
@@ -117,11 +117,11 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             }
             else if (result.Bpm != bpm)
             {
-                // Energy failed but BPM was corrected — report the updated BPM.
+                // Energy failed but BPM was corrected - report the updated BPM.
                 progress?.Report(result);
             }
 
-            // Loudness / ReplayGain — reuses the same 11 kHz buffer, no extra I/O.
+            // Loudness / ReplayGain - reuses the same 11 kHz buffer, no extra I/O.
             ct.ThrowIfCancellationRequested();
             if (_loudness.Detect(energyAudio, ct) is { } loud)
             {
@@ -131,9 +131,9 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             }
 
             // Beat fingerprint (Scale Transform + Cyclic Tempogram + DFA danceability).
-            // Reuses the same 11 kHz decode already in memory — no extra I/O.
+            // Reuses the same 11 kHz decode already in memory - no extra I/O.
             // The fingerprint is NOT reported as a progress intermediate (it does not update
-            // any visible UI column) — it is silently attached to the final result so it
+            // any visible UI column) - it is silently attached to the final result so it
             // round-trips through the blob and is available to HarmonicSort.
             if (energyAudio.Samples?.Length > 0)
             {
@@ -145,7 +145,7 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             }
 
             // Rhythm pattern (FourOnFloor, OffbeatEnergy, Swing, Syncopation, HalfTimeFeel,
-            // BeatType). Reuses the same 11 kHz decode — no extra I/O. Requires a known BPM;
+            // BeatType). Reuses the same 11 kHz decode - no extra I/O. Requires a known BPM;
             // skip if BPM was not detected. Also not a visible progress intermediate.
             if (energyAudio.Samples?.Length > 0 && result.Bpm is { } finalBpm)
             {
@@ -158,7 +158,7 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
 
             // Vibe quartet (punch/groove/dark/hypnotic) + noisy fatigue flag (harshness).
             // Requires: samples, loudness (LUFS + peak), raw energy score, rhythm pattern.
-            // Reuses all already-computed values — no extra I/O or decode.
+            // Reuses all already-computed values - no extra I/O or decode.
             if (energyAudio.Samples?.Length > 0 &&
                 result.LoudnessLufs is { } charLufs &&
                 result.Peak is { } charPeak &&
@@ -189,7 +189,7 @@ public sealed class TrackAnalysisService : ITrackAnalysisService
             }
 
             // AcfSharpness + GridConfidence (v9+).
-            // AcfSharpness was captured from the BPM octave-corrector call above — zero extra pass.
+            // AcfSharpness was captured from the BPM octave-corrector call above - zero extra pass.
             // GridConfidence is derived from AcfSharpness + the already-computed RhythmPattern.
             if (acfSharpness is { } acfSharp)
             {

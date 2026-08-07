@@ -5,14 +5,14 @@ namespace JustPlay.Analysis;
 /// (octave) errors using an Ellis-style onset-strength autocorrelation combined
 /// with a log-Gaussian tempo prior.
 ///
-/// <para><b>Algorithm (Ellis 2007 §3.1 + librosa parameterisation) — hybrid ACF scan:</b></para>
+/// <para><b>Algorithm (Ellis 2007 Sec.3.1 + librosa parameterisation) - hybrid ACF scan:</b></para>
 /// <list type="number">
 ///   <item>
 ///     <b>Onset-strength envelope:</b> compute a short-time spectral flux envelope
-///     over the decoded audio using power-of-two FFT frames at ~8–11 kHz.
+///     over the decoded audio using power-of-two FFT frames at ~8-11 kHz.
 ///     We use the audio already decoded for energy/key analysis (typically 11 025 Hz)
 ///     to avoid an extra decode. Each frame produces a half-wave-rectified spectral
-///     flux value — the sum of positive magnitude differences across bins.
+///     flux value - the sum of positive magnitude differences across bins.
 ///   </item>
 ///   <item>
 ///     <b>Autocorrelation:</b> compute the biased autocorrelation of the onset
@@ -20,14 +20,14 @@ namespace JustPlay.Analysis;
 ///   </item>
 ///   <item>
 ///     <b>Log-Gaussian tempo prior:</b> weight the autocorrelation by a Gaussian
-///     centred on τ₀ = 0.5 s (120 BPM) on a log-time axis:
-///     <c>W(τ) = exp(−½ · (log₂(τ/τ₀) / σ_τ)²)</c>.
-///     Parameters: τ₀ = 0.5 s → 120 BPM; σ_τ = 0.9 octaves (Ellis/librosa default).
+///     centred on tau_0 = 0.5 s (120 BPM) on a log-time axis:
+///     <c>W(tau) = exp(-1/2 - (log_2(tau/tau_0) / sigma_tau)^2)</c>.
+///     Parameters: tau_0 = 0.5 s -> 120 BPM; sigma_tau = 0.9 octaves (Ellis/librosa default).
 ///   </item>
 ///   <item>
 ///     <b>Hybrid candidate set:</b> union of
-///     (a) BASS raw octave multiples {raw/4, raw/3, raw/2, raw, raw×2, raw×3, raw×4} and
-///     (b) the top ACF-scan peaks from a full sweep over <see cref="MinFundamentalBpm"/>–
+///     (a) BASS raw octave multiples {raw/4, raw/3, raw/2, raw, rawx2, rawx3, rawx4} and
+///     (b) the top ACF-scan peaks from a full sweep over <see cref="MinFundamentalBpm"/>-
 ///         <see cref="MaxFundamentalBpm"/>. This means a true tempo of 155 BPM that is
 ///         not a clean multiple of a broken raw (e.g. raw=31 from BASS_FX's out-of-range
 ///         return) can still win via the ACF scan, independent of the raw value.
@@ -36,13 +36,13 @@ namespace JustPlay.Analysis;
 ///     <b>Conservative correction:</b> if BASS raw is in range AND its ACF score is within
 ///     <see cref="MinScoreMargin"/> of the winner, prefer staying at raw (don't flip
 ///     confident-correct tracks). Only override when the winner clearly dominates
-///     (≥<see cref="MinScoreMargin"/> better) OR when raw is out of the fundamental range
+///     (>=<see cref="MinScoreMargin"/> better) OR when raw is out of the fundamental range
 ///     / has near-zero ACF.
 ///   </item>
 /// </list>
 ///
 /// <para>All managed, no NuGet, reflection-free, trim-/AOT-safe. No BASS or Avalonia
-/// references — lives entirely in <c>JustPlay.Analysis</c>.</para>
+/// references - lives entirely in <c>JustPlay.Analysis</c>.</para>
 /// </summary>
 public sealed class TempoOctaveCorrector
 {
@@ -63,16 +63,16 @@ public sealed class TempoOctaveCorrector
     private const double MinCandidateBpm = 40.0;
     private const double MaxCandidateBpm = 240.0;
 
-    // ---- BASS_FX native range — used for the conservative guard ----
+    // ---- BASS_FX native range - used for the conservative guard ----
     // BASS_FX's BPMDecodeGet returns values only in 45..230 BPM (MinMaxBPM=0 default).
     // A rawBPM outside this window is a gross detector error (e.g. 31 BPM for a 155 BPM
-    // track). We do NOT defend gross-error raws with the conservative margin guard — only
+    // track). We do NOT defend gross-error raws with the conservative margin guard - only
     // in-range raws get the "confident correct" protection.
     private const double BassNativeMinBpm = 45.0;
     private const double BassNativeMaxBpm = 230.0;
 
     // ---- Raw octave multipliers tried (4a candidates) ----
-    // Includes /4.../×4 so even a raw=31 "fifth of 155" can reach 124 (×4) and the
+    // Includes /4.../x4 so even a raw=31 "fifth of 155" can reach 124 (x4) and the
     // ACF scan will find 155 directly anyway. The wide set is cheap because we're
     // just evaluating named lags in an already-computed ACF.
     private static readonly double[] RawMultipliers = [0.25, 1.0/3.0, 0.5, 1.0, 2.0, 3.0, 4.0];
@@ -93,11 +93,11 @@ public sealed class TempoOctaveCorrector
 
     /// <summary>
     /// Applies octave correction to a raw BPM estimate.
-    /// Thin wrapper around <see cref="CorrectWithSharpness"/> — for callers that only
+    /// Thin wrapper around <see cref="CorrectWithSharpness"/> - for callers that only
     /// need the corrected BPM and not the ACF sharpness ratio.
     /// </summary>
     /// <param name="rawBpm">Raw BPM from BASS_FX. Returned unchanged on failure.</param>
-    /// <param name="samples">Decoded mono float samples (any sample rate ≥ 8000 Hz).</param>
+    /// <param name="samples">Decoded mono float samples (any sample rate >= 8000 Hz).</param>
     /// <param name="sampleRate">Sample rate of <paramref name="samples"/>.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>
@@ -109,17 +109,17 @@ public sealed class TempoOctaveCorrector
 
     /// <summary>
     /// Applies octave correction to a raw BPM estimate AND computes the ACF peak
-    /// sharpness ratio — a confidence signal for the beat-grid quality.
+    /// sharpness ratio - a confidence signal for the beat-grid quality.
     ///
     /// <para><b>ACF sharpness</b> [0, 1]:
     /// Ratio of the dominant beat-period ACF peak to the next non-octave rival peak.
     /// A sharp, isolated peak (approaching 1.0) means the onset autocorrelation has a
-    /// single dominant period → the beat tracker has a clear anchor → high grid confidence.
+    /// single dominant period -> the beat tracker has a clear anchor -> high grid confidence.
     /// A broad or ambiguous peak (approaching 0) means competing meter levels are present
-    /// (e.g. 2-step with both a beat-period and a bar-period peak) → fragile grid.
-    /// Defined as <c>(peak0/(peak0+peak1) − 0.5) × 2</c> normalised from [0.5,1.0] to [0,1].
-    /// When no signal is present, returns 0.0 (worst case — triggers the grid-soft flag).
-    /// Per <c>references/beatgrid-confidence.md §3.4</c>.</para>
+    /// (e.g. 2-step with both a beat-period and a bar-period peak) -> fragile grid.
+    /// Defined as <c>(peak0/(peak0+peak1) - 0.5) x 2</c> normalised from [0.5,1.0] to [0,1].
+    /// When no signal is present, returns 0.0 (worst case - triggers the grid-soft flag).
+    /// Per <c>references/beatgrid-confidence.md Sec.3.4</c>.</para>
     /// </summary>
     public (double CorrectedBpm, double AcfSharpness) CorrectWithSharpness(
         double rawBpm, float[] samples, int sampleRate, CancellationToken ct = default)
@@ -142,7 +142,7 @@ public sealed class TempoOctaveCorrector
         var acf = Autocorrelate(envelope, maxLagFrames, ct);
 
         // ---- 3. Build hybrid candidate set ----
-        // 3a: raw octave multiples (wide set: /4 … ×4)
+        // 3a: raw octave multiples (wide set: /4 ... x4)
         var candidatesBpm = new HashSet<double>(capacity: 32);
         foreach (var mult in RawMultipliers)
         {
@@ -162,7 +162,7 @@ public sealed class TempoOctaveCorrector
         var bestScore = double.MinValue;
         var rawScore  = double.MinValue;
         // Only defend the raw value if it falls within BASS_FX's own native output range
-        // (45–230 BPM). Values outside that window are gross detector errors — don't protect them.
+        // (45-230 BPM). Values outside that window are gross detector errors - don't protect them.
         var rawInRange = rawBpm >= BassNativeMinBpm && rawBpm <= BassNativeMaxBpm;
 
         foreach (var cBpm in candidatesBpm)
@@ -200,7 +200,7 @@ public sealed class TempoOctaveCorrector
         // If raw is in range and has a positive score, require a clear margin.
         // This prevents the prior from flipping confident-correct tracks.
         // Raw out-of-range (e.g. BASS returned 31 BPM below the 45 BPM floor)
-        // means the raw value is unreliable — allow correction without a margin fight.
+        // means the raw value is unreliable - allow correction without a margin fight.
         if (rawInRange && rawScore > 0 && bestScore <= rawScore * (1.0 + MinScoreMargin))
             return (rawBpm, ComputeAcfSharpness(acf, sampleRate, maxLagFrames, rawBpm, ct));
 
@@ -214,14 +214,14 @@ public sealed class TempoOctaveCorrector
     /// <summary>
     /// Computes the ACF peak sharpness ratio from the raw (unweighted) autocorrelation.
     ///
-    /// <para>Algorithm (from <c>beatgrid-confidence.md §3.4</c>):</para>
+    /// <para>Algorithm (from <c>beatgrid-confidence.md Sec.3.4</c>):</para>
     /// <list type="number">
     ///   <item>Scan every integer BPM in [MinFundamentalBpm, MaxFundamentalBpm]; collect
     ///     (lagFrames, rawAcf[lagFrames]) pairs.</item>
-    ///   <item>Sort by raw ACF amplitude descending — this is the dominant beat period.</item>
+    ///   <item>Sort by raw ACF amplitude descending - this is the dominant beat period.</item>
     ///   <item>Find the next rival peak whose lag is NOT an octave harmonic of peak0
-    ///     (excludes lags within 15% of ×1, ×2, ×0.5 of peak0.Lag).</item>
-    ///   <item>Sharpness = peak0/(peak0+peak1) ∈ [0.5, 1.0]; normalise to [0, 1].</item>
+    ///     (excludes lags within 15% of x1, x2, x0.5 of peak0.Lag).</item>
+    ///   <item>Sharpness = peak0/(peak0+peak1)  in  [0.5, 1.0]; normalise to [0, 1].</item>
     ///   <item>Returns 0.0 when the ACF has no positive signal (silence / noise).</item>
     /// </list>
     /// </summary>
@@ -229,7 +229,7 @@ public sealed class TempoOctaveCorrector
         double[] acf, int sampleRate, int maxLagFrames, double bpm, CancellationToken ct)
     {
         // Build (lagFrames, rawAcfValue) for each integer BPM in the fundamental range.
-        // Use RAW (unweighted) ACF values — sharpness reflects the intrinsic onset periodicity,
+        // Use RAW (unweighted) ACF values - sharpness reflects the intrinsic onset periodicity,
         // independent of the log-Gaussian prior that biases toward 120 BPM.
         var peaks = new List<(int Lag, double Amp)>(capacity: 140);
         for (var bpmI = (int)MinFundamentalBpm; bpmI <= (int)MaxFundamentalBpm; bpmI++)
@@ -246,41 +246,41 @@ public sealed class TempoOctaveCorrector
         peaks.Sort(static (a, b) => b.Amp.CompareTo(a.Amp));
 
         var peak0Amp = peaks[0].Amp;
-        if (peak0Amp <= 0.0) return 0.0;  // no onset signal → low confidence
+        if (peak0Amp <= 0.0) return 0.0;  // no onset signal -> low confidence
 
         var peak0Lag = peaks[0].Lag;
 
         // Find the highest non-octave rival peak.
-        // Exclude lags within 15% of ×1 (same), ×2 (half BPM), ×0.5 (double BPM).
+        // Exclude lags within 15% of x1 (same), x2 (half BPM), x0.5 (double BPM).
         var peak1Amp = 0.0;
         for (var i = 1; i < peaks.Count; i++)
         {
             var ratio = (double)peaks[i].Lag / peak0Lag;
             if (Math.Abs(ratio - 1.0) > 0.15 &&   // not the same lag
-                Math.Abs(ratio - 2.0) > 0.15 &&   // not the 2× lag (half-BPM octave)
-                Math.Abs(ratio - 0.5) > 0.15)     // not the 0.5× lag (double-BPM octave)
+                Math.Abs(ratio - 2.0) > 0.15 &&   // not the 2x lag (half-BPM octave)
+                Math.Abs(ratio - 0.5) > 0.15)     // not the 0.5x lag (double-BPM octave)
             {
                 peak1Amp = peaks[i].Amp;
                 break;
             }
         }
 
-        // rawRatio ∈ [0.5, 1.0]: 1.0 = perfectly sharp (no rival), 0.5 = equal rival.
+        // rawRatio  in  [0.5, 1.0]: 1.0 = perfectly sharp (no rival), 0.5 = equal rival.
         var rawRatio = (peak0Amp + peak1Amp) > 0.0
             ? peak0Amp / (peak0Amp + peak1Amp)
             : 1.0;
 
-        // Normalise [0.5, 1.0] → [0, 1].
+        // Normalise [0.5, 1.0] -> [0, 1].
         return Math.Clamp((rawRatio - 0.5) * 2.0, 0.0, 1.0);
     }
 
     // -------------------------------------------------------------------------
-    // ACF scan — full sweep over MinFundamentalBpm..MaxFundamentalBpm
+    // ACF scan - full sweep over MinFundamentalBpm..MaxFundamentalBpm
     // -------------------------------------------------------------------------
 
     /// <summary>
     /// Sweeps every integer BPM in [<see cref="MinFundamentalBpm"/>,
-    /// <see cref="MaxFundamentalBpm"/>], scores each with ACF × prior, and adds the
+    /// <see cref="MaxFundamentalBpm"/>], scores each with ACF x prior, and adds the
     /// top <see cref="AcfScanTopPeaks"/> BPM values to <paramref name="candidates"/>.
     ///
     /// This is what lets the corrector reach 155 BPM from a broken raw=31:

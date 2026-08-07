@@ -7,30 +7,30 @@ namespace JustPlay.Analysis.Tests;
 /// <summary>
 /// Unit tests for <see cref="RhythmPatternDetector"/>.
 ///
-/// All signals are synthetic — no real audio files needed. Three canonical patterns:
+/// All signals are synthetic - no real audio files needed. Three canonical patterns:
 /// <list type="number">
-///   <item><b>Pure 4/4 kick</b>: Gaussian click on every beat → high FourOnFloor, low Syncopation → "4x4-driving".</item>
-///   <item><b>Swung off-beat hat</b>: kick on every beat + hi-hat clicks between beats, offset late (swing) →
-///     high FourOnFloor, high OffbeatEnergy, high Swing → "4x4-groovy".</item>
-///   <item><b>Breakbeat</b>: irregular kick pattern (beat 1 and 3 only, no beat 2 and 4) + snare syncopation →
-///     low FourOnFloor, high Syncopation → "breaks".</item>
-///   <item><b>Half-time feel</b>: kick every two beats (half-tempo rate) → high HalfTimeFeel → "halftime".</item>
+///   <item><b>Pure 4/4 kick</b>: Gaussian click on every beat -> high FourOnFloor, low Syncopation -> "4x4-driving".</item>
+///   <item><b>Swung off-beat hat</b>: kick on every beat + hi-hat clicks between beats, offset late (swing) ->
+///     high FourOnFloor, high OffbeatEnergy, high Swing -> "4x4-groovy".</item>
+///   <item><b>Breakbeat</b>: irregular kick pattern (beat 1 and 3 only, no beat 2 and 4) + snare syncopation ->
+///     low FourOnFloor, high Syncopation -> "breaks".</item>
+///   <item><b>Half-time feel</b>: kick every two beats (half-tempo rate) -> high HalfTimeFeel -> "halftime".</item>
 /// </list>
 ///
 /// Tests confirm:
 /// - Feature scalars are in [0, 1].
-/// - Synthetic pure 4/4 → FourOnFloor &gt; Syncopation.
-/// - Synthetic breakbeat → Syncopation &gt; FourOnFloor.
-/// - Swung hat → OffbeatEnergy and Swing elevated vs pure 4/4.
-/// - Half-time → HalfTimeFeel elevated vs straight 4/4.
+/// - Synthetic pure 4/4 -> FourOnFloor &gt; Syncopation.
+/// - Synthetic breakbeat -> Syncopation &gt; FourOnFloor.
+/// - Swung hat -> OffbeatEnergy and Swing elevated vs pure 4/4.
+/// - Half-time -> HalfTimeFeel elevated vs straight 4/4.
 /// - BeatType labels match the expected taxonomy for each synthetic signal.
-/// - Guard: null / too-short / zero BPM → null (no throw).
+/// - Guard: null / too-short / zero BPM -> null (no throw).
 /// - ClassifyBeatType is directly testable from known scalar combos.
 /// </summary>
 public class RhythmPatternDetectorTests
 {
     private const int SampleRate = 11025;
-    private const double DurationSeconds = 20.0;  // long enough for ≥10 beat periods at 120 BPM
+    private const double DurationSeconds = 20.0;  // long enough for >=10 beat periods at 120 BPM
 
     // =========================================================================
     // Guard / edge cases
@@ -53,7 +53,7 @@ public class RhythmPatternDetectorTests
     [Fact]
     public void TooShortSamples_ReturnsNull()
     {
-        // 8 samples — too short for even one onset frame.
+        // 8 samples - too short for even one onset frame.
         var rp = RhythmPatternDetector.Detect(new float[8], SampleRate, 120.0);
         Assert.Null(rp);
     }
@@ -111,13 +111,13 @@ public class RhythmPatternDetectorTests
     }
 
     // =========================================================================
-    // Pure 4/4 kick → high FourOnFloor, lower Syncopation, "4x4-driving"
+    // Pure 4/4 kick -> high FourOnFloor, lower Syncopation, "4x4-driving"
     // =========================================================================
 
     [Fact]
     public void PureFourOnFloor_FourOnFloor_ExceedsSyncopation()
     {
-        // A click on every beat at exactly 128 BPM — maximally regular four-on-the-floor.
+        // A click on every beat at exactly 128 BPM - maximally regular four-on-the-floor.
         var samples = KickClickTrain(128.0, DurationSeconds, SampleRate);
         var rp = RhythmPatternDetector.Detect(samples, SampleRate, 128.0);
 
@@ -129,7 +129,7 @@ public class RhythmPatternDetectorTests
     [Fact]
     public void PureFourOnFloor_FourOnFloor_IsHigh()
     {
-        // Four-on-the-floor: every beat has a kick → score should be high (≥ 0.70).
+        // Four-on-the-floor: every beat has a kick -> score should be high (>= 0.70).
         // With the hit-fraction approach (FourOnFloor = fraction of beat positions that
         // have a low-band onset above the mean), a perfect 4/4 kick train should approach 1.0.
         var samples = KickClickTrain(128.0, DurationSeconds, SampleRate);
@@ -137,13 +137,13 @@ public class RhythmPatternDetectorTests
 
         Assert.NotNull(rp);
         Assert.True(rp!.FourOnFloor >= 0.70,
-            $"Pure 4/4 FourOnFloor expected ≥ 0.70, got {rp.FourOnFloor:0.000}");
+            $"Pure 4/4 FourOnFloor expected >= 0.70, got {rp.FourOnFloor:0.000}");
     }
 
     [Fact]
     public void PureFourOnFloor_BeatType_IsDriving()
     {
-        // A plain kick train with no off-beat emphasis → "4x4-driving".
+        // A plain kick train with no off-beat emphasis -> "4x4-driving".
         var samples = KickClickTrain(128.0, DurationSeconds, SampleRate);
         var rp = RhythmPatternDetector.Detect(samples, SampleRate, 128.0);
 
@@ -152,7 +152,7 @@ public class RhythmPatternDetectorTests
     }
 
     // =========================================================================
-    // Swung-hat pattern → elevated OffbeatEnergy and Swing, "4x4-groovy"
+    // Swung-hat pattern -> elevated OffbeatEnergy and Swing, "4x4-groovy"
     // =========================================================================
 
     [Fact]
@@ -175,7 +175,7 @@ public class RhythmPatternDetectorTests
     [Fact]
     public void SwungHat_BeatType_IsGroovy()
     {
-        // With strong off-beat hits and swing → "4x4-groovy".
+        // With strong off-beat hits and swing -> "4x4-groovy".
         var samples = KickPlusSwungHat(128.0, DurationSeconds, SampleRate, swingFactor: 0.65);
         var rp = RhythmPatternDetector.Detect(samples, SampleRate, 128.0);
 
@@ -184,13 +184,13 @@ public class RhythmPatternDetectorTests
     }
 
     // =========================================================================
-    // Breakbeat pattern → low FourOnFloor, high Syncopation, "breaks"
+    // Breakbeat pattern -> low FourOnFloor, high Syncopation, "breaks"
     // =========================================================================
 
     [Fact]
     public void Breakbeat_FourOnFloor_LowerThanPureKick()
     {
-        // Broken kick: kicks at ¼ sub-beat positions (NOT on the beat grid), plus
+        // Broken kick: kicks at 1/4 sub-beat positions (NOT on the beat grid), plus
         // syncopated snare hits. The FourOnFloor score should be lower than a pure 4/4 kick
         // because the low-band energy does NOT land consistently on beat positions.
         var kickOnly  = KickClickTrain(128.0, DurationSeconds, SampleRate);
@@ -223,7 +223,7 @@ public class RhythmPatternDetectorTests
     }
 
     // =========================================================================
-    // Half-time feel → HalfTimeFeel elevated vs straight 4/4
+    // Half-time feel -> HalfTimeFeel elevated vs straight 4/4
     // =========================================================================
 
     [Fact]
@@ -233,7 +233,7 @@ public class RhythmPatternDetectorTests
         var straight  = KickClickTrain(128.0, DurationSeconds, SampleRate);
         var halfTime  = KickClickTrain(64.0,  DurationSeconds, SampleRate); // same click at half tempo
 
-        // Tell the detector the BPM is 128 for both — the half-time track
+        // Tell the detector the BPM is 128 for both - the half-time track
         // will show up as a half-time feel at 128 BPM.
         var rpStraight = RhythmPatternDetector.Detect(straight, SampleRate, 128.0);
         var rpHalfTime = RhythmPatternDetector.Detect(halfTime, SampleRate, 128.0);
@@ -246,7 +246,7 @@ public class RhythmPatternDetectorTests
     }
 
     // =========================================================================
-    // ClassifyBeatType — direct unit tests of the rule logic
+    // ClassifyBeatType - direct unit tests of the rule logic
     // =========================================================================
 
     [Fact]
@@ -370,11 +370,11 @@ public class RhythmPatternDetectorTests
         var n = samples.Length;
         var beatPeriodSamples = sampleRate * 60.0 / bpm;
         var sigma = sampleRate * 0.002;  // ~2 ms sharp hat pulse
-        var hatFreq = 2000.0;            // hi-hat carrier → lands in mid band
+        var hatFreq = 2000.0;            // hi-hat carrier -> lands in mid band
 
         for (var beat = 0; beat * beatPeriodSamples < n; beat++)
         {
-            // Place hat at swingFactor × beatPeriod after the beat.
+            // Place hat at swingFactor x beatPeriod after the beat.
             var hatCentre = beat * beatPeriodSamples + swingFactor * beatPeriodSamples;
             var lo = (int)Math.Max(0,     Math.Round(hatCentre - 4 * sigma));
             var hi = (int)Math.Min(n - 1, Math.Round(hatCentre + 4 * sigma));
@@ -392,7 +392,7 @@ public class RhythmPatternDetectorTests
 
     /// <summary>
     /// Generates a broken kick pattern plus off-beat syncopation hits.
-    /// Kick on beats 1 and 3 (low band), plus syncopation clicks at ¼ and ¾ (mid band).
+    /// Kick on beats 1 and 3 (low band), plus syncopation clicks at 1/4 and 3/4 (mid band).
     /// </summary>
     private static float[] BrokenKickWithSyncopation(
         double bpm, double durationSeconds, int sampleRate)
@@ -409,7 +409,7 @@ public class RhythmPatternDetectorTests
         {
             var beatCentre = beat * beatPeriodSamples;
 
-            // Kick only on even beats (beat 0, 2, 4, …).
+            // Kick only on even beats (beat 0, 2, 4, ...).
             if (beat % 2 == 0)
             {
                 var lo = (int)Math.Max(0,     Math.Round(beatCentre - 5 * sigma));
@@ -423,7 +423,7 @@ public class RhythmPatternDetectorTests
                 }
             }
 
-            // Syncopation hit at ¼ of the beat period (off-grid).
+            // Syncopation hit at 1/4 of the beat period (off-grid).
             var snapCentre = beatCentre + beatPeriodSamples * 0.25;
             {
                 var lo = (int)Math.Max(0,     Math.Round(snapCentre - 3 * sigma));

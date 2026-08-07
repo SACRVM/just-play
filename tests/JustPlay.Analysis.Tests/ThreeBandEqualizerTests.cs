@@ -3,14 +3,14 @@ using JustPlay.Analysis;
 namespace JustPlay.Analysis.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="ThreeBandEqualizer"/> — the 3-band DJ EQ / isolator.
+/// Unit tests for <see cref="ThreeBandEqualizer"/> - the 3-band DJ EQ / isolator.
 ///
 /// Coverage:
-///   EQ1 — flat (1,1,1) passes a mid tone at ~unity (transparent reconstruction).
-///   EQ2 — low kill (0,…) silences a 60 Hz tone while leaving a 1 kHz tone intact.
-///   EQ3 — high kill (…,0) silences a 10 kHz tone while leaving a 1 kHz tone intact.
-///   EQ4 — low boost (2,…) lifts a 60 Hz tone by ~+6 dB (≈ ×2).
-///   EQ5 — output stays finite and Reset() clears state.
+///   EQ1 - flat (1,1,1) passes a mid tone at ~unity (transparent reconstruction).
+///   EQ2 - low kill (0,...) silences a 60 Hz tone while leaving a 1 kHz tone intact.
+///   EQ3 - high kill (...,0) silences a 10 kHz tone while leaving a 1 kHz tone intact.
+///   EQ4 - low boost (2,...) lifts a 60 Hz tone by ~+6 dB (~ x2).
+///   EQ5 - output stays finite and Reset() clears state.
 ///
 /// Magnitudes are read with a Goertzel filter over the steady-state second half (skips filter
 /// settling + the EQ's small group delay).
@@ -63,7 +63,7 @@ public class ThreeBandEqualizerTests
 
     [Fact]
     public void Flat_PassesMidToneUnchanged()
-        => Assert.Equal(1.0, Ratio(1000.0, 1.0, 1.0, 1.0), 1);   // ~unity (±0.05)
+        => Assert.Equal(1.0, Ratio(1000.0, 1.0, 1.0, 1.0), 1);   // ~unity (+/-0.05)
 
     [Fact]
     public void LowKill_Silences60Hz_KeepsMid()
@@ -83,7 +83,7 @@ public class ThreeBandEqualizerTests
     public void LowBoost_Lifts60Hz_By6dB()
     {
         double r = Ratio(60.0, 2.0, 1.0, 1.0);
-        Assert.True(r is > 1.7 and < 2.2, $"60 Hz +6 dB boost ratio was {r:F2}, expected ≈ 2.0");
+        Assert.True(r is > 1.7 and < 2.2, $"60 Hz +6 dB boost ratio was {r:F2}, expected ~ 2.0");
     }
 
     [Fact]

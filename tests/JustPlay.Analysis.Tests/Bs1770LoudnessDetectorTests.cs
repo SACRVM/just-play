@@ -9,7 +9,7 @@ public class Bs1770LoudnessDetectorTests
     private readonly Bs1770LoudnessDetector _det = new();
 
     // -------------------------------------------------------------------------
-    // Helpers — shared signal generators
+    // Helpers - shared signal generators
     // -------------------------------------------------------------------------
 
     /// <summary>Mono sine at the given frequency, amplitude, duration, and sample rate.</summary>
@@ -41,27 +41,27 @@ public class Bs1770LoudnessDetectorTests
     [Fact]
     public void SilentBuffer_ReturnsNull()
     {
-        // All zeros — LUFS = -∞ → null.
+        // All zeros - LUFS = -inf -> null.
         Assert.Null(_det.Detect(new DecodedAudio(new float[Rate * 3], Rate)));
     }
 
     [Fact]
     public void NearlySilent_BelowGate_ReturnsNull()
     {
-        // Amplitude 1e-6 (~−120 dBFS) — well below absolute gate (−70 LUFS → ~−70 dBFS).
+        // Amplitude 1e-6 (~-120 dBFS) - well below absolute gate (-70 LUFS -> ~-70 dBFS).
         var samples = Sine(997, 1e-6, 5.0);
         Assert.Null(_det.Detect(new DecodedAudio(samples, Rate)));
     }
 
     // -------------------------------------------------------------------------
-    // BS.1770 calibration anchor: 997 Hz full-scale sine ≈ −3.01 LUFS
+    // BS.1770 calibration anchor: 997 Hz full-scale sine ~ -3.01 LUFS
     // -------------------------------------------------------------------------
 
     [Fact]
     public void FullScaleSine_997Hz_ReturnsLufs_Near_Minus3()
     {
-        // The BS.1770 reference: a full-scale 997 Hz sine at 11025 Hz must read ≈ −3.01 LUFS.
-        // Tolerance ±0.3 (same as the spec and the energy-detection notes).
+        // The BS.1770 reference: a full-scale 997 Hz sine at 11025 Hz must read ~ -3.01 LUFS.
+        // Tolerance +/-0.3 (same as the spec and the energy-detection notes).
         var samples = Sine(997, 1.0, 5.0);
         var result  = _det.Detect(new DecodedAudio(samples, Rate));
 
@@ -71,15 +71,15 @@ public class Bs1770LoudnessDetectorTests
     }
 
     // -------------------------------------------------------------------------
-    // Relative level: −6 dB sine reads ~6 LU lower
+    // Relative level: -6 dB sine reads ~6 LU lower
     // -------------------------------------------------------------------------
 
     [Fact]
     public void HalfAmplitudeSine_Reads_6LU_BelowFullScale()
     {
-        // Amplitude 0.5 = −6 dBFS. Because LUFS = offset + 10·log10(mean-square)
-        // and mean-square scales as amplitude², a half-amplitude sine reads
-        // 20·log10(0.5) = −6 dB below full scale. Tolerance ±0.5 LU.
+        // Amplitude 0.5 = -6 dBFS. Because LUFS = offset + 10-log10(mean-square)
+        // and mean-square scales as amplitude^2, a half-amplitude sine reads
+        // 20-log10(0.5) = -6 dB below full scale. Tolerance +/-0.5 LU.
         var full = Sine(997, 1.0, 5.0);
         var half = Sine(997, 0.5, 5.0);
 

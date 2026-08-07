@@ -6,11 +6,11 @@ using JustPlay.UI.Theming;
 
 namespace JustPlay.UI.Converters;
 
-/// <summary>Camelot pill colour from the SHARED 12-hue wheel palette (<see cref="CamelotPalette"/>) — so a key
+/// <summary>Camelot pill colour from the SHARED 12-hue wheel palette (<see cref="CamelotPalette"/>) - so a key
 /// badge is the exact hue of its segment on the FILTER key wheel (Chloe 2026-07-07). <c>ConverterParameter</c> is
 /// an optional hex alpha byte: pass e.g. <c>"2E"</c> for the ~18% background wash, omit it for the full-strength
-/// coloured outline. Chloe preferred "outline bunt, text gleich, background nur 15–20% Deckung" over a solid fill —
-/// classier read. Used suite-wide (finder + max + mini + JUST TAG) — ONE key-colour system, no per-view drift.</summary>
+/// coloured outline. Chloe preferred "outline bunt, text gleich, background nur 15-20% Deckung" over a solid fill -
+/// classier read. Used suite-wide (finder + max + mini + JUST TAG) - ONE key-colour system, no per-view drift.</summary>
 public sealed class CamelotWheelBrushConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -29,8 +29,8 @@ public sealed class CamelotWheelBrushConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>True → Bold, false → the row's normal weight. Drives the "detected ≠ claimed tag"
-/// conflict highlight on the BPM/Key/Energy cells — the bold value IS the affordance (no icon).</summary>
+/// <summary>True -> Bold, false -> the row's normal weight. Drives the "detected != claimed tag"
+/// conflict highlight on the BPM/Key/Energy cells - the bold value IS the affordance (no icon).</summary>
 public sealed class ConflictWeightConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -40,7 +40,7 @@ public sealed class ConflictWeightConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
-/// <summary>Conflict → bright white text, otherwise the muted column colour (#B3FFFFFF). Pairs with
+/// <summary>Conflict -> bright white text, otherwise the muted column colour (#B3FFFFFF). Pairs with
 /// <see cref="ConflictWeightConverter"/> so a divergent BPM reads as bold + bright.</summary>
 public sealed class ConflictForegroundConverter : IValueConverter
 {

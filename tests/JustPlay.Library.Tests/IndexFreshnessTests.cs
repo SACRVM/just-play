@@ -39,7 +39,7 @@ public sealed class IndexFreshnessTests : IDisposable
             Success          = success,
         };
 
-    // ── Cheap key ─────────────────────────────────────────────────────────────
+    // -- Cheap key -------------------------------------------------------------
 
     [Fact]
     public void LooksUnchanged_true_for_same_size_and_mtime()
@@ -69,7 +69,7 @@ public sealed class IndexFreshnessTests : IDisposable
     [Fact]
     public void LooksUnchanged_false_when_the_entry_predates_0_6()
     {
-        // No mtime recorded → we cannot answer cheaply and must fall back to the hash.
+        // No mtime recorded -> we cannot answer cheaply and must fall back to the hash.
         var legacy = Entry(modified: null);
         Assert.False(legacy.LooksUnchanged(8_000_000, Mtime));
     }
@@ -86,7 +86,7 @@ public sealed class IndexFreshnessTests : IDisposable
         Assert.Equal(legacy.AnalysedAt,  adopted.AnalysedAt);
     }
 
-    // ── Staleness rules ───────────────────────────────────────────────────────
+    // -- Staleness rules -------------------------------------------------------
 
     [Fact]
     public void TrustEverything_never_reports_a_reason()
@@ -103,7 +103,7 @@ public sealed class IndexFreshnessTests : IDisposable
 
         Assert.Equal("analysis failed", policy.StaleReason(failed));
         Assert.Null(policy.StaleReason(Entry()));
-        // Success=false + Error=null means "never analysed" — reporting that as a FAILURE would
+        // Success=false + Error=null means "never analysed" - reporting that as a FAILURE would
         // send the reader hunting for a bug that is not there.
         Assert.Null(policy.StaleReason(Entry(success: false)));
     }
@@ -124,7 +124,7 @@ public sealed class IndexFreshnessTests : IDisposable
     [InlineData(@"C:\music\track.FLAC", "2026-06-12T17:53:00.0000000Z", true)]  // case-insensitive
     [InlineData(@"C:\music\track.mp3",  "2026-06-12T17:53:00.0000000Z", false)] // MP3s were fine
     [InlineData(@"C:\music\track.flac", "2026-07-20T10:00:00.0000000Z", false)] // after the fix
-    [InlineData(@"C:\music\track.flac", "not-a-timestamp",              true)]  // unknown → redo
+    [InlineData(@"C:\music\track.flac", "not-a-timestamp",              true)]  // unknown -> redo
     // c687d46's own message: the bug hit WAV and AIFF too, not just FLAC (L6, 2026-08-01).
     [InlineData(@"C:\music\track.wav",  "2026-06-12T17:53:00.0000000Z", true)]
     [InlineData(@"C:\music\track.aiff", "2026-06-12T17:53:00.0000000Z", true)]
@@ -150,7 +150,7 @@ public sealed class IndexFreshnessTests : IDisposable
     public void FlacMonoDecodeBug_treats_unknown_analysedAt_as_stale_not_clean(string extension)
     {
         // TrackIndexMapping.FromStoredBlob stamps TrackIndexEntry.UnknownAnalysedAt (the Unix
-        // epoch) when a blob carries no analysed-at of its own — the L6 fix. It must land on the
+        // epoch) when a blob carries no analysed-at of its own - the L6 fix. It must land on the
         // "stale" side of the rule, never the "clean" side: the honest answer to "we don't know
         // when this ran" is "assume the worst", not "assume it's fine".
         var policy = new StalenessPolicy().With(StaleRule.FlacMonoDecodeBug());
@@ -194,7 +194,7 @@ public sealed class IndexFreshnessTests : IDisposable
         Assert.Equal("analysis failed", policy.StaleReason(entry));
     }
 
-    // ── Schema compatibility (non-negotiable) ─────────────────────────────────
+    // -- Schema compatibility (non-negotiable) ---------------------------------
 
     [Fact]
     public void SaveAndLoad_round_trips_through_the_library_context()

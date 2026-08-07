@@ -3,24 +3,24 @@ namespace JustPlay.Analysis;
 /// <summary>
 /// 3-band DJ-style tone EQ for the output bus: Low / Mid / High boost &amp; cut.
 ///
-/// <para><b>Topology — series RBJ filters (low shelf → mid peaking bell → high shelf).</b> Coefficients
-/// per the Audio EQ Cookbook (streaming-broadcast.md §6.2). This is the "EQ" mode of a DJ mixer (vs. the
+/// <para><b>Topology - series RBJ filters (low shelf -> mid peaking bell -> high shelf).</b> Coefficients
+/// per the Audio EQ Cookbook (streaming-broadcast.md Sec.6.2). This is the "EQ" mode of a DJ mixer (vs. the
 /// "isolator" mode), and it's the RIGHT choice for natural boost/cut:</para>
 /// <list type="bullet">
 ///   <item>At 0 dB each biquad is a mathematical IDENTITY (b == a), so an untouched band is bit-perfect.
-///     Boosting LOW therefore leaves the mids/highs <em>completely</em> alone — no coloration.</item>
+///     Boosting LOW therefore leaves the mids/highs <em>completely</em> alone - no coloration.</item>
 ///   <item>Each filter only affects its own region, so changing one band can't dull another.</item>
 /// </list>
 ///
 /// <para><b>Why NOT the Linkwitz-Riley 3-way isolator (the previous version):</b> a 3-way LR crossover
-/// does not reconstruct perfectly flat — its phase summation colours the mids/highs, so the moment ANY
+/// does not reconstruct perfectly flat - its phase summation colours the mids/highs, so the moment ANY
 /// band leaves unity the whole sound goes slightly dull. Measured/heard 2026-06-15 (Chloe: "raise LOW
 /// and it kills the highs, dumpf"). A hardware EQ reconstructs flat; series shelves match that. The
-/// trade is that a band "kill" is now a deep CUT (−24 dB), not −∞ — but the isolator's kill wasn't
-/// clean either, and natural boost/cut matters far more here. (Full history in §6.5.)</para>
+/// trade is that a band "kill" is now a deep CUT (-24 dB), not -inf - but the isolator's kill wasn't
+/// clean either, and natural boost/cut matters far more here. (Full history in Sec.6.5.)</para>
 ///
 /// <para><b>Gains are LINEAR</b> (matching the UI slider): <c>1.0</c> = unity/flat (engine bypasses the
-/// DSP entirely → truly transparent), <c>0.0</c> = full cut (mapped to a −24 dB shelf/bell, a deep DJ
+/// DSP entirely -> truly transparent), <c>0.0</c> = full cut (mapped to a -24 dB shelf/bell, a deep DJ
 /// "kill"), <c>2.0</c> = +6 dB. Corners 200 Hz / 1 kHz / 4 kHz. Stereo: independent state per channel.</para>
 ///
 /// <para>Platform-agnostic, reflection-free, allocation-free on the audio path, trim/AOT-safe.</para>
@@ -33,7 +33,7 @@ public sealed class ThreeBandEqualizer
     public double HighGain   { get; }
 
     /// <summary>Deepest cut a band can reach (linear 0 maps here). Bounded so the shelf transition
-    /// stays tight enough not to bleed into the neighbouring band — a −∞ shelf has too wide a skirt.</summary>
+    /// stays tight enough not to bleed into the neighbouring band - a -inf shelf has too wide a skirt.</summary>
     private const double MinGainDb = -24.0;
 
     private Biquad _lowL, _midL, _highL;
@@ -63,7 +63,7 @@ public sealed class ThreeBandEqualizer
         _lowR = low; _midR = mid; _highR = high;   // same coeffs, independent state
     }
 
-    /// <summary>Linear gain → dB, floored at <see cref="MinGainDb"/> so a kill is a deep-but-clean cut.</summary>
+    /// <summary>Linear gain -> dB, floored at <see cref="MinGainDb"/> so a kill is a deep-but-clean cut.</summary>
     private static double LinearToDb(double linear)
     {
         if (linear <= 0.0) return MinGainDb;
@@ -78,7 +78,7 @@ public sealed class ThreeBandEqualizer
         _lowR.Reset(); _midR.Reset(); _highR.Reset();
     }
 
-    /// <summary>Process one block of interleaved-stereo float samples (L,R,L,R,…) in place.</summary>
+    /// <summary>Process one block of interleaved-stereo float samples (L,R,L,R,...) in place.</summary>
     public void ProcessInterleavedStereo(Span<float> buf)
     {
         int frames = buf.Length / 2;
@@ -90,7 +90,7 @@ public sealed class ThreeBandEqualizer
         }
     }
 
-    /// <summary>RBJ biquad (Direct Form I) with shelf / peaking factories (Audio EQ Cookbook §6.2).
+    /// <summary>RBJ biquad (Direct Form I) with shelf / peaking factories (Audio EQ Cookbook Sec.6.2).
     /// At 0 dB every type collapses to the identity, so an unmodified band is bit-transparent.</summary>
     private struct Biquad
     {

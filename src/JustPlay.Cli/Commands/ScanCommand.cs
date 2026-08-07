@@ -8,7 +8,7 @@ namespace JustPlay.Cli.Commands;
 ///
 /// Recursively inventories audio files under <paramref name="root"/>.
 /// Reports: total count + size, per-format counts, per-folder counts.
-/// READ-ONLY — never modifies any file.
+/// READ-ONLY - never modifies any file.
 /// </summary>
 internal static class ScanCommand
 {
@@ -50,7 +50,7 @@ internal static class ScanCommand
             ByFolder    = byFolder,
         };
 
-        // ── Console summary ──────────────────────────────────────────────────
+        // -- Console summary --------------------------------------------------
         Console.WriteLine();
         Console.WriteLine($"  Total files : {report.TotalFiles:N0}");
         Console.WriteLine($"  Total size  : {AudioFiles.FormatBytes(report.TotalBytes)}");
@@ -68,9 +68,9 @@ internal static class ScanCommand
         foreach (var (folder, count) in topFolders)
             Console.WriteLine($"    [{count,4}] {folder}");
         if (report.ByFolder.Count > 20)
-            Console.WriteLine($"    … and {report.ByFolder.Count - 20} more folders.");
+            Console.WriteLine($"    ... and {report.ByFolder.Count - 20} more folders.");
 
-        // ── JSON output ──────────────────────────────────────────────────────
+        // -- JSON output ------------------------------------------------------
         if (jsonOut is not null)
         {
             var json = JsonSerializer.Serialize(report, CliJsonContext.Default.ScanReport);

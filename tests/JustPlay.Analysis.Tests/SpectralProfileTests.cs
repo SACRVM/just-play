@@ -6,32 +6,32 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="SpectralProfile"/>.
 ///
 /// Coverage:
-///   SP1 — A 1 kHz pure sine produces a clear peak in the band containing 1 kHz,
+///   SP1 - A 1 kHz pure sine produces a clear peak in the band containing 1 kHz,
 ///          well above its immediate neighbours.
-///   SP2 — White noise (flat PSD) shows an upward trend of approximately +3 dB/octave
+///   SP2 - White noise (flat PSD) shows an upward trend of approximately +3 dB/octave
 ///          in the log-spaced band display (because each higher-frequency band aggregates
-///          more FFT bins ∝ f, accumulating more power per band).
-///   SP3 — Pink noise (PSD ∝ 1/f) is approximately flat per log-spaced band, within
-///          a few dB across 200 Hz – 10 kHz (the region where the IIR approximation
+///          more FFT bins prop-to f, accumulating more power per band).
+///   SP3 - Pink noise (PSD prop-to 1/f) is approximately flat per log-spaced band, within
+///          a few dB across 200 Hz - 10 kHz (the region where the IIR approximation
 ///          is well-behaved).
-///   SP4 — All output values are finite (no NaN, no ±Inf).
-///   SP5 — Compute() returns exactly <see cref="SpectralProfile.BandCount"/> entries.
-///   SP6 — Calling Compute() on a zero-length signal returns DbFloor (−120 dB) for all bands.
+///   SP4 - All output values are finite (no NaN, no +/-Inf).
+///   SP5 - Compute() returns exactly <see cref="SpectralProfile.BandCount"/> entries.
+///   SP6 - Calling Compute() on a zero-length signal returns DbFloor (-120 dB) for all bands.
 ///
 /// <para><b>Pink noise generation method (SP3):</b> Paul Kellett's 7-term IIR approximation of
 /// a 1/f spectrum [musicdsp.org, Pink Noise]. Seven IIR all-pass stages with geometric pole
 /// placements approximate the 1/f roll-off over the audible range. The approximation has
-/// roughly ±3 dB accuracy between 200 Hz and 10 kHz; below 200 Hz and above 10 kHz the
+/// roughly +/-3 dB accuracy between 200 Hz and 10 kHz; below 200 Hz and above 10 kHz the
 /// approximation diverges, so the flatness test is bounded to that range.</para>
 /// </summary>
 public class SpectralProfileTests
 {
     private const int Rate     = 44100;
-    private const double Dur   = 8.0;   // seconds — enough frames for stable Welch average
+    private const double Dur   = 8.0;   // seconds - enough frames for stable Welch average
 
     private readonly SpectralProfile _prof = new();
 
-    // ── SP1 — 1 kHz tone produces a clear peak ───────────────────────────────
+    // -- SP1 - 1 kHz tone produces a clear peak -------------------------------
 
     [Fact]
     public void Tone1kHz_PeakInCorrect1kHzBand()
@@ -57,17 +57,17 @@ public class SpectralProfileTests
         }
     }
 
-    // ── SP2 — White noise rises ~+3 dB/oct in log-spaced bands ──────────────
+    // -- SP2 - White noise rises ~+3 dB/oct in log-spaced bands --------------
 
     [Fact]
     public void WhiteNoise_RisesWithFrequencyInLogBands()
     {
-        // White noise: equal power per Hz → more bins per log-spaced band at higher f
-        //              → band SUM grows ∝ f → approximately +3 dB/oct.
+        // White noise: equal power per Hz -> more bins per log-spaced band at higher f
+        //              -> band SUM grows prop-to f -> approximately +3 dB/oct.
         float[] mono = WhiteNoise(Dur, Rate, seed: 42);
         var spec     = _prof.Compute(mono, Rate);
 
-        // Test the trend over 200 Hz – 8 kHz (well within Nyquist, 5+ octaves)
+        // Test the trend over 200 Hz - 8 kHz (well within Nyquist, 5+ octaves)
         double db200  = AverageBandsInRange(spec, 180, 220);
         double db400  = AverageBandsInRange(spec, 360, 440);
         double db800  = AverageBandsInRange(spec, 720, 880);
@@ -76,26 +76,26 @@ public class SpectralProfileTests
         double db6400 = AverageBandsInRange(spec, 5760, 7040);
 
         // Each octave should be higher than the previous (positive slope)
-        Assert.True(db400  > db200  - 1.0, $"200→400 Hz should trend up: {db200:F1} → {db400:F1} dB");
-        Assert.True(db800  > db400  - 1.0, $"400→800 Hz should trend up: {db400:F1} → {db800:F1} dB");
-        Assert.True(db1600 > db800  - 1.0, $"800→1600 Hz should trend up: {db800:F1} → {db1600:F1} dB");
-        Assert.True(db3200 > db1600 - 1.0, $"1600→3200 Hz should trend up: {db1600:F1} → {db3200:F1} dB");
-        Assert.True(db6400 > db3200 - 1.0, $"3200→6400 Hz should trend up: {db3200:F1} → {db6400:F1} dB");
+        Assert.True(db400  > db200  - 1.0, $"200->400 Hz should trend up: {db200:F1} -> {db400:F1} dB");
+        Assert.True(db800  > db400  - 1.0, $"400->800 Hz should trend up: {db400:F1} -> {db800:F1} dB");
+        Assert.True(db1600 > db800  - 1.0, $"800->1600 Hz should trend up: {db800:F1} -> {db1600:F1} dB");
+        Assert.True(db3200 > db1600 - 1.0, $"1600->3200 Hz should trend up: {db1600:F1} -> {db3200:F1} dB");
+        Assert.True(db6400 > db3200 - 1.0, $"3200->6400 Hz should trend up: {db3200:F1} -> {db6400:F1} dB");
 
-        // Overall trend: 200 Hz to 6400 Hz = ~5 octaves → expect ≈ +15 dB over 5 oct.
+        // Overall trend: 200 Hz to 6400 Hz = ~5 octaves -> expect ~ +15 dB over 5 oct.
         // Allow generous tolerance (the IIR Welch average may not be perfectly white).
         double totalRise = db6400 - db200;
         Assert.True(totalRise > 5.0,
-            $"White noise should rise significantly 200→6400 Hz; got {totalRise:F1} dB total rise.");
+            $"White noise should rise significantly 200->6400 Hz; got {totalRise:F1} dB total rise.");
     }
 
-    // ── SP3 — Pink noise is approximately flat per log-spaced band ────────────
+    // -- SP3 - Pink noise is approximately flat per log-spaced band ------------
 
     [Fact]
     public void PinkNoise_ApproximatelyFlatPerLogBand()
     {
-        // Pink noise (1/f PSD): equal energy per octave → flat per log-spaced band.
-        // Test the range 200 Hz – 8 kHz where Paul Kellett's IIR is well-behaved (±3 dB).
+        // Pink noise (1/f PSD): equal energy per octave -> flat per log-spaced band.
+        // Test the range 200 Hz - 8 kHz where Paul Kellett's IIR is well-behaved (+/-3 dB).
         float[] mono = PinkNoise(Dur, Rate, seed: 99);
         var spec     = _prof.Compute(mono, Rate);
 
@@ -109,14 +109,14 @@ public class SpectralProfileTests
         double[] octaves = [db200, db400, db800, db1600, db3200, db6400];
         double min = octaves.Min(), max = octaves.Max();
 
-        // Within ±4 dB across 5 octaves (the IIR is ≈ ±3 dB accurate;
+        // Within +/-4 dB across 5 octaves (the IIR is ~ +/-3 dB accurate;
         // we add 1 dB margin for finite-signal estimation noise).
         Assert.True(max - min < 8.0,
-            $"Pink noise should be flat per log-spaced band (≤8 dB range 200–6400 Hz); " +
+            $"Pink noise should be flat per log-spaced band (<=8 dB range 200-6400 Hz); " +
             $"got range {min:F1}..{max:F1} dB (spread {max-min:F1} dB).");
     }
 
-    // ── SP4 — All outputs are finite ─────────────────────────────────────────
+    // -- SP4 - All outputs are finite -----------------------------------------
 
     [Fact]
     public void Output_IsAlwaysFinite()
@@ -131,7 +131,7 @@ public class SpectralProfileTests
         }
     }
 
-    // ── SP5 — BandCount entries returned ─────────────────────────────────────
+    // -- SP5 - BandCount entries returned -------------------------------------
 
     [Fact]
     public void Compute_ReturnsBandCountEntries()
@@ -141,7 +141,7 @@ public class SpectralProfileTests
         Assert.Equal(SpectralProfile.BandCount, spec.Length);
     }
 
-    // ── SP6 — Zero-length signal → DbFloor ───────────────────────────────────
+    // -- SP6 - Zero-length signal -> DbFloor -----------------------------------
 
     [Fact]
     public void EmptySignal_ReturnsDbFloorForAllBands()
@@ -152,7 +152,7 @@ public class SpectralProfileTests
             Assert.True(db <= -100.0, $"Expected DbFloor but got {db:F1} dB");
     }
 
-    // ── Signal generators ─────────────────────────────────────────────────────
+    // -- Signal generators -----------------------------------------------------
 
     private static float[] Sine(double freqHz, double amp, double seconds, int fs)
     {
@@ -175,7 +175,7 @@ public class SpectralProfileTests
 
     /// <summary>
     /// Paul Kellett 7-term IIR approximation of pink (1/f) noise [musicdsp.org].
-    /// Accurate to roughly ±3 dB in the range 200 Hz – 10 kHz at 44 100 Hz.
+    /// Accurate to roughly +/-3 dB in the range 200 Hz - 10 kHz at 44 100 Hz.
     /// </summary>
     private static float[] PinkNoise(double seconds, int fs, int seed)
     {
@@ -199,7 +199,7 @@ public class SpectralProfileTests
         return buf;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // -- Helpers ---------------------------------------------------------------
 
     private static int ClosestBand((double FreqHz, double Db)[] spec, double targetHz)
     {

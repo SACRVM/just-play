@@ -8,7 +8,7 @@ namespace JustPlay.UI.Behaviors;
 /// <summary>
 /// Suite-wide TAB suppression. Avalonia's built-in <c>KeyboardNavigationHandler</c> moves focus on
 /// Tab (with the keyboard focus ring) from a handler on the window that runs FIRST in the tunnel and
-/// does NOT honor <c>e.Handled</c> — so it can't be preempted by adding our own tunnel handler
+/// does NOT honor <c>e.Handled</c> - so it can't be preempted by adding our own tunnel handler
 /// (verified against the release/12.0.3 source: <c>OnKeyDown</c> sets <c>e.Handled = Move(...)</c>
 /// only when Tab finds a next control, which is exactly why arrow keys still reach our handlers but
 /// Tab doesn't).
@@ -20,8 +20,8 @@ namespace JustPlay.UI.Behaviors;
 ///
 /// Enabled suite-wide via a <c>:is(Window)</c> style in JustStyles. A view that REPURPOSES Tab (e.g.
 /// the PRE CUE FINDER's folders/files switch) opts out with <c>beh:KeyboardNav.SuppressTab="False"</c>
-/// and handles Tab in its own handler. Chloe 2026-07-06: "default Tab raus — aus allen Apps / Sichten
-/// — komplett unterbinden."
+/// and handles Tab in its own handler. Chloe 2026-07-06: "default Tab raus - aus allen Apps / Sichten
+/// - komplett unterbinden."
 /// </summary>
 public static class KeyboardNav
 {
@@ -44,7 +44,7 @@ public static class KeyboardNav
     private static void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Tab) return;
-        // KeyboardNavigationHandler already moved focus in this same tunnel pass — put it straight back.
+        // KeyboardNavigationHandler already moved focus in this same tunnel pass - put it straight back.
         (e.Source as IInputElement)?.Focus();
         e.Handled = true;
     }

@@ -14,7 +14,7 @@ namespace JustPlay.Cli.Commands;
 /// <c>.claude/skills/dj-audio-analysis/references/harmonic-sort-design.md</c>). Compresses a pool
 /// of tracks down to the <c>--keep</c> tracks that mix best together, using
 /// <see cref="SetSqueezer"/> over the SAME <see cref="MixCompatibility"/> scorer that powers
-/// Harmonic Sort. Pure over the existing sidecar index data — no audio decode.</para>
+/// Harmonic Sort. Pure over the existing sidecar index data - no audio decode.</para>
 ///
 /// <para><b>Pool source</b> (first that is given wins): <c>--playlist</c> (the tracks in an .m3u,
 /// matched to the index by filename) &gt; <c>--root</c> (index entries whose path is under the
@@ -23,7 +23,7 @@ namespace JustPlay.Cli.Commands;
 /// <para><b>Default = DRY-RUN.</b> Nothing is written unless <c>--out</c> is given: an .m3u/.m3u8
 /// gets the kept (sequenced) set with portable paths; a .json gets a <see cref="SqueezeReport"/>.</para>
 ///
-/// <para>⚠ The sidecar index stores BPM/Camelot-key/energy but NOT the BeatFingerprint, so the
+/// <para>(!) The sidecar index stores BPM/Camelot-key/energy but NOT the BeatFingerprint, so the
 /// Beat axis is excluded and the other compat weights renormalise (see the design doc).</para>
 /// </summary>
 internal static class SqueezeCommand
@@ -57,7 +57,7 @@ internal static class SqueezeCommand
 
         var index = TrackIndex.Load(indexPath);
 
-        // ── Build the pool of (path, entry) from the chosen source ───────────────
+        // -- Build the pool of (path, entry) from the chosen source ---------------
         List<(string Path, TrackIndexEntry Entry)> pool;
         if (playlist is not null)
         {
@@ -82,11 +82,11 @@ internal static class SqueezeCommand
 
         if (pool.Count == 0)
         {
-            Console.Error.WriteLine("[squeeze] ERROR: pool is empty — nothing to squeeze.");
+            Console.Error.WriteLine("[squeeze] ERROR: pool is empty - nothing to squeeze.");
             return 1;
         }
 
-        // ── Squeeze ──────────────────────────────────────────────────────────────
+        // -- Squeeze --------------------------------------------------------------
         var features = pool.Select(p => (TrackFeatures?)ToFeatures(p.Entry)).ToList();
         var result   = SetSqueezer.Squeeze(features, keep, threshold, sequence);
 
@@ -94,7 +94,7 @@ internal static class SqueezeCommand
         var dropped = result.DroppedIndices.Select(i => pool[i]).ToList();
         var seed    = result.SeedIndex >= 0 ? pool[result.SeedIndex] : ((string Path, TrackIndexEntry Entry)?)null;
 
-        // ── Print summary ─────────────────────────────────────────────────────────
+        // -- Print summary ---------------------------------------------------------
         Console.WriteLine($"[squeeze] Kept            : {kept.Count:N0}");
         Console.WriteLine($"[squeeze] Dropped         : {dropped.Count:N0}  (incl. {result.UnanalyzedDropped:N0} unanalysed)");
         Console.WriteLine($"[squeeze] Coherent set    : {result.CoherentCount:N0} of {result.RequestedKeep:N0} requested");
@@ -104,7 +104,7 @@ internal static class SqueezeCommand
         Console.WriteLine();
 
         if (!result.EnoughCoherent)
-            Console.WriteLine($"[squeeze] ⚠ {result.Message}");
+            Console.WriteLine($"[squeeze] (!) {result.Message}");
         else
             Console.WriteLine($"[squeeze] {result.Message}");
         Console.WriteLine();
@@ -121,7 +121,7 @@ internal static class SqueezeCommand
                 Console.WriteLine($"       - {Describe(d.Entry, d.Path)}");
         }
 
-        // ── Optional output ───────────────────────────────────────────────────────
+        // -- Optional output -------------------------------------------------------
         if (outPath is not null)
         {
             outPath = Path.GetFullPath(outPath);
@@ -139,13 +139,13 @@ internal static class SqueezeCommand
         else
         {
             Console.WriteLine();
-            Console.WriteLine("[squeeze] DRY-RUN — pass --out <file.m3u|.json> to write the kept set.");
+            Console.WriteLine("[squeeze] DRY-RUN - pass --out <file.m3u|.json> to write the kept set.");
         }
 
         return 0;
     }
 
-    // ── Pool sources ─────────────────────────────────────────────────────────────
+    // -- Pool sources -------------------------------------------------------------
 
     private static List<(string, TrackIndexEntry)> PoolFromIndex(TrackIndex index) =>
         index.Entries.Values
@@ -165,8 +165,8 @@ internal static class SqueezeCommand
     }
 
     /// <summary>Pool from a playlist's tracks, matched to the index by filename (robust after the
-    /// SETS→GENRES move, mirroring how promote matches). Tracks not in the index are skipped with
-    /// a warning — never silently lost.</summary>
+    /// SETS->GENRES move, mirroring how promote matches). Tracks not in the index are skipped with
+    /// a warning - never silently lost.</summary>
     private static List<(string, TrackIndexEntry)> PoolFromPlaylist(TrackIndex index, string playlistPath)
     {
         var byFileName = new Dictionary<string, TrackIndexEntry>(StringComparer.OrdinalIgnoreCase);
@@ -188,11 +188,11 @@ internal static class SqueezeCommand
         return pool;
     }
 
-    // ── Index entry → compat features ──────────────────────────────────────────────
+    // -- Index entry -> compat features ----------------------------------------------
 
     /// <summary>
     /// Convert a sidecar index entry to <see cref="TrackFeatures"/>. BPM/Key/Energy come from the
-    /// index; the BeatFingerprint is NOT stored in the sidecar → null (Beat axis renormalised out,
+    /// index; the BeatFingerprint is NOT stored in the sidecar -> null (Beat axis renormalised out,
     /// see the design doc). Mirrors PromoteCommand.BuildAnalysisResult's key parsing.
     /// </summary>
     private static TrackFeatures ToFeatures(TrackIndexEntry e)
@@ -203,7 +203,7 @@ internal static class SqueezeCommand
         return new TrackFeatures(e.Bpm, key, e.Energy, Fingerprint: null);
     }
 
-    // ── Output writers ──────────────────────────────────────────────────────────────
+    // -- Output writers --------------------------------------------------------------
 
     private static void WriteM3u(string outPath, List<(string Path, TrackIndexEntry Entry)> kept)
     {
@@ -245,14 +245,14 @@ internal static class SqueezeCommand
         File.WriteAllText(outPath, json);
     }
 
-    // ── Display helpers ───────────────────────────────────────────────────────────
+    // -- Display helpers -----------------------------------------------------------
 
     private static string Describe(TrackIndexEntry e, string path)
     {
         var name = Path.GetFileName(path);
-        var bpm  = e.Bpm is { } b ? $"{(int)Math.Round(b)}" : "—";
-        var key  = e.KeyCamelot ?? e.KeyName ?? "—";
-        var en   = e.Energy is { } x ? $"E{x}" : "E—";
+        var bpm  = e.Bpm is { } b ? $"{(int)Math.Round(b)}" : "-";
+        var key  = e.KeyCamelot ?? e.KeyName ?? "-";
+        var en   = e.Energy is { } x ? $"E{x}" : "E-";
         return $"{name,-60}  {bpm,4} bpm  {key,-4} {en}";
     }
 

@@ -1,35 +1,35 @@
 namespace JustPlay.Library;
 
 /// <summary>
-/// The pure decision core behind <see cref="ILibraryWatcher"/> — no IO, no
+/// The pure decision core behind <see cref="ILibraryWatcher"/> - no IO, no
 /// <see cref="System.IO.FileSystemWatcher"/>, no <see cref="System.Threading.Timer"/>. Everything
 /// here is deterministic given an injected clock, which is what makes it testable without a single
-/// sleep — the same idiom as <see cref="JustPlay.Core.Playback.PendingTagWriteQueue"/>'s injectable
+/// sleep - the same idiom as <see cref="JustPlay.Core.Playback.PendingTagWriteQueue"/>'s injectable
 /// <c>Func&lt;DateTime&gt;</c> clock and <see cref="JustPlay.Core.Playback.CueArbiter"/>'s pure
 /// "tell me what to do" shape (CLAUDE.md's "the two precedents in this repo").
 ///
-/// <para><b>What it decides (milestone 0.6, P4 — the observer):</b></para>
+/// <para><b>What it decides (milestone 0.6, P4 - the observer):</b></para>
 /// <list type="bullet">
 /// <item><description><b>Settling.</b> <see cref="Touch"/> records that a path changed right now;
 /// <see cref="DrainReady"/> returns (and forgets) every path that has been quiet for at least the
-/// settle window (~10 s by default — a file copied over SMB shows up in a directory listing before
-/// it is complete). Touching the SAME path again before it settles overwrites its timestamp — "last
+/// settle window (~10 s by default - a file copied over SMB shows up in a directory listing before
+/// it is complete). Touching the SAME path again before it settles overwrites its timestamp - "last
 /// touch wins" restarts the wait, which is exactly what you want for an editor re-saving a file five
 /// times or a copy still landing bytes.</description></item>
 /// <item><description><b>Coalescing.</b> A burst of touches for the same path collapses to one
 /// dictionary entry. A burst of touches for many DIFFERENT paths (a 300-file copy, a folder rename
 /// handled file-by-file) tends to settle at roughly the same moment, and <see cref="DrainReady"/>
-/// hands back everything that is ready in a SINGLE call — never a per-file callback — so the adapter
+/// hands back everything that is ready in a SINGLE call - never a per-file callback - so the adapter
 /// turns that into one <c>LibrarySync.VerifyTracks</c> batch, not a storm of individual passes.</description></item>
 /// <item><description><b>The dirty flag.</b> <see cref="MarkDirty"/> is the escape hatch for
 /// anything the settle buffer cannot represent precisely: a watcher buffer overflow, a whole-folder
 /// rename or delete (<c>FileSystemWatcher</c> fires exactly ONE event for the folder itself, never
 /// one per file inside it, so there is no way to remap hundreds of paths from that event alone), or
 /// the NAS dropping the connection. It forces the next opportunity to run a full
-/// <c>LibrarySync.Reconcile</c> instead of trusting anything this class inferred — "never silently
+/// <c>LibrarySync.Reconcile</c> instead of trusting anything this class inferred - "never silently
 /// lose a change" beats a precise but fragile reconstruction.</description></item>
 /// <item><description><b>Sweep scheduling.</b> <see cref="IsSweepDue"/> / <see cref="NoteSweepCompleted"/>
-/// track the periodic full-sweep interval — the mechanism the whole design leans on: measured
+/// track the periodic full-sweep interval - the mechanism the whole design leans on: measured
 /// 2026-07-30, enumerating all 14,186 files of Chloe's library costs 3.2 s total, so a full
 /// <c>Reconcile</c> is cheap enough to run on a timer as the SOURCE OF TRUTH, with the watcher only
 /// ever an accelerator that makes a new file show up sooner. "Is a sweep due" is exactly the same
@@ -39,7 +39,7 @@ namespace JustPlay.Library;
 /// </list>
 ///
 /// <para><b>What it deliberately does NOT do:</b> open a file, touch the database, or own a
-/// <see cref="System.IO.FileSystemWatcher"/>/timer. That is <see cref="LibraryWatcher"/>'s job —
+/// <see cref="System.IO.FileSystemWatcher"/>/timer. That is <see cref="LibraryWatcher"/>'s job -
 /// this class only ever gets called BY it.</para>
 /// </summary>
 public sealed class WatchQueue
@@ -82,7 +82,7 @@ public sealed class WatchQueue
         _now = clock ?? (() => DateTimeOffset.UtcNow);
 
         // A freshly-constructed watcher just inherited whatever state the caller's own index is in
-        // (typically right after an explicit "Scan library") — it should not treat that moment as
+        // (typically right after an explicit "Scan library") - it should not treat that moment as
         // "a sweep is overdue" and immediately repeat the work.
         _lastSweepUtc = _now();
     }
@@ -91,14 +91,14 @@ public sealed class WatchQueue
     public int PendingCount { get { lock (_gate) return _pending.Count; } }
 
     /// <summary>
-    /// True from <see cref="MarkDirty"/> until the next <see cref="NoteSweepCompleted"/> — the
+    /// True from <see cref="MarkDirty"/> until the next <see cref="NoteSweepCompleted"/> - the
     /// watcher believes it may have missed something and a full sweep is owed.
     /// </summary>
     public bool IsDirty { get { lock (_gate) return _dirty; } }
 
     /// <summary>
     /// Records that <paramref name="path"/> changed right now. Calling this again for the same path
-    /// before it settles simply overwrites the timestamp — the wait restarts, so a file still being
+    /// before it settles simply overwrites the timestamp - the wait restarts, so a file still being
     /// written (or an editor saving repeatedly) never gets verified mid-write.
     /// </summary>
     public void Touch(string path)
@@ -108,7 +108,7 @@ public sealed class WatchQueue
 
     /// <summary>
     /// Removes and returns every path that has been quiet for at least the settle window, as of
-    /// right now. Empty means "nothing to do this tick" — not an error, and not a reason to poll
+    /// right now. Empty means "nothing to do this tick" - not an error, and not a reason to poll
     /// more aggressively.
     /// </summary>
     public IReadOnlyList<string> DrainReady()
@@ -143,7 +143,7 @@ public sealed class WatchQueue
 
     /// <summary>
     /// Call once a full sweep has actually run (whether or not it found anything). Clears
-    /// <see cref="IsDirty"/> and restarts the sweep-interval clock — a failed sweep should NOT call
+    /// <see cref="IsDirty"/> and restarts the sweep-interval clock - a failed sweep should NOT call
     /// this, so the same interval keeps retrying rather than the caller spinning on every tick.
     /// </summary>
     public void NoteSweepCompleted()

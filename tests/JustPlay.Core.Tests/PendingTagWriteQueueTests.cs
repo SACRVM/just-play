@@ -6,8 +6,8 @@ using Xunit;
 namespace JustPlay.Core.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="PendingTagWriteQueue"/> — the N27 fix (2026-07-13): a tag write that
-/// hits a LOCKED file (the pre-cue engine holding a different track, or an external app — the
+/// Unit tests for <see cref="PendingTagWriteQueue"/> - the N27 fix (2026-07-13): a tag write that
+/// hits a LOCKED file (the pre-cue engine holding a different track, or an external app - the
 /// verified real-world trigger was Windows Media Player) used to be logged once and dropped forever,
 /// so the JUSTPLAY blob never landed and the track re-analyzed on every load despite "write auto
 /// tags" being on. This queue retries on a timer instead, with a capped attempt/time budget, and
@@ -19,7 +19,7 @@ namespace JustPlay.Core.Tests;
 public class PendingTagWriteQueueTests
 {
     // =========================================================================
-    // 1. The common case — file isn't locked — lands immediately, no retry needed.
+    // 1. The common case - file isn't locked - lands immediately, no retry needed.
     // =========================================================================
 
     [Fact]
@@ -61,7 +61,7 @@ public class PendingTagWriteQueueTests
 
     // =========================================================================
     // 3. Repeated RetryAll ticks keep trying a locked file, and it lands the
-    //    moment the write stops throwing — mirrors the file being released.
+    //    moment the write stops throwing - mirrors the file being released.
     // =========================================================================
 
     [Fact]
@@ -86,7 +86,7 @@ public class PendingTagWriteQueueTests
         Assert.True(queue.IsPending("C:\\locked.mp3"));
         Assert.Equal(3, attempts);
 
-        // The lock releases (e.g. Windows Media Player closed the file) — next tick lands it.
+        // The lock releases (e.g. Windows Media Player closed the file) - next tick lands it.
         shouldFail = false;
         queue.RetryAll();
 
@@ -96,7 +96,7 @@ public class PendingTagWriteQueueTests
     }
 
     // =========================================================================
-    // 4. Give up after the attempt cap — a persistently locked file must not
+    // 4. Give up after the attempt cap - a persistently locked file must not
     //    retry forever; onGiveUp fires exactly once and the entry is dropped.
     // =========================================================================
 
@@ -118,14 +118,14 @@ public class PendingTagWriteQueueTests
         Assert.Equal(1, giveUps);
         Assert.False(queue.IsPending("C:\\stuck.mp3"));
 
-        // A further tick must be a no-op (nothing left to retry) — proves it doesn't busy-loop.
+        // A further tick must be a no-op (nothing left to retry) - proves it doesn't busy-loop.
         queue.RetryAll(onGiveUp: (_, _) => giveUps++);
         Assert.Equal(3, attempts);
         Assert.Equal(1, giveUps);
     }
 
     // =========================================================================
-    // 5. Give up after the time budget even if the attempt cap hasn't been hit —
+    // 5. Give up after the time budget even if the attempt cap hasn't been hit -
     //    protects against irregular tick timing (e.g. app suspended).
     // =========================================================================
 
@@ -174,7 +174,7 @@ public class PendingTagWriteQueueTests
     // =========================================================================
     // 7. Re-queuing the same path replaces the payload ("last write wins",
     //    mirrors PreCueFinderViewModel._pendingLikes) without resetting the
-    //    retry budget — a second analysis of a still-locked file shouldn't
+    //    retry budget - a second analysis of a still-locked file shouldn't
     //    grant it a fresh 20-attempt/5-minute allowance.
     // =========================================================================
 
@@ -185,18 +185,18 @@ public class PendingTagWriteQueueTests
         var aRuns = 0;
         var bRuns = 0;
 
-        // Attempt #1 for the file: write A runs (for real — it IS the first attempt) and fails.
+        // Attempt #1 for the file: write A runs (for real - it IS the first attempt) and fails.
         queue.EnqueueAndTryNow("C:\\track.mp3", () => { aRuns++; throw new IOException("locked"); });
         Assert.Equal(1, aRuns);
         Assert.Equal(1, queue.Count);
 
         // A fresh write request lands for the SAME path before the first one ever succeeded
-        // (e.g. re-analysis completed while the file was still locked) — replaces the payload,
+        // (e.g. re-analysis completed while the file was still locked) - replaces the payload,
         // still ONE queued entry, and must NOT reset the attempt count back to 0.
         queue.Enqueue("C:\\track.mp3", () => bRuns++);
         Assert.Equal(1, queue.Count);
 
-        queue.RetryAll();   // attempt #2 for the file — runs the REPLACEMENT write, which succeeds
+        queue.RetryAll();   // attempt #2 for the file - runs the REPLACEMENT write, which succeeds
         Assert.Equal(1, aRuns); // the stale first write never ran again
         Assert.Equal(1, bRuns); // the replacement write is what actually executed, exactly once
         Assert.False(queue.IsPending("C:\\track.mp3"));

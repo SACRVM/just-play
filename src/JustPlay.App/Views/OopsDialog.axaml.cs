@@ -17,8 +17,8 @@ public partial class OopsDialog : Window
 
     private async void OnCopy(object? sender, RoutedEventArgs e)
     {
-        // Window is a TopLevel → its Clipboard. Null on some headless setups; guard it.
-        // Avalonia 12 dropped IClipboard.SetTextAsync → wrap the text in a DataTransfer (verified
+        // Window is a TopLevel -> its Clipboard. Null on some headless setups; guard it.
+        // Avalonia 12 dropped IClipboard.SetTextAsync -> wrap the text in a DataTransfer (verified
         // against release/12.0.3 source: DataTransferItem.CreateText + IClipboard.SetDataAsync).
         if (Clipboard is { } cb)
         {

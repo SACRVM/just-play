@@ -6,7 +6,7 @@ namespace JustPlay.Core.Models;
 /// </summary>
 /// <param name="IntegratedLufs">
 /// K-weighted gated integrated loudness in LUFS (ITU-R BS.1770-4/-5 / EBU R128).
-/// Negative; typical music is −20 to −6 LUFS. Silent tracks return null (detector returns null).
+/// Negative; typical music is -20 to -6 LUFS. Silent tracks return null (detector returns null).
 /// </param>
 /// <param name="Peak">
 /// Maximum absolute sample value over the decoded buffer, linear scale (0..~1).

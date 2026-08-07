@@ -14,7 +14,7 @@ public interface ISessionLog
 
     /// <summary>
     /// Invoked ONCE per session when a write fails (disk full / denied path), so the condition can surface
-    /// in the log WINDOW instead of dying silently. The handler must NOT try to persist — that is exactly
+    /// in the log WINDOW instead of dying silently. The handler must NOT try to persist - that is exactly
     /// what just failed.
     /// </summary>
     Action<string>? OnWriteFailed { get; set; }

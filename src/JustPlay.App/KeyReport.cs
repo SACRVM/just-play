@@ -13,7 +13,7 @@ namespace JustPlay.App;
 /// Headless key-detection accuracy check, invoked via <c>--key-report &lt;folder&gt;</c>.
 /// For every audio file under the folder it reads the key another tool already wrote
 /// (Mixed In Key / Rekordbox, from the key tag or the comment) and compares it to our
-/// <see cref="IKeyDetector"/> output — so the detector can be validated on Windows
+/// <see cref="IKeyDetector"/> output - so the detector can be validated on Windows
 /// against an existing MIK-tagged library without running MIK. Reuses the app's DI
 /// services (decoder, detector, metadata reader); never touches files.
 /// </summary>
@@ -41,7 +41,7 @@ internal static class KeyReport
 
         // No-sound BASS init is enough for decode-only streams.
         if (!ManagedBass.Bass.Init(0))
-            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} - decoding may fail)");
 
         var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
             .Where(f => AudioExtensions.Contains(Path.GetExtension(f)))
@@ -77,7 +77,7 @@ internal static class KeyReport
                 {
                     energyPairs.Add((re, oe));
                     if (Math.Abs(re - oe) >= 3)
-                        energyLines.Add($"  E ref {re,2} ours {oe,2}  (Δ{oe - re,+2})  {name}");
+                        energyLines.Add($"  E ref {re,2} ours {oe,2}  (delta{oe - re,+2})  {name}");
                 }
 
                 // ---- Key comparison ----
@@ -119,8 +119,8 @@ internal static class KeyReport
         if (compared > 0)
         {
             Console.WriteLine($"  exact:            {Pct(exact, compared)}  ({exact})");
-            Console.WriteLine($"  relative maj/min: {Pct(relative, compared)}  ({relative})   [same notes — 8A↔8B]");
-            Console.WriteLine($"  fifth neighbour:  {Pct(fifth, compared)}  ({fifth})   [±1 Camelot, mixable]");
+            Console.WriteLine($"  relative maj/min: {Pct(relative, compared)}  ({relative})   [same notes - 8A<->8B]");
+            Console.WriteLine($"  fifth neighbour:  {Pct(fifth, compared)}  ({fifth})   [+/-1 Camelot, mixable]");
             Console.WriteLine($"  off:              {Pct(off, compared)}  ({off})");
             Console.WriteLine($"  harmonically ok:  {Pct(exact + relative + fifth, compared)}  (exact+relative+fifth)");
         }
@@ -130,7 +130,7 @@ internal static class KeyReport
         Console.WriteLine();
         if (energyLines.Count > 0)
         {
-            Console.WriteLine("Energy off by ≥3:");
+            Console.WriteLine("Energy off by >=3:");
             foreach (var l in energyLines) Console.WriteLine(l);
             Console.WriteLine();
         }
@@ -144,8 +144,8 @@ internal static class KeyReport
             var meanOurs = energyPairs.Average(p => p.Ours);
             var bias = meanOurs - meanRef;
             Console.WriteLine($"  mean abs error:   {mae:0.00}  (lower = better)");
-            Console.WriteLine($"  within ±1:        {Pct(within1, energyPairs.Count)}  ({within1})");
-            Console.WriteLine($"  within ±2:        {Pct(within2, energyPairs.Count)}  ({within2})");
+            Console.WriteLine($"  within +/-1:        {Pct(within1, energyPairs.Count)}  ({within1})");
+            Console.WriteLine($"  within +/-2:        {Pct(within2, energyPairs.Count)}  ({within2})");
             Console.WriteLine($"  mean ref {meanRef:0.0} vs ours {meanOurs:0.0}  (bias {bias:+0.0;-0.0})");
         }
         else
@@ -177,7 +177,7 @@ internal static class KeyReport
         }
 
         if (!ManagedBass.Bass.Init(0))
-            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} - decoding may fail)");
 
         var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
             .Where(f => AudioExtensions.Contains(Path.GetExtension(f)))
@@ -206,7 +206,7 @@ internal static class KeyReport
             ManagedBass.Bass.Free();
         }
 
-        Console.WriteLine($"Built {cases.Count} chroma(s). Re-scoring across profiles × bias values:\n");
+        Console.WriteLine($"Built {cases.Count} chroma(s). Re-scoring across profiles x bias values:\n");
 
         // Profile vectors verified verbatim against MTG/essentia src/algorithms/tonal/key.cpp.
         (string Name, double[] Maj, double[] Min)[] profiles =
@@ -264,7 +264,7 @@ internal static class KeyReport
     /// 604 two-minute Beatport previews with HAND-VERIFIED key ground truth, the set the
     /// braw/edma profiles were themselves derived on. Unlike <see cref="Run"/> (which scores
     /// agreement with whatever a *tool* like Mixed In Key wrote), this scores against true
-    /// labels — so the number is real accuracy, comparable to published tool benchmarks.
+    /// labels - so the number is real accuracy, comparable to published tool benchmarks.
     ///
     /// <para>Layout (cloned from github.com/GiantSteps/giantsteps-key-dataset): audio at
     /// <c>&lt;root&gt;/audio/&lt;id&gt;.LOFI.mp3</c>, truth at
@@ -274,13 +274,13 @@ internal static class KeyReport
     /// </summary>
     public static void RunGiantSteps(IServiceProvider services, string root, int maxFiles = int.MaxValue)
     {
-        // The shipped IKeyDetector (the routing detector → ML or HPCP) analyses at 44.1 kHz
+        // The shipped IKeyDetector (the routing detector -> ML or HPCP) analyses at 44.1 kHz
         // (TrackAnalysisService.KeySampleRate); decode at that rate, not the legacy 11 kHz.
         var detector = services.GetRequiredService<IKeyDetector>();
         RunGiantStepsCore(services, detector, 44100, root, maxFiles, $"shipped {detector.GetType().Name} @ 44100 Hz");
     }
 
-    /// <summary>Validates the trained ONNX model end-to-end in C# (should reach ~0.75 — the
+    /// <summary>Validates the trained ONNX model end-to-end in C# (should reach ~0.75 - the
     /// same number the Python CV showed), confirming the export + inference path is correct.</summary>
     public static void RunGiantStepsMl(IServiceProvider services, string root, int maxFiles = int.MaxValue)
         => RunGiantStepsCore(services, new JustPlay.ML.MlKeyDetector(), 44100, root, maxFiles, "MlKeyDetector (ONNX) @ 44100 Hz");
@@ -309,7 +309,7 @@ internal static class KeyReport
         var decoder = services.GetRequiredService<IAudioDecoder>();
 
         if (!ManagedBass.Bass.Init(0))
-            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} - decoding may fail)");
 
         var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
             .Where(f => new FileInfo(f).Length > 10000) // skip empty/failed downloads
@@ -355,7 +355,7 @@ internal static class KeyReport
                     var iv = ((d.Key.PitchClass - reference.PitchClass) % 12 + 12) % 12;
                     errInterval[iv]++;
                     if (cat == "other" && otherExamples.Count < 20)
-                        otherExamples.Add($"    ref {reference.Camelot,-3} ours {d.Key.Camelot,-3}  Δ{iv,2} st{(d.Key.Mode != reference.Mode ? " +mode" : "")}");
+                        otherExamples.Add($"    ref {reference.Camelot,-3} ours {d.Key.Camelot,-3}  delta{iv,2} st{(d.Key.Mode != reference.Mode ? " +mode" : "")}");
                 }
             }
         }
@@ -368,12 +368,12 @@ internal static class KeyReport
         if (n > 0)
         {
             Console.WriteLine($"  exact (correct):  {Pct(exact, n)}  ({exact})");
-            Console.WriteLine($"  fifth neighbour:  {Pct(fifth, n)}  ({fifth})   [±1 Camelot]");
+            Console.WriteLine($"  fifth neighbour:  {Pct(fifth, n)}  ({fifth})   [+/-1 Camelot]");
             Console.WriteLine($"  relative maj/min: {Pct(relative, n)}  ({relative})");
             Console.WriteLine($"  parallel maj/min: {Pct(parallel, n)}  ({parallel})");
             Console.WriteLine($"  other (wrong):    {Pct(other, n)}  ({other})");
             Console.WriteLine($"  harmonically ok:  {Pct(exact + fifth + relative, n)}  (exact+fifth+relative)");
-            Console.WriteLine($"  MIREX weighted:   {mirexSum / n:0.000}  (1.0/0.5/0.3/0.2 — compare to published tools)");
+            Console.WriteLine($"  MIREX weighted:   {mirexSum / n:0.000}  (1.0/0.5/0.3/0.2 - compare to published tools)");
         }
         Console.WriteLine($"  (undetected by us: {undetected};  no/unparsable label: {noRef})");
 
@@ -438,7 +438,7 @@ internal static class KeyReport
 
     /// <summary>
     /// HPCP matching sweep: decode + build each track's 12-bin HPCP chroma ONCE, then
-    /// re-score it under every (profile × metric) combo — efficiently A/B's edmkey's
+    /// re-score it under every (profile x metric) combo - efficiently A/B's edmkey's
     /// Pearson+bgate against our cosine+braw without re-decoding @ 44.1 kHz.
     /// </summary>
     public static void RunGiantStepsHpcpSweep(IServiceProvider services, string root, int maxFiles = int.MaxValue)
@@ -504,7 +504,7 @@ internal static class KeyReport
                     if (m > bestMirex) { bestMirex = m; bestDesc = $"{pname} {(useCosine ? "cosine" : "pearson")} bias {bias:0.00}"; }
                     Console.WriteLine($"  {pname,-7}  {(useCosine ? "cosine " : "pearson")}  {bias:0.00}   {Pct(exact, n)}   {m:0.000}");
                 }
-        Console.WriteLine($"\n  => BEST: {bestDesc} → MIREX {bestMirex:0.000}");
+        Console.WriteLine($"\n  => BEST: {bestDesc} -> MIREX {bestMirex:0.000}");
     }
 
     /// <summary>Best of the 24 rotated major/minor profiles for a 12-bin chroma, by cosine
@@ -568,10 +568,10 @@ internal static class KeyReport
 
         if (!sameMode)
         {
-            // Relative: major key whose tonic is 3 semitones above the minor's (A minor↔C major).
+            // Relative: major key whose tonic is 3 semitones above the minor's (A minor<->C major).
             if (ours.Mode == KeyMode.Major && reference.Mode == KeyMode.Minor && diff == 3) return (0.3, "relative");
             if (ours.Mode == KeyMode.Minor && reference.Mode == KeyMode.Major && diff == 9) return (0.3, "relative");
-            // Parallel: same tonic, opposite mode (C major↔C minor).
+            // Parallel: same tonic, opposite mode (C major<->C minor).
             if (diff == 0) return (0.2, "parallel");
         }
 
@@ -593,7 +593,7 @@ internal static class KeyReport
         return i > start && int.TryParse(c[start..i], out var e) && e is >= 1 and <= 10 ? e : null;
     }
 
-    /// <summary>The key another tool already wrote — key tag first, then a Camelot/musical token in the comment.</summary>
+    /// <summary>The key another tool already wrote - key tag first, then a Camelot/musical token in the comment.</summary>
     private static MusicalKey? MikKey(TrackMetadata md)
     {
         if (MusicalKey.TryParse(md.TaggedKey) is { } fromTag) return fromTag;
@@ -612,13 +612,13 @@ internal static class KeyReport
     /// <paramref name="audioFolder"/>, runs the real <see cref="SpectralEnergyDetector"/>
     /// feature extraction (using the shipped K-weighting + spectral pipeline at 11 025 Hz)
     /// and writes one CSV row containing the raw + normalised features plus the current
-    /// 1–10 integer score.
+    /// 1-10 integer score.
     ///
     /// <para>CSV columns: <c>filename, rawLufs, rawFlux, rawCentroid, rawRmsSd,
     /// nLoud, nFlux, nBright, nRmsSd, energyScore</c>.</para>
     ///
     /// <para>Usage: <c>--dump-energy-features &lt;audioFolder&gt; &lt;out.csv&gt;</c></para>
-    /// [energy-detection.md §Grounding the 1–10 scale, ml/calibrate_energy.py]
+    /// [energy-detection.md Sec.Grounding the 1-10 scale, ml/calibrate_energy.py]
     /// </summary>
     public static void RunDumpEnergyFeatures(IServiceProvider services, string audioFolder, string outCsv)
     {
@@ -629,13 +629,13 @@ internal static class KeyReport
         }
 
         var decoder = services.GetRequiredService<IAudioDecoder>();
-        var detector = new SpectralEnergyDetector();   // direct instance — reuses shipped feature computation
+        var detector = new SpectralEnergyDetector();   // direct instance - reuses shipped feature computation
 
         // Energy analysis runs at 11 025 Hz (same rate as TrackAnalysisService.EnergySampleRate).
         const int SampleRate = 11025;
 
         if (!ManagedBass.Bass.Init(0))
-            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} - decoding may fail)");
 
         var files = Directory.EnumerateFiles(audioFolder, "*", SearchOption.AllDirectories)
             .Where(f => AudioExtensions.Contains(Path.GetExtension(f)))
@@ -711,7 +711,7 @@ internal static class KeyReport
         var (n1, l1) = Cam(ours);
         var (n2, l2) = Cam(reference);
 
-        if (n1 == n2 && l1 != l2) return "relative"; // same Camelot number, A↔B = relative maj/min
+        if (n1 == n2 && l1 != l2) return "relative"; // same Camelot number, A<->B = relative maj/min
 
         var d = Math.Abs(n1 - n2);
         d = Math.Min(d, 12 - d);
@@ -728,7 +728,7 @@ internal static class KeyReport
 
     private static string Pct(int n, int total) => total == 0 ? "  0%" : $"{100.0 * n / total,3:0}%";
 
-    // ── N19 helpers (V4 segment + HPSS combination) ───────────────────────────────────
+    // -- N19 helpers (V4 segment + HPSS combination) -----------------------------------
     private static DecodedAudio DownsampleBy4ForReport(DecodedAudio audio)
     {
         var samples = audio.Samples!;
@@ -764,7 +764,7 @@ internal static class KeyReport
         return new DecodedAudio(slice, audio.SampleRate);
     }
 
-    // ── N19 TUNING AUDIT ──────────────────────────────────────────────────────────────────
+    // -- N19 TUNING AUDIT ------------------------------------------------------------------
 
     /// <summary>
     /// N19 tuning audit: for each GiantSteps track, determine the dominant tuning offset
@@ -872,7 +872,7 @@ internal static class KeyReport
         finally { ManagedBass.Bass.Free(); }
 
         Console.WriteLine($"=== N19 Tuning audit ({n} scored) ===");
-        Console.WriteLine($"  Detuned tracks (offset ≠ 0): {detuned}/{n}  ({100.0*detuned/Math.Max(1,n):0}%)");
+        Console.WriteLine($"  Detuned tracks (offset != 0): {detuned}/{n}  ({100.0*detuned/Math.Max(1,n):0}%)");
         Console.WriteLine();
         Console.WriteLine($"{"Offset",-8} {"count",6} {"exact WITH",11} {"exact WITHOUT",14} {"MIREX WITH",11} {"MIREX WITHOUT",14}");
         var offNames = new[] { "centre(0)", "sharp(+1)", "flat(-1)" };
@@ -909,10 +909,10 @@ internal static class KeyReport
 
     private static int Mod12(int x, int m) => ((x % m) + m) % m;
 
-    // ── N19 EXPERIMENT: segment-aware + HPSS variants ──────────────────────────────────
+    // -- N19 EXPERIMENT: segment-aware + HPSS variants ----------------------------------
 
     /// <summary>
-    /// N19 experiment harness — scores four key-detection variants against GiantSteps ground
+    /// N19 experiment harness - scores four key-detection variants against GiantSteps ground
     /// truth in a single pass over the dataset:
     /// <list type="bullet">
     ///   <item><b>V1 global</b>: shipped HpcpKeyDetector (identical to RunGiantStepsHpcp)</item>
@@ -935,7 +935,7 @@ internal static class KeyReport
 
         var decoder = services.GetRequiredService<IAudioDecoder>();
         if (!ManagedBass.Bass.Init(0))
-            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} — decoding may fail)");
+            Console.WriteLine($"(BASS init returned false: {ManagedBass.Bass.LastError} - decoding may fail)");
 
         var files = Directory.EnumerateFiles(audioDir, "*.mp3", SearchOption.TopDirectoryOnly)
             .Where(f => new FileInfo(f).Length > 10_000)
@@ -956,7 +956,7 @@ internal static class KeyReport
         var missed  = new int[4];
         var mirex   = new double[4];
 
-        // Per-track agreement stats (do the variants AGREE with each other? — diagnostic).
+        // Per-track agreement stats (do the variants AGREE with each other? - diagnostic).
         int agreeV1V2 = 0, agreeV1V3 = 0, agreeV1V4 = 0;
         int disagreeV1V2 = 0, disagreeV1V3 = 0, disagreeV1V4 = 0;
         int v2BetterThanV1 = 0, v3BetterThanV1 = 0, v4BetterThanV1 = 0;
@@ -1008,7 +1008,7 @@ internal static class KeyReport
 
                 // V3: HPSS flatness-gated chroma (per-frame tonalness weighting).
                 // Downsample to 11025 Hz first: the chromagram approach (used inside DetectHpssGated)
-                // was calibrated at 11025 Hz where 8192-pt frames give 1.35 Hz/bin resolution —
+                // was calibrated at 11025 Hz where 8192-pt frames give 1.35 Hz/bin resolution -
                 // enough to resolve semitones at the bass octave. At 44.1 kHz, 8192-pt frames give
                 // 5.38 Hz/bin and the lowest semitones are unresolved, degrading accuracy.
                 var audio11k = DownsampleBy4ForReport(audio);
@@ -1016,7 +1016,7 @@ internal static class KeyReport
 
                 // V4: segment-vote on HPSS-gated chroma segments
                 // (combines V2's structural segmentation with V3's tonalness weighting at segment level;
-                //  V2 already does per-segment tonalness VOTING — so V4 adds V3-style gating WITHIN each
+                //  V2 already does per-segment tonalness VOTING - so V4 adds V3-style gating WITHIN each
                 //  segment's HPCP build. This requires a segment-level gated chroma. For V4 we use the
                 //  simplest combination: the V2 segment-vote but with HPSS-gated chroma per segment.)
                 (MusicalKey Key, double Confidence)? r4 = null;
@@ -1128,10 +1128,10 @@ internal static class KeyReport
             PrintResults(running: false);
         }
 
-        // ── Local result-printing function (callable for checkpoints + final) ───────────
+        // -- Local result-printing function (callable for checkpoints + final) -----------
         void PrintResults(bool running)
         {
-            var tag = running ? $"results (running — {n}/{files.Count})" : $"results ({n} scored, {files.Count} total)";
+            var tag = running ? $"results (running - {n}/{files.Count})" : $"results ({n} scored, {files.Count} total)";
             Console.WriteLine($"\n=== N19 segment-key experiment {tag} ===\n");
             Console.WriteLine($"{"Variant",-16} {"exact%",7} {"MIREX",6} {"harmonically-ok",17} {"fifth%",7} {"rel%",5} {"par%",5} {"other%",7} {"missed",7}");
             Console.WriteLine(new string('-', 80));
@@ -1143,15 +1143,15 @@ internal static class KeyReport
                 Console.WriteLine($"{names[v],-16} {Pct(exact[v], scored),7} {mirex[v] / scored,6:0.000} {Pct(harmOk, scored),17} {Pct(fifth[v], scored),7} {Pct(rel[v], scored),5} {Pct(par[v], scored),5} {Pct(other[v], scored),7} {missed[v],7}");
             }
 
-            Console.WriteLine("\n── Segment diagnostics ──────────────────────────────────────────────────────");
+            Console.WriteLine("\n-- Segment diagnostics ------------------------------------------------------");
             if (totalSegments.Count > 0)
             {
-                Console.WriteLine($"  avg segments per track:       {totalSegments.Average():0.1} (range {totalSegments.Min()}–{totalSegments.Max()})");
+                Console.WriteLine($"  avg segments per track:       {totalSegments.Average():0.1} (range {totalSegments.Min()}-{totalSegments.Max()})");
                 Console.WriteLine($"  avg tonal segments per track: {tonalSegments.Average():0.1}");
                 Console.WriteLine($"  tracks that used fallback:    {fallbackCount}/{totalSegments.Count}");
             }
 
-            Console.WriteLine("\n── V1 vs variant agreement (when both returned a key) ───────────────────────");
+            Console.WriteLine("\n-- V1 vs variant agreement (when both returned a key) -----------------------");
             Console.WriteLine($"  V1 vs V2 (segment): agree={agreeV1V2}, disagree={disagreeV1V2}, V2-better-on-track={v2BetterThanV1}");
             Console.WriteLine($"  V1 vs V3 (HPSS):    agree={agreeV1V3}, disagree={disagreeV1V3}, V3-better-on-track={v3BetterThanV1}");
             Console.WriteLine($"  V1 vs V4 (both):    agree={agreeV1V4}, disagree={disagreeV1V4}, V4-better-on-track={v4BetterThanV1}");

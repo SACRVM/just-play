@@ -10,11 +10,11 @@ namespace JustPlay.Analysis.Tests;
 /// The corrector is tested against three scenarios:
 /// <list type="number">
 ///   <item>BASS_FX-style double-tempo error (click train at 120 BPM, raw reported
-///     as 240 BPM → should correct to 120 BPM).</item>
+///     as 240 BPM -> should correct to 120 BPM).</item>
 ///   <item>BASS_FX-style half-tempo error (click train at 120 BPM, raw reported
-///     as 60 BPM → should correct to 120 BPM).</item>
+///     as 60 BPM -> should correct to 120 BPM).</item>
 ///   <item>Confident-correct case (click train at 128 BPM, raw correctly at 128
-///     BPM → should remain 128 BPM, NOT be "corrected" to 64 or 256).</item>
+///     BPM -> should remain 128 BPM, NOT be "corrected" to 64 or 256).</item>
 /// </list>
 /// </summary>
 public class TempoOctaveCorrectorTests
@@ -23,7 +23,7 @@ public class TempoOctaveCorrectorTests
     private const int SampleRate = 11025;
 
     // Duration long enough for several autocorrelation periods to accumulate
-    // (≥ 10 beats at 60 BPM = 10 s).
+    // (>= 10 beats at 60 BPM = 10 s).
     private const double DurationSeconds = 12.0;
 
     private readonly TempoOctaveCorrector _corrector = new();
@@ -50,7 +50,7 @@ public class TempoOctaveCorrectorTests
     [Fact]
     public void TooShortSamples_ReturnsRawBpm()
     {
-        // Fewer than one onset frame — corrector must not throw and must return raw.
+        // Fewer than one onset frame - corrector must not throw and must return raw.
         var tiny = new float[16];
         var result = _corrector.Correct(120.0, tiny, SampleRate);
         Assert.Equal(120.0, result);
@@ -59,15 +59,15 @@ public class TempoOctaveCorrectorTests
     // -------------------------------------------------------------------------
     // Double-tempo correction
     //
-    // BASS_FX's range is 45–230 BPM (MinMaxBPM = 0 default). Double-tempo errors
-    // therefore occur when the true tempo is 45–115 BPM and BASS_FX detects 2×
+    // BASS_FX's range is 45-230 BPM (MinMaxBPM = 0 default). Double-tempo errors
+    // therefore occur when the true tempo is 45-115 BPM and BASS_FX detects 2x
     // (still within 230). The tests below use realistic raw BPM values within that
     // range (not 256 / 280, which BASS_FX cannot produce).
     // -------------------------------------------------------------------------
 
     /// <summary>
     /// Click train at 80 BPM (slow half-time groove), raw BPM reported as 160
-    /// (double — common BASS_FX mistake on half-time feels). The corrector should
+    /// (double - common BASS_FX mistake on half-time feels). The corrector should
     /// detect the 80 BPM period and snap down.
     /// </summary>
     [Fact]
@@ -83,7 +83,7 @@ public class TempoOctaveCorrectorTests
     /// <summary>
     /// Click train at 95 BPM, raw reported as 190 (double).
     /// 95 BPM sits in a common hip-hop / RnB range where BASS_FX's kick-pattern
-    /// detector can lock onto the 2× level.
+    /// detector can lock onto the 2x level.
     /// </summary>
     [Fact]
     public void DoubleTempo_95Bpm_CorrectedTo_95()
@@ -141,7 +141,7 @@ public class TempoOctaveCorrectorTests
 
     /// <summary>
     /// Click train at 128 BPM where BASS_FX also reports 128. The corrector must
-    /// leave this unchanged — the conservative margin guard should reject any
+    /// leave this unchanged - the conservative margin guard should reject any
     /// deviation when the raw candidate has the dominant autocorrelation peak.
     /// </summary>
     [Fact]
@@ -178,7 +178,7 @@ public class TempoOctaveCorrectorTests
         var corrected = _corrector.Correct(rawBpm: 140.0, samples, SampleRate);
 
         // Must stay near 140, not be "corrected" to 70 (which has higher prior weight
-        // but a weaker ACF peak — the margin guard ensures the ACF signal wins).
+        // but a weaker ACF peak - the margin guard ensures the ACF signal wins).
         Assert.InRange(corrected, 135.0, 145.0);
     }
 
@@ -189,7 +189,7 @@ public class TempoOctaveCorrectorTests
     [Fact]
     public void NearSilence_ReturnsBpmUnchanged()
     {
-        // Extremely quiet signal (≈ -100 dBFS) — no meaningful onset structure.
+        // Extremely quiet signal (~ -100 dBFS) - no meaningful onset structure.
         var n = (int)(DurationSeconds * SampleRate);
         var samples = new float[n];
         var rng = new Random(42);
@@ -209,7 +209,7 @@ public class TempoOctaveCorrectorTests
     /// <summary>
     /// Simulates the KRENON "No Need Booster" failure: BASS_FX returned 31 BPM
     /// (a fifth of the true ~155 BPM, below BASS's own 45 BPM floor). The old
-    /// corrector could only reach 62 (raw×2). The new corrector's full ACF scan
+    /// corrector could only reach 62 (rawx2). The new corrector's full ACF scan
     /// finds the 155 BPM peak directly.
     /// </summary>
     [Fact]
@@ -226,7 +226,7 @@ public class TempoOctaveCorrectorTests
     }
 
     /// <summary>
-    /// Raw BPM is 38 (below BASS's 45 BPM floor — another gross error), true tempo 152.
+    /// Raw BPM is 38 (below BASS's 45 BPM floor - another gross error), true tempo 152.
     /// The old corrector's x2=76 / x3=114 / x4=152 multiples didn't include x4 in the
     /// old code; the new corrector finds 152 via the ACF scan.
     /// </summary>
@@ -240,12 +240,12 @@ public class TempoOctaveCorrectorTests
     }
 
     /// <summary>
-    /// True tempo 170 BPM (hard techno), raw BPM from BASS_FX is 42 (¼ tempo, out of range).
-    /// Since 42 is below BASS_FX's native window (45–230), it is not defended by the
+    /// True tempo 170 BPM (hard techno), raw BPM from BASS_FX is 42 (1/4 tempo, out of range).
+    /// Since 42 is below BASS_FX's native window (45-230), it is not defended by the
     /// conservative guard. The ACF scan should produce at least a harmonically-correct
     /// result: either 170 itself or its half-tempo 85 (which is octave-adjacent).
-    /// Reaching 85 is still a big win over staying at 42 or 84 (raw×2).
-    /// Note: ACF aliasing makes 85 and 170 symmetric under the prior — both are equally
+    /// Reaching 85 is still a big win over staying at 42 or 84 (rawx2).
+    /// Note: ACF aliasing makes 85 and 170 symmetric under the prior - both are equally
     /// plausible from ACF + prior alone. We only assert the corrector escapes the gross
     /// error (raw=42) and reaches a harmonically-sane value.
     /// </summary>
@@ -256,7 +256,7 @@ public class TempoOctaveCorrectorTests
         var corrected = _corrector.Correct(rawBpm: 42.0, samples, SampleRate);
 
         // Must escape the gross-error range (not stay at 42 or 84).
-        // Accept 85 (half) or 170 (exact) — both are correct-harmonic.
+        // Accept 85 (half) or 170 (exact) - both are correct-harmonic.
         Assert.True(
             (corrected >= 80.0 && corrected <= 90.0) ||
             (corrected >= 163.0 && corrected <= 177.0),
@@ -264,8 +264,8 @@ public class TempoOctaveCorrectorTests
     }
 
     /// <summary>
-    /// Third-tempo case: true 135 BPM, raw 45 (135/3). Old corrector reaches 90 (×2)
-    /// or 135 (×3 — which was NOT in the old code). New corrector finds 135 via scan.
+    /// Third-tempo case: true 135 BPM, raw 45 (135/3). Old corrector reaches 90 (x2)
+    /// or 135 (x3 - which was NOT in the old code). New corrector finds 135 via scan.
     /// </summary>
     [Fact]
     public void ThirdTempo_Raw45_CorrectedTo_135()
@@ -312,7 +312,7 @@ public class TempoOctaveCorrectorTests
     }
 
     /// <summary>
-    /// A pure click train at a single tempo has one dominant ACF peak — the sharpness
+    /// A pure click train at a single tempo has one dominant ACF peak - the sharpness
     /// should be clearly above 0.5 (the midpoint), indicating a well-defined grid.
     /// </summary>
     [Fact]
@@ -345,7 +345,7 @@ public class TempoOctaveCorrectorTests
     /// <summary>
     /// Generates a synthetic click train at <paramref name="trueBpm"/> BPM: short
     /// Gaussian-shaped pulses at exact beat positions. This models what a BPM
-    /// corrector should see — clear onset spikes at the true tempo period — without
+    /// corrector should see - clear onset spikes at the true tempo period - without
     /// needing any real audio files.
     /// </summary>
     private static float[] ClickTrain(double trueBpm, double durationSeconds, int sampleRate)
@@ -360,7 +360,7 @@ public class TempoOctaveCorrectorTests
         for (var beat = 0; beat * beatPeriodSamples < n; beat++)
         {
             var beatCentre = beat * beatPeriodSamples;
-            // Render a Gaussian pulse of ±4σ around the beat centre.
+            // Render a Gaussian pulse of +/-4sigma around the beat centre.
             var lo = (int)Math.Max(0,    Math.Round(beatCentre - 4 * sigma));
             var hi = (int)Math.Min(n - 1, Math.Round(beatCentre + 4 * sigma));
             for (var i = lo; i <= hi; i++)

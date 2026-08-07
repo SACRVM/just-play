@@ -6,12 +6,12 @@ namespace JustPlay.Library.Tests;
 /// <summary>
 /// The thin adapter (0.6, P4). These tests never construct a real
 /// <see cref="System.IO.FileSystemWatcher"/> or wait on a real <see cref="System.Threading.Timer"/>
-/// — <see cref="LibraryWatcher.Start"/>/<see cref="LibraryWatcher.Stop"/> (the only methods that
+/// - <see cref="LibraryWatcher.Start"/>/<see cref="LibraryWatcher.Stop"/> (the only methods that
 /// touch either) are exercised by running the app, not by this suite. Instead, every test drives the
 /// same internal seams <c>Start()</c> wires the real OS callbacks to
 /// (<see cref="LibraryWatcher.HandleRawEvent"/> / <see cref="LibraryWatcher.HandleError"/> /
 /// <see cref="LibraryWatcher.Tick"/>) directly, with a fake clock and real (but small, local,
-/// temp-directory) files for <see cref="LibrarySync"/> to actually read — deterministic, no sleeps,
+/// temp-directory) files for <see cref="LibrarySync"/> to actually read - deterministic, no sleeps,
 /// no dependence on the OS ever delivering a notification.
 /// </summary>
 public sealed class LibraryWatcherTests : IDisposable
@@ -26,7 +26,7 @@ public sealed class LibraryWatcherTests : IDisposable
     public LibraryWatcherTests()
     {
         Directory.CreateDirectory(_root);
-        // ".db" is dot-prefixed, so AudioFiles' own enumeration already ignores it — same trick
+        // ".db" is dot-prefixed, so AudioFiles' own enumeration already ignores it - same trick
         // LibrarySyncTests uses to keep the index file out of the library it indexes.
         _db   = LibraryDb.Open(Path.Combine(_root, ".db", "index.db"));
         _sync = new LibrarySync(_db, _tags);
@@ -38,7 +38,7 @@ public sealed class LibraryWatcherTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
     }
 
-    // ── Test doubles / helpers (mirrors LibrarySyncTests' own private fixtures) ─
+    // -- Test doubles / helpers (mirrors LibrarySyncTests' own private fixtures) -
 
     private sealed class FakeReader : IMetadataReader
     {
@@ -119,7 +119,7 @@ public sealed class LibraryWatcherTests : IDisposable
     {
         var watcher = MakeWatcher(new FakeClock(), options: FastSettle);
 
-        // No extension at all — the shape of a folder being created.
+        // No extension at all - the shape of a folder being created.
         watcher.HandleRawEvent(WatcherChangeTypes.Created, Path.Combine(_root, "NewGenre"));
         watcher.HandleRawEvent(WatcherChangeTypes.Changed, Path.Combine(_root, "cover.jpg"));
 
@@ -141,8 +141,8 @@ public sealed class LibraryWatcherTests : IDisposable
     [Fact]
     public void A_deleted_event_with_no_audio_extension_marks_the_root_dirty()
     {
-        // FileSystemWatcher fires exactly ONE Deleted event for a whole folder removal — never one
-        // per file inside it — so a non-audio-shaped Deleted path is treated as "maybe a folder":
+        // FileSystemWatcher fires exactly ONE Deleted event for a whole folder removal - never one
+        // per file inside it - so a non-audio-shaped Deleted path is treated as "maybe a folder":
         // there is no way to know which tracks it held, so fall back to a full sweep.
         var watcher = MakeWatcher(new FakeClock(), options: FastSettle);
 
@@ -194,7 +194,7 @@ public sealed class LibraryWatcherTests : IDisposable
     }
 
     // =========================================================================
-    // 2. Tick() — yielding to the gate.
+    // 2. Tick() - yielding to the gate.
     // =========================================================================
 
     [Fact]
@@ -210,7 +210,7 @@ public sealed class LibraryWatcherTests : IDisposable
         watcher.Tick();
 
         Assert.Equal(0, synced);
-        Assert.Equal(1, watcher.PendingCount);   // postponed, NOT dropped — still queued
+        Assert.Equal(1, watcher.PendingCount);   // postponed, NOT dropped - still queued
         Assert.Null(_db.TryGet(Path.Combine(_root, "a.mp3")));
     }
 
@@ -236,7 +236,7 @@ public sealed class LibraryWatcherTests : IDisposable
     }
 
     // =========================================================================
-    // 3. Tick() — settled paths become a VerifyTracks batch.
+    // 3. Tick() - settled paths become a VerifyTracks batch.
     // =========================================================================
 
     [Fact]
@@ -278,7 +278,7 @@ public sealed class LibraryWatcherTests : IDisposable
     }
 
     // =========================================================================
-    // 4. Tick() — the dirty flag and the periodic interval both force a full sweep.
+    // 4. Tick() - the dirty flag and the periodic interval both force a full sweep.
     // =========================================================================
 
     [Fact]
@@ -340,7 +340,7 @@ public sealed class LibraryWatcherTests : IDisposable
         watcher.Tick();
 
         Assert.True(seen!.WasFullSweep);
-        // The settled touch is still whatever it was — a full Reconcile does not drain the settle
+        // The settled touch is still whatever it was - a full Reconcile does not drain the settle
         // buffer, it just makes THIS tick's answer a superset check instead.
     }
 
@@ -369,7 +369,7 @@ public sealed class LibraryWatcherTests : IDisposable
         var first = Task.Run(watcher.Tick);
         Assert.True(await enteredGate.WaitAsync(TimeSpan.FromSeconds(5)), "first tick never entered the gate");
 
-        // A second call while the first is still blocked inside the gate must return immediately —
+        // A second call while the first is still blocked inside the gate must return immediately -
         // that is the guard, proven by the gate itself never being entered a second time.
         var second = Task.Run(watcher.Tick);
         var secondFinished = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(5))) == second;

@@ -9,7 +9,7 @@ namespace JustPlay.Library.Tests;
 /// <summary>
 /// The machine-level "which folders are indexed" registry. Two halves are tested separately on purpose:
 /// the CONTAINMENT rules are pure and get the edge cases, and the file round-trip runs against a temp
-/// path — <see cref="LibraryIndexRegistry.Location"/> is redirected in every test that writes, so a test
+/// path - <see cref="LibraryIndexRegistry.Location"/> is redirected in every test that writes, so a test
 /// run can never register a root into the real machine's registry.
 /// </summary>
 public sealed class LibraryIndexRegistryTests : IDisposable
@@ -33,7 +33,7 @@ public sealed class LibraryIndexRegistryTests : IDisposable
     private static string Abs(params string[] parts) =>
         Path.GetFullPath(Path.Combine([Path.GetTempPath(), .. parts]));
 
-    // ── Containment (pure) ──────────────────────────────────────────────────────────────────────
+    // -- Containment (pure) ----------------------------------------------------------------------
 
     [Fact]
     public void The_root_itself_counts_as_inside_it()
@@ -50,7 +50,7 @@ public sealed class LibraryIndexRegistryTests : IDisposable
     }
 
     /// <summary>The bug a naive StartsWith would have: two sibling folders where one name is a prefix
-    /// of the other. "…\music2" is NOT inside "…\music".</summary>
+    /// of the other. "...\music2" is NOT inside "...\music".</summary>
     [Fact]
     public void A_sibling_whose_name_merely_starts_the_same_is_outside()
     {
@@ -89,7 +89,7 @@ public sealed class LibraryIndexRegistryTests : IDisposable
         Assert.Null(LibraryIndexRegistry.RootFor([Abs("music")], null));
     }
 
-    // ── The file ────────────────────────────────────────────────────────────────────────────────
+    // -- The file --------------------------------------------------------------------------------
 
     [Fact]
     public void A_missing_registry_file_reads_as_empty_not_as_an_error()

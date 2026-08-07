@@ -6,10 +6,10 @@ namespace JustPlay.Metadata;
 
 /// <summary>
 /// Writes analysis values back via TagLib#, in the shape of the library tag contract
-/// (NAS CLAUDE.md §4): BPM → standard tempo tag (rounded; the exact value is preserved
-/// in the JUSTPLAY blob), key → standard key tag as the CAMELOT code ("6A", the
-/// DJ-readable form Traktor/rekordbox sort by — <see cref="MusicalKey"/> parses it
-/// back on read), energy + the JustPlay state blob → custom fields. FLAC additionally
+/// (NAS CLAUDE.md Sec.4): BPM -> standard tempo tag (rounded; the exact value is preserved
+/// in the JUSTPLAY blob), key -> standard key tag as the CAMELOT code ("6A", the
+/// DJ-readable form Traktor/rekordbox sort by - <see cref="MusicalKey"/> parses it
+/// back on read), energy + the JustPlay state blob -> custom fields. FLAC additionally
 /// materialises <c>key</c>/<c>tkey</c>/<c>bpm</c> Xiph fields, MP3 loses any legacy
 /// ID3v1 shadow tag, and the comment is exactly ONE <c>eng</c> COMM frame.
 /// </summary>
@@ -28,9 +28,9 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
 
-        // Contract §4: no ID3v1 shadow tag, ever. TagLib# happily keeps updating an
+        // Contract Sec.4: no ID3v1 shadow tag, ever. TagLib# happily keeps updating an
         // existing v1 tag on save, which readers then surface as a second COMM
-        // ("ID3v1 Comment") with truncated 30-char values — strip it up front
+        // ("ID3v1 Comment") with truncated 30-char values - strip it up front
         // (the TagLib# equivalent of mutagen's save(v1=0)). No-op for AIFF/FLAC.
         file.RemoveTags(TagLib.TagTypes.Id3v1);
 
@@ -59,7 +59,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             SetPopm(file, favorite);
 
         // ReplayGain is one family covering both fields (they are always sourced from the
-        // same loudness measurement) — see TagFrameFamily.ReplayGain.
+        // same loudness measurement) - see TagFrameFamily.ReplayGain.
         if (write.ReplayGainDb is { } g && policy.AllowReplayGain)
             TagCustomFields.Set(file, "REPLAYGAIN_TRACK_GAIN",
                 g.ToString("0.00", CultureInfo.InvariantCulture) + " dB");
@@ -84,7 +84,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
 
-        // null = the field was empty before the undone write → clear it (the inverse of Write,
+        // null = the field was empty before the undone write -> clear it (the inverse of Write,
         // which leaves null fields untouched).
         if (restore.Bpm is { } bpm)
         {
@@ -134,7 +134,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             TagCustomFields.Remove(file, "REPLAYGAIN_TRACK_PEAK");
 
         // Only touch the comment if it was explicitly captured before the write; null CommentCaptured
-        // means the DJ comment feature was off — leave the user's comment alone.
+        // means the DJ comment feature was off - leave the user's comment alone.
         if (restore.CommentCaptured)
             tag.Comment = string.IsNullOrEmpty(restore.Comment) ? null : restore.Comment;
 
@@ -156,26 +156,26 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
 
-        // Contract §4: no ID3v1 shadow tag (see Write).
+        // Contract Sec.4: no ID3v1 shadow tag (see Write).
         file.RemoveTags(TagLib.TagTypes.Id3v1);
 
-        // Title / Artist / Album / AlbumArtist / Genre — null/empty clears.
+        // Title / Artist / Album / AlbumArtist / Genre - null/empty clears.
         tag.Title       = string.IsNullOrEmpty(tags.Title)       ? null : tags.Title;
         tag.Performers  = string.IsNullOrWhiteSpace(tags.Artist) ? [] : [tags.Artist];
         tag.Album       = string.IsNullOrEmpty(tags.Album)       ? null : tags.Album;
         tag.AlbumArtists = string.IsNullOrWhiteSpace(tags.AlbumArtist) ? [] : [tags.AlbumArtist];
         tag.Genres      = string.IsNullOrWhiteSpace(tags.Genre)  ? [] : [tags.Genre];
 
-        // Year / TrackNumber — 0 clears (TagLib convention).
+        // Year / TrackNumber - 0 clears (TagLib convention).
         tag.Year  = tags.Year;
         tag.Track = tags.TrackNumber;
 
-        // Comment — reuse the single-COMM-frame helper (same de-dup logic as Write).
+        // Comment - reuse the single-COMM-frame helper (same de-dup logic as Write).
         ApplyCleanComment(file, tags.Comment);
 
         // Cover art. NEVER assign a fresh array without carrying the NotAPicture
         // attachments over: Serato / Mixed In Key store cues, beatgrids and energy as
-        // GEOB frames that TagLib# surfaces in Pictures[] with Type=NotAPicture —
+        // GEOB frames that TagLib# surfaces in Pictures[] with Type=NotAPicture -
         // a blind clear-all would silently destroy a DJ's performance data (the golden
         // interop rule: never clear-all-rewrite foreign frames).
         switch (coverAction)
@@ -197,7 +197,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
                 ];
                 break;
 
-            // CoverAction.Keep — do nothing; tag.Pictures is left exactly as TagLib# read it.
+            // CoverAction.Keep - do nothing; tag.Pictures is left exactly as TagLib# read it.
         }
 
         file.Save();
@@ -207,7 +207,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// Set the global ID3v2 write version + encoding. <c>ForceDefault*</c> is the whole story: with it
     /// OFF (TagLib#'s own default) an existing tag keeps its version and its frames keep their encodings,
     /// and <c>Default*</c> only applies to a tag being created from scratch; with it ON, every save
-    /// re-serialises the tag into the configured shape — in BOTH directions, including a v2.4 file being
+    /// re-serialises the tag into the configured shape - in BOTH directions, including a v2.4 file being
     /// pulled down to v2.3.
     /// <para>
     /// So forcing is exactly what <see cref="Id3WriteFormat.KeepFileVersion"/> does not do, and what the
@@ -215,7 +215,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// Finder and the CLI never do and therefore always run in the non-forcing shape (see
     /// <see cref="Id3WriteFormat"/> for why that separation matters to Serato / Mixed In Key).
     /// </para>
-    /// Every branch sets all four statics — they are process-global and the mode can be switched live,
+    /// Every branch sets all four statics - they are process-global and the mode can be switched live,
     /// so leaving a flag from the previous mode standing would silently keep converting.
     /// </summary>
     public void ConfigureId3WriteFormat(Id3WriteFormat format)
@@ -234,7 +234,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
                 TagLib.Id3v2.Tag.DefaultVersion = 4;
                 TagLib.Id3v2.Tag.DefaultEncoding = TagLib.StringType.UTF8;
                 break;
-            default: // KeepFileVersion — Default* here only reaches a file that has NO ID3v2 tag yet,
+            default: // KeepFileVersion - Default* here only reaches a file that has NO ID3v2 tag yet,
                      // and a fresh tag should be the maximally readable v2.3/UTF-16 one.
                 TagLib.Id3v2.Tag.DefaultVersion = 3;
                 TagLib.Id3v2.Tag.DefaultEncoding = TagLib.StringType.UTF16;
@@ -249,8 +249,8 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// <summary>
     /// TagLib# 2.3.0 leaves the top-level FORM chunk size STALE when it saves the trailing
     /// <c>ID3 </c> chunk of an AIFF (verified: append AND in-place update). TagLib itself
-    /// re-finds the chunk by scanning, but strict RIFF/IFF parsers — mutagen, i.e. the
-    /// library's contract verification — stop at the declared FORM end and see NO tag at
+    /// re-finds the chunk by scanning, but strict RIFF/IFF parsers - mutagen, i.e. the
+    /// library's contract verification - stop at the declared FORM end and see NO tag at
     /// all. A well-formed single-FORM AIFF always has FORM size == file length - 8, so
     /// patch the 4 size bytes after every save when they disagree. No-op for non-AIFF.
     /// </summary>
@@ -271,8 +271,8 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     }
 
     /// <summary>
-    /// Contract key write: the CAMELOT code ("6A"), never the musical name ("Gm") — Traktor
-    /// and the whole library sort by Camelot (NAS CLAUDE.md §4; the musical form was the old
+    /// Contract key write: the CAMELOT code ("6A"), never the musical name ("Gm") - Traktor
+    /// and the whole library sort by Camelot (NAS CLAUDE.md Sec.4; the musical form was the old
     /// behaviour and is still accepted on READ via <see cref="MusicalKey.TryParse"/>).
     /// ID3 (MP3/AIFF): TKEY via InitialKey. Xiph (FLAC): the contract triple
     /// <c>initialkey</c> + <c>key</c> + <c>tkey</c>, all Camelot.
@@ -290,7 +290,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
 
     /// <summary>
     /// Contract BPM write: standard tempo tag everywhere, PLUS an explicit Xiph <c>BPM</c>
-    /// field on FLAC — TagLib# maps <see cref="TagLib.Tag.BeatsPerMinute"/> to <c>TEMPO</c>
+    /// field on FLAC - TagLib# maps <see cref="TagLib.Tag.BeatsPerMinute"/> to <c>TEMPO</c>
     /// there, which DJ tools (and the contract) don't read.
     /// </summary>
     private static void SetBpm(TagLib.File file, TagLib.Tag tag, double bpm)
@@ -307,14 +307,14 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// <see cref="WriteEditable"/> so the de-dup logic lives in exactly one place.
     /// </summary>
     /// <remarks>
-    /// N21 CLEAN SLATE + §4 contract: collapse the multiple COMM frames legacy taggers
+    /// N21 CLEAN SLATE + Sec.4 contract: collapse the multiple COMM frames legacy taggers
     /// left (COMM::'' / COMM:'ID3v1 Comment' / blob frames in various languages) to
     /// exactly ONE clean frame with <b>lang="eng", desc=""</b>. Three traps:
     ///   1. the combined file.Tag.Comment setter ALSO writes the ID3v1 tag, which
     ///      TagLib# then renders back as a second COMM frame (desc="ID3v1 Comment")
-    ///      — Write/WriteEditable therefore strip ID3v1 entirely before saving;
+    ///      - Write/WriteEditable therefore strip ID3v1 entirely before saving;
     ///   2. removing frames one-by-one is fragile; RemoveFrames(ident) clears all;
-    ///   3. the id3.Comment SETTER stamps TagLib#'s default language onto the frame —
+    ///   3. the id3.Comment SETTER stamps TagLib#'s default language onto the frame -
     ///      readers saw the invalid code "ivl" (the NAS-documented bug). Contract says
     ///      "eng", so the frame is constructed explicitly.
     /// FLAC/Xiph: the contract reads the <c>COMMENT</c> field; TagLib#'s Comment property
@@ -348,7 +348,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         }
         else
         {
-            // Other containers (MP4 etc.) — single comment field, no dup issue.
+            // Other containers (MP4 etc.) - single comment field, no dup issue.
             file.Tag.Comment = clean;
         }
     }
@@ -361,18 +361,18 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// </summary>
     private static void SetPopm(TagLib.File file, bool liked)
     {
-        // ID3v2 path — POPM is the standard rating frame for MP3.
+        // ID3v2 path - POPM is the standard rating frame for MP3.
         if (file.GetTag(TagLib.TagTypes.Id3v2, liked) is TagLib.Id3v2.Tag id3)
         {
             if (liked)
             {
-                // create:true — creates the frame if missing.
+                // create:true - creates the frame if missing.
                 var frame = TagLib.Id3v2.PopularimeterFrame.Get(id3, TagLibMetadataReader.PopmUser, true)!;
                 frame.Rating = 255; // 255 = "loved" / 5-star in WMP convention.
             }
             else
             {
-                // create:false — returns null when the frame doesn't exist.
+                // create:false - returns null when the frame doesn't exist.
                 var frame = TagLib.Id3v2.PopularimeterFrame.Get(id3, TagLibMetadataReader.PopmUser, false);
                 if (frame is not null) id3.RemoveFrame(frame);
             }
@@ -387,7 +387,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             else
                 xiph.RemoveField("RATING");
         }
-        // Other formats (MP4/AAC, WMA, …): no standard rating tag — silently do nothing.
+        // Other formats (MP4/AAC, WMA, ...): no standard rating tag - silently do nothing.
     }
 
     /// <summary>

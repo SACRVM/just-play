@@ -16,7 +16,7 @@ namespace JustPlay.App.Views;
 public partial class MainWindow : Window, IFramelessWindow
 {
     // Window dimensions include the 20/22-px margin around the inner card so the drop
-    // shadow has room to bloom outside the rounded corners. Visible card is 1280×820 / 640×660.
+    // shadow has room to bloom outside the rounded corners. Visible card is 1280x820 / 640x660.
     private const double FullW = 1320, FullH = 864;
     private const double MiniW = 680, MiniH = 702;
 
@@ -26,7 +26,7 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         InitializeComponent();
 
-        // TransparencyLevelHint comes from the XAML ONLY — never re-set it (the old
+        // TransparencyLevelHint comes from the XAML ONLY - never re-set it (the old
         // "belt-and-braces"). Avalonia's macOS backend is not idempotent: re-setting an
         // already-active level exits through the unsupported-level fallback and flips the
         // window to OPAQUE (black surround). TopLevelImpl.SetTransparencyLevelHint,
@@ -37,7 +37,7 @@ public partial class MainWindow : Window, IFramelessWindow
         DataContextChanged += OnDataContextChanged;
 
         // Space is ALWAYS play/pause (unless typing or the settings overlay is open). Registered in the
-        // TUNNEL phase so it fires BEFORE the focused control — otherwise a focused button (e.g. the "…"
+        // TUNNEL phase so it fires BEFORE the focused control - otherwise a focused button (e.g. the "..."
         // list-menu button) would treat Space as a click and open its flyout. See OnSpaceKey.
         AddHandler(KeyDownEvent, OnSpaceKey, RoutingStrategies.Tunnel);
 
@@ -52,7 +52,7 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private readonly FramelessMaximize _maximize;
 
-    // Global Space → play/pause. Dialog windows (About/Transfer/Input) are separate focus roots and an
+    // Global Space -> play/pause. Dialog windows (About/Transfer/Input) are separate focus roots and an
     // open flyout/menu is its own popup root, so this handler never steals their keys; the TextBox guard
     // leaves typing alone, and IsTweaksOpen yields to the settings overlay (combos / edit fields there).
     private void OnSpaceKey(object? sender, KeyEventArgs e)
@@ -72,19 +72,19 @@ public partial class MainWindow : Window, IFramelessWindow
         UpdateChromeForState();
     }
 
-    // ── Graceful-quit fade ──────────────────────────────────────────────────
+    // -- Graceful-quit fade --------------------------------------------------
     // When the user closes the window mid-playback (X button, Alt-F4, or the
     // self-update path that calls desktop.Shutdown()), we fade the mixer output
     // to silence (~200 ms) before letting Avalonia dispose the engine, preventing
     // the hard digital click/buzz of an abrupt BASS free.
     //
-    // Pattern: cancel the FIRST close → run the async fade → call Close() again
+    // Pattern: cancel the FIRST close -> run the async fade -> call Close() again
     // with _closingFadeComplete = true so the second pass skips the fade and
     // lets Avalonia's normal close/dispose pipeline finish.
     //
     // Guard against re-entrance: if Close() is called a second time while the
     // fade is still awaiting (e.g. the user hammers Alt-F4), the bool is already
-    // true and we fall through immediately — no infinite loop.
+    // true and we fall through immediately - no infinite loop.
     private bool _closingFadeComplete;
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -92,7 +92,7 @@ public partial class MainWindow : Window, IFramelessWindow
         base.OnClosing(e);
 
         if (_closingFadeComplete)
-            return; // second pass from our own Close() call below — let it proceed
+            return; // second pass from our own Close() call below - let it proceed
 
         if (DataContext is not MainWindowViewModel vm)
             return; // no VM yet (shouldn't happen in practice, but be safe)
@@ -120,9 +120,9 @@ public partial class MainWindow : Window, IFramelessWindow
         }
     }
 
-    // ── Custom maximize ─────────────────────────────────────────────────────
+    // -- Custom maximize -----------------------------------------------------
     // A borderless transparent window (WindowDecorations=None) gets no OS resize frame
-    // (WS_THICKFRAME is only set when Decorations != None — verified in Avalonia's Win32
+    // (WS_THICKFRAME is only set when Decorations != None - verified in Avalonia's Win32
     // WindowImpl), and any OS chrome (BorderOnly / ExtendClientArea) breaks the transparent
     // floating-card look (ugly border, or a dark DWM backdrop). So we drive resize + maximize
     // ourselves and keep the window fully custom.
@@ -136,7 +136,7 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private void UpdateChromeForState() => _maximize.Apply();
 
-    // ── Custom edge/corner resize (manual; the borderless window has no OS resize frame) ──
+    // -- Custom edge/corner resize (manual; the borderless window has no OS resize frame) --
     private bool _resizing, _wEdge, _eEdge, _nEdge, _sEdge;
     private PixelPoint _pointerStart, _posStart;   // screen px, window-pos px
     private double _wStartPx, _hStartPx;           // window size px
@@ -184,7 +184,7 @@ public partial class MainWindow : Window, IFramelessWindow
         _resizing = false;
         e.Pointer.Capture(null);
         e.Handled = true;
-        Console.WriteLine($"[Resize] released → {Width:0}x{Height:0}");
+        Console.WriteLine($"[Resize] released -> {Width:0}x{Height:0}");
     }
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
@@ -230,7 +230,7 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
-        // Hardened: dropping files — especially from a flaky/slow NETWORK SHARE (NAS, UNC paths) — must
+        // Hardened: dropping files - especially from a flaky/slow NETWORK SHARE (NAS, UNC paths) - must
         // never crash the app. Any failure is reported via the Oops dialog and swallowed here.
         try
         {

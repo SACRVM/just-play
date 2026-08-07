@@ -8,7 +8,7 @@ namespace JustPlay.Core.Audio;
 /// <summary>
 /// The safe default <see cref="IProcessAudioCapture"/> for platforms/builds with no per-process
 /// capture support (non-Windows, or before the native module is wired). Reports unsupported, lists
-/// nothing, and throws on <see cref="Start"/> — so DI always resolves and the "App" source is simply
+/// nothing, and throws on <see cref="Start"/> - so DI always resolves and the "App" source is simply
 /// hidden/disabled in the UI (via <see cref="IsSupported"/>).
 /// </summary>
 public sealed class NullProcessAudioCapture : IProcessAudioCapture

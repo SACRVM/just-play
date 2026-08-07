@@ -3,102 +3,102 @@ namespace JustPlay.Analysis;
 /// <summary>
 /// Stereo true-peak limiter / maximizer for the master output bus (BASS DSP-callback grade).
 ///
-/// <para>This is the PRODUCTION limiter wired onto the engine mixer — the mono
+/// <para>This is the PRODUCTION limiter wired onto the engine mixer - the mono
 /// <see cref="TruePeakLimiter"/> prototype it supersedes stays as a reference / offline meter.
 /// The two differences that make this one mastering-grade rather than just a safety clamp:</para>
 ///
 /// <list type="number">
 ///   <item><b>Real BS.1770 true-peak detection.</b> Inter-sample peaks are measured with the
-///     same 4× polyphase FIR the reference implementation (libebur128 / ffmpeg) uses: a 49-tap
-///     Hann-windowed sinc, generated — not a guessed coefficient table — exactly per
-///     <c>interp_create(taps:49, factor:4)</c>. The prototype's 4× linear interpolation
-///     under-reads ISPs by up to ~0.5 dB; this does not, so a −1 dBTP ceiling really is −1 dBTP.
-///     [ITU-R BS.1770-4 §true-peak; libebur128 ebur128.c interp_create]</item>
+///     same 4x polyphase FIR the reference implementation (libebur128 / ffmpeg) uses: a 49-tap
+///     Hann-windowed sinc, generated - not a guessed coefficient table - exactly per
+///     <c>interp_create(taps:49, factor:4)</c>. The prototype's 4x linear interpolation
+///     under-reads ISPs by up to ~0.5 dB; this does not, so a -1 dBTP ceiling really is -1 dBTP.
+///     [ITU-R BS.1770-4 Sec.true-peak; libebur128 ebur128.c interp_create]</item>
 ///
-///   <item><b>Look-ahead with a sliding-maximum window → ISP-safe output, zero attack distortion.</b>
+///   <item><b>Look-ahead with a sliding-maximum window -> ISP-safe output, zero attack distortion.</b>
 ///     The gain for each output sample is derived from the LOUDEST true-peak in the look-ahead
 ///     window that lies ahead of it, so the gain is already fully reduced before the peak emerges
 ///     from the delay line. Because the reduction is computed from the <em>true</em> (oversampled)
 ///     peak and the signal is linear, scaling the base-rate sample by <c>ceiling / truePeak</c>
-///     brings the output's true-peak to the ceiling — no separate oversampled output stage needed
-///     for safety. [streaming-broadcast.md §R2.5]</item>
+///     brings the output's true-peak to the ceiling - no separate oversampled output stage needed
+///     for safety. [streaming-broadcast.md Sec.R2.5]</item>
 /// </list>
 ///
 /// <para><b>Maximizer ("drive"):</b> a makeup gain applied BEFORE detection and to the stored
-/// signal, so louder material is pushed up while the limiter catches the resulting peaks — that
+/// signal, so louder material is pushed up while the limiter catches the resulting peaks - that
 /// is what raises perceived loudness for the "club" feel. 0 dB drive = a transparent safety
 /// limiter (peaks only, nothing pushed up).</para>
 ///
 /// <para><b>Gain reduction is stereo-LINKED</b> (one envelope drives both channels) so the stereo
-/// image never shifts when one channel peaks harder than the other — running two independent mono
+/// image never shifts when one channel peaks harder than the other - running two independent mono
 /// limiters would pan the mix toward the quieter side on loud transients.</para>
 ///
 /// <para><b>Anti-loudness-war guarantee:</b> the gain envelope is monotone downward (never &gt; 1.0);
-/// the limiter only ever reduces. No upward AGC, no "make the quiet bits loud" expansion — the
-/// thing Chloe explicitly vetoed for the VDJ-style cheap maximizer. [streaming-broadcast.md §7.2]</para>
+/// the limiter only ever reduces. No upward AGC, no "make the quiet bits loud" expansion - the
+/// thing Chloe explicitly vetoed for the VDJ-style cheap maximizer. [streaming-broadcast.md Sec.7.2]</para>
 ///
 /// <para><b>Honest scope vs. a commercial mastering limiter (FabFilter Pro-L2 / Ozone Maximizer):</b>
-/// detection and peak-safety here are spec-grade. The release is a two-stage (fast→slow) cascade,
+/// detection and peak-safety here are spec-grade. The release is a two-stage (fast->slow) cascade,
 /// which is smoother than a single pole but not yet the fully program-adaptive, multi-mode release
 /// those plugins tune by ear over years. Closing that last gap is a listening-test iteration, not a
-/// correctness fix — tracked in streaming-broadcast.md §R2 "road to parity".</para>
+/// correctness fix - tracked in streaming-broadcast.md Sec.R2 "road to parity".</para>
 ///
 /// <para>Platform-agnostic, reflection-free, allocation-free on the audio path, trim/AOT-safe.
-/// No Avalonia, no ManagedBass — it just processes an interleaved-stereo float span in place, so
+/// No Avalonia, no ManagedBass - it just processes an interleaved-stereo float span in place, so
 /// the BASS DSP callback and the unit tests drive it identically.</para>
 /// </summary>
 public sealed class MasteringLimiter
 {
-    // ── Configuration ────────────────────────────────────────────────────────
+    // -- Configuration --------------------------------------------------------
     public int    SampleRate  { get; }
     public double CeilingDbTp { get; }
     public double DriveDb     { get; }
 
-    // ── Derived constants ─────────────────────────────────────────────────────
+    // -- Derived constants -----------------------------------------------------
     private readonly float  _ceilingLinear;   // 10^(ceiling/20)
     private readonly float  _drive;           // 10^(drive/20) makeup gain
     private readonly int    _lookahead;       // audio delay / sliding-max window length (samples)
     private readonly double _fastReleaseCoeff;
     private readonly double _slowReleaseCoeff;
 
-    // ── 4× polyphase true-peak FIR (BS.1770 / libebur128) ──────────────────────
-    private const int Factor = 4;   // 4× oversampling — BS.1770 minimum
-    private const int Taps   = 49;  // odd → symmetric, 12 non-zero taps/phase
+    // -- 4x polyphase true-peak FIR (BS.1770 / libebur128) ----------------------
+    private const int Factor = 4;   // 4x oversampling - BS.1770 minimum
+    private const int Taps   = 49;  // odd -> symmetric, 12 non-zero taps/phase
     private readonly float[][] _phase;        // [Factor][delayLen] generated Hann-windowed sinc
     private readonly int _firDelayLen;        // (Taps + Factor - 1) / Factor
     private readonly float[] _firHistL;       // per-channel FIR history rings
     private readonly float[] _firHistR;
     private int _firPos;
 
-    // ── Look-ahead audio delay (stores DRIVEN samples) ─────────────────────────
+    // -- Look-ahead audio delay (stores DRIVEN samples) -------------------------
     private readonly float[] _delayL;
     private readonly float[] _delayR;
     private int _delayPos;
 
-    // ── Sliding-maximum of the windowed true-peak (monotonic deque) ────────────
+    // -- Sliding-maximum of the windowed true-peak (monotonic deque) ------------
     private readonly long[]  _dqIdx;          // sample index of each candidate
-    private readonly float[] _dqVal;          // true-peak value (decreasing front→back)
+    private readonly float[] _dqVal;          // true-peak value (decreasing front->back)
     private int  _dqHead, _dqTail;            // [head, tail) ring slots in use
     private long _n;                          // running input-sample counter
 
-    // ── Two-stage gain-reduction envelope (linked, ≤ 1.0) ──────────────────────
+    // -- Two-stage gain-reduction envelope (linked, <= 1.0) ----------------------
     private double _grFast = 1.0;
     private double _grSlow = 1.0;
 
-    // ── Live telemetry for the UI gain-reduction lamp ───────────────────────────
+    // -- Live telemetry for the UI gain-reduction lamp ---------------------------
     // Written on the BASS audio thread, drained by the UI poll (ReadTelemetry resets them). Plain
     // fields, no lock: a torn read just yields a one-poll-stale lamp, which is invisible at 60 Hz.
     // GR is stereo-LINKED so depth/duty are bus-wide; the per-channel ceiling hits say WHICH channel
-    // is driving the limiter (its own true-peak crossed the ceiling) — that's the honest per-channel bit.
-    private double _telMinGain = 1.0;   // smallest applied gain since last read → peak gain reduction
+    // is driving the limiter (its own true-peak crossed the ceiling) - that's the honest per-channel bit.
+    private double _telMinGain = 1.0;   // smallest applied gain since last read -> peak gain reduction
     private long   _telActiveFrames;    // frames where the limiter was actually reducing
     private long   _telTotalFrames;
     private bool   _telHitL, _telHitR;  // a channel's true-peak exceeded the ceiling since last read
 
     /// <param name="sampleRate">Bus sample rate (the JustPlay mixer is 44100).</param>
-    /// <param name="ceilingDbTp">True-peak ceiling. −1 dBTP is the broadcast-safe default.</param>
+    /// <param name="ceilingDbTp">True-peak ceiling. -1 dBTP is the broadcast-safe default.</param>
     /// <param name="driveDb">Maximizer makeup gain in dB applied before limiting (0 = safety only).</param>
-    /// <param name="lookaheadMs">Look-ahead window in ms (1–5 typical). Adds this much output latency.</param>
+    /// <param name="lookaheadMs">Look-ahead window in ms (1-5 typical). Adds this much output latency.</param>
     /// <param name="fastReleaseMs">Fast release stage time constant.</param>
     /// <param name="slowReleaseMs">Slow release stage time constant (the smoothing that kills pumping).</param>
     public MasteringLimiter(
@@ -127,7 +127,7 @@ public sealed class MasteringLimiter
         _slowReleaseCoeff = Math.Exp(-1.0 / (slowReleaseMs * sampleRate / 1000.0));
 
         // Build the BS.1770 / libebur128 polyphase FIR. The reference implementation generates the
-        // coefficients (it does NOT ship a table): a sinc lowpass at the 4× factor, Hann-windowed,
+        // coefficients (it does NOT ship a table): a sinc lowpass at the 4x factor, Hann-windowed,
         // de-interleaved into one subfilter per phase. Reproduced verbatim so true-peak readings
         // match ffmpeg/loudness tooling. [libebur128 ebur128.c interp_create]
         _firDelayLen = (Taps + Factor - 1) / Factor; // = 13
@@ -174,7 +174,7 @@ public sealed class MasteringLimiter
 
     /// <summary>
     /// Current gain reduction in dB, as a NON-NEGATIVE value (0 = not limiting).
-    /// Reads directly from the live smoothed gain envelope <c>_grSlow</c> — a plain field read, no lock,
+    /// Reads directly from the live smoothed gain envelope <c>_grSlow</c> - a plain field read, no lock,
     /// no reset of the telemetry accumulators. Safe to poll at UI frame rate from any thread.
     /// e.g. 2.3 = limiter is currently pulling peaks down by 2.3 dB.
     /// </summary>
@@ -184,7 +184,7 @@ public sealed class MasteringLimiter
     /// <summary>
     /// Snapshot of limiter activity since the previous call, for the UI gain-reduction lamp, and
     /// RESETS the accumulators (call at UI poll rate). <paramref name="gainReductionDb"/> is the
-    /// deepest reduction in the interval (≤ 0; 0 = the limiter wasn't reducing); <paramref name="dutyCycle"/>
+    /// deepest reduction in the interval (<= 0; 0 = the limiter wasn't reducing); <paramref name="dutyCycle"/>
     /// is the fraction of frames that were being reduced (0..1); the two flags say whether each
     /// channel's true-peak crossed the ceiling (i.e. that channel was driving the limiter).
     /// </summary>
@@ -198,7 +198,7 @@ public sealed class MasteringLimiter
     }
 
     /// <summary>
-    /// Process one block of interleaved-stereo float samples (L,R,L,R,…) in place.
+    /// Process one block of interleaved-stereo float samples (L,R,L,R,...) in place.
     /// State carries across calls so this works as a continuous-stream DSP. An odd-length
     /// span (mono tail) is left as-is on its final sample.
     /// </summary>
@@ -230,12 +230,12 @@ public sealed class MasteringLimiter
             ExpireOlderThan(_n - _lookahead);
             float winMax = _dqVal[_dqHead];
 
-            // 4. Target gain from the TRUE peak → scaling the base-rate sample by this lands the
-            //    output true-peak on the ceiling. ≤ 1.0 always (monotone-down, anti-AGC).
+            // 4. Target gain from the TRUE peak -> scaling the base-rate sample by this lands the
+            //    output true-peak on the ceiling. <= 1.0 always (monotone-down, anti-AGC).
             double grTarget = winMax > _ceilingLinear ? _ceilingLinear / winMax : 1.0;
 
             // 5. Two-stage envelope: instant attack (the window already guarantees the reduction is
-            //    in place before the peak arrives → no overshoot, no attack distortion), then a
+            //    in place before the peak arrives -> no overshoot, no attack distortion), then a
             //    fast release smoothed by a slow release to suppress pumping.
             if (grTarget < _grFast) _grFast = grTarget;
             else _grFast = _fastReleaseCoeff * _grFast + (1.0 - _fastReleaseCoeff) * grTarget;
@@ -264,7 +264,7 @@ public sealed class MasteringLimiter
         }
     }
 
-    // ── Polyphase FIR: push one sample, return the oversampled true-peak (max |phase|) ──────────
+    // -- Polyphase FIR: push one sample, return the oversampled true-peak (max |phase|) ----------
     private float FirTruePeak(float[] hist, float sample)
     {
         hist[_firPos] = sample;
@@ -284,10 +284,10 @@ public sealed class MasteringLimiter
         return peak;
     }
 
-    // ── Monotonic (decreasing) deque for the sliding window maximum ─────────────────────────────
+    // -- Monotonic (decreasing) deque for the sliding window maximum -----------------------------
     private void PushMax(long idx, float val)
     {
-        // Drop back candidates that this sample dominates — they can never be the window max again.
+        // Drop back candidates that this sample dominates - they can never be the window max again.
         while (_dqHead != _dqTail)
         {
             int back = (_dqTail - 1 + _dqVal.Length) % _dqVal.Length;

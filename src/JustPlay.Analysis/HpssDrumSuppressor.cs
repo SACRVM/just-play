@@ -3,27 +3,27 @@ using JustPlay.Core.Models;
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// EXPERIMENTAL — N19 per-frame tonalness-weighted chroma for drum suppression (2026-06-24).
+/// EXPERIMENTAL - N19 per-frame tonalness-weighted chroma for drum suppression (2026-06-24).
 ///
 /// <para><b>Why weight by tonalness?</b> Drums are spectrally broadband (high flatness);
 /// tonal chord/melody frames have sharp peaks (low flatness). By weighting each frame's
-/// contribution to the chroma accumulation by its tonalness (1 − spectral_flatness), we
+/// contribution to the chroma accumulation by its tonalness (1 - spectral_flatness), we
 /// upweight the frames that actually carry key-relevant information and downweight the
-/// percussive noise. This approximates the intent of HPSS without the O(T×F×L) cost of
+/// percussive noise. This approximates the intent of HPSS without the O(TxFxL) cost of
 /// a full time-median filter.</para>
 ///
-/// <para><b>Method — per-frame flatness-weighted chromagram:</b></para>
+/// <para><b>Method - per-frame flatness-weighted chromagram:</b></para>
 /// <list type="number">
 ///   <item>For each analysis frame (same 8192/4096 Hann-windowed STFT as ChromagramKeyDetector),
-///     compute the spectral flatness in the harmonic band [100–5000 Hz].</item>
-///   <item>Tonalness weight w = max(0, 1 − flatness). Flat frames (drums) → w≈0. Tonal frames → w≈1.</item>
+///     compute the spectral flatness in the harmonic band [100-5000 Hz].</item>
+///   <item>Tonalness weight w = max(0, 1 - flatness). Flat frames (drums) -> w~0. Tonal frames -> w~1.</item>
 ///   <item>Accumulate the frame's 36-bin chroma contribution with weight w (instead of the uniform
 ///     L2-normalised contribution used in <see cref="ChromagramKeyDetector"/>).</item>
 ///   <item>Classify with the same braw profile + cosine as the shipped ChromagramKeyDetector.</item>
 /// </list>
 ///
 /// <para><b>Design rationale:</b> the ChromagramKeyDetector (whole-band magnitude chromagram +
-/// per-frame L2 + per-bin median) already partially does this via the median — but the median
+/// per-frame L2 + per-bin median) already partially does this via the median - but the median
 /// is across ALL frames including noise. Replacing the uniform L2 weight with a flatness-derived
 /// weight before the accumulation biases the median toward the tonal subset. For the experiment we
 /// measure whether this flatness weighting helps on the GiantSteps set where drum-heavy intro
@@ -36,19 +36,19 @@ namespace JustPlay.Analysis;
 /// proportionally higher weight.</para>
 ///
 /// <para>Platform-agnostic: no Avalonia, no ManagedBass, no new NuGet. Trim/AOT-safe.
-/// NOT part of the shipped path — experiment only.</para>
+/// NOT part of the shipped path - experiment only.</para>
 /// </summary>
 public static class HpssDrumSuppressor
 {
     // Flatness gate threshold.
     // At this flatness level, tonalness weight = 0 (frame fully excluded).
     // Frames below this threshold contribute proportionally.
-    // 0.6 was selected empirically: tonal EDM frames at 44.1 kHz have flatness ~0.1–0.4;
-    // drum/noise frames have ~0.5–0.8. On LOFI 96kbps artifacts push values up ~0.2.
+    // 0.6 was selected empirically: tonal EDM frames at 44.1 kHz have flatness ~0.1-0.4;
+    // drum/noise frames have ~0.5-0.8. On LOFI 96kbps artifacts push values up ~0.2.
     // A threshold of 0.6 suppresses pure-drum frames on LOFI while keeping breakdowns.
     public const double FlatnessGateThreshold = 0.6;
 
-    // FFT params — same as ChromagramKeyDetector (11025 Hz analysis rate).
+    // FFT params - same as ChromagramKeyDetector (11025 Hz analysis rate).
     // Using the chroma detector's rate so there's no additional decode step.
     private const int FrameSize = 8192;
     private const int HopSize   = FrameSize / 2;   // 50% overlap (ChromagramKeyDetector standard)
@@ -99,7 +99,7 @@ public static class HpssDrumSuppressor
         var mag        = new double[halfBins];
         var frameChroma = new double[ChromaBins];
 
-        // Weighted accumulation: each frame's chroma contribution × tonalness weight.
+        // Weighted accumulation: each frame's chroma contribution x tonalness weight.
         // We accumulate a WEIGHTED SUM then normalise.
         var weightedChroma = new double[ChromaBins];
         var totalWeight    = 0.0;
@@ -158,7 +158,7 @@ public static class HpssDrumSuppressor
 
         if (!anyEnergy || totalWeight <= SilenceFloor) return null;
 
-        // Normalise by total weight, then fold 36→12 with tuning correction.
+        // Normalise by total weight, then fold 36->12 with tuning correction.
         for (var b = 0; b < ChromaBins; b++) weightedChroma[b] /= totalWeight;
 
         // Find dominant tuning sub-bin.
@@ -168,7 +168,7 @@ public static class HpssDrumSuppressor
         if (subEnergy[1] > subEnergy[0]) bestSub = 1;
         if (subEnergy[2] > subEnergy[bestSub]) bestSub = 2;
 
-        // Fold 36→12 centred on tuning.
+        // Fold 36->12 centred on tuning.
         var chroma = new double[12];
         for (var pc = 0; pc < 12; pc++)
         {

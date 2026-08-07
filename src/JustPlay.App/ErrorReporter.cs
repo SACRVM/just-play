@@ -12,8 +12,8 @@ using JustPlay.Core.Storage;
 namespace JustPlay.App;
 
 /// <summary>
-/// App-wide crash safety net. Anything that escapes a local try/catch — a UI-thread exception, a
-/// background-task fault, or an AppDomain-fatal throw — is funnelled here: written to a crash log AND
+/// App-wide crash safety net. Anything that escapes a local try/catch - a UI-thread exception, a
+/// background-task fault, or an AppDomain-fatal throw - is funnelled here: written to a crash log AND
 /// shown in a copyable "Oops" dialog, instead of the app dying silently. We stand by our bugs: the
 /// dialog hands the user the full report with a Copy button so they can send it to us.
 /// </summary>
@@ -27,7 +27,7 @@ public static class ErrorReporter
     public static string BuildReport(Exception? ex, string? context)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"JustPlay {AppInfo.DisplayVersion} — error report");
+        sb.AppendLine($"JustPlay {AppInfo.DisplayVersion} - error report");
         sb.AppendLine($"When:  {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"OS:    {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
         sb.AppendLine($".NET:  {RuntimeInformation.FrameworkDescription}");

@@ -1,11 +1,11 @@
-// JustCheck.Probe — JUST CHECK audio-setup data-collection probe
-// Part of J.U.S.T. — Just Useful Sound Tools
+// JustCheck.Probe - JUST CHECK audio-setup data-collection probe
+// Part of J.U.S.T. - Just Useful Sound Tools
 //
 // PRIVACY NOTICE (written to every log file):
 //   This probe collects ONLY anonymous audio-configuration diagnostics.
 //   It contains NO personal data, NO credentials, NO stream passwords,
 //   NO library contents, and NO account information.
-//   The Windows username is never logged — paths use %USERPROFILE% etc.
+//   The Windows username is never logged - paths use %USERPROFILE% etc.
 //   You can read the entire log file before sharing it with anyone.
 
 using Microsoft.Win32;
@@ -22,13 +22,13 @@ staThread.SetApartmentState(ApartmentState.STA);
 staThread.Start();
 staThread.Join();
 
-// ────────────────────────────────────────────────────────────────────────────
+// ----------------------------------------------------------------------------
 
 static void ProbeMain()
 {
     const string ProbeVersion = "0.1.0-probe";
 
-    // ── Log setup ─────────────────────────────────────────────────────────
+    // -- Log setup ---------------------------------------------------------
     string logFileName = $"JustCheck-{DateTime.Now:yyyyMMdd-HHmmss}.log";
     string logPath = Path.Combine(AppContext.BaseDirectory, logFileName);
     using var logFile = new StreamWriter(logPath, false, new UTF8Encoding(false));
@@ -57,7 +57,7 @@ static void ProbeMain()
         }
     }
 
-    // ── Privacy helpers ───────────────────────────────────────────────────
+    // -- Privacy helpers ---------------------------------------------------
     // Replace literal user-profile paths with env-var placeholders so
     // usernames never appear in the log.
     static string RedactPath(string path)
@@ -109,7 +109,7 @@ static void ProbeMain()
         return val?.ToString() ?? "(null / unsupported variant type)";
     }
 
-    // ── PKEY GUIDs (from Windows SDK Mmdeviceapi.h) ───────────────────────
+    // -- PKEY GUIDs (from Windows SDK Mmdeviceapi.h) -----------------------
     // PKEY_AudioEngine_DeviceFormat  {f19f064d-082c-4e27-bc73-6882a1bb8e4c}, 0
     // PKEY_AudioEngine_OEMFormat     {e4870e26-3cc5-4cd2-ba46-ca0a9a70ed04}, 3
     // PKEY_AudioEndpoint_Disable_SysFx {1da5d803-d492-4edd-8c23-e0c0ffee7f0e}, 5
@@ -117,12 +117,12 @@ static void ProbeMain()
     var pkOemFmt = new Guid("e4870e26-3cc5-4cd2-ba46-ca0a9a70ed04");
     var pkSysFx  = new Guid("1da5d803-d492-4edd-8c23-e0c0ffee7f0e");
 
-    // Endpoint cache used across sections 2–5
+    // Endpoint cache used across sections 2-5
     var endpointCache = new List<EndpointInfo>();
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §1  HEADER
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.1  HEADER
+    // -------------------------------------------------------------------------
     Banner("PRIVACY NOTICE");
     Log("  This log contains ONLY anonymous audio-configuration diagnostics.");
     Log("  No personal data, no credentials, no stream passwords, no library");
@@ -141,14 +141,14 @@ static void ProbeMain()
     Log($"  64-bit OS     : {Environment.Is64BitOperatingSystem}");
     Log($"  Log file      : {logFileName}  (in exe folder)");
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §2  AUDIO ENDPOINTS
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.2  AUDIO ENDPOINTS
+    // -------------------------------------------------------------------------
     RunSection("AUDIO ENDPOINTS", () =>
     {
         using var enumerator = new MMDeviceEnumerator();
 
-        // ── Default endpoints ─────────────────────────────────────────────
+        // -- Default endpoints ---------------------------------------------
         var defaults = new Dictionary<string, string>();
         foreach (var (flow, role, label) in new[]
         {
@@ -168,7 +168,7 @@ static void ProbeMain()
         }
         foreach (var kv in defaults) Log($"  Default {kv.Key,-25}: {kv.Value}");
 
-        // ── Enumerate ALL devices, both flows ─────────────────────────────
+        // -- Enumerate ALL devices, both flows -----------------------------
         int idx = 0;
         foreach (var flow in new[] { DataFlow.Render, DataFlow.Capture })
         {
@@ -208,7 +208,7 @@ static void ProbeMain()
                     catch (Exception ex) { mixStr = $"[error: {ex.Message}]"; }
                     Log($"        MixFormat : {mixStr}");
 
-                    // Property store — PKEY labels + generic dump
+                    // Property store - PKEY labels + generic dump
                     try
                     {
                         var store = dev.Properties;
@@ -258,9 +258,9 @@ static void ProbeMain()
         Log($"  Total: {idx} endpoints");
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §3  ACTIVE SESSIONS  (process → endpoint map)
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.3  ACTIVE SESSIONS  (process -> endpoint map)
+    // -------------------------------------------------------------------------
     RunSection("ACTIVE SESSIONS", () =>
     {
         using var enumerator = new MMDeviceEnumerator();
@@ -295,7 +295,7 @@ static void ProbeMain()
                                 using var proc = Process.GetProcessById((int)pid);
                                 procName = proc.ProcessName;
                             }
-                            catch { procName = $"(pid {pid} — exited or access denied)"; }
+                            catch { procName = $"(pid {pid} - exited or access denied)"; }
                         }
                         else procName = "(system / no PID)";
 
@@ -316,9 +316,9 @@ static void ProbeMain()
         }
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §4  METERS  (per-endpoint peak, 3 reads ~100 ms apart)
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.4  METERS  (per-endpoint peak, 3 reads ~100 ms apart)
+    // -------------------------------------------------------------------------
     RunSection("METERS", () =>
     {
         Log("  Per-session peak meters for foreign processes: NOT available via public WASAPI API.");
@@ -361,12 +361,12 @@ static void ProbeMain()
         }
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §5  VIRTUAL CABLES
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.5  VIRTUAL CABLES
+    // -------------------------------------------------------------------------
     RunSection("VIRTUAL CABLES", () =>
     {
-        // Known endpoint name substrings → from virtual-cables.md §6
+        // Known endpoint name substrings -> from virtual-cables.md Sec.6
         var cablePatterns = new (string Pattern, string Label)[]
         {
             ("VB-Audio Virtual Cable",  "VB-CABLE (free)"),
@@ -383,7 +383,7 @@ static void ProbeMain()
             ("HI-FI Cable",             "Hi-Fi Cable"),
         };
 
-        Log("  ── Endpoint name scan ──");
+        Log("  -- Endpoint name scan --");
         bool anyVirtual = false;
         foreach (var ep in endpointCache)
         {
@@ -402,9 +402,9 @@ static void ProbeMain()
         }
         if (!anyVirtual) Log("  No virtual cable endpoints detected.");
 
-        // ── VoiceMeeter process check ─────────────────────────────────────
+        // -- VoiceMeeter process check -------------------------------------
         Log();
-        Log("  ── VoiceMeeter process check ──");
+        Log("  -- VoiceMeeter process check --");
         var vmProcs = new (string Exe, string Tier)[]
         {
             ("voicemeeter",        "Standard"),
@@ -420,39 +420,39 @@ static void ProbeMain()
         bool vmEndpoints = endpointCache.Any(e =>
             e.Name.Contains("VoiceMeeter", StringComparison.OrdinalIgnoreCase));
         if (vmEndpoints && !vmRunning)
-            Log("  WARNING: VoiceMeeter endpoints exist but engine is NOT RUNNING — audio sent there is discarded!");
+            Log("  WARNING: VoiceMeeter endpoints exist but engine is NOT RUNNING - audio sent there is discarded!");
         else if (!vmEndpoints && !vmRunning)
             Log("  VoiceMeeter: not installed / not detected.");
 
-        // ── VAC driver file ───────────────────────────────────────────────
+        // -- VAC driver file -----------------------------------------------
         Log();
-        Log("  ── Virtual Audio Cable (VAC) driver ──");
+        Log("  -- Virtual Audio Cable (VAC) driver --");
         bool vacDriver = File.Exists(@"C:\Windows\System32\drivers\vrtaucbl.sys");
         Log($"  vrtaucbl.sys : {(vacDriver ? "PRESENT" : "not found")}");
         if (vacDriver && !endpointCache.Any(e =>
             e.Name.Contains("Virtual Audio Cable", StringComparison.OrdinalIgnoreCase)))
             Log("  NOTE: VAC driver installed but no 'Virtual Audio Cable' endpoint currently active.");
 
-        // ── Sample-rate consistency check across all active endpoints ─────
+        // -- Sample-rate consistency check across all active endpoints -----
         Log();
-        Log("  ── Sample-rate consistency ──");
+        Log("  -- Sample-rate consistency --");
         var activeSRs = endpointCache
             .Where(e => e.State == DeviceState.Active && e.MixSampleRate > 0)
             .GroupBy(e => e.MixSampleRate)
             .ToList();
 
         if (activeSRs.Count == 0) { Log("  (no active endpoints with format info)"); }
-        else if (activeSRs.Count == 1) { Log($"  All active endpoints at {activeSRs[0].Key} Hz — consistent."); }
+        else if (activeSRs.Count == 1) { Log($"  All active endpoints at {activeSRs[0].Key} Hz - consistent."); }
         else
         {
-            Log("  SR MISMATCH across active endpoints — resampling will occur somewhere:");
+            Log("  SR MISMATCH across active endpoints - resampling will occur somewhere:");
             foreach (var g in activeSRs)
                 Log($"    {g.Key} Hz : {string.Join(" | ", g.Select(e => e.Name))}");
         }
 
-        // ── WASAPI exclusive-mode probe ───────────────────────────────────
+        // -- WASAPI exclusive-mode probe -----------------------------------
         Log();
-        Log("  ── Exclusive-mode probe (AUDCLNT_E_DEVICE_IN_USE check) ──");
+        Log("  -- Exclusive-mode probe (AUDCLNT_E_DEVICE_IN_USE check) --");
         using var en2 = new MMDeviceEnumerator();
         try
         {
@@ -478,9 +478,9 @@ static void ProbeMain()
         catch (Exception ex) { Log($"  [exclusive probe failed: {ex.Message}]"); }
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §6  DJ SOFTWARE
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.6  DJ SOFTWARE
+    // -------------------------------------------------------------------------
     RunSection("DJ SOFTWARE", () =>
     {
         var up   = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -488,8 +488,8 @@ static void ProbeMain()
         var ad   = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
-        // ── Traktor Pro 3 / 4 ─────────────────────────────────────────────
-        Log("  ── Traktor Pro ──");
+        // -- Traktor Pro 3 / 4 ---------------------------------------------
+        Log("  -- Traktor Pro --");
         bool traktorRunning = IsRunning("traktor") || IsRunning("traktor3") || IsRunning("traktor4");
         Log($"  Process: {(traktorRunning ? "RUNNING" : "not running")}");
         try
@@ -527,7 +527,7 @@ static void ProbeMain()
                                 .Take(50);
                             foreach (var e in entries)
                                 Log($"    Entry: Name={e.Attribute("Name")?.Value}  Type={e.Attribute("Type")?.Value}  Value={e.Attribute("Value")?.Value}");
-                            Log("  NOTE: Traktor audio Entry names are undocumented — see dj-software-settings.md §1.2");
+                            Log("  NOTE: Traktor audio Entry names are undocumented - see dj-software-settings.md Sec.1.2");
                         }
                         catch (Exception ex) { Log($"    [TSI parse error: {ex.Message}]"); }
                     }
@@ -535,13 +535,13 @@ static void ProbeMain()
                 }
                 if (!foundAny) Log($"  No Traktor folder found in {RedactPath(niBase)}");
             }
-            else Log($"  {RedactPath(niBase)} not found — Traktor not installed.");
+            else Log($"  {RedactPath(niBase)} not found - Traktor not installed.");
         }
         catch (Exception ex) { Log($"  [Traktor probe error: {ex.Message}]"); }
 
-        // ── rekordbox 6 / 7 ──────────────────────────────────────────────
+        // -- rekordbox 6 / 7 ----------------------------------------------
         Log();
-        Log("  ── rekordbox ──");
+        Log("  -- rekordbox --");
         Log($"  Process: {(IsRunning("rekordbox") ? "RUNNING" : "not running")}");
         try
         {
@@ -554,13 +554,13 @@ static void ProbeMain()
                 Log($"  rekordbox3.settings : FOUND  {fi.Length:N0} bytes  last-write={fi.LastWriteTime:yyyy-MM-dd HH:mm}");
             }
             else Log($"  rekordbox3.settings : NOT FOUND");
-            Log("  NOTE: rekordbox audio config keys are undocumented — path+size only (dj-software-settings.md §2.2)");
+            Log("  NOTE: rekordbox audio config keys are undocumented - path+size only (dj-software-settings.md Sec.2.2)");
         }
         catch (Exception ex) { Log($"  [rekordbox probe error: {ex.Message}]"); }
 
-        // ── Serato DJ ─────────────────────────────────────────────────────
+        // -- Serato DJ -----------------------------------------------------
         Log();
-        Log("  ── Serato DJ ──");
+        Log("  -- Serato DJ --");
         Log($"  Process: {(IsRunning("seratodj") || IsRunning("seratodj64") ? "RUNNING" : "not running")}");
         try
         {
@@ -576,7 +576,7 @@ static void ProbeMain()
                     Log($"    .pref : {RedactPath(f)}  {new FileInfo(f).Length:N0} bytes");
             }
 
-            // Registry — audio/device-relevant keys only; skip credentials
+            // Registry - audio/device-relevant keys only; skip credentials
             Log("  Registry HKCU\\Software\\Serato\\SeratoDJ (audio keys only):");
             using var seratoKey = Registry.CurrentUser.OpenSubKey(@"Software\Serato\SeratoDJ");
             if (seratoKey != null)
@@ -608,13 +608,13 @@ static void ProbeMain()
                 if (found == 0) Log("    (no audio-relevant values found)");
             }
             else Log("    HKCU\\Software\\Serato\\SeratoDJ not found.");
-            Log("  NOTE: Serato .pref format is undocumented binary — not parsed (see serato-pref-reverse.md).");
+            Log("  NOTE: Serato .pref format is undocumented binary - not parsed (see serato-pref-reverse.md).");
         }
         catch (Exception ex) { Log($"  [Serato probe error: {ex.Message}]"); }
 
-        // ── VirtualDJ ─────────────────────────────────────────────────────
+        // -- VirtualDJ -----------------------------------------------------
         Log();
-        Log("  ── VirtualDJ ──");
+        Log("  -- VirtualDJ --");
         Log($"  Process: {(IsRunning("virtualdj") || IsRunning("virtualdj8") ? "RUNNING" : "not running")}");
         try
         {
@@ -653,16 +653,16 @@ static void ProbeMain()
                             anyFound = true;
                         }
                     }
-                    if (!anyFound) Log("    (none found — may be at default values and not written)");
+                    if (!anyFound) Log("    (none found - may be at default values and not written)");
                 }
                 catch (Exception ex) { Log($"    [XML parse error: {ex.Message}]"); }
             }
         }
         catch (Exception ex) { Log($"  [VirtualDJ probe error: {ex.Message}]"); }
 
-        // ── Mixxx ─────────────────────────────────────────────────────────
+        // -- Mixxx ---------------------------------------------------------
         Log();
-        Log("  ── Mixxx ──");
+        Log("  -- Mixxx --");
         Log($"  Process: {(IsRunning("mixxx") ? "RUNNING" : "not running")}");
         try
         {
@@ -710,16 +710,16 @@ static void ProbeMain()
         catch (Exception ex) { Log($"  [Mixxx probe error: {ex.Message}]"); }
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §7  STREAMING TOOLS
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.7  STREAMING TOOLS
+    // -------------------------------------------------------------------------
     RunSection("STREAMING TOOLS", () =>
     {
         var ad  = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var lad = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-        // ── BUTT ─────────────────────────────────────────────────────────
-        Log("  ── BUTT ──");
+        // -- BUTT ---------------------------------------------------------
+        Log("  -- BUTT --");
         Log($"  Process: {(IsRunning("butt") ? "RUNNING" : "not running")}");
         try
         {
@@ -755,9 +755,9 @@ static void ProbeMain()
         }
         catch (Exception ex) { Log($"  [BUTT probe error: {ex.Message}]"); }
 
-        // ── OBS Studio ───────────────────────────────────────────────────
+        // -- OBS Studio ---------------------------------------------------
         Log();
-        Log("  ── OBS Studio ──");
+        Log("  -- OBS Studio --");
         Log($"  Process: {(IsRunning("obs64") || IsRunning("obs32") || IsRunning("obs") ? "RUNNING" : "not running")}");
         try
         {
@@ -799,27 +799,27 @@ static void ProbeMain()
         }
         catch (Exception ex) { Log($"  [OBS probe error: {ex.Message}]"); }
 
-        // ── Rocket Broadcaster ────────────────────────────────────────────
+        // -- Rocket Broadcaster --------------------------------------------
         Log();
-        Log("  ── Rocket Broadcaster ──");
+        Log("  -- Rocket Broadcaster --");
         Log($"  Process: {(IsRunning("RocketBroadcaster") ? "RUNNING" : "not running")}");
-        Log("  Config: user-saved project file (no guaranteed auto-save path — check manually).");
+        Log("  Config: user-saved project file (no guaranteed auto-save path - check manually).");
 
-        // ── SAM Broadcaster ───────────────────────────────────────────────
+        // -- SAM Broadcaster -----------------------------------------------
         Log();
-        Log("  ── SAM Broadcaster ──");
+        Log("  -- SAM Broadcaster --");
         Log($"  Process: {(IsRunning("SAM2") || IsRunning("sam_broadcaster") ? "RUNNING" : "not running")}");
         try
         {
             // Path is community-sourced; flagged [unverified] in streaming-tools.md
             string samCfg = Path.Combine(lad, "SpacialAudio", "SAMBC", "SAMBC.core.xml");
-            Log($"  Config (⚠ unverified path): {RedactPath(samCfg)}  {(File.Exists(samCfg) ? $"FOUND  {new FileInfo(samCfg).Length:N0} bytes" : "NOT FOUND")}");
+            Log($"  Config ((!) unverified path): {RedactPath(samCfg)}  {(File.Exists(samCfg) ? $"FOUND  {new FileInfo(samCfg).Length:N0} bytes" : "NOT FOUND")}");
         }
         catch (Exception ex) { Log($"  [SAM probe error: {ex.Message}]"); }
 
-        // ── RadioBOSS ─────────────────────────────────────────────────────
+        // -- RadioBOSS -----------------------------------------------------
         Log();
-        Log("  ── RadioBOSS ──");
+        Log("  -- RadioBOSS --");
         Log($"  Process: {(IsRunning("RadioBOSS") ? "RUNNING" : "not running")}");
         try
         {
@@ -831,9 +831,9 @@ static void ProbeMain()
         }
         catch (Exception ex) { Log($"  [RadioBOSS probe error: {ex.Message}]"); }
 
-        // ── Altacast / Edcast ─────────────────────────────────────────────
+        // -- Altacast / Edcast ---------------------------------------------
         Log();
-        Log("  ── Altacast / Edcast ──");
+        Log("  -- Altacast / Edcast --");
         Log($"  Process: {(IsRunning("altacast") || IsRunning("edcast") ? "RUNNING" : "not running")}");
         foreach (var cfgDir in new[] { @"C:\Program Files\altacast", @"C:\Program Files\edcast" })
         {
@@ -844,9 +844,9 @@ static void ProbeMain()
         }
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // §8  FOOTER
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Sec.8  FOOTER
+    // -------------------------------------------------------------------------
     Banner("FOOTER");
     Log($"  Sections completed OK  : {sectOk}");
     Log($"  Sections with errors   : {sectErr}");
@@ -859,9 +859,9 @@ static void ProbeMain()
     Log("  ==== END OF JUSTCHECK PROBE LOG ====");
 }
 
-// ── File-scope types ─────────────────────────────────────────────────────────
+// -- File-scope types ---------------------------------------------------------
 
-/// <summary>Snapshot of one audio endpoint captured in §2 and reused in §4–5.</summary>
+/// <summary>Snapshot of one audio endpoint captured in Sec.2 and reused in Sec.4-5.</summary>
 internal sealed record EndpointInfo(
     string Id,
     string Name,

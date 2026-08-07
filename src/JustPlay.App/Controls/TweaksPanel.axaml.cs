@@ -9,7 +9,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.App.Controls;
 
 /// <summary>
-/// Slide-in tweaks panel (theme palette · stage toggles · audio), shared as a self-contained
+/// Slide-in tweaks panel (theme palette - stage toggles - audio), shared as a self-contained
 /// control. Binds to the inherited <c>MainWindowViewModel</c> DataContext; the consumer controls
 /// visibility and docking. (About moved to the title-bar brand; compact layout has its own button.)
 /// </summary>
@@ -17,7 +17,7 @@ public partial class TweaksPanel : UserControl
 {
     public TweaksPanel() => InitializeComponent();
 
-    // ── Saved-preset right-click menu (Replace / Rename / Delete) ───────────────────
+    // -- Saved-preset right-click menu (Replace / Rename / Delete) -------------------
     // Done in code-behind, NOT via Command bindings: the ContextMenu is a popup outside this
     // control's visual tree, so RelativeSource/PlacementTarget command bindings resolve null and
     // the items render permanently disabled. The handlers resolve the clicked preset + the VM

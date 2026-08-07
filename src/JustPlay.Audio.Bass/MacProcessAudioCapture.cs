@@ -10,24 +10,24 @@ namespace JustPlay.Audio.Bass;
 /// <summary>
 /// macOS implementation of <see cref="IProcessAudioCapture"/> via Core Audio process taps
 /// (macOS 14.4+), through our native shim <c>libjuststream_capture.dylib</c>
-/// (native/osx-src/juststream_capture.m — flat C ABI; see research/macos-app-audio-capture.md).
+/// (native/osx-src/juststream_capture.m - flat C ABI; see research/macos-app-audio-capture.md).
 ///
 /// The shim taps ONE process at the rate of the device the target renders to; this class
-/// linearly resamples to the requested rate when they differ (fine for 44.1↔48 on a lossy-
+/// linearly resamples to the requested rate when they differ (fine for 44.1<->48 on a lossy-
 /// encoded broadcast; swap for a proper SRC if it ever matters). Channel handling mirrors
 /// Windows (<see cref="AppCaptureFormat"/>): FullMix taps a stereo MIXDOWN of everything the
 /// app plays; Master12/34 tap the app's output DEVICE stream with its full channel layout and
-/// extract one pair — the DJ cue-bleed fix (a mixdown mixes Master + Cue together; verified
+/// extract one pair - the DJ cue-bleed fix (a mixdown mixes Master + Cue together; verified
 /// live with Traktor on a 4-out device, 2026-07-15).
 ///
-/// TCC: the FIRST capture start triggers macOS's "System Audio Recording Only" prompt — the
+/// TCC: the FIRST capture start triggers macOS's "System Audio Recording Only" prompt - the
 /// hosting .app must carry NSAudioCaptureUsageDescription and be code-signed, or the OS
 /// delivers SILENCE with no prompt (verified 2026-07-15 with an unblessed host: buffers flow,
 /// all zeros). Same silent-fail family as the microphone key.
 /// </summary>
 public sealed class MacProcessAudioCapture : IProcessAudioCapture
 {
-    private const string Lib = "juststream_capture"; // → libjuststream_capture.dylib beside the app
+    private const string Lib = "juststream_capture"; // -> libjuststream_capture.dylib beside the app
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     private struct ProcessInfo
@@ -46,7 +46,7 @@ public sealed class MacProcessAudioCapture : IProcessAudioCapture
     [DllImport(Lib)] private static extern int jsc_start_tap(int pid, int mute, int fullChannels, AudioCallback cb, IntPtr user);
     [DllImport(Lib)] private static extern void jsc_stop_tap();
 
-    // Pinned for the lifetime of this instance — the shim holds the raw function pointer
+    // Pinned for the lifetime of this instance - the shim holds the raw function pointer
     // (same rule as the BASS sync delegates, see BassAudioEngine._endSync / CLAUDE.md).
     private readonly AudioCallback _onAudio;
 
@@ -65,7 +65,7 @@ public sealed class MacProcessAudioCapture : IProcessAudioCapture
     private static bool Probe()
     {
         try { return jsc_is_supported() == 1; }
-        catch { return false; } // dylib missing/unloadable → unsupported, never crash DI
+        catch { return false; } // dylib missing/unloadable -> unsupported, never crash DI
     }
 
     public bool IsSupported { get; }
@@ -106,7 +106,7 @@ public sealed class MacProcessAudioCapture : IProcessAudioCapture
             throw new NotSupportedException("Per-app capture needs macOS 14.4 or newer.");
         // Channel handling mirrors Windows: FullMix (CaptureChannels == 2) taps a stereo
         // MIXDOWN of everything the app plays; Master12/34 tap the app's output DEVICE with
-        // its full channel layout and extract one pair — so a DJ app's headphone Cue on the
+        // its full channel layout and extract one pair - so a DJ app's headphone Cue on the
         // other pair stays out of the broadcast instead of bleeding in.
         var full = format.CaptureChannels > 2;
         _chanOffset = full ? format.MasterChannelOffset : 0;
@@ -139,7 +139,7 @@ public sealed class MacProcessAudioCapture : IProcessAudioCapture
 
     public void Dispose() => Stop();
 
-    // ── capture thread (Core Audio IOProc) ───────────────────────────────────
+    // -- capture thread (Core Audio IOProc) -----------------------------------
 
     private unsafe void OnAudio(IntPtr pcm, int frames, int channels, double sampleRate, IntPtr user)
     {
@@ -156,7 +156,7 @@ public sealed class MacProcessAudioCapture : IProcessAudioCapture
         int count;
         if ((int)sampleRate == _targetRate && channels == 2 && lIdx == 0)
         {
-            // Fast path: rate matches, already the wanted stereo pair — hand through as-is.
+            // Fast path: rate matches, already the wanted stereo pair - hand through as-is.
             count = frames * 2;
             if (_out.Length < count) _out = new float[count];
             new ReadOnlySpan<float>(src, count).CopyTo(_out);

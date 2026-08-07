@@ -48,29 +48,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _timer;
     private bool _suppressSeek;
 
-    // ── N27: locked-file tag-write retry queue ──────────────────────────────────────────────
+    // -- N27: locked-file tag-write retry queue ----------------------------------------------
     // DoWrite's write can hit a file locked by something OTHER than our own main engine's current
-    // track (WithFileReleased only defers for that ONE case) — the PRE-CUE finder engine holding a
+    // track (WithFileReleased only defers for that ONE case) - the PRE-CUE finder engine holding a
     // different file, or an EXTERNAL app (Chloe's verified trigger: Windows Media Player had the
     // file open). Before this fix that IOException was logged once and dropped: no JUSTPLAY blob
     // ever landed, so "write auto tags" silently never took and the track re-analyzed forever.
     // _tagWriteRetryQueue (JustPlay.Core.Playback.PendingTagWriteQueue) is a SEPARATE queue from
-    // PlaybackController._deferred on purpose — re-adding to _deferred would busy-loop, since its
+    // PlaybackController._deferred on purpose - re-adding to _deferred would busy-loop, since its
     // flush is keyed to the MAIN CurrentTrack changing, which may never happen for an unrelated
-    // lock. _tagWriteRetryTimer polls it every 15s (capped ~20 attempts / ~5 min per file — see
+    // lock. _tagWriteRetryTimer polls it every 15s (capped ~20 attempts / ~5 min per file - see
     // PendingTagWriteQueue's defaults) until the handle frees or it gives up and surfaces the
     // failure via EventLog (see OnTagWriteGiveUp).
     private readonly PendingTagWriteQueue _tagWriteRetryQueue = new();
     private readonly DispatcherTimer _tagWriteRetryTimer;
 
-    // ── Pre-cue seek reconciliation (mirrors main engine's _pendingSeek/_pendingSeekTicks) ───────
+    // -- Pre-cue seek reconciliation (mirrors main engine's _pendingSeek/_pendingSeekTicks) -------
     private bool _suppressPreCueSeek;
     private double? _pendingPreCueSeek;
     private int _pendingPreCueSeekTicks;
 
-    // ── Pre-cue v2: saved-by-NAME headphone device (auto-reconnect "CLOU") ─────────────────────
+    // -- Pre-cue v2: saved-by-NAME headphone device (auto-reconnect "CLOU") ---------------------
     // Independent of the live SelectedHeadphoneDevice binding, which drops to null the moment the
-    // device disappears (e.g. Chloe's Bluetooth headphones going idle) — if we persisted THAT, the
+    // device disappears (e.g. Chloe's Bluetooth headphones going idle) - if we persisted THAT, the
     // saved name would be wiped the instant the device vanished, defeating the whole point of
     // remembering it. This field is set only on an explicit/successful bind (never cleared to null
     // just because the live selection drops out) and is what PollPreCueDeviceRebind + PersistSettings
@@ -85,14 +85,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private double? _pendingSeek;
     private int _pendingSeekTicks;
 
-    // ── Shuffle state ────────────────────────────────────────────────────
+    // -- Shuffle state ----------------------------------------------------
     // A "bag shuffle" with history: every track plays once per cycle (no
     // immediate repeats), and Previous walks back through the order we
     // actually played. _shuffleHistory is the ordered list of tracks visited
     // in the current cycle; _shufflePos points at the current one. Walking
     // forward past the frontier (_shufflePos == last) generates a fresh pick
     // from the not-yet-played pool. This is the platform-agnostic complement
-    // to the linear Step path below — both feed PlayInternal.
+    // to the linear Step path below - both feed PlayInternal.
     private readonly List<TrackViewModel> _shuffleHistory = [];
     private int _shufflePos = -1;
     private readonly Random _rng = new();
@@ -102,18 +102,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private int _addSeq;
 
     // Previous restarts the current track instead of stepping back when more
-    // than this far into it — direct port of the design (app.jsx:492,
+    // than this far into it - direct port of the design (app.jsx:492,
     // `if (progress > 3) setProgress(0)`).
     private static readonly TimeSpan PreviousRestartThreshold = TimeSpan.FromSeconds(3);
 
     // Suppress persistence while the constructor seeds [ObservableProperty]
     // backing fields from the loaded settings. Without this guard, the very
-    // first assignment of each tweak property would trigger an On…Changed
-    // partial that writes the just-loaded value straight back to disk — an
+    // first assignment of each tweak property would trigger an On...Changed
+    // partial that writes the just-loaded value straight back to disk - an
     // unnecessary save on every cold start.
     private bool _settingsHydrated;
 
-    /// <summary>The in-app event log (shared LogWindow, JustPlay.UI) — the "surface, don't swallow" channel.
+    /// <summary>The in-app event log (shared LogWindow, JustPlay.UI) - the "surface, don't swallow" channel.
     /// File-lock / tag-write failures land here (+ the daily %LOCALAPPDATA%\JustPlay\session-*.log) instead of
     /// a lost Console line; the chrome log button opens it. The finder reaches it via its _main reference.</summary>
     public LogViewModel EventLog { get; } = new(new SessionLog("JustPlay"));
@@ -153,8 +153,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         StreamServers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoStreamServers));
 
         // Seed the tweak properties from persisted settings BEFORE wiring
-        // any change-listeners — so the seeding itself does not echo back to
-        // disk via On…Changed → Save.
+        // any change-listeners - so the seeding itself does not echo back to
+        // disk via On...Changed -> Save.
         var s = _settings.Current;
         _currentTheme = s.Theme;
         _vinylSpinEnabled = s.VinylSpinEnabled;
@@ -176,15 +176,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         ApplyReviveToEngine();
         _analysisThreads = s.AnalysisThreads;
 
-        // Seed column views from persisted settings (before _settingsHydrated — mirroring the tweak seed block).
+        // Seed column views from persisted settings (before _settingsHydrated - mirroring the tweak seed block).
         _viewA = new HashSet<string>(s.ColumnViewA);
         _viewB = new HashSet<string>(s.ColumnViewB);
         _viewC = new HashSet<string>(s.ColumnViewC);
         _activeColumnView = s.ActiveColumnView is "A" or "B" or "C" ? s.ActiveColumnView : "A";
 
-        // Shared column-visibility + sort state for the queue's TrackRow rows and header — the ONE source
+        // Shared column-visibility + sort state for the queue's TrackRow rows and header - the ONE source
         // of truth (see TrackColumns), seeded from the active lens. The A/B/C switch and per-column toggles
-        // push the active set into it (RaiseColumnViewProps → SetEnabled); its SortRequested drives ApplySort.
+        // push the active set into it (RaiseColumnViewProps -> SetEnabled); its SortRequested drives ApplySort.
         Columns = new TrackColumns(ActiveSet);
         Columns.SortRequested += () => { ApplySort(); MarkPlaylistEdited(); };
 
@@ -196,7 +196,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Seed Sound presets from persisted settings (before _settingsHydrated so the adds don't echo
         // to disk). Restore the user's saved presets, then TOP UP any missing built-in genre starting
-        // points (DspPreset.PlaybackDefaults) — gated by SoundPresetsSeedVersion so it runs once per
+        // points (DspPreset.PlaybackDefaults) - gated by SoundPresetsSeedVersion so it runs once per
         // built-in set: a fresh install seeds all of them; an existing install gains only new ones,
         // never duplicating or resurrecting a preset the user deleted. HasSoundPresets tracks the list.
         foreach (var p in s.SoundPresets)
@@ -208,12 +208,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     SoundPresets.Add(d);
         SoundPresets.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSoundPresets));
 
-        // ── Output device: populate list, select saved device (or default) ────
+        // -- Output device: populate list, select saved device (or default) ----
         // Enumerate devices BEFORE setting _settingsHydrated so the initial
         // SelectedOutputDevice assignment doesn't trigger a premature PersistSettings.
         PopulateOutputDevices(s.OutputDeviceName);
 
-        // ── Pre-listen (PFL): seed volume + headphone device list ────────────
+        // -- Pre-listen (PFL): seed volume + headphone device list ------------
         // Seeded before _settingsHydrated so the initial assignments don't echo to disk.
         _preCueVolume = s.PreCueVolume;
         PopulateHeadphoneDevices(s.HeadphoneDeviceName);
@@ -235,7 +235,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // 15s cadence: frequent enough that a released handle (WMP closed, pre-cue moved on) lands
         // within a few seconds of becoming free, infrequent enough it never looks like a busy-loop.
-        // The retry itself runs off the UI thread (Task.Run) — file IO must never block the tick;
+        // The retry itself runs off the UI thread (Task.Run) - file IO must never block the tick;
         // each queued write already marshals its own VM refresh back via Dispatcher.Post (WriteOnce).
         _tagWriteRetryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
         _tagWriteRetryTimer.Tick += (_, _) => Task.Run(() =>
@@ -252,7 +252,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// view's ListBox SelectionChanged; the tag-write / re-analyze / remove actions operate on it.</summary>
     public ObservableCollection<TrackViewModel> SelectedTracks { get; } = [];
 
-    // Bulk context-menu headers — show "(N)" when more than one row is selected.
+    // Bulk context-menu headers - show "(N)" when more than one row is selected.
     public string WriteTagsHeader => WithCount("Write meta tags");
     public string FillMissingHeader => WithCount("Fill missing tags");
     // "Analyze" until the selection has been analysed at least once, then "Re-analyze".
@@ -262,14 +262,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool HasSelection => SelectedTracks.Count > 0;
 
     /// <summary>"Write meta tags" has an effect only if some selected track has a detected value to
-    /// write — otherwise the item is greyed out (analyse first).</summary>
+    /// write - otherwise the item is greyed out (analyse first).</summary>
     public bool CanWriteTags => SelectedTracks.Any(t => t.HasWritableAnalysis);
 
     /// <summary>"Fill missing tags" has an effect only if some selected track has a detected value for
     /// a tag it is currently missing.</summary>
     public bool CanFillMissing => SelectedTracks.Any(t => t.HasMissingTagToFill);
 
-    /// <summary>Re-evaluate the bulk-menu enable/header state — called as the context menu opens so the
+    /// <summary>Re-evaluate the bulk-menu enable/header state - called as the context menu opens so the
     /// flags reflect analysis that finished after the selection was made.</summary>
     public void RefreshMenuState()
     {
@@ -278,9 +278,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ReanalyzeHeader));
     }
 
-    // ── Undo (last tag write) ─────────────────────────────────────────────
+    // -- Undo (last tag write) ---------------------------------------------
     // Snapshot of every touched file's pre-write tag state, captured per user write action so
-    // the whole batch — including a bulk "Write meta tags" — reverts in one go. Replaced on each
+    // the whole batch - including a bulk "Write meta tags" - reverts in one go. Replaced on each
     // new write, cleared after an undo. See WithUndoCapture / UndoLastWrite.
     private readonly List<(TrackViewModel tvm, TagRestore prev)> _undoBatch = [];
     private bool _capturingUndo;
@@ -289,12 +289,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public string UndoHeader => _undoBatch.Count > 1 ? $"Undo last write ({_undoBatch.Count})" : "Undo last write";
 
     /// <summary>The row a context menu is currently anchored on, but ONLY when exactly one row is
-    /// selected — null under multi-selection. Per-field (single-cell) menu entries bind to it, so
+    /// selected - null under multi-selection. Per-field (single-cell) menu entries bind to it, so
     /// they vanish for multi-select where a single-field write would be ambiguous.</summary>
     [ObservableProperty] private TrackViewModel? _contextTarget;
 
     /// <summary>Which cell the right-click landed on ("Bpm"/"Key"/"Energy"), or null when the click
-    /// was elsewhere in the row. Set from the clicked cell's Tag — this is what makes the field
+    /// was elsewhere in the row. Set from the clicked cell's Tag - this is what makes the field
     /// entries truly cell-targeted: only the right-clicked field's actions show.</summary>
     [ObservableProperty] private string? _contextField;
 
@@ -309,11 +309,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool ShowFieldSeparator =>
         ShowBpmField || ShowKeyField || ShowEnergyField || ShowRestoreBpm || ShowRestoreKey || ShowRestoreEnergy;
 
-    /// <summary>Row context-menu "Edit tags…" — one row only. The floating editor edits a single
+    /// <summary>Row context-menu "Edit tags..." - one row only. The floating editor edits a single
     /// file; batch editing is JUST TAG's job and must not be implied here.</summary>
     public bool ShowEditTags => ContextTarget is not null;
 
-    /// <summary>Row context-menu "Pre-cue on headphones" — shown for a single right-clicked row only
+    /// <summary>Row context-menu "Pre-cue on headphones" - shown for a single right-clicked row only
     /// (ContextTarget null under multi-select, same rule as the per-field entries), and only while
     /// the experimental PRE-CUE tab exists in this build (mirrors the tab's own gate).</summary>
     public bool ShowPreCueEntry => ShowExperimentalUi && ContextTarget is not null;
@@ -337,7 +337,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private string WithCount(string verb) =>
         SelectedTracks.Count > 1 ? $"{verb} ({SelectedTracks.Count})" : verb;
 
-    // ── Column views (A | B | C) ──────────────────────────────────────────────────
+    // -- Column views (A | B | C) --------------------------------------------------
     // Three named sets of visible optional columns. A = Mix (key/nrg), B = Levels (gain/lufs),
     // C = Minimal (bpm + duration). The active set determines which columns render; switching
     // views is instant. Each set is a HashSet so contains-check is O(1).
@@ -387,10 +387,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (_settingsHydrated) PersistSettings();
     }
 
-    // ── Column sorting ──────────────────────────────────────────────────────────
-    // Sort STATE + the header click cycle (asc → desc → off) live in the shared Columns (TrackColumns);
-    // the queue only owns the actual re-order of its Tracks collection. Columns.SortRequested — wired in
-    // the constructor — calls ApplySort, which reads Columns.SortColumn/SortDescending (lowercase ids).
+    // -- Column sorting ----------------------------------------------------------
+    // Sort STATE + the header click cycle (asc -> desc -> off) live in the shared Columns (TrackColumns);
+    // the queue only owns the actual re-order of its Tracks collection. Columns.SortRequested - wired in
+    // the constructor - calls ApplySort, which reads Columns.SortColumn/SortDescending (lowercase ids).
     private void ApplySort()
     {
         if (Tracks.Count < 2) return;
@@ -405,7 +405,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
         else
         {
-            // The comparison is the SHARED TrackSort — one definition for the queue, the finder and
+            // The comparison is the SHARED TrackSort - one definition for the queue, the finder and
             // JUST TAG. (This copy read the genre off Model.Metadata while the finder read GenreText:
             // the same answer today, and the kind of difference that stops being the same answer the
             // moment one of them grows a fallback.)
@@ -422,12 +422,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Manual drag-reorder from the queue list — the set-building gesture (Chloe 2026-07-11).
+    /// Manual drag-reorder from the queue list - the set-building gesture (Chloe 2026-07-11).
     /// Moves <paramref name="items"/> as one block (kept in their current visual order) so it sits at
     /// <paramref name="insertIndex"/>, the index in <see cref="Tracks"/> BEFORE removal (as computed
     /// by the drop indicator); items above the target are compensated here.
     ///
-    /// <para>Hand order beats machine order: an active column sort is CLEARED (glyph off, no resort —
+    /// <para>Hand order beats machine order: an active column sort is CLEARED (glyph off, no resort -
     /// only <see cref="TrackColumns.SortBy"/> fires SortRequested), and AddOrder is re-based to the
     /// new order so toggling a sort on and off later restores THIS hand order, not the historical
     /// add order.</para>
@@ -481,17 +481,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty] private double _volume = 1.0;
 
-    // ── Transport mode (shuffle / repeat) ────────────────────────────────
-    // Not persisted — JustPlay is "no memory, just play". Each session starts
+    // -- Transport mode (shuffle / repeat) --------------------------------
+    // Not persisted - JustPlay is "no memory, just play". Each session starts
     // shuffle-off, repeat-off (matches the design's useState defaults).
     [ObservableProperty] private bool _shuffle;
 
     [ObservableProperty] private RepeatMode _repeat;
 
-    /// <summary>Repeat is engaged (All or One) — drives the button's accent highlight.</summary>
+    /// <summary>Repeat is engaged (All or One) - drives the button's accent highlight.</summary>
     public bool RepeatActive => Repeat != RepeatMode.Off;
 
-    /// <summary>Repeat-one specifically — drives the little "1" badge on the repeat button.</summary>
+    /// <summary>Repeat-one specifically - drives the little "1" badge on the repeat button.</summary>
     public bool RepeatOne => Repeat == RepeatMode.One;
 
     partial void OnRepeatChanged(RepeatMode value)
@@ -509,21 +509,21 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         else { _shuffleHistory.Clear(); _shufflePos = -1; }
     }
 
-    // ── Consume mode ("remove played tracks") ────────────────────────────
-    // Momentary, like shuffle/repeat — deliberately NOT persisted, so every
+    // -- Consume mode ("remove played tracks") ----------------------------
+    // Momentary, like shuffle/repeat - deliberately NOT persisted, so every
     // cold start begins with it OFF. When on, a track is dropped from the queue
     // the moment we advance forward off it (natural end OR manual skip-forward),
     // but never when we step back or replay. This is mpd's "consume mode":
     // gespielt = weg, the list shrinks to what's still ahead. Toggled from the
-    // "…" list menu, not the Tweaks panel — it's an in-the-moment mode, not a
+    // "..." list menu, not the Tweaks panel - it's an in-the-moment mode, not a
     // saved preference.
     [ObservableProperty] private bool _removePlayed;
 
-    // ── Streaming-panel state (S2: live BroadcastState + toggle command) ─
+    // -- Streaming-panel state (S2: live BroadcastState + toggle command) -
     [ObservableProperty] private bool _isStreamingOpen;
 
     /// <summary>
-    /// Current broadcast lifecycle state — subscribed from IBroadcastService.StateChanged
+    /// Current broadcast lifecycle state - subscribed from IBroadcastService.StateChanged
     /// and always updated on the UI thread. Bindings in StreamingPanel drive the dot colour
     /// and connect-button label via the computed helper properties below.
     /// </summary>
@@ -534,12 +534,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(IsConnectedOrConnecting))]
     private BroadcastState _broadcastState = BroadcastState.Disconnected;
 
-    /// <summary>Label for the connect/disconnect toggle button — reflects the current state.</summary>
+    /// <summary>Label for the connect/disconnect toggle button - reflects the current state.</summary>
     public string ConnectButtonLabel => BroadcastState switch
     {
         BroadcastState.Connected    => "Disconnect",
-        BroadcastState.Connecting   => "Connecting…",
-        BroadcastState.Reconnecting => "Reconnecting…",
+        BroadcastState.Connecting   => "Connecting...",
+        BroadcastState.Reconnecting => "Reconnecting...",
         BroadcastState.Error        => "Retry",
         _                           => "Connect",
     };
@@ -548,17 +548,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public string BroadcastStatusText => BroadcastState switch
     {
         BroadcastState.Connected    => $"Streaming to {SelectedStreamServer?.Host ?? "server"}",
-        BroadcastState.Connecting   => "Connecting…",
-        BroadcastState.Reconnecting => "Reconnecting…",
+        BroadcastState.Connecting   => "Connecting...",
+        BroadcastState.Reconnecting => "Reconnecting...",
         // Surface the real BASS reason (host/cred/mount/encoder) instead of a generic message.
         BroadcastState.Error        => string.IsNullOrEmpty(_broadcast.LastError)
-                                           ? "Error — check host/credentials"
-                                           : $"Error — {_broadcast.LastError}",
+                                           ? "Error - check host/credentials"
+                                           : $"Error - {_broadcast.LastError}",
         _                           => "Disconnected",
     };
 
     /// <summary>
-    /// Status dot fill colour as a hex string — green/amber/red/grey.
+    /// Status dot fill colour as a hex string - green/amber/red/grey.
     /// Used in StreamingPanel's Ellipse Fill binding with a no-op string converter.
     /// Kept as a plain string to stay compiled-binding-safe without a custom converter.
     /// </summary>
@@ -571,7 +571,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _                           => "#4DFFFFFF",  // grey (disconnected)
     };
 
-    /// <summary>True while connected or connecting — disables the button mid-connect to avoid double-clicks.</summary>
+    /// <summary>True while connected or connecting - disables the button mid-connect to avoid double-clicks.</summary>
     public bool IsConnectedOrConnecting =>
         BroadcastState == BroadcastState.Connected ||
         BroadcastState == BroadcastState.Connecting ||
@@ -584,19 +584,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             BroadcastState = state;
             if (state == prev) return;
 
-            // Surface the radio/broadcast lifecycle in the event log (like JUST STREAM does) — the
+            // Surface the radio/broadcast lifecycle in the event log (like JUST STREAM does) - the
             // "nothing lands in the log" fix: connect / fail (with the real reason, e.g. mount busy) /
             // reconnect / disconnect. Chloe 2026-07-08.
             switch (state)
             {
                 case BroadcastState.Connected:
-                    EventLog.Append($"Radio connected — {SelectedStreamServer?.Host ?? "server"}");
+                    EventLog.Append($"Radio connected - {SelectedStreamServer?.Host ?? "server"}");
                     break;
                 case BroadcastState.Error:
-                    EventLog.Append($"Radio connection failed — {(string.IsNullOrEmpty(_broadcast.LastError) ? "check host / credentials" : _broadcast.LastError)}");
+                    EventLog.Append($"Radio connection failed - {(string.IsNullOrEmpty(_broadcast.LastError) ? "check host / credentials" : _broadcast.LastError)}");
                     break;
                 case BroadcastState.Reconnecting:
-                    EventLog.Append("Radio connection dropped — reconnecting…");
+                    EventLog.Append("Radio connection dropped - reconnecting...");
                     break;
                 case BroadcastState.Disconnected when prev is BroadcastState.Connected or BroadcastState.Reconnecting:
                     EventLog.Append("Radio disconnected");
@@ -604,16 +604,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
         });
 
-    // ── Tweaks-panel state (mirrors TWEAK_DEFAULTS in the design's app.jsx) ─
+    // -- Tweaks-panel state (mirrors TWEAK_DEFAULTS in the design's app.jsx) -
     [ObservableProperty] private bool _isTweaksOpen;
     [ObservableProperty] private string _currentTheme = "Aurora";
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(ShouldSpin))]
     private bool _vinylSpinEnabled = true;
     [ObservableProperty] private bool _waveformEnabled = true;
 
-    // ── Analysis preferences (Tweaks) ─────────────────────────────────────
-    // AutoAnalyze off by default: adding tracks never auto-runs the CPU-heavy DSP — the user
-    // triggers it via right-click → Analyze. AnalysisThreads bounds how many run at once.
+    // -- Analysis preferences (Tweaks) -------------------------------------
+    // AutoAnalyze off by default: adding tracks never auto-runs the CPU-heavy DSP - the user
+    // triggers it via right-click -> Analyze. AnalysisThreads bounds how many run at once.
     [ObservableProperty] private bool _autoAnalyze;
     [ObservableProperty] private bool _autoWriteOnAnalyze;
     [ObservableProperty] private bool _writeDjComment;
@@ -622,7 +622,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // queue plays at an even level (non-destructive, clip-protected). Off by default.
     [ObservableProperty] private bool _playbackNormalization;
 
-    // Loudness target for normalization: "Quiet" −19 / "Normal" −14 / "Loud" −11 (streaming-style).
+    // Loudness target for normalization: "Quiet" -19 / "Normal" -14 / "Loud" -11 (streaming-style).
     [ObservableProperty] private string _normalizationLevel = "Normal";
 
     // Crossfade length in seconds for auto-advance (0 = off / hard cut). Allowed: 0, 2, 4, 8.
@@ -634,16 +634,16 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool _crossfadeArmed;
 
     // Master true-peak limiter / maximizer on the output bus: "Off"/"Soft"/"Club"/"Loud".
-    // Off by default. Maps to (enabled, driveDb) via ApplyLimiterToEngine; ceiling fixed at −1 dBTP.
+    // Off by default. Maps to (enabled, driveDb) via ApplyLimiterToEngine; ceiling fixed at -1 dBTP.
     [ObservableProperty] private string _limiterMode = "Off";
 
     // 3-band DJ EQ band gains (LINEAR): 1.0 = unity/flat, 0.0 = kill, 2.0 = +6 dB. The Tweaks sliders
-    // bind here (range 0..2, centre detent at 1). All-flat → the engine bypasses the EQ DSP.
+    // bind here (range 0..2, centre detent at 1). All-flat -> the engine bypasses the EQ DSP.
     [ObservableProperty] private double _eqLow  = 1.0;
     [ObservableProperty] private double _eqMid  = 1.0;
     [ObservableProperty] private double _eqHigh = 1.0;
 
-    // "Revive" rack — anti-flat enhancement on the output bus. All neutral by default (each block
+    // "Revive" rack - anti-flat enhancement on the output bus. All neutral by default (each block
     // bypasses at its zero value, 0 = off). Sliders bind here; each shares its own apply path
     // (engine + persist) like the EQ bands.
     [ObservableProperty] private double _transientPunch  = 0.0;   // 0..1
@@ -655,11 +655,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>User-saved Sound presets. Bound to the Tweaks Sound-tab preset row.</summary>
     public ObservableCollection<DspPreset> SoundPresets { get; } = [];
 
-    /// <summary>True when at least one user preset exists — drives the "Saved" sub-label visibility.</summary>
+    /// <summary>True when at least one user preset exists - drives the "Saved" sub-label visibility.</summary>
     public bool HasSoundPresets => SoundPresets.Count > 0;
 
     // Which Tweaks tab is showing: "Look" / "Sound" / "Library" / "Audio". Transient UI state,
-    // deliberately NOT persisted — it just drives which group of controls is visible in the panel.
+    // deliberately NOT persisted - it just drives which group of controls is visible in the panel.
     [ObservableProperty] private string _tweaksTab = "Sound";
 
     [ObservableProperty]
@@ -674,11 +674,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// segmented buttons can drive their active state via the StringEquals converter.</summary>
     public string CrossfadeSecondsText => CrossfadeSeconds.ToString();
 
-    // ── Live analysis progress ────────────────────────────────────────────
+    // -- Live analysis progress --------------------------------------------
     // Number of tracks currently mid-analysis across ALL in-flight batches.
     // Mutated ONLY on the UI thread (every change is marshalled through
     // Dispatcher) so the generated setter never races the background DSP
-    // threads. Drives the "ANALYZING N" header badge and gates Harmonic Sort —
+    // threads. Drives the "ANALYZING N" header badge and gates Harmonic Sort -
     // sequencing a half-analysed queue would mis-order the not-yet-scored rows.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAnalyzing))]
@@ -687,12 +687,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(ShowBpmRange))]
     private int _analyzingCount;
 
-    /// <summary>True while any track is being analysed — shows the header badge and disables
+    /// <summary>True while any track is being analysed - shows the header badge and disables
     /// Harmonic Sort (the rows further down the list aren't visible, so the badge is the only
     /// cue that work is still happening).</summary>
     public bool IsAnalyzing => AnalyzingCount > 0;
 
-    /// <summary>Header-badge text, e.g. "ANALYZING 5" — letterspaced caps to match the colheads.</summary>
+    /// <summary>Header-badge text, e.g. "ANALYZING 5" - letterspaced caps to match the colheads.</summary>
     public string AnalyzingText => $"ANALYZING {AnalyzingCount}";
 
     partial void OnAnalyzingCountChanged(int value) => HarmonicSortCommand.NotifyCanExecuteChanged();
@@ -702,13 +702,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnIsPlayingChanged(bool value) => OnPropertyChanged(nameof(ShouldSpin));
 
-    // ── Tweaks persistence ───────────────────────────────────────────────
-    // Each tweak property's partial On…Changed updates the in-memory settings
+    // -- Tweaks persistence -----------------------------------------------
+    // Each tweak property's partial On...Changed updates the in-memory settings
     // and writes them to disk. CurrentTheme additionally tells the theme
     // service to apply the new palette so the change is visible immediately.
     //
     // Guarded by _settingsHydrated so the constructor-time seeding of the
-    // backing fields does not echo back into Save() — that would be both
+    // backing fields does not echo back into Save() - that would be both
     // wasteful and risk a startup-time write to a not-yet-writable location.
 
     partial void OnCurrentThemeChanged(string value)
@@ -765,11 +765,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnNormalizationLevelChanged(string value)
     {
         // Re-reference the playback target and re-apply to the current track so the level change is
-        // heard immediately. The written ReplayGain TAG stays at the −18 standard — this only moves
+        // heard immediately. The written ReplayGain TAG stays at the -18 standard - this only moves
         // the playback target.
         _controller.TargetLufs = LevelToLufs(value);
         _controller.RefreshNormalization();
-        // The GAIN column shows the gain applied AT THE ACTIVE LEVEL — push the new target to every
+        // The GAIN column shows the gain applied AT THE ACTIVE LEVEL - push the new target to every
         // row so the displayed numbers track the Quiet/Normal/Loud switch.
         var target = LevelToLufs(value);
         foreach (var t in Tracks) { t.NormalizationTargetDb = target; t.RaiseGainDisplay(); }
@@ -785,7 +785,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnLimiterModeChanged(string value)
     {
-        // Apply to the engine immediately (heard live — the DSP swaps without dropping audio),
+        // Apply to the engine immediately (heard live - the DSP swaps without dropping audio),
         // then persist after hydration.
         ApplyLimiterToEngine();
         if (!_settingsHydrated) return;
@@ -793,18 +793,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Map the Tweaks limiter mode to (enabled, driveDb) and push it to the engine's master
-    /// bus. Ceiling is fixed at −1 dBTP inside the engine; only the maximizer drive varies.
+    /// bus. Ceiling is fixed at -1 dBTP inside the engine; only the maximizer drive varies.
     /// Off=bypass, Soft=0 dB (safety only), Club=+3 dB, Loud=+6 dB.</summary>
     private void ApplyLimiterToEngine()
     {
-        // (enabled, driveDb, ceilingDbTp). Soft/Club stay broadcast-safe at −1 dBTP; Loud both pushes
-        // +6 dB drive AND lifts the ceiling to −0.1 dBTP to wring out the last bit of level.
+        // (enabled, driveDb, ceilingDbTp). Soft/Club stay broadcast-safe at -1 dBTP; Loud both pushes
+        // +6 dB drive AND lifts the ceiling to -0.1 dBTP to wring out the last bit of level.
         var (enabled, driveDb, ceilingDbTp) = LimiterMode switch
         {
             "Soft" => (true, 0.0, -1.0),
             "Club" => (true, 3.0, -1.0),
             "Loud" => (true, 6.0, -0.1),
-            _      => (false, 0.0, -1.0),   // "Off" / unknown → bypass
+            _      => (false, 0.0, -1.0),   // "Off" / unknown -> bypass
         };
         _engine.SetLimiter(enabled, driveDb, ceilingDbTp);
     }
@@ -813,7 +813,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void SetLimiterMode(string which) => LimiterMode = which;
 
-    // EQ band sliders → engine + persist. Each band shares one apply path; persist is guarded by
+    // EQ band sliders -> engine + persist. Each band shares one apply path; persist is guarded by
     // hydration so the constructor seed doesn't echo to disk.
     partial void OnEqLowChanged(double value)  => OnEqChanged();
     partial void OnEqMidChanged(double value)  => OnEqChanged();
@@ -821,7 +821,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnEqChanged()
     {
-        ApplyEqualizerToEngine();   // live; flat → DSP bypassed
+        ApplyEqualizerToEngine();   // live; flat -> DSP bypassed
         if (!_settingsHydrated) return;
         PersistSettings();
     }
@@ -836,7 +836,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         EqLow = 1.0; EqMid = 1.0; EqHigh = 1.0;
     }
 
-    // ── "Revive" rack sliders → engine + persist. Each neutral value bypasses its DSP. ──────────
+    // -- "Revive" rack sliders -> engine + persist. Each neutral value bypasses its DSP. ----------
     partial void OnTransientPunchChanged(double value)   { _engine.SetTransientDesigner(value); PersistIfHydrated(); }
     partial void OnAutoTiltStrengthChanged(double value) { _engine.SetAdaptiveTilt(value);     PersistIfHydrated(); }
 
@@ -855,18 +855,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         TransientPunch = 0.0; AutoTiltStrength = 0.0;
     }
 
-    // Hard / Neutral are no longer hardcoded one-click commands — they are seeded into the user's
+    // Hard / Neutral are no longer hardcoded one-click commands - they are seeded into the user's
     // editable preset list (DspPreset.Hard / DspPreset.Neutral, seeded once on a fresh install) and
     // applied via ApplyPreset like any saved preset. See the constructor's seedDefaults block.
 
-    // ── User-saved Sound presets (additive to the built-in Hard / Neutral) ──────────────────────
+    // -- User-saved Sound presets (additive to the built-in Hard / Neutral) ----------------------
     //
-    // Save  — snapshot the CURRENT six Sound-tab bus fields under a user-chosen name (InputDialog).
-    // Apply — push a saved preset's fields back onto the bus exactly like ApplyHardPreset does, by
-    //         assigning the [ObservableProperty] setters: each On…Changed partial pushes the value
+    // Save  - snapshot the CURRENT six Sound-tab bus fields under a user-chosen name (InputDialog).
+    // Apply - push a saved preset's fields back onto the bus exactly like ApplyHardPreset does, by
+    //         assigning the [ObservableProperty] setters: each On...Changed partial pushes the value
     //         to the engine (SetEqualizer / SetAdaptiveTilt / SetTransientDesigner / SetLimiter) AND
-    //         persists. No separate engine/persist call here — the property path is the single source.
-    // Delete — drop a saved preset and persist.
+    //         persists. No separate engine/persist call here - the property path is the single source.
+    // Delete - drop a saved preset and persist.
 
     /// <summary>Capture the current Sound-tab bus state, prompt for a name, and save it as a user
     /// preset. A name that matches an existing preset (case-insensitive) overwrites it (rename-as-save
@@ -875,7 +875,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private async Task SavePreset()
     {
         // The ViewModel has no Window handle; resolve the live main window the same way ErrorReporter
-        // does. If there's no owner (shouldn't happen with the panel open) we can't prompt → bail.
+        // does. If there's no owner (shouldn't happen with the panel open) we can't prompt -> bail.
         var owner = (Avalonia.Application.Current?.ApplicationLifetime
             as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime)?.MainWindow;
         if (owner is null) return;
@@ -906,7 +906,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Apply a saved Sound preset to the bus. Mirrors ApplyHardPreset/ApplyNeutralPreset:
-    /// assigns the six observable bus properties, so each On…Changed partial pushes to the engine
+    /// assigns the six observable bus properties, so each On...Changed partial pushes to the engine
     /// (SetEqualizer / SetAdaptiveTilt / SetTransientDesigner / SetLimiter) AND persists.</summary>
     [RelayCommand]
     private void ApplyPreset(DspPreset? preset)
@@ -927,7 +927,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (SoundPresets.Remove(preset)) PersistIfHydrated();
     }
 
-    /// <summary>Rename a saved preset in place (right-click → "Rename…"). Prompts for a new name
+    /// <summary>Rename a saved preset in place (right-click -> "Rename..."). Prompts for a new name
     /// (prefilled), keeps the DSP values + list position. Cancel / empty / unchanged = no-op. Reuses
     /// the same InputDialog as the "+" Save, so no new dialog infra is needed.</summary>
     [RelayCommand]
@@ -949,7 +949,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Overwrite a saved preset's stored values with the CURRENT bus state, keeping its name
-    /// and position (right-click → "Replace with current"). No prompt — the name is reused. No-op if gone.</summary>
+    /// and position (right-click -> "Replace with current"). No prompt - the name is reused. No-op if gone.</summary>
     [RelayCommand]
     private void ReplacePreset(DspPreset? preset)
     {
@@ -1001,7 +1001,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (int.TryParse(which, out var secs)) CrossfadeSeconds = secs;
     }
 
-    /// <summary>Map the streaming-style level name to its LUFS target. Unknown → Normal (−14).</summary>
+    /// <summary>Map the streaming-style level name to its LUFS target. Unknown -> Normal (-14).</summary>
     private static double LevelToLufs(string level) => level switch
     {
         "Quiet" => -19.0,
@@ -1043,28 +1043,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         EqHighGain            = EqHigh,
         TransientPunch        = TransientPunch,
         AutoTiltStrength      = AutoTiltStrength,
-        // Sound presets — persist the full list so they survive restart, and record the built-in seed
+        // Sound presets - persist the full list so they survive restart, and record the built-in seed
         // set we're at (always current once the VM is constructed) so the top-up never re-runs for it.
         SoundPresets          = [.. SoundPresets],
         SoundPresetsSeeded    = true,
         SoundPresetsSeedVersion = DspPreset.BuiltInSeedVersion,
         AnalysisThreads    = AnalysisThreads,
-        // Auto-update prefs have no Tweaks UI — preserve so a tweak save never resets them
+        // Auto-update prefs have no Tweaks UI - preserve so a tweak save never resets them
         // (the update flow writes IgnoredUpdateVersion; a wipe here would un-ignore it).
         CheckForUpdates      = _settings.Current.CheckForUpdates,
         IgnoredUpdateVersion = _settings.Current.IgnoredUpdateVersion,
-        // Output device — persist by name so it survives a reboot (index can change).
+        // Output device - persist by name so it survives a reboot (index can change).
         OutputDeviceName = SelectedOutputDevice?.Name,
-        // Streaming profiles — persist the full list and selected profile id.
+        // Streaming profiles - persist the full list and selected profile id.
         StreamServers          = [.. StreamServers],
         SelectedStreamServerId = SelectedStreamServer?.Id,
-        // Column view sets — persisted so view A/B/C customisations survive restarts.
+        // Column view sets - persisted so view A/B/C customisations survive restarts.
         ColumnViewA      = [.. _viewA],
         ColumnViewB      = [.. _viewB],
         ColumnViewC      = [.. _viewC],
         ActiveColumnView = ActiveColumnView,
         // Pre-listen (PFL) headphone device and volume. Persist the SAVED name (survives the
-        // device briefly disappearing), not the live selection — see _savedHeadphoneDeviceName.
+        // device briefly disappearing), not the live selection - see _savedHeadphoneDeviceName.
         HeadphoneDeviceName = _savedHeadphoneDeviceName,
         PreCueVolume        = PreCueVolume,
     });
@@ -1074,7 +1074,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool HasTracks => Tracks.Count > 0;
 
     /// <summary>
-    /// Total runtime of the loaded tracks — shown in the Up-Next header so the user can see
+    /// Total runtime of the loaded tracks - shown in the Up-Next header so the user can see
     /// at a glance how much music is queued.
     /// </summary>
     public string TotalDurationText
@@ -1085,14 +1085,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             foreach (var t in Tracks)
                 total += t.Model.Metadata?.Duration ?? TimeSpan.Zero;
             return total == TimeSpan.Zero
-                ? "—"
+                ? "-"
                 : total.TotalHours >= 1 ? total.ToString(@"h\:mm\:ss") : total.ToString(@"m\:ss");
         }
     }
 
     public string TrackCountText => Tracks.Count == 1 ? "1 TRACK" : $"{Tracks.Count} TRACKS";
 
-    // ── Loaded-playlist memory ────────────────────────────────────────────────
+    // -- Loaded-playlist memory ------------------------------------------------
     // Path of the .m3u/.m3u8 most recently opened via LoadPlaylistAsync. Null when
     // no playlist is loaded (raw drops, or after ClearList/ClearTracks). Cleared
     // automatically when the queue goes empty so there is never a stale reference
@@ -1109,12 +1109,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public string? LoadedPlaylistName => LoadedPlaylistPath is null ? null : Path.GetFileNameWithoutExtension(LoadedPlaylistPath);
     public bool HasLoadedPlaylist => LoadedPlaylistPath is not null;
-    // Header always reads "UP NEXT" — the loaded-playlist NAME would overflow the column header on
-    // long names, so it lives ONLY in the "…" menu (LoadedPlaylistName). The dirty dot + count stay.
+    // Header always reads "UP NEXT" - the loaded-playlist NAME would overflow the column header on
+    // long names, so it lives ONLY in the "..." menu (LoadedPlaylistName). The dirty dot + count stay.
     public string QueueTitle => "UP NEXT";
 
-    /// <summary>Tempo span of the whole set — min–max BPM across every track with a known BPM
-    /// (analysed or tagged). Empty unless at least TWO tracks have a BPM (none or only one → no
+    /// <summary>Tempo span of the whole set - min-max BPM across every track with a known BPM
+    /// (analysed or tagged). Empty unless at least TWO tracks have a BPM (none or only one -> no
     /// span, per design). A single distinct value collapses to just that value ("128 BPM").</summary>
     public string BpmRangeText
     {
@@ -1133,12 +1133,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
             if (count < 2) return "";
             int lo = (int)Math.Round(min), hi = (int)Math.Round(max);
-            return lo == hi ? $"{lo} BPM" : $"{lo}–{hi} BPM";
+            return lo == hi ? $"{lo} BPM" : $"{lo}-{hi} BPM";
         }
     }
 
     /// <summary>The BPM-range chip on the NOW PLAYING line shows only with a track playing, a known
-    /// multi-track span, and no analysis in flight — while analysing it would flicker as each row
+    /// multi-track span, and no analysis in flight - while analysing it would flicker as each row
     /// resolves and run the line too long, so it stays hidden until the queue settles.</summary>
     public bool ShowBpmRange => Current is not null && !IsAnalyzing && BpmRangeText.Length > 0;
 
@@ -1154,7 +1154,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (Shuffle) ResetShuffleFrom(track);
     }
 
-    /// <summary>Load + play a track without disturbing shuffle bookkeeping — the shared
+    /// <summary>Load + play a track without disturbing shuffle bookkeeping - the shared
     /// path for user picks and internal next/prev navigation alike.</summary>
     private void PlayInternal(TrackViewModel track, int crossfadeMs = 0)
     {
@@ -1184,7 +1184,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (from.Bpm is { } a and > 0 && to.Bpm is { } b and > 0)
         {
             var ratio = System.Math.Abs(a - b) / System.Math.Min(a, b);
-            if (ratio > 0.12) ms /= 2;   // >12% tempo gap — beyond easy beat-matching
+            if (ratio > 0.12) ms /= 2;   // >12% tempo gap - beyond easy beat-matching
         }
         if (from.Model.Analysis?.Key is { } k1 && to.Model.Analysis?.Key is { } k2
             && !k1.IsHarmonicallyCompatibleWith(k2))
@@ -1244,7 +1244,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Switch to one of the built-in palettes (Aurora / Sunset / Midnight / Neon).
-    /// The actual swap and persistence happen in <see cref="OnCurrentThemeChanged"/> —
+    /// The actual swap and persistence happen in <see cref="OnCurrentThemeChanged"/> -
     /// this command exists so the Tweaks-panel swatch buttons can fire it via
     /// <c>CommandParameter</c>; setting the property directly from a Binding would
     /// also work but the swatch buttons are click-based.
@@ -1261,7 +1261,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (int.TryParse(n, out var t)) AnalysisThreads = Math.Clamp(t, 1, 16);
     }
 
-    // ── Streaming: server profile management (S1) ────────────────────────
+    // -- Streaming: server profile management (S1) ------------------------
     //
     // StreamServers is the live ObservableCollection; SelectedStreamServer tracks
     // which profile is being edited. Editing a field replaces the record in-place
@@ -1274,18 +1274,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>All configured Icecast server profiles. Bound to the StreamingPanel list.</summary>
     public ObservableCollection<StreamServerProfile> StreamServers { get; } = [];
 
-    /// <summary>True when the profile list is empty — drives the "No servers yet" hint in the panel.</summary>
+    /// <summary>True when the profile list is empty - drives the "No servers yet" hint in the panel.</summary>
     public bool HasNoStreamServers => StreamServers.Count == 0;
 
-    // ── Output device selection ───────────────────────────────────────────
+    // -- Output device selection -------------------------------------------
     // Populated once at startup (PopulateOutputDevices) from IAudioEngine.GetOutputDevices().
-    // Users change the selection via a ComboBox in the Tweaks panel; the On…Changed
+    // Users change the selection via a ComboBox in the Tweaks panel; the On...Changed
     // partial calls SetOutputDevice on the engine and persists the name.
     //
     // We use ObservableCollection<AudioOutputDevice> so the ComboBox's ItemsSource
     // reflects the list without needing a converter. The list is NOT refreshed live
     // (devices can appear/disappear), but the UI is only shown in the Tweaks panel which
-    // is opened manually — a session restart picks up new/removed devices automatically.
+    // is opened manually - a session restart picks up new/removed devices automatically.
 
     /// <summary>The available audio output devices, populated at startup.</summary>
     public ObservableCollection<AudioOutputDevice> OutputDevices { get; } = [];
@@ -1329,15 +1329,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Use the generated property so the toolkit doesn't warn about direct field access.
         // OnSelectedOutputDeviceChanged is guarded by _settingsHydrated (still false here),
-        // so this assignment is silent — no PersistSettings call is triggered.
+        // so this assignment is silent - no PersistSettings call is triggered.
         SelectedOutputDevice = match;
 
-        // Apply the resolved device to the engine at startup (explicit, not via the On…Changed).
+        // Apply the resolved device to the engine at startup (explicit, not via the On...Changed).
         _engine.SetOutputDevice(match.Index);
     }
 
     /// <summary>
-    /// Re-enumerate audio devices after the user plugs/unplugs hardware — no restart needed (the ↻
+    /// Re-enumerate audio devices after the user plugs/unplugs hardware - no restart needed (the refresh
     /// button by the device pickers, mirroring JUST STREAM). Rebuilds <see cref="OutputDevices"/> + the
     /// PRE-CUE <see cref="HeadphoneDevices"/>, keeping each selection by NAME where it still exists
     /// (indices shift as devices come and go). Output falls back to default/first; the headphone pick
@@ -1356,7 +1356,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                                    ?? OutputDevices[0];
 
         // Fall back to the saved-by-name device (not just the live selection) so a manual refresh
-        // also recovers a device that disappeared and reappeared while nothing was actively bound —
+        // also recovers a device that disappeared and reappeared while nothing was actively bound -
         // same source of truth the auto-reconnect poll uses (PollPreCueDeviceRebind).
         var hpName = SelectedHeadphoneDevice?.Name ?? _savedHeadphoneDeviceName;
         HeadphoneDevices.Clear();
@@ -1368,9 +1368,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Pre-cue v2 auto-reconnect "CLOU": while the PRE-CUE tab is open (gated in <see cref="Tick"/>
     /// by <see cref="IsPreCueTab"/>), poll for the saved-by-name headphone device reappearing (e.g.
-    /// Chloe's Bluetooth headphones waking up) and bind it automatically — no Settings detour.
+    /// Chloe's Bluetooth headphones waking up) and bind it automatically - no Settings detour.
     /// Never overrides an already-bound device, and never falls back to the system default (cue
-    /// audio must never land on the speakers) — see <see cref="PreCueTransport.TryAutoRebind"/>.
+    /// audio must never land on the speakers) - see <see cref="PreCueTransport.TryAutoRebind"/>.
     /// </summary>
     internal void PollPreCueDeviceRebind()
     {
@@ -1386,7 +1386,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         SelectedHeadphoneDevice = pick;
     }
 
-    // ── Pre-listen (PFL) headphone device selection ───────────────────────────
+    // -- Pre-listen (PFL) headphone device selection ---------------------------
     // Mirrors the output device pattern. The pre-listen engine does NOT auto-select the
     // system default (that would put cue audio on the speakers). If no saved device name
     // matches, HeadphoneDevices is populated but nothing is selected (null) and the PRE-CUE
@@ -1395,10 +1395,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>Audio output devices available for headphone cue monitoring, populated at startup.</summary>
     public ObservableCollection<AudioOutputDevice> HeadphoneDevices { get; } = [];
 
-    /// <summary>True when the list is empty — drives the "no devices found" hint in the PRE-CUE panel.</summary>
+    /// <summary>True when the list is empty - drives the "no devices found" hint in the PRE-CUE panel.</summary>
     public bool HasNoHeadphoneDevices => HeadphoneDevices.Count == 0;
 
-    /// <summary>True when no headphone device is selected — drives the "choose a device" hint.</summary>
+    /// <summary>True when no headphone device is selected - drives the "choose a device" hint.</summary>
     public bool HeadphoneDeviceNotSelected => SelectedHeadphoneDevice is null;
 
     /// <summary>The currently selected headphone device, or null when none is configured.</summary>
@@ -1408,7 +1408,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedHeadphoneDeviceChanged(AudioOutputDevice? value)
     {
-        // Remember the bind by name — but only forward (never clear to null just because the live
+        // Remember the bind by name - but only forward (never clear to null just because the live
         // selection drops out, e.g. the device disappearing). See _savedHeadphoneDeviceName's field
         // comment: this is what makes the auto-reconnect poll (PollPreCueDeviceRebind) possible.
         if (value is not null) _savedHeadphoneDeviceName = value.Name;
@@ -1418,7 +1418,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Do NOT tear the cue engine down on a transient null. Refreshing the device list clears the
         // bound collection, which briefly nulls this selection (the ComboBox drops the removed item);
         // routing OutputDevice = -1 here frees the cue mixer + source, so a PLAYING cue stops and then
-        // can't be restarted (its source is gone — only loading a different track rebuilds it). The cue
+        // can't be restarted (its source is gone - only loading a different track rebuilds it). The cue
         // mixer is meant to persist for the process lifetime; a real "stop" goes through Unload, not a
         // null device. Chloe 2026-07-08: refresh-while-cueing killed the current cue.
         if (value is null) return;
@@ -1432,27 +1432,27 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _savedHeadphoneDeviceName = savedName;
 
         // Enumerate from the pre-listen engine (same underlying BASS call as main engine, but returns
-        // all enabled devices — the user picks which one is their headphones).
+        // all enabled devices - the user picks which one is their headphones).
         var devices = _preListen.GetOutputDevices();
         foreach (var d in devices)
             HeadphoneDevices.Add(d);
 
         if (HeadphoneDevices.Count == 0 || savedName is null) return;
 
-        // Only auto-select when we have a saved name — never auto-select the default device
+        // Only auto-select when we have a saved name - never auto-select the default device
         // because that would route cue audio to the speakers without the user asking.
         var match = HeadphoneDevices.FirstOrDefault(d => d.Name == savedName);
         if (match is null) return;
 
         SelectedHeadphoneDevice = match;
-        // Apply at startup (guarded by !_settingsHydrated in On…Changed, so explicit call here).
+        // Apply at startup (guarded by !_settingsHydrated in On...Changed, so explicit call here).
         _preListen.OutputDevice = match.Index;
     }
 
-    // ── Pre-listen transport state (Pre-Cue v2 — single slot) ──────────────────────
+    // -- Pre-listen transport state (Pre-Cue v2 - single slot) ----------------------
     // PreCueCurrent: the ONE track currently loaded in the cue engine, or null when the slot is
-    // empty. "es muss schnell gehen" — loading a track REPLACES the slot and autoplays immediately;
-    // there is no audition list and no pause. Add/Kick + ±30s live below (── Pre-cue commands ──).
+    // empty. "es muss schnell gehen" - loading a track REPLACES the slot and autoplays immediately;
+    // there is no audition list and no pause. Add/Kick + +/-30s live below (-- Pre-cue commands --).
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PreCueIsPlaying))]
@@ -1465,7 +1465,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyCanExecuteChangedFor(nameof(CueJumpBackCommand))]
     private TrackViewModel? _preCueCurrent;
 
-    /// <summary>True while the pre-cue slot has a track loaded — drives the Add/Kick/±30s buttons'
+    /// <summary>True while the pre-cue slot has a track loaded - drives the Add/Kick/+/-30s buttons'
     /// enabled state (via CanExecute) and the empty-slot hint text in the PRE-CUE panel.</summary>
     public bool HasPreCueCurrent => PreCueCurrent is not null;
 
@@ -1485,7 +1485,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(PreCueIsPlaying))]
     private PlaybackState _preCueState = PlaybackState.Stopped;
 
-    /// <summary>True while the cue engine is playing — reflects the engine's live state (autoplay
+    /// <summary>True while the cue engine is playing - reflects the engine's live state (autoplay
     /// on load, no pause in v2; goes false again on Kick or natural end-of-track).</summary>
     public bool PreCueIsPlaying => PreCueState == PlaybackState.Playing;
 
@@ -1512,14 +1512,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void OnPreCueEnded(object? sender, EventArgs e)
         => Dispatcher.UIThread.Post(() =>
         {
-            // Single-slot v2: just stop — no auto-advance (there's nothing queued to advance to).
+            // Single-slot v2: just stop - no auto-advance (there's nothing queued to advance to).
             // The slot stays loaded (PreCueCurrent unchanged) so Chloe can still Add/Kick it or
-            // scrub back in with ±30s; only Kick clears the slot.
+            // scrub back in with +/-30s; only Kick clears the slot.
             PreCueState = PlaybackState.Stopped;
         });
 
-    // ── Right-column tab ("UP NEXT" | "PRE-CUE") ─────────────────────────────
-    // Transient — not persisted; each session starts on the queue tab.
+    // -- Right-column tab ("UP NEXT" | "PRE-CUE") -----------------------------
+    // Transient - not persisted; each session starts on the queue tab.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsQueueTab))]
     [NotifyPropertyChangedFor(nameof(IsPreCueTab))]
@@ -1536,28 +1536,28 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void SetRightColumnTab(string which) => RightColumnTab = which;
 
-    // ── Pre-cue commands (v2: single slot, autoplay, no pause) ─────────────────
+    // -- Pre-cue commands (v2: single slot, autoplay, no pause) -----------------
 
-    /// <summary>Load ONE file into the pre-cue slot and autoplay it immediately — replaces whatever
+    /// <summary>Load ONE file into the pre-cue slot and autoplay it immediately - replaces whatever
     /// was cued before ("es muss schnell gehen": no confirmation, no pause). Entry point is the
     /// track-row context menu ("Pre-cue on headphones") via <see cref="TrackViewModel.PlayInPreCueCommand"/>
-    /// (wired in <see cref="AddPathsAsync"/>) — you cue from the list, not a file picker
-    /// (Chloe 2026-07-03: the "Load track…" picker was removed, nobody works like that).</summary>
+    /// (wired in <see cref="AddPathsAsync"/>) - you cue from the list, not a file picker
+    /// (Chloe 2026-07-03: the "Load track..." picker was removed, nobody works like that).</summary>
     public async Task LoadPreCueTrackAsync(string filePath)
     {
-        // Cueing from a row should land the eye on the slot — flip the right column to PRE-CUE.
+        // Cueing from a row should land the eye on the slot - flip the right column to PRE-CUE.
         // Deliberately BEFORE the no-device guard: with no headphone device selected the tab shows
-        // the "choose one in Tweaks → Audio" hint, so the click visibly explains itself instead of
+        // the "choose one in Tweaks -> Audio" hint, so the click visibly explains itself instead of
         // silently doing nothing.
         RightColumnTab = "PreCue";
 
-        if (SelectedHeadphoneDevice is null) return; // no device → ignore (never routes to speakers)
+        if (SelectedHeadphoneDevice is null) return; // no device -> ignore (never routes to speakers)
 
         var tvm = new TrackViewModel(new Track(filePath));
         _preListen.Stop();
-        _preListen.Load(filePath);       // replaces any previously-loaded source — single slot by construction
+        _preListen.Load(filePath);       // replaces any previously-loaded source - single slot by construction
         _preListen.Volume = PreCueVolume;
-        _preListen.Play();               // autoplay — no pause state in v2
+        _preListen.Play();               // autoplay - no pause state in v2
         PreCueCurrent = tvm;
 
         // Load metadata async so the title/artist appear without blocking the UI.
@@ -1568,15 +1568,15 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    /// <summary>Send a queue row into the pre-cue slot — the callback wired onto every
+    /// <summary>Send a queue row into the pre-cue slot - the callback wired onto every
     /// <see cref="TrackViewModel"/> added to <see cref="Tracks"/> (see <see cref="AddPathsAsync"/>).</summary>
     private void LoadPreCueTrackFromRow(TrackViewModel row) => _ = LoadPreCueTrackAsync(row.Model.FilePath);
 
-    /// <summary>Seek the cue track by ±<paramref name="delta"/>, clamped to [0, Duration] via the
+    /// <summary>Seek the cue track by +/-<paramref name="delta"/>, clamped to [0, Duration] via the
     /// shared <see cref="PreCueTransport.ClampedJump"/> helper (unit-tested in
     /// PreListenEngineTests.cs). Routes through the <see cref="PreCuePositionSeconds"/> setter so the
     /// existing seek-hold bookkeeping (Tick doesn't snap the slider back to a stale position) applies
-    /// here too — same as a manual slider drag.</summary>
+    /// here too - same as a manual slider drag.</summary>
     private void JumpPreCue(TimeSpan delta)
     {
         var target = PreCueTransport.ClampedJump(_preListen.Position, delta, _preListen.Duration);
@@ -1591,7 +1591,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
     private void CueJumpBack() => JumpPreCue(TimeSpan.FromSeconds(-30));
 
-    /// <summary>"Add": append the cued track to the MAIN queue. Does not clear the slot — Chloe can
+    /// <summary>"Add": append the cued track to the MAIN queue. Does not clear the slot - Chloe can
     /// still Kick it, jump around, or Add it again.</summary>
     [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
     private void CueAdd()
@@ -1616,7 +1616,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
     }
 
-    /// <summary>"Kick": discard the cued track — stop cue playback, release the file handle, and
+    /// <summary>"Kick": discard the cued track - stop cue playback, release the file handle, and
     /// clear the slot. Fast audition workflow: Add what you like, Kick what you don't.</summary>
     [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
     private void CueKick()
@@ -1645,7 +1645,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(SelectedServerPublic))]
     private StreamServerProfile? _selectedStreamServer;
 
-    // ── Editor pass-through properties ───────────────────────────────────
+    // -- Editor pass-through properties -----------------------------------
     // Each property reads from / writes to the selected profile. Writing replaces the
     // record in the collection and persists. Null-safe: returns empty/defaults when
     // no profile is selected so the UI fields remain harmlessly blank.
@@ -1696,7 +1696,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         set { if (SelectedStreamServer is { } p) ReplaceSelected(p with { UseTls = value }); }
     }
 
-    // Station info (ICY directory fields — optional, DJ-owned). Same shared StreamServerProfile as
+    // Station info (ICY directory fields - optional, DJ-owned). Same shared StreamServerProfile as
     // JUST STREAM, so the broadcast adapter already sends them; these give JUST PLAY the edit UI.
     public string SelectedServerUrl
     {
@@ -1729,14 +1729,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool IsSelectedServerOpus => SelectedStreamServer?.Format == StreamFormat.Opus;
 
     // Which station-editor tab shows in the Streaming panel: "Server" / "Quality" / "Station".
-    // Transient UI state — the profile form is split into tabs so it never needs to scroll.
+    // Transient UI state - the profile form is split into tabs so it never needs to scroll.
     [ObservableProperty] private string _streamEditorTab = "Server";
 
     /// <summary>Switch the visible station-editor tab ("Server"/"Quality"/"Station").</summary>
     [RelayCommand]
     private void SetStreamEditorTab(string which) => StreamEditorTab = which;
 
-    /// <summary>Whether in-progress / not-yet-working UI is shown — the headphone Pre-Cue tab and the
+    /// <summary>Whether in-progress / not-yet-working UI is shown - the headphone Pre-Cue tab and the
     /// Opus stream format. True only in DEBUG builds, so RELEASE installers ship without the dead UI.
     /// See <see cref="AppInfo.Experimental"/>.</summary>
     public bool ShowExperimentalUi => AppInfo.Experimental;
@@ -1817,7 +1817,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// streaming to <see cref="SelectedStreamServer"/>. If connected, disconnects cleanly.
     ///
     /// CanExecute: a profile must be selected with a non-empty Host, AND we must not be
-    /// mid-connect (Connecting/Reconnecting — let the current attempt finish).
+    /// mid-connect (Connecting/Reconnecting - let the current attempt finish).
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanToggleConnect))]
     private async Task ToggleConnect()
@@ -1846,12 +1846,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     partial void OnSelectedStreamServerChanged(StreamServerProfile? value)
         => ToggleConnectCommand.NotifyCanExecuteChanged();
 
-    // ── Streaming quick-actions (radio cap-button right-click menu) ───────
+    // -- Streaming quick-actions (radio cap-button right-click menu) -------
     // Surfaced from MaxView's streaming-button context menu so the user can go
-    // on/off air — and pick WHICH radio — without opening the panel. They drive
+    // on/off air - and pick WHICH radio - without opening the panel. They drive
     // the same IBroadcastService the Connect button uses.
 
-    /// <summary>Open the streaming panel (from the "Add a radio…" / "Streaming settings…" items).</summary>
+    /// <summary>Open the streaming panel (from the "Add a radio..." / "Streaming settings..." items).</summary>
     public void OpenStreaming() => IsStreamingOpen = true;
 
     /// <summary>Disconnect the live broadcast (no-op when not connected).</summary>
@@ -1887,9 +1887,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(BpmRangeText));
         OnPropertyChanged(nameof(ShowBpmRange));
         OnPropertyChanged(nameof(ShowQueueHeader));
-        // Harmonic Sort's CanExecute depends on the queue having ≥ 2 tracks.
+        // Harmonic Sort's CanExecute depends on the queue having >= 2 tracks.
         HarmonicSortCommand.NotifyCanExecuteChanged();
-        // If the queue is now empty and a playlist was loaded, break the reference —
+        // If the queue is now empty and a playlist was loaded, break the reference -
         // "select all + delete" or any drain path that empties the queue is treated as
         // a Clear, which severs the playlist association.
         if (Tracks.Count == 0 && LoadedPlaylistPath != null)
@@ -1899,7 +1899,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    /// <summary>Number the rows 1..N — these are positions in the current session list,
+    /// <summary>Number the rows 1..N - these are positions in the current session list,
     /// NOT the MP3 metadata track number.</summary>
     private void RecalcIndexes()
     {
@@ -1911,7 +1911,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     //
     // Nothing is ever written until the user picks one of these. "Write" overwrites the
     // standard tag with our detected value (Applied); "Keep" records that the user reviewed
-    // and kept the claimed value (Kept) — both stamp the JUSTPLAY blob so the picture survives
+    // and kept the claimed value (Kept) - both stamp the JUSTPLAY blob so the picture survives
     // a restart and the field stops flagging. The pre-overwrite foreign value is stashed in
     // the blob's Original so a write is reversible. See memory analysis-tag-persistence-design.
 
@@ -2017,7 +2017,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             Version = TrackAnalysisState.CurrentVersion,
             Detected = a,
-            // WHEN the values in Detected were measured — never "now", which is merely when we are
+            // WHEN the values in Detected were measured - never "now", which is merely when we are
             // writing. Falls back to whatever the file already claimed, and stays null when nothing
             // knows: a null reads as "unknown", which the staleness rules treat as stale rather than
             // clean. Guessing a date here would re-create the exact blindness this fixed.
@@ -2030,9 +2030,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // When "DJ Software compatible" comment is enabled, build the new comment value from the
         // key/energy values as they will be in the tag after this write:
-        //   Write  → the detected value from analysis
-        //   Keep   → the existing tagged value (user confirmed it is correct)
-        //   None   → the existing tagged value (field not touched by this write)
+        //   Write  -> the detected value from analysis
+        //   Keep   -> the existing tagged value (user confirmed it is correct)
+        //   None   -> the existing tagged value (field not touched by this write)
         string? newComment = null;
         if (WriteDjComment)
         {
@@ -2048,7 +2048,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             Energy = energy == FieldAction.Write ? a.Energy : null,
             // ReplayGain rides along with every write (it's the mp3gain/MIK replacement): the
             // REPLAYGAIN_TRACK_GAIN/_PEAK fields are non-destructive standards that don't collide
-            // with BPM/key/energy, so they need no per-field Write/Keep decision — whenever we have
+            // with BPM/key/energy, so they need no per-field Write/Keep decision - whenever we have
             // a loudness measurement, stamp it. Null (un-analysed) simply writes nothing.
             ReplayGainDb = a.ReplayGainDb,
             Peak = a.Peak,
@@ -2060,13 +2060,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>The single point that touches the file. For a track that ISN'T playing the write runs
     /// immediately; for the CURRENTLY-PLAYING track it is DEFERRED by the controller (BASS holds the
-    /// file open) and runs the instant the track stops being current — a track change — or on app exit.
+    /// file open) and runs the instant the track stops being current - a track change - or on app exit.
     /// Playback is never interrupted. The deferred action re-reads the tags so the row reflects the new
     /// values + decisions once it lands.
     /// <para>
-    /// N27: a LOCKED file (the pre-cue engine holding a different track, or an EXTERNAL app — Chloe's
+    /// N27: a LOCKED file (the pre-cue engine holding a different track, or an EXTERNAL app - Chloe's
     /// verified trigger was Windows Media Player) used to throw <see cref="IOException"/>, get logged
-    /// once, and drop the write forever — no JUSTPLAY blob ever landed, so the track re-analyzed on
+    /// once, and drop the write forever - no JUSTPLAY blob ever landed, so the track re-analyzed on
     /// every load despite "write auto tags" being on. <see cref="_tagWriteRetryQueue"/> now retries it
     /// on a timer (see the field's doc comment) instead of giving up on the first try. Never crashes:
     /// every path either lands the write, re-queues it, or surfaces a visible EventLog failure.
@@ -2074,7 +2074,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool DoWrite(TrackViewModel tvm, TagWrite write)
     {
         // Record undo BEFORE the write. Since the playing track's write is deferred, we can't gate undo
-        // on a synchronous success any more — capture upfront. Restore writes the captured pre-state
+        // on a synchronous success any more - capture upfront. Restore writes the captured pre-state
         // back, which is a harmless no-op if a deferred write ultimately failed.
         var snapshot = _capturingUndo ? SnapshotOf(tvm) : null;
         if (snapshot is not null)
@@ -2087,13 +2087,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return true;   // optimistic: the write runs now (other track) or is queued for the playing track
     }
 
-    /// <summary>The actual file write — shared by the first attempt (called synchronously from
+    /// <summary>The actual file write - shared by the first attempt (called synchronously from
     /// <see cref="DoWrite"/>, via <see cref="PendingTagWriteQueue.EnqueueAndTryNow"/>) and every later
-    /// retry (driven by <see cref="_tagWriteRetryTimer"/> → <see cref="PendingTagWriteQueue.RetryAll"/>).
+    /// retry (driven by <see cref="_tagWriteRetryTimer"/> -> <see cref="PendingTagWriteQueue.RetryAll"/>).
     /// Deliberately does NOT catch here: <see cref="IOException"/> must propagate so the queue can tell
     /// a retryable locked-file failure apart from a non-retryable one (see
     /// <see cref="PendingTagWriteQueue"/>'s single decision point). On success, marshals the VM refresh
-    /// back to the UI thread — this may run on a background retry-timer thread.</summary>
+    /// back to the UI thread - this may run on a background retry-timer thread.</summary>
     private void WriteOnce(TrackViewModel tvm, TagWrite write)
     {
         _writer.Write(tvm.Model.FilePath, write);
@@ -2106,30 +2106,30 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// non-retryable error occurred). This is the "surface persistent failure" requirement from N27:
     /// previously a locked-file write failure was Console/EventLog-once and then invisible forever with
     /// no further sign anything was wrong. EventLog is the app's existing non-modal "don't swallow
-    /// errors silently" channel (see its doc comment) — the same one Undo/Like/Analyze failures already
+    /// errors silently" channel (see its doc comment) - the same one Undo/Like/Analyze failures already
     /// use, so a persistent tag-write failure now reads exactly like those, in the same log window.</summary>
     private void OnTagWriteGiveUp(string path, Exception ex)
     {
         var name = Path.GetFileName(path);
         EventLog.Append(ex is IOException
-            ? $"Tag write gave up — \"{name}\" stayed locked by another app (retried and timed out): {ex.Message}"
-            : $"Tag write failed — \"{name}\": {ex.Message}");
+            ? $"Tag write gave up - \"{name}\" stayed locked by another app (retried and timed out): {ex.Message}"
+            : $"Tag write failed - \"{name}\": {ex.Message}");
     }
 
     /// <summary>Called by <see cref="_tagWriteRetryQueue"/> the FIRST time a file's write hits a lock
-    /// (i.e. it wasn't the main engine's current track — <see cref="PlaybackController"/> already
-    /// handles that case silently — so this is specifically the pre-cue-engine / external-app case).
+    /// (i.e. it wasn't the main engine's current track - <see cref="PlaybackController"/> already
+    /// handles that case silently - so this is specifically the pre-cue-engine / external-app case).
     /// A single "will retry" line so the wait before a possible <see cref="OnTagWriteGiveUp"/> isn't
     /// silent.</summary>
     private void OnTagWriteDeferred(string path) =>
-        EventLog.Append($"Tag write deferred — \"{Path.GetFileName(path)}\" is in use by another app, retrying…");
+        EventLog.Append($"Tag write deferred - \"{Path.GetFileName(path)}\" is in use by another app, retrying...");
 
-    // ── The shared tag editor's way into this app's write machinery ──────────────────────────────
+    // -- The shared tag editor's way into this app's write machinery ------------------------------
 
     /// <summary>
     /// Build a tag editor bound to THIS app's write path. The editor itself is shared
     /// (<see cref="JustPlay.UI.ViewModels.TagEditorViewModel"/>, also JUST TAG's sidebar) and knows
-    /// nothing about playback — it hands each save to <see cref="ExecuteTagWrite"/>, which does.
+    /// nothing about playback - it hands each save to <see cref="ExecuteTagWrite"/>, which does.
     /// </summary>
     public TagEditorViewModel CreateTagEditor()
     {
@@ -2140,7 +2140,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// A file was renamed in the tag editor: move the queue row with it. The identity of a row is
-    /// the audio, not the string — leaving it pointing at the old name would put a track that is
+    /// the audio, not the string - leaving it pointing at the old name would put a track that is
     /// still right there into the "missing" state (standing rule: never leave a song behind).
     /// </summary>
     private void OnFileRenamed(string from, string to)
@@ -2157,7 +2157,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Carry out a tag-editor save. Editing the PLAYING track is the normal case (you hear something
     /// wrong and fix it), so it must not fail on a locked handle: that write goes through the same
-    /// deferral the analysis writes use — playback is never interrupted and the write lands at the
+    /// deferral the analysis writes use - playback is never interrupted and the write lands at the
     /// track change. Any other file is written now, and a lock held by an EXTERNAL app falls into the
     /// existing retry queue rather than being dropped.
     /// </summary>
@@ -2181,13 +2181,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             onDeferred: p => { deferred = true; OnTagWriteDeferred(p); });
 
         // onDeferred fires synchronously the first time a file is locked, and onGiveUp does the same
-        // for a non-retryable failure — so by here both flags are settled for this attempt.
+        // for a non-retryable failure - so by here both flags are settled for this attempt.
         return failed ? TagWriteOutcome.Failed
              : deferred ? TagWriteOutcome.Deferred
              : TagWriteOutcome.Written;
     }
 
-    /// <summary>The editor's write plus the row refresh — a corrected artist has to show up in the
+    /// <summary>The editor's write plus the row refresh - a corrected artist has to show up in the
     /// queue immediately, not after the next load. Must not swallow <see cref="IOException"/>: the
     /// retry queue needs it to tell a locked file from a broken one.</summary>
     private void WriteThenRefresh(string path, Action<string> write)
@@ -2197,7 +2197,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Re-read one file's tags into every queue row pointing at it and repaint. Safe to call
-    /// from a background thread — the VM refresh marshals itself.</summary>
+    /// from a background thread - the VM refresh marshals itself.</summary>
     public void RefreshTagsFor(string path)
     {
         foreach (var tvm in Tracks)
@@ -2227,8 +2227,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Capture the tag fields JustPlay may overwrite, so the write can be reverted exactly
-    /// (null field = was empty → Undo clears it). The comment is only captured when the
-    /// "DJ Software compatible" comment feature is on — otherwise Restore leaves it untouched.</summary>
+    /// (null field = was empty -> Undo clears it). The comment is only captured when the
+    /// "DJ Software compatible" comment feature is on - otherwise Restore leaves it untouched.</summary>
     private TagRestore SnapshotOf(TrackViewModel tvm)
     {
         var md = tvm.Model.Metadata;
@@ -2244,13 +2244,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             ReplayGainDb = md?.StoredAnalysis?.Detected.ReplayGainDb,
             Peak = md?.StoredAnalysis?.Detected.Peak,
             // Capture the raw comment (before any DJ prefix is prepended) so Undo can restore it
-            // verbatim. When the feature is off, CommentCaptured stays false → Restore skips it.
+            // verbatim. When the feature is off, CommentCaptured stays false -> Restore skips it.
             Comment = WriteDjComment ? md?.Comment : null,
             CommentCaptured = WriteDjComment,
         };
     }
 
-    /// <summary>Revert the most recent tag write (single-field, per-cell, or bulk) — restores every
+    /// <summary>Revert the most recent tag write (single-field, per-cell, or bulk) - restores every
     /// touched file to its captured pre-write state, releasing the playing file's handle as needed.</summary>
     public void UndoLastWrite()
     {
@@ -2273,7 +2273,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    EventLog.Append($"Undo failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
+                    EventLog.Append($"Undo failed - \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
                 }
             });
         }
@@ -2306,14 +2306,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Analyse tracks that live OUTSIDE the queue (the PRE CUE FINDER's rows) through the very
-    /// same bounded pipeline as the queue's Re-analyze — the AnalysisThreads cap, the Running→Done row
+    /// same bounded pipeline as the queue's Re-analyze - the AnalysisThreads cap, the Running->Done row
     /// refresh, the ANALYZING badge, and the auto-write-on-analyse consent (Chloe 2026-07-07 chose "respect
     /// the app's toggle", so the finder never writes a file unless that setting is already on). Reusing the
     /// one pipeline keeps analysis behaviour identical everywhere instead of forking a second copy.</summary>
     internal Task AnalyzeExternalAsync(IReadOnlyList<TrackViewModel> tracks) => AnalyzeTracksAsync(tracks);
 
     /// <summary>Analyse a set of tracks with bounded concurrency (the AnalysisThreads preference, default
-    /// 4). Each row flips to Running (spinner) → Done/Failed and refreshes as it goes. Runs off the UI
+    /// 4). Each row flips to Running (spinner) -> Done/Failed and refreshes as it goes. Runs off the UI
     /// thread; <see cref="ITrackAnalysisService.AnalyzeAsync"/> already offloads to the pool, so this
     /// just caps how many run at once.</summary>
     private async Task AnalyzeTracksAsync(IReadOnlyList<TrackViewModel> targets)
@@ -2332,19 +2332,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 var result = await _analysis.AnalyzeAsync(tvm.Model.FilePath, null, ct);
                 tvm.Model.Analysis = result;
-                tvm.Model.AnalysedAtUtc = DateTime.UtcNow;   // the DSP ran HERE — the one honest stamp
+                tvm.Model.AnalysedAtUtc = DateTime.UtcNow;   // the DSP ran HERE - the one honest stamp
                 tvm.Model.AnalysisStatus = AnalysisStatus.Done;
             }
             catch (Exception ex)
             {
                 tvm.Model.AnalysisStatus = AnalysisStatus.Failed;
-                EventLog.Append($"Analyze failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
+                EventLog.Append($"Analyze failed - \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
             }
             Dispatcher.UIThread.Post(() => { tvm.Refresh(); AnalyzingCount--; });
 
             // "New truth on analyse": optionally stamp our detected values into the file's tags
             // right away (consent given once, in settings). Runs HERE on the background analysis
-            // thread (NOT marshalled to the UI thread) so slow file I/O — e.g. a network drive —
+            // thread (NOT marshalled to the UI thread) so slow file I/O - e.g. a network drive -
             // never blocks the UI; DoWrite marshals its own VM updates back via Dispatcher.Post.
             if (AutoWriteOnAnalyze && tvm.Model.AnalysisStatus == AnalysisStatus.Done)
                 WriteDetected(tvm);
@@ -2354,7 +2354,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Toggle-favourite callback wired onto every <see cref="TrackViewModel"/>.
     /// Runs the file I/O on a background thread (Task.Run) so a slow network drive
-    /// never freezes the UI — mirrors the same pattern as WriteTags / FillMissing.
+    /// never freezes the UI - mirrors the same pattern as WriteTags / FillMissing.
     /// On success the metadata is re-read and the VM refreshed via Dispatcher.Post.
     /// </summary>
     internal Task ToggleFavoriteForTrack(TrackViewModel tvm, bool liked)
@@ -2371,7 +2371,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    EventLog.Append($"Like write failed — \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
+                    EventLog.Append($"Like write failed - \"{Path.GetFileName(tvm.Model.FilePath)}\": {ex.Message}");
                     // Revert the optimistic flip the command applied in TrackViewModel.ToggleFavorite.
                     Dispatcher.UIThread.Post(() => tvm.IsFavorite = !liked);
                 }
@@ -2380,18 +2380,18 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Write all of a track's detected values into its tags (used by auto-write-on-analyse).
     /// Goes through the same Persist path, so decisions are stamped Applied and the conflict flags
-    /// clear. Not wrapped in undo capture — auto-writes aren't a discrete user action.</summary>
+    /// clear. Not wrapped in undo capture - auto-writes aren't a discrete user action.</summary>
     private void WriteDetected(TrackViewModel tvm)
     {
         var a = tvm.Model.Analysis;
         if (a is null) return;
 
-        // ⚠ A field the user has DECIDED is not ours to overwrite. FieldDecision.Kept means exactly
-        // "the user reviewed this and the tag stands" — set by Keep in the queue's context menu and
+        // (!) A field the user has DECIDED is not ours to overwrite. FieldDecision.Kept means exactly
+        // "the user reviewed this and the tag stands" - set by Keep in the queue's context menu and
         // by a hand correction in the shared tag editor. This auto-write used to ignore it and
         // stamp our detected value over the top on the next analysis, so both gestures were silently
         // undone: you fixed a wrong key, the track got re-analysed, and your fix was gone.
-        // An explicit Write / Fill-missing still overwrites — that is the user asking for it.
+        // An explicit Write / Fill-missing still overwrites - that is the user asking for it.
         var prev = tvm.Model.Metadata?.StoredAnalysis;
         Persist(tvm,
             a.Bpm is > 0 && prev?.BpmDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None,
@@ -2405,8 +2405,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         if (SelectedTracks.Count == 0) return;
         // Snapshot the selection as a set, then remove in ONE pass + a single Reset notification.
-        // The old per-item Tracks.Remove loop was O(n²) (each Remove is an O(n) search) AND re-rendered
-        // the bound queue list once per row — Ctrl+A → Delete on a 10-hour queue took seconds.
+        // The old per-item Tracks.Remove loop was O(n^2) (each Remove is an O(n) search) AND re-rendered
+        // the bound queue list once per row - Ctrl+A -> Delete on a 10-hour queue took seconds.
         var removeSet = new HashSet<TrackViewModel>(SelectedTracks);
         Tracks.RemoveRange(removeSet);
         _shuffleHistory.RemoveAll(removeSet.Contains);
@@ -2419,7 +2419,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>Consume-mode removal: drop a single just-played track from the queue and any shuffle
     /// bookkeeping. Mirrors <see cref="RemoveSelected"/> for one row; never touches the file and never
     /// the still-playing track (the caller guarantees this row is no longer Current). The ListBox drops
-    /// the row from its own selection when the item leaves the collection — no SelectedTracks fiddling.</summary>
+    /// the row from its own selection when the item leaves the collection - no SelectedTracks fiddling.</summary>
     private void ConsumePlayed(TrackViewModel played)
     {
         Tracks.Remove(played);
@@ -2429,12 +2429,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         MarkPlaylistEdited();
     }
 
-    // ── Context-menu commands (bound from the queue's ListBox.ContextMenu) ────
+    // -- Context-menu commands (bound from the queue's ListBox.ContextMenu) ----
     // Bulk actions operate on the multi-selection; the per-field ones target ContextTarget
     // (the single right-clicked row). Field is passed as a "Bpm"/"Key"/"Energy" CommandParameter.
 
-    // File-touching commands run their I/O on a background thread (Task.Run) so slow writes —
-    // e.g. on a network drive — never freeze the UI. The selection is snapshotted on the UI
+    // File-touching commands run their I/O on a background thread (Task.Run) so slow writes -
+    // e.g. on a network drive - never freeze the UI. The selection is snapshotted on the UI
     // thread first; the inner methods marshal their VM updates back via Dispatcher.Post.
     [RelayCommand] private Task WriteTags() => RunWriteAsync(fillMissingOnly: false);
     [RelayCommand] private Task FillMissing() => RunWriteAsync(fillMissingOnly: true);
@@ -2473,7 +2473,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // ---- Three-dots list menu commands ----------------------------------
     //
-    // HarmonicSort, ClearList, WriteAllTags are surfaced from the "…" menu
+    // HarmonicSort, ClearList, WriteAllTags are surfaced from the "..." menu
     // in the transport bar. They operate on the full Tracks collection, not
     // just the current selection.
 
@@ -2486,7 +2486,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// position 0 in the new order so playback is not disrupted.</para>
     ///
     /// <para>Unanalyzed tracks (no Key, BPM, or Energy) are moved to the END of the
-    /// queue in their original relative order — they cannot contribute to a
+    /// queue in their original relative order - they cannot contribute to a
     /// compatibility score.</para>
     ///
     /// <para>All four axes (Beat/groove, Tempo, Harmonic, Energy) are now active.
@@ -2496,7 +2496,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// weights renormalised). Anti-monotony / energy-arc shaping is planned for a
     /// later iteration.</para>
     ///
-    /// <para>Runs the sequencer on a background thread (it is O(n²) but queues are
+    /// <para>Runs the sequencer on a background thread (it is O(n^2) but queues are
     /// small). The collection reorder is marshalled back to the UI thread.</para>
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanHarmonicSort))]
@@ -2507,7 +2507,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Snapshot on the UI thread before going async.
         var snapshot = Tracks.ToList();
 
-        // Pin the currently-playing track as the anchor — you mix OUT of it, so it must
+        // Pin the currently-playing track as the anchor - you mix OUT of it, so it must
         // stay first and not get re-sorted under your feet. When nothing is playing (set
         // prep: drop tracks in, sort), pass -1 so the sequencer picks its own best start
         // (highest average compatibility) instead of arbitrarily nailing down row 1.
@@ -2519,7 +2519,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             // Fingerprint comes from the stored AnalysisResult (computed during the normal
             // analysis pass by BeatFingerprintExtractor and persisted in the JUSTPLAY blob).
             // Tracks that have not yet been analysed or are too short have Fingerprint = null;
-            // MixCompatibility degrades gracefully — the Beat axis is excluded and the
+            // MixCompatibility degrades gracefully - the Beat axis is excluded and the
             // remaining weights (Tempo 0.30, Harmonic 0.20, Energy 0.10) are renormalised.
             var features = snapshot
                 .Select(tvm =>
@@ -2548,8 +2548,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Harmonic Sort is available only when there are at least two tracks AND no analysis
-    /// is in flight — sequencing a queue whose rows are still being scored would order the
-    /// not-yet-analysed tracks as if they had no features (dumping them to the end). The "…" menu
+    /// is in flight - sequencing a queue whose rows are still being scored would order the
+    /// not-yet-analysed tracks as if they had no features (dumping them to the end). The "..." menu
     /// item greys out automatically while <see cref="IsAnalyzing"/> is true.</summary>
     private bool CanHarmonicSort() => !IsAnalyzing && Tracks.Count >= 2;
 
@@ -2557,7 +2557,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Empty the queue. If the current track is playing, stops playback first
     /// (same behaviour as the existing drag-off path when the last track is removed).
     /// Mirrors <c>ClearTracksCommand</c> (Ctrl+Delete / internal), surfaced here
-    /// for the "…" list menu without needing a duplicate private method.
+    /// for the "..." list menu without needing a duplicate private method.
     /// </summary>
     [RelayCommand]
     private void ClearList()
@@ -2575,7 +2575,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Remove duplicate tracks from the queue, keeping the first occurrence of each.
     /// Duplicate key = normalised "Artist | Title" (case-insensitive) so the same song
-    /// added twice — even from different file copies / folders — collapses to one, while
+    /// added twice - even from different file copies / folders - collapses to one, while
     /// distinct remixes (different titles) survive. Falls back to the file path when
     /// artist+title are both empty. The currently-playing track is always kept.
     /// </summary>
@@ -2613,12 +2613,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Write detected BPM / Key / Energy tags for every track in the queue —
+    /// Write detected BPM / Key / Energy tags for every track in the queue -
     /// the same fields and consent logic as the per-selection "Write meta tags"
     /// in the context menu, just scoped to ALL tracks rather than the selection.
     ///
     /// <para>Runs on a background thread via <see cref="Task.Run"/> (file I/O on
-    /// a network drive can block for hundreds of ms — the exact past freeze bug
+    /// a network drive can block for hundreds of ms - the exact past freeze bug
     /// that prompted the off-thread pattern). The undo batch is populated so a
     /// single Ctrl+Z reverts the whole write.</para>
     /// </summary>
@@ -2654,7 +2654,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         // Folder drops get Explorer-like natural order ("track2" before "track10") instead of the OS's raw
-        // enumeration order. But an EXPLICIT ordered list — a loaded playlist / sequenced DJ set — MUST keep
+        // enumeration order. But an EXPLICIT ordered list - a loaded playlist / sequenced DJ set - MUST keep
         // its order (preserveOrder); otherwise the carefully-built set gets alphabetised (the m3u-load bug:
         // a set dropped in started on whatever track sorted first by filename).
         IEnumerable<string> audioFiles = files.Where(IsAudio);
@@ -2679,10 +2679,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         MarkPlaylistEdited();
 
         // Read tags off the UI thread, then refresh each row. Two passes:
-        //   pass 1 — metadata (fast, ~ms): titles/artists/duration show immediately.
-        //   pass 2 — apply any stored analysis blob (free), then run the DSP for the rest —
+        //   pass 1 - metadata (fast, ~ms): titles/artists/duration show immediately.
+        //   pass 2 - apply any stored analysis blob (free), then run the DSP for the rest -
         //            but ONLY when auto-analyze is on. Otherwise the user triggers analysis
-        //            explicitly (right-click → Analyze). Concurrency = AnalysisThreads.
+        //            explicitly (right-click -> Analyze). Concurrency = AnalysisThreads.
         await Task.Run(async () =>
         {
             foreach (var tvm in added)
@@ -2697,7 +2697,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             }
 
             // Reproduce-the-picture: if a file already carries OUR analysis blob at the current
-            // engine version, trust it and apply it for free — the file is the memory, the DSP is
+            // engine version, trust it and apply it for free - the file is the memory, the DSP is
             // deterministic. Collect the rest for (optional) DSP analysis.
             var needAnalysis = new List<TrackViewModel>();
             foreach (var tvm in added)
@@ -2707,12 +2707,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 {
                     // Show OUR last-known detection (Camelot key, our BPM/energy) and TRUST it as-is.
                     // We do NOT auto-re-analyze a track just because its blob predates the current
-                    // detection version — refreshing to a newer version is an explicit, user-driven
-                    // action (right-click → Re-analyze). This keeps a cleanly-tagged file from being
+                    // detection version - refreshing to a newer version is an explicit, user-driven
+                    // action (right-click -> Re-analyze). This keeps a cleanly-tagged file from being
                     // silently re-analysed (and, with AutoWriteOnAnalyze on, rewritten on disk) merely
                     // by loading it. (User decision, 2026-06-12.)
                     tvm.Model.Analysis = stored.Detected;
-                    // Imported, not measured — carry the blob's own date so a later write does not
+                    // Imported, not measured - carry the blob's own date so a later write does not
                     // restamp someone else's (or last year's) analysis with today.
                     tvm.Model.AnalysedAtUtc = stored.AnalysedAtUtc;
                     tvm.Model.AnalysisStatus = AnalysisStatus.Done;
@@ -2728,7 +2728,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            // Auto-analyze on add when the user opted in — OR when loudness normalization is on,
+            // Auto-analyze on add when the user opted in - OR when loudness normalization is on,
             // since that needs each track's ReplayGain to do anything (the user chose to couple the
             // two: turning normalization on implies "measure my tracks so it just works").
             if ((AutoAnalyze || PlaybackNormalization) && needAnalysis.Count > 0)
@@ -2751,8 +2751,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Add audio files to the queue (file-association / "Add to JustPlay"). When
-    /// <paramref name="play"/> is set (the "open" verb — e.g. double-clicking a file in Explorer),
-    /// the first newly-added track starts playing IMMEDIATELY, like every other player — even if a
+    /// <paramref name="play"/> is set (the "open" verb - e.g. double-clicking a file in Explorer),
+    /// the first newly-added track starts playing IMMEDIATELY, like every other player - even if a
     /// set is already playing (opening a file means "play this"). The "Add to JustPlay" verb and
     /// drag-drop pass play=false (append only, never interrupt).</summary>
     public async Task OpenFilesAsync(IReadOnlyList<string> paths, bool play)
@@ -2760,10 +2760,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var before = Tracks.Count;
         await AddPathsAsync(paths);
         if (play && Tracks.Count > before)
-            PlayTrack(Tracks[before]);   // auto-play the opened file (double-click → it just plays)
+            PlayTrack(Tracks[before]);   // auto-play the opened file (double-click -> it just plays)
     }
 
-    /// <summary>Load an M3U/M3U8 playlist, REPLACING the whole queue with its tracks — a playlist is
+    /// <summary>Load an M3U/M3U8 playlist, REPLACING the whole queue with its tracks - a playlist is
     /// a complete set, not tracks to append, so opening one swaps the list and starts from the top.
     /// Reading happens off the UI thread; the missing/foreign entries are silently skipped.</summary>
     public async Task LoadPlaylistAsync(string playlistPath)
@@ -2773,11 +2773,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (audio.Count == 0) return;
 
         ClearList();                 // stop playback, clear queue + shuffle bookkeeping
-        await AddPathsAsync(audio, preserveOrder: true);   // a playlist IS the order — never re-sort it
+        await AddPathsAsync(audio, preserveOrder: true);   // a playlist IS the order - never re-sort it
         if (Tracks.Count > 0) PlayTrack(Tracks[0]);
         // Remember the loaded playlist so Save can write back in place.
         // _loadedPlaylistPath was null during AddPathsAsync (ClearList nulled it), so
-        // MarkPlaylistEdited inside AddPathsAsync was a no-op — the load itself is NOT dirty.
+        // MarkPlaylistEdited inside AddPathsAsync was a no-op - the load itself is NOT dirty.
         LoadedPlaylistPath = playlistPath;
         PlaylistDirty = false;
     }
@@ -2793,14 +2793,14 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Mark the loaded playlist as having unsaved edits. No-op when no playlist is loaded
-    /// or the queue is empty — emptying the queue clears the reference entirely via
+    /// or the queue is empty - emptying the queue clears the reference entirely via
     /// <see cref="RaiseTrackListChanged"/>.</summary>
     private void MarkPlaylistEdited()
     {
         if (LoadedPlaylistPath != null && Tracks.Count > 0) PlaylistDirty = true;
     }
 
-    /// <summary>Export the current queue order to an M3U8 playlist — the universal format Traktor,
+    /// <summary>Export the current queue order to an M3U8 playlist - the universal format Traktor,
     /// rekordbox, Serato &amp; co. all import. Snapshots on the UI thread, writes off it (a network
     /// drive can block). Analysis travels via the files' tags; we never touch the other tool's library.</summary>
     public Task ExportPlaylistM3uAsync(string destPath)
@@ -2810,8 +2810,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return Task.Run(() => M3uPlaylist.Write(destPath, entries));
     }
 
-    /// <summary>Export the queue as a self-contained .zip — every audio file (numbered in set order)
-    /// plus an .m3u8 listing them — for sharing / upload / USB-stick handoff into other DJ tools.
+    /// <summary>Export the queue as a self-contained .zip - every audio file (numbered in set order)
+    /// plus an .m3u8 listing them - for sharing / upload / USB-stick handoff into other DJ tools.
     /// Snapshots on the UI thread, zips off it (copying audio can take a while). <paramref name="playlistName"/>
     /// names the .m3u8 inside the archive. Returns the number of files written.</summary>
     public Task<int> ExportPlaylistZipAsync(string destPath, string playlistName,
@@ -2822,8 +2822,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         return Task.Run(() => PlaylistBundle.WriteZip(destPath, playlistName, entries, progress, ct), ct);
     }
 
-    /// <summary>Export the queue into a folder — every audio file (numbered in set order) copied in, plus
-    /// an .m3u8 listing them — the unpacked sibling of <see cref="ExportPlaylistZipAsync"/>, ideal for a
+    /// <summary>Export the queue into a folder - every audio file (numbered in set order) copied in, plus
+    /// an .m3u8 listing them - the unpacked sibling of <see cref="ExportPlaylistZipAsync"/>, ideal for a
     /// USB stick. Snapshots on the UI thread, copies off it. Returns the number of files written.</summary>
     public Task<int> ExportPlaylistFolderAsync(string destFolder, string playlistName,
         IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
@@ -2845,7 +2845,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // ---- Internals ------------------------------------------------------
 
     /// <summary>
-    /// The one navigation entry-point. Resolves the next track, then — in consume mode —
+    /// The one navigation entry-point. Resolves the next track, then - in consume mode -
     /// drops the track we just left. Splitting the navigation into <see cref="AdvanceCore"/>
     /// keeps every early-return path in the core logic intact while the consume step runs
     /// exactly once, after we know whether we actually moved.
@@ -2856,7 +2856,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         AdvanceCore(forward, auto, crossfadeMs);
 
         // Consume mode: once we've stepped FORWARD off a track (natural end or manual skip),
-        // remove it from the queue. Guarded so we never consume when nothing moved — a
+        // remove it from the queue. Guarded so we never consume when nothing moved - a
         // repeat-one replay or an end-of-queue stop leaves Current pointing at the same track.
         // Backward navigation never consumes (stepping back means you want it again).
         if (forward && RemovePlayed && outgoing is not null && !ReferenceEquals(outgoing, Current))
@@ -2864,7 +2864,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary><paramref name="auto"/> distinguishes a track ending on its own (respects Repeat
-    /// fully) from a user pressing next/prev (always moves — Repeat-One never traps the user on
+    /// fully) from a user pressing next/prev (always moves - Repeat-One never traps the user on
     /// one track).</summary>
     private void AdvanceCore(bool forward, bool auto, int crossfadeMs = 0)
     {
@@ -2879,7 +2879,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         if (Shuffle) { AdvanceShuffle(forward, auto, crossfadeMs); return; }
 
-        // ── Linear navigation ──
+        // -- Linear navigation --
         var index = Current is null ? -1 : Tracks.IndexOf(Current);
         if (forward)
         {
@@ -2901,7 +2901,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
     }
 
-    // ── Shuffle navigation ───────────────────────────────────────────────
+    // -- Shuffle navigation -----------------------------------------------
 
     private void AdvanceShuffle(bool forward, bool auto, int crossfadeMs = 0)
     {
@@ -2919,9 +2919,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             var pick = PickUnplayed();
             if (pick is null)
             {
-                // Cycle exhausted — every track has played once this cycle.
+                // Cycle exhausted - every track has played once this cycle.
                 // Start a new cycle on Repeat-All, OR on a manual next (the user
-                // explicitly asked to move — always honour that, like the linear
+                // explicitly asked to move - always honour that, like the linear
                 // wrap). Auto-advance with Repeat-Off is the only case that stops.
                 if (Repeat == RepeatMode.All || !auto)
                 {
@@ -3006,7 +3006,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var pos = _controller.Position.TotalSeconds;
 
         // Hold the slider at the user's seek target until the engine reports a position near
-        // it — otherwise one tick of stale pre-seek position snaps the thumb backwards. Clear
+        // it - otherwise one tick of stale pre-seek position snaps the thumb backwards. Clear
         // the hold once we're within tolerance, or after a short timeout as a safety valve.
         if (_pendingSeek is { } target)
         {
@@ -3024,7 +3024,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         MaybeStartCrossfade(pos, DurationSeconds);
 
-        // ── Pre-cue position polling (same 200 ms tick) ────────────────────
+        // -- Pre-cue position polling (same 200 ms tick) --------------------
         // Mirrors the main engine's seek-hold pattern so the slider doesn't snap back
         // to a stale position immediately after the user scrubs.
         var cuePos = _preListen.Position.TotalSeconds;
@@ -3044,7 +3044,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(PreCueDurationText));
 
         // Auto-reconnect "CLOU": only worth polling device availability while the PRE-CUE tab is
-        // actually open (cheap either way — a handful of Bass.GetDeviceInfo calls — but no reason
+        // actually open (cheap either way - a handful of Bass.GetDeviceInfo calls - but no reason
         // to run it in the background).
         if (IsPreCueTab) PollPreCueDeviceRebind();
     }
@@ -3059,7 +3059,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         var triggerAt = durationSeconds - secs - 0.25;
         if (posSeconds < triggerAt) { _crossfadeArmed = false; return; }  // re-arm if user seeked back out
         if (_crossfadeArmed) return;
-        if (!HasNextForAutoAdvance()) { _crossfadeArmed = true; return; } // last track → let it play out & stop
+        if (!HasNextForAutoAdvance()) { _crossfadeArmed = true; return; } // last track -> let it play out & stop
 
         _crossfadeArmed = true;
         Advance(forward: true, auto: true, crossfadeMs: secs * 1000);
@@ -3104,11 +3104,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Fades the master output to silence before the window (and therefore the engine) is
     /// disposed, preventing the hard digital click/buzz of an abrupt BASS free mid-playback.
     ///
-    /// <para>Only meaningful when the engine is actively playing — the engine's own no-op guard
+    /// <para>Only meaningful when the engine is actively playing - the engine's own no-op guard
     /// handles the stopped/paused case so callers do not need to check first.</para>
     ///
     /// <para>200 ms is long enough for the human ear to perceive a smooth fade (no click), short
-    /// enough that quit never feels laggy. The engine clamps the value to 50–500 ms.</para>
+    /// enough that quit never feels laggy. The engine clamps the value to 50-500 ms.</para>
     /// </summary>
     public async Task FadeBeforeQuitAsync()
     {
@@ -3116,7 +3116,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _controller.FlushPendingWrites();   // then release the handle + land any deferred tag writes
 
         // Best-effort final try for anything still stuck in the N27 retry queue (e.g. the external
-        // app that locked it was closed since the last 15s tick) — same give-up channel, but a
+        // app that locked it was closed since the last 15s tick) - same give-up channel, but a
         // failure here is expected on quit (the log window may already be gone) so keep it silent
         // beyond the EventLog line; there's no more app lifetime left to retry further.
         try { _tagWriteRetryQueue.RetryAll(OnTagWriteGiveUp); }

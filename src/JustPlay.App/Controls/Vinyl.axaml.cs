@@ -19,13 +19,13 @@ public partial class Vinyl : UserControl
     public static readonly StyledProperty<bool> SpinningProperty =
         AvaloniaProperty.Register<Vinyl, bool>(nameof(Spinning));
 
-    // 12 seconds per revolution = 30°/s.
+    // 12 seconds per revolution = 30deg/s.
     private const double DegreesPerSecond = 30.0;
 
     // Avalonia's Visual.RenderTransformOriginProperty defaults to RelativePoint.Center
     // (verified against Avalonia 12.0.3 source: Visual.cs registers the property with
     //  defaultValue: RelativePoint.Center). That means assigning a bare RotateTransform
-    // here already rotates around the VinylGroup's geometric centre — no Translate
+    // here already rotates around the VinylGroup's geometric centre - no Translate
     // sandwich or RotateTransform.CenterX/Y needed.
     //
     // History: an earlier version stacked T(-180) * R * T(+180) on top of the implicit
@@ -41,21 +41,21 @@ public partial class Vinyl : UserControl
     {
         InitializeComponent();
 
-        // NO DataContext = this anymore — the Image/placeholder bindings inside Vinyl.axaml
+        // NO DataContext = this anymore - the Image/placeholder bindings inside Vinyl.axaml
         // now use $parent[controls:Vinyl].Cover, which is element-relative and doesn't depend
         // on DataContext at all. That removes the timing window where compiled bindings could
         // evaluate against the inherited (wrong) DataContext and never re-bind.
 
         // Diagnostic: confirm the Cover styled-property is actually being written. If you see
-        // [Vinyl] Cover changed: null → null repeatedly the binding source (Current.Cover) is
-        // null — likely the MP3 has no embedded picture (TrackViewModel.Cover then logs
+        // [Vinyl] Cover changed: null -> null repeatedly the binding source (Current.Cover) is
+        // null - likely the MP3 has no embedded picture (TrackViewModel.Cover then logs
         // "[Cover NONE]" with the filename).
         CoverProperty.Changed.AddClassHandler<Vinyl>((v, e) =>
         {
             // Non-generic class-handler: OldValue/NewValue are typed as object?, no .Value indirection.
             var oldT = e.OldValue?.GetType().Name ?? "null";
             var newT = e.NewValue?.GetType().Name ?? "null";
-            Console.WriteLine($"[Vinyl] Cover changed: {oldT} → {newT}");
+            Console.WriteLine($"[Vinyl] Cover changed: {oldT} -> {newT}");
         });
 
         SpinningProperty.Changed.AddClassHandler<Vinyl>((v, _) => v.UpdateSpin());
@@ -85,7 +85,7 @@ public partial class Vinyl : UserControl
         _vinylGroup = this.FindControl<Grid>("VinylGroup");
         if (_vinylGroup is not null)
         {
-            // Bare RotateTransform — Avalonia's default RenderTransformOrigin=Center
+            // Bare RotateTransform - Avalonia's default RenderTransformOrigin=Center
             // gives us the (180, 180) pivot for free.
             _vinylGroup.RenderTransform = _rotation;
             Console.WriteLine("[Vinyl] attached, RotateTransform wired (pivot via default origin)");
@@ -107,7 +107,7 @@ public partial class Vinyl : UserControl
     /// <summary>
     /// Tick a DispatcherTimer at ~60 FPS and write the angle directly to the (field-owned)
     /// RotateTransform. Earlier <c>Animation.RunAsync</c> approach silently did nothing in
-    /// some configurations — a plain timer is foolproof.
+    /// some configurations - a plain timer is foolproof.
     /// </summary>
     private void UpdateSpin()
     {

@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace JustPlay.Library.Tests;
 
 /// <summary>
-/// The thin adapter (0.6, P2). ⛔ No audio is decoded anywhere in this file — the DSP is an injected
+/// The thin adapter (0.6, P2). (!!) No audio is decoded anywhere in this file - the DSP is an injected
 /// delegate, so a "long analysis" is a <see cref="TaskCompletionSource"/> that has not been completed
 /// yet, not a sleep. The only real waiting is on explicit handshakes (with a timeout), plus a couple
 /// of short bounded windows where the assertion is that something did NOT happen.
@@ -156,8 +156,8 @@ public sealed class AnalysisBatchRunnerTests
     [Fact]
     public async Task The_file_in_flight_when_the_gate_closes_finishes_and_no_new_one_starts()
     {
-        // ⭐ The documented decision. Aborting a half-decoded track would throw away everything
-        // already pulled over SMB and guarantee the same file is re-read from byte zero later — an
+        // (*) The documented decision. Aborting a half-decoded track would throw away everything
+        // already pulled over SMB and guarantee the same file is re-read from byte zero later - an
         // abort costs MORE NAS traffic than finishing, and produces no row to resume from.
         var open = true;
         var first = new TaskCompletionSource();
@@ -227,7 +227,7 @@ public sealed class AnalysisBatchRunnerTests
         await Task.Delay(NegativeWindow);
 
         Assert.Equal(1, dsp.StartedCount);
-        Assert.Equal(2, runner.Queue.PendingCount);   // ⚠ pause must not lose the queue
+        Assert.Equal(2, runner.Queue.PendingCount);   // (!) pause must not lose the queue
 
         runner.Resume();
         var report = await run;
@@ -276,7 +276,7 @@ public sealed class AnalysisBatchRunnerTests
     }
 
     // =========================================================================
-    // 6. Resume — the index is the memory, and it is re-checked at lease time.
+    // 6. Resume - the index is the memory, and it is re-checked at lease time.
     // =========================================================================
 
     [Fact]
@@ -312,7 +312,7 @@ public sealed class AnalysisBatchRunnerTests
     }
 
     // =========================================================================
-    // 7. Cancellation — and picking the same batch back up afterwards.
+    // 7. Cancellation - and picking the same batch back up afterwards.
     // =========================================================================
 
     [Fact]
@@ -333,15 +333,15 @@ public sealed class AnalysisBatchRunnerTests
         await WaitUntil(() => dsp.StartedCount == 1, "the first file to start");
 
         await cts.CancelAsync();
-        var report = await run;   // ⚠ a report, not an OperationCanceledException
+        var report = await run;   // (!) a report, not an OperationCanceledException
 
         Assert.True(report.Cancelled);
         Assert.Equal(0, report.Succeeded);
-        Assert.Equal(0, report.Failed);          // it never finished — that is not a failure
+        Assert.Equal(0, report.Failed);          // it never finished - that is not a failure
         Assert.Empty(report.Failures);
         Assert.Equal(2, report.Remaining);       // including the one that was in flight
 
-        // Resume: same runner, no paths — the queue kept them, front-first.
+        // Resume: same runner, no paths - the queue kept them, front-first.
         dsp.ClearStarted();
         dsp.Behaviour = null;
         var second = await runner.RunAsync();
@@ -372,7 +372,7 @@ public sealed class AnalysisBatchRunnerTests
     }
 
     // =========================================================================
-    // 8. Progress — shaped for the shared floating BusyOverlay.
+    // 8. Progress - shaped for the shared floating BusyOverlay.
     // =========================================================================
 
     [Fact]

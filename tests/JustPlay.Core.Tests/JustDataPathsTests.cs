@@ -57,7 +57,7 @@ public class JustDataPathsTests
     [Fact]
     public void A_value_the_platform_rejects_falls_back_instead_of_throwing()
     {
-        // A typo'd variable must not stop the app from starting — losing the redirection is
+        // A typo'd variable must not stop the app from starting - losing the redirection is
         // recoverable, refusing to launch is not.
         Assert.Equal(Fallback, JustDataPaths.Resolve("C:\\bad\0path", Fallback));
     }

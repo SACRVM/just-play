@@ -16,7 +16,7 @@ namespace JustPlay.App;
 ///   1. Raw BASS_FX BPM.
 ///   2. Corrected BPM from TempoOctaveCorrector (same 11 kHz decode path as TrackAnalysisService).
 ///   3. Octave-corrector candidate scores table {raw/2, raw, raw*2, raw/3, raw*3}.
-///   4. ACF peak table — top 8 peaks across 60–200 BPM — so we can see the true
+///   4. ACF peak table - top 8 peaks across 60-200 BPM - so we can see the true
 ///      tempo periodicity even if it's not a 2x multiple of the BASS_FX estimate.
 /// </summary>
 internal static class BpmDebug
@@ -44,7 +44,7 @@ internal static class BpmDebug
             // Give a clear message if the NAS is unreachable.
             var dir = Path.GetDirectoryName(filePath);
             if (dir is not null && !Directory.Exists(dir))
-                Console.WriteLine($"  (parent directory also not found — NAS may be unreachable)");
+                Console.WriteLine($"  (parent directory also not found - NAS may be unreachable)");
             return;
         }
 
@@ -91,7 +91,7 @@ internal static class BpmDebug
         }
         Console.WriteLine(rawBpm.HasValue
             ? $"  Raw BPM: {rawBpm.Value:0.00}"
-            : "  Raw BPM: (none — detection failed)");
+            : "  Raw BPM: (none - detection failed)");
         Console.WriteLine();
 
         // ---- Decode at 11 kHz (same path as TrackAnalysisService for energy + octave correction) ----
@@ -112,7 +112,7 @@ internal static class BpmDebug
 
         if (samples is null || samples.Length < FrameSize * 4)
         {
-            Console.WriteLine("Audio too short or failed to decode — cannot run corrector diagnostics.");
+            Console.WriteLine("Audio too short or failed to decode - cannot run corrector diagnostics.");
             return;
         }
 
@@ -126,13 +126,13 @@ internal static class BpmDebug
             Console.WriteLine($"  Raw BPM:       {rawBpm.Value:0.00}");
             Console.WriteLine($"  Corrected BPM: {correctedBpm.Value:0.00}");
             if (Math.Abs(correctedBpm.Value - rawBpm.Value) < 0.01)
-                Console.WriteLine("  (no correction applied — raw BPM was kept)");
+                Console.WriteLine("  (no correction applied - raw BPM was kept)");
             else
-                Console.WriteLine($"  (correction applied: {rawBpm.Value:0.00} → {correctedBpm.Value:0.00})");
+                Console.WriteLine($"  (correction applied: {rawBpm.Value:0.00} -> {correctedBpm.Value:0.00})");
         }
         else
         {
-            Console.WriteLine("  (skipped — no raw BPM)");
+            Console.WriteLine("  (skipped - no raw BPM)");
         }
         Console.WriteLine();
 
@@ -141,13 +141,13 @@ internal static class BpmDebug
         var envelope = BuildOnsetEnvelope(samples);
         if (envelope is null || envelope.Length < 4)
         {
-            Console.WriteLine("  Envelope too short — cannot compute ACF.");
+            Console.WriteLine("  Envelope too short - cannot compute ACF.");
             return;
         }
         Console.WriteLine($"  Envelope length: {envelope.Length} frames " +
                           $"(hop={HopSize} samples, ~{1000.0 * HopSize / SampleRate:0.0} ms/frame)");
 
-        // Max lag: 40 BPM → period 1.5 s.
+        // Max lag: 40 BPM -> period 1.5 s.
         var maxLagFrames = (int)Math.Min(
             1.5 * SampleRate / HopSize,
             envelope.Length - 1);
@@ -161,7 +161,7 @@ internal static class BpmDebug
         Console.WriteLine("--- 3. Octave-corrector candidate scores ---");
         if (rawBpm.HasValue)
         {
-            // Extended set for diagnosis (corrector only uses /2,x1,x2 — we also show /3,x3).
+            // Extended set for diagnosis (corrector only uses /2,x1,x2 - we also show /3,x3).
             var candidateDefs = new (string Label, double BpmFactor)[]
             {
                 ("raw/3", 1.0/3.0),
@@ -225,22 +225,22 @@ internal static class BpmDebug
             Console.WriteLine($"  bestBpm={bestBpm:0.00}, bestScore={bestScore:0.000000}");
             bool rawWon = Math.Abs(bestBpm - rawBpm.Value) < 0.5;
             if (rawWon)
-                Console.WriteLine("  Decision: raw already won → no correction.");
+                Console.WriteLine("  Decision: raw already won -> no correction.");
             else if (bestScore <= 0)
-                Console.WriteLine("  Decision: bestScore <= 0 → keep raw.");
+                Console.WriteLine("  Decision: bestScore <= 0 -> keep raw.");
             else if (rawInRange && rawScore > 0 && bestScore <= rawScore * (1.0 + MinScoreMargin))
-                Console.WriteLine($"  Decision: margin {bestScore / rawScore - 1:+0.000;-0.000} < {MinScoreMargin} → keep raw.");
+                Console.WriteLine($"  Decision: margin {bestScore / rawScore - 1:+0.000;-0.000} < {MinScoreMargin} -> keep raw.");
             else
-                Console.WriteLine($"  Decision: correction applied → {bestBpm:0.00} BPM.");
+                Console.WriteLine($"  Decision: correction applied -> {bestBpm:0.00} BPM.");
         }
         else
         {
-            Console.WriteLine("  (skipped — no raw BPM)");
+            Console.WriteLine("  (skipped - no raw BPM)");
         }
         Console.WriteLine();
 
-        // ---- 4. ACF peak table (60–200 BPM) ----
-        Console.WriteLine("--- 4. ACF peak table (60–200 BPM, top 8 peaks) ---");
+        // ---- 4. ACF peak table (60-200 BPM) ----
+        Console.WriteLine("--- 4. ACF peak table (60-200 BPM, top 8 peaks) ---");
         PrintAcfPeakTable(acf, SampleRate, minBpm: 60, maxBpm: 200, topN: 8);
     }
 
@@ -370,11 +370,11 @@ internal static class BpmDebug
     /// For each audio file in <paramref name="folder"/>:
     ///   - reads the tagged BPM (TagLib#, ground truth from e.g. Mixed In Key),
     ///   - computes raw BASS_FX BPM,
-    ///   - runs OLD corrector logic (only {raw/2, raw, raw×2}),
+    ///   - runs OLD corrector logic (only {raw/2, raw, rawx2}),
     ///   - runs NEW corrector logic (hybrid ACF scan; full <see cref="TempoOctaveCorrector"/>),
     ///   - prints a table and summary.
     ///
-    /// STRICTLY READ-ONLY — no writes to the folder at any point.
+    /// STRICTLY READ-ONLY - no writes to the folder at any point.
     /// </summary>
     public static void RunValidate(IServiceProvider services, string folder)
     {
@@ -412,7 +412,7 @@ internal static class BpmDebug
         var metaReader   = services.GetRequiredService<IMetadataReader>();
         var newCorrector = new TempoOctaveCorrector();
 
-        // Supported audio extensions — same as the main app.
+        // Supported audio extensions - same as the main app.
         var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { ".mp3", ".flac", ".wav", ".aiff", ".aif", ".m4a", ".ogg", ".opus" };
 
@@ -453,7 +453,7 @@ internal static class BpmDebug
         foreach (var filePath in files)
         {
             var name = Path.GetFileName(filePath);
-            var shortName = name.Length > nameW ? name[..(nameW - 1)] + "…" : name;
+            var shortName = name.Length > nameW ? name[..(nameW - 1)] + "..." : name;
 
             // -- Read tagged BPM (READ ONLY) --
             double? taggedBpm = null;
@@ -547,13 +547,13 @@ internal static class BpmDebug
         Console.WriteLine($"Files with tagged BPM : {tracked} / {files.Length}");
         if (tracked > 0)
         {
-            Console.WriteLine($"Exact match (±2 BPM):");
+            Console.WriteLine($"Exact match (+/-2 BPM):");
             Console.WriteLine($"  OLD corrector : {oldMatch}/{tracked}  ({oldMatch * 100.0 / tracked:0.0}%)");
             Console.WriteLine($"  NEW corrector : {newMatch}/{tracked}  ({newMatch * 100.0 / tracked:0.0}%)");
-            Console.WriteLine($"Octave-agnostic match (×/÷ 2,3,4 within ±2):");
+            Console.WriteLine($"Octave-agnostic match (x// 2,3,4 within +/-2):");
             Console.WriteLine($"  OLD corrector : {oldOctMatch}/{tracked}  ({oldOctMatch * 100.0 / tracked:0.0}%)");
             Console.WriteLine($"  NEW corrector : {newOctMatch}/{tracked}  ({newOctMatch * 100.0 / tracked:0.0}%)");
-            Console.WriteLine($"Tracks changed OLD→NEW : {changed}  (improved: {changedToward}, regressed: {changedAway})");
+            Console.WriteLine($"Tracks changed OLD->NEW : {changed}  (improved: {changedToward}, regressed: {changedAway})");
         }
     }
 
@@ -606,7 +606,7 @@ internal static class BpmDebug
 
     private static bool OctaveMatch(double detected, double tagged)
     {
-        // True if detected ≈ tagged × (1, 2, 3, 4, 1/2, 1/3, 1/4) within ±2 BPM.
+        // True if detected ~ tagged x (1, 2, 3, 4, 1/2, 1/3, 1/4) within +/-2 BPM.
         double[] ratios = [1.0, 2.0, 3.0, 4.0, 0.5, 1.0/3.0, 0.25];
         foreach (var r in ratios)
             if (Math.Abs(detected - tagged * r) <= 2.0) return true;

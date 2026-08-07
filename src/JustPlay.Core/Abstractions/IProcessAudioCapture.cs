@@ -10,7 +10,7 @@ namespace JustPlay.Core.Abstractions;
 /// Application Loopback / macOS Core-Audio process taps) and hands the PCM to a sink. This is the
 /// driverless "capture a specific APP" Phase-0 source for JUST STREAM (see
 /// <c>.claude/skills/just-route/references/just-route-vision.md</c>): the target app renders to its
-/// own device normally, unaware, while we tap its stream invisibly — no virtual cable, no
+/// own device normally, unaware, while we tap its stream invisibly - no virtual cable, no
 /// system-sound leak, no reconfiguration.
 ///
 /// Lives behind this Core abstraction (CLAUDE.md layering). The Windows implementation
@@ -51,7 +51,7 @@ public interface IProcessAudioCapture : IDisposable
 
     /// <summary>
     /// Raised on a capture thread with a block of interleaved-stereo float PCM at the started
-    /// sample rate. The buffer is only valid for the duration of the call — the handler MUST consume
+    /// sample rate. The buffer is only valid for the duration of the call - the handler MUST consume
     /// (copy / push) it synchronously and not retain it. Never touch UI APIs from here.
     /// The int is the number of VALID floats in the buffer (may be shorter than the array).
     /// </summary>

@@ -8,7 +8,7 @@ namespace JustPlay.Audio.Bass;
 /// broadcast service casts whichever one is wired up at the DI root.
 ///
 /// This abstraction deliberately lives in the BASS adapter assembly, NOT in
-/// JustPlay.Core — a raw BASS channel handle is a platform concept and Core must
+/// JustPlay.Core - a raw BASS channel handle is a platform concept and Core must
 /// stay platform-agnostic (CLAUDE.md layering rule).
 /// </summary>
 public interface IBassMixerSource

@@ -4,7 +4,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// EXPERIMENTAL — N19 segment-aware key detection study (2026-06-24).
+/// EXPERIMENTAL - N19 segment-aware key detection study (2026-06-24).
 ///
 /// <para>Motivation: whole-song chroma averaging smears tonally-ambiguous sections
 /// (pure-beat intros, amodal drops) with the tonal breakdowns where the key is actually
@@ -14,30 +14,30 @@ namespace JustPlay.Analysis;
 /// <para><b>Three experimental variants, all sharing the shipped HpcpKeyDetector's
 /// HPCP feature extractor:</b></para>
 /// <list type="number">
-///   <item><b>Global (V1 baseline):</b> identical to shipped <see cref="HpcpKeyDetector"/> —
+///   <item><b>Global (V1 baseline):</b> identical to shipped <see cref="HpcpKeyDetector"/> -
 ///     the baseline to beat, reproduced here for a clean apples-to-apples comparison.</item>
 ///   <item><b>Per-tonal-segment vote (V2):</b> use <see cref="StructureDetector"/> boundaries
 ///     to slice the audio into sections, compute a 12-bin chroma per section, gate on
-///     tonalness (spectral flatness — tonal ≈ low flatness), then take a weighted majority
-///     vote. Each tonal segment's vote is weighted by length × (1−flatness). A minimum-
+///     tonalness (spectral flatness - tonal ~ low flatness), then take a weighted majority
+///     vote. Each tonal segment's vote is weighted by length x (1-flatness). A minimum-
 ///     tonalness threshold avoids drum-only intro windows contributing noise.
 ///     Falls back to global when fewer than 2 tonal segments are found.</item>
 ///   <item><b>HPSS flatness-gated chroma (V3):</b> uses <see cref="HpssDrumSuppressor"/>
 ///     to build a per-frame-flatness-WEIGHTED chroma over the whole track. High-flatness
 ///     (percussive/noise) frames contribute less energy, sharpening the harmonic profile.
-///     This is an approximation to true HPSS (Fitzgerald 2010) that avoids the O(T²F)
+///     This is an approximation to true HPSS (Fitzgerald 2010) that avoids the O(T^2F)
 ///     cost of the full time-median approach.</item>
 /// </list>
 ///
 /// <para><b>Agreed corrections from the N19 brief (baked in):</b></para>
 /// <list type="bullet">
-///   <item>Drums HURT key — suppression via flatness gating, not "focus on bass/drums".</item>
-///   <item>Bass alone gives the tonic but NOT the mode — use the full 100–3500 Hz band.</item>
-///   <item>"First 30s" is often beat-only/atonal — gate by TONALNESS, not a fixed window.</item>
+///   <item>Drums HURT key - suppression via flatness gating, not "focus on bass/drums".</item>
+///   <item>Bass alone gives the tonic but NOT the mode - use the full 100-3500 Hz band.</item>
+///   <item>"First 30s" is often beat-only/atonal - gate by TONALNESS, not a fixed window.</item>
 /// </list>
 ///
 /// <para>Platform-agnostic: no Avalonia, no ManagedBass. Hand-rolled FFT only. No new NuGet.
-/// Trim/AOT-safe. NOT the shipped path — experiment only.</para>
+/// Trim/AOT-safe. NOT the shipped path - experiment only.</para>
 /// </summary>
 public sealed class SegmentKeyDetector
 {
@@ -49,26 +49,26 @@ public sealed class SegmentKeyDetector
 
     /// <summary>
     /// Minimum tonal weight for a segment to participate in the vote.
-    /// Spectral flatness ∈ [0,1]; 0=pure tone, 1=white noise.
-    /// Tonalness = 1 − flatness. Segments with tonalness below this are excluded.
+    /// Spectral flatness  in  [0,1]; 0=pure tone, 1=white noise.
+    /// Tonalness = 1 - flatness. Segments with tonalness below this are excluded.
     /// Default 0.05 = only exclude segments that are almost entirely percussive.
     /// </summary>
     public double MinTonalWeight { get; init; } = 0.05;
 
-    // ── Variant 1: global baseline ────────────────────────────────────────────────────
+    // -- Variant 1: global baseline ----------------------------------------------------
 
     /// <summary>
-    /// BASELINE (V1): the shipped HpcpKeyDetector.Detect() — same result, same feature,
+    /// BASELINE (V1): the shipped HpcpKeyDetector.Detect() - same result, same feature,
     /// reproduced here so all variants share the same decode-and-run call site.
     /// </summary>
     public (MusicalKey Key, double Confidence)? DetectGlobal(DecodedAudio audio, CancellationToken ct = default)
         => _hpcp.Detect(audio, ct);
 
-    // ── Variant 2: per-tonal-segment vote ────────────────────────────────────────────
+    // -- Variant 2: per-tonal-segment vote --------------------------------------------
 
     /// <summary>
     /// PER-TONAL-SEGMENT VOTE (V2): slices by structural boundaries, computes chroma per
-    /// tonal segment, and majority-votes weighted by segment-length × tonalness.
+    /// tonal segment, and majority-votes weighted by segment-length x tonalness.
     /// Returns a <see cref="SegmentVoteDetails"/> alongside the key result.
     /// Falls back to the global result when fewer than 2 tonal segments are found.
     /// </summary>
@@ -144,14 +144,14 @@ public sealed class SegmentKeyDetector
         return (winnerKey, confidence, details);
     }
 
-    // ── Variant 3: HPSS flatness-gated chroma ────────────────────────────────────────
+    // -- Variant 3: HPSS flatness-gated chroma ----------------------------------------
 
     /// <summary>
     /// HPSS FLATNESS-GATED (V3): uses <see cref="HpssDrumSuppressor.BuildGatedChroma12"/>
-    /// which accumulates HPCP energy weighted by per-frame tonalness (1−flatness), so
+    /// which accumulates HPCP energy weighted by per-frame tonalness (1-flatness), so
     /// heavily percussive frames contribute little to the final chroma.
     ///
-    /// <para>Simpler than full median-filter HPSS (Fitzgerald 2010) but O(T×F) vs O(T×F×L)
+    /// <para>Simpler than full median-filter HPSS (Fitzgerald 2010) but O(TxF) vs O(TxFxL)
     /// and measurable in a night session. If it helps, the full HPSS can be implemented
     /// as a follow-up.</para>
     /// </summary>
@@ -162,12 +162,12 @@ public sealed class SegmentKeyDetector
         return chroma is null ? null : ChromagramKeyDetector.Classify(chroma, 0.0);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────────────
+    // -- Helpers -----------------------------------------------------------------------
 
     /// <summary>
-    /// Compute tonalness = 1 − spectral_flatness for a segment.
-    /// Spectral flatness = geometric_mean / arithmetic_mean of |X| in [100–3500 Hz].
-    /// Pure tones → near 0 (very flat distribution → low flatness), noise → near 1.
+    /// Compute tonalness = 1 - spectral_flatness for a segment.
+    /// Spectral flatness = geometric_mean / arithmetic_mean of |X| in [100-3500 Hz].
+    /// Pure tones -> near 0 (very flat distribution -> low flatness), noise -> near 1.
     /// We average across frames (non-overlapping 2048-sample frames for speed).
     /// </summary>
     private static double ComputeTonalness(DecodedAudio audio, CancellationToken ct)
@@ -228,7 +228,7 @@ public sealed class SegmentKeyDetector
         return new DecodedAudio(slice, audio.SampleRate);
     }
 
-    /// <summary>Crude 4x downsample (no anti-aliasing filter — StructureDetector is robust).</summary>
+    /// <summary>Crude 4x downsample (no anti-aliasing filter - StructureDetector is robust).</summary>
     private static DecodedAudio DownsampleBy4(DecodedAudio audio)
     {
         var samples = audio.Samples!;

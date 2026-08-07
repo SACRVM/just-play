@@ -52,10 +52,10 @@ public class SpectralEnergyDetectorTests
 
     /// <summary>
     /// A 997 Hz 0 dBFS sine is the BS.1770 calibration reference: it should read
-    /// approximately −3.01 LUFS (the spec-mandated calibration point). The K-weighting
+    /// approximately -3.01 LUFS (the spec-mandated calibration point). The K-weighting
     /// biquad coefficients in SpectralEnergyDetector were derived so that this holds at
     /// 11 025 Hz. We can't directly observe LUFS from the public API, but we CAN verify
-    /// that a pure 997 Hz loud tone produces a higher energy score than a very quiet one —
+    /// that a pure 997 Hz loud tone produces a higher energy score than a very quiet one -
     /// confirming the loudness path isn't broken.
     ///
     /// For a direct LUFS check we verify the internal K-weighting filter via the
@@ -80,8 +80,8 @@ public class SpectralEnergyDetectorTests
 
     /// <summary>
     /// Verifies that the K-weighting + LUFS math produces the correct calibration value
-    /// at 11 025 Hz. A 997 Hz 0 dBFS sine should yield LUFS ≈ −3.01. We test the
-    /// internal static helper directly via reflection-free access — the helper is internal
+    /// at 11 025 Hz. A 997 Hz 0 dBFS sine should yield LUFS ~ -3.01. We test the
+    /// internal static helper directly via reflection-free access - the helper is internal
     /// to the assembly and the test project is in the same namespace/assembly (InternalsVisibleTo
     /// would be required for a separate project; here we use a shim).
     ///
@@ -89,7 +89,7 @@ public class SpectralEnergyDetectorTests
     /// result in a physically reasonable LUFS range for a 0 dBFS tone.
     /// Since we can't call the private method from outside the class, we use a white-box
     /// approach: generate a known sine, run through the FULL detector, and assert the
-    /// energy output is in a range that is only achievable if loudness ≈ −3 LUFS
+    /// energy output is in a range that is only achievable if loudness ~ -3 LUFS
     /// (i.e. not silenced/gated and not obviously wrong).
     /// </summary>
     [Fact]
@@ -106,13 +106,13 @@ public class SpectralEnergyDetectorTests
     }
 
     /// <summary>
-    /// EBU R128 absolute gate: blocks below −70 LUFS must be excluded. A signal that is
+    /// EBU R128 absolute gate: blocks below -70 LUFS must be excluded. A signal that is
     /// entirely silence should return 1 (lowest energy), not a mid-range value.
     /// </summary>
     [Fact]
     public void VirtuallySilent_Signal_Returns_1()
     {
-        // Amplitude 1e-5 (≈ −100 dBFS) — well below the absolute gate.
+        // Amplitude 1e-5 (~ -100 dBFS) - well below the absolute gate.
         var samples = Sine997Hz(5.0, amplitude: 1e-5);
         var result  = _det.Detect(new DecodedAudio(samples, Rate));
         Assert.True(result is null or 1,
@@ -120,11 +120,11 @@ public class SpectralEnergyDetectorTests
     }
 
     // -------------------------------------------------------------------------
-    // RMS-SD groove feature tests [energy-detection.md §Grounding the 1–10 scale]
+    // RMS-SD groove feature tests [energy-detection.md Sec.Grounding the 1-10 scale]
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// A dynamically varying signal (amplitude bursts → high RMS-SD) should score HIGHER
+    /// A dynamically varying signal (amplitude bursts -> high RMS-SD) should score HIGHER
     /// than a steady-amplitude signal of the same mean loudness. Validates the groove
     /// term (Stupacher et al. 2016 finding: groove is independent of absolute loudness).
     /// </summary>
@@ -133,8 +133,8 @@ public class SpectralEnergyDetectorTests
     {
         // Steady: constant amplitude sine
         var steady  = SteadySine(4.0, amplitude: 0.3);
-        // Dynamic: same frequency but pulsed at 4 Hz (on/off) → same mean RMS, higher RMS-SD
-        var dynamic_ = PulsedSine(4.0, amplitude: 0.6, pulseHz: 4.0); // 0.6 amp * 50% duty ≈ 0.3 mean
+        // Dynamic: same frequency but pulsed at 4 Hz (on/off) -> same mean RMS, higher RMS-SD
+        var dynamic_ = PulsedSine(4.0, amplitude: 0.6, pulseHz: 4.0); // 0.6 amp * 50% duty ~ 0.3 mean
 
         var eSteady  = _det.Detect(new DecodedAudio(steady,   Rate));
         var eDynamic = _det.Detect(new DecodedAudio(dynamic_, Rate));
@@ -148,7 +148,7 @@ public class SpectralEnergyDetectorTests
 
     /// <summary>
     /// A perfectly steady sine (no dynamics = RMS-SD of zero) should score LOWER than
-    /// a pulsed signal at higher amplitude — confirming RMS-SD actually affects the output.
+    /// a pulsed signal at higher amplitude - confirming RMS-SD actually affects the output.
     /// </summary>
     [Fact]
     public void SteadySine_ScoresLowerThan_LoudPulsedSignal()
@@ -226,7 +226,7 @@ public class SpectralEnergyDetectorTests
             var s = Math.Sin(2 * Math.PI * 1800 * t)
                   + Math.Sin(2 * Math.PI * 3200 * t)
                   + 0.5 * (rng.NextDouble() * 2 - 1); // broadband sizzle
-            // 8 Hz amplitude bursts → strong spectral flux / onset density.
+            // 8 Hz amplitude bursts -> strong spectral flux / onset density.
             var env = 0.5 + 0.5 * Math.Sign(Math.Sin(2 * Math.PI * 8 * t));
             x[i] = (float)(amp * env * s / 2.0);
         }

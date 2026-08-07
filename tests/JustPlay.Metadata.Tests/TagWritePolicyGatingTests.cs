@@ -12,7 +12,7 @@ namespace JustPlay.Metadata.Tests;
 /// <list type="number">
 ///   <item>
 ///   <b>The default is exactly today's ungated writer.</b> A caller that omits the argument
-///   (every existing caller — <c>MainWindowViewModel</c>, the CLI, JUST TAG) must get
+///   (every existing caller - <c>MainWindowViewModel</c>, the CLI, JUST TAG) must get
 ///   byte-identical output to a caller that passes <see cref="TagWritePolicy.AllowAll"/>
 ///   explicitly. The one-off proof against Chloe's real 8-file ID3 corpus (pre-change writer vs.
 ///   post-change writer, both hashed) lives in the L5 task report, not in the repo (the corpus is
@@ -37,7 +37,7 @@ public sealed class TagWritePolicyGatingTests : IDisposable
         foreach (var f in _tempFiles.Where(File.Exists)) File.Delete(f);
     }
 
-    // G minor: pitch class 7, minor → Camelot "6A".
+    // G minor: pitch class 7, minor -> Camelot "6A".
     private static readonly MusicalKey GMinor = new(7, KeyMode.Minor);
 
     private static TrackAnalysisState SampleState() => new()
@@ -46,7 +46,7 @@ public sealed class TagWritePolicyGatingTests : IDisposable
         Detected = new AnalysisResult { Bpm = 128, Key = GMinor, Energy = 8 },
     };
 
-    // One value per family, all requested at once — the shape PromoteCommand/Persist build.
+    // One value per family, all requested at once - the shape PromoteCommand/Persist build.
     private static TagWrite FullCandidate() => new()
     {
         Bpm = 128,
@@ -60,7 +60,7 @@ public sealed class TagWritePolicyGatingTests : IDisposable
         Peak = 0.988553,
     };
 
-    // ── 1. Omitting the policy argument is indistinguishable from AllowAll ─────
+    // -- 1. Omitting the policy argument is indistinguishable from AllowAll -----
 
     [Fact]
     public void Write_OmittedPolicyArgument_IsByteIdenticalTo_ExplicitAllowAll()
@@ -69,8 +69,8 @@ public sealed class TagWritePolicyGatingTests : IDisposable
         var pathDefault = WriteTemp(".mp3", seed);
         var pathAllowAll = WriteTemp(".mp3", seed);
 
-        _writer.Write(pathDefault, FullCandidate());                            // 2-arg — relies on the default
-        _writer.Write(pathAllowAll, FullCandidate(), TagWritePolicy.AllowAll);  // 3-arg — explicit
+        _writer.Write(pathDefault, FullCandidate());                            // 2-arg - relies on the default
+        _writer.Write(pathAllowAll, FullCandidate(), TagWritePolicy.AllowAll);  // 3-arg - explicit
 
         Assert.Equal(Hash(pathDefault), Hash(pathAllowAll));
     }
@@ -102,7 +102,7 @@ public sealed class TagWritePolicyGatingTests : IDisposable
         Assert.Equal(Hash(pathDefault), Hash(pathAllowAll));
     }
 
-    // ── 2. Per-family gating — denying one family leaves only that field alone ─
+    // -- 2. Per-family gating - denying one family leaves only that field alone -
 
     [Fact]
     public void AllowBpm_False_LeavesBpmUnset_WritesEverythingElse()
@@ -192,7 +192,7 @@ public sealed class TagWritePolicyGatingTests : IDisposable
         AssertEverythingElseWritten(path, _reader.Read(path), except: TagFrameFamily.ReplayGain);
     }
 
-    // ── shared assertion: every family OTHER than `except` must have applied ───
+    // -- shared assertion: every family OTHER than `except` must have applied ---
 
     private void AssertEverythingElseWritten(string path, TrackMetadata meta, TagFrameFamily except)
     {
@@ -220,11 +220,11 @@ public sealed class TagWritePolicyGatingTests : IDisposable
 
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
-    // ── fixture builders (same technique as TagLibWritePreviewTests) ───────────
+    // -- fixture builders (same technique as TagLibWritePreviewTests) -----------
 
     private static byte[] SeedBytes()
     {
-        // Bare ID3v2.3 header + one MPEG1 Layer3 sync header — TagLib parses it as a taggable MP3.
+        // Bare ID3v2.3 header + one MPEG1 Layer3 sync header - TagLib parses it as a taggable MP3.
         var bare = new byte[14];
         bare[0] = (byte)'I'; bare[1] = (byte)'D'; bare[2] = (byte)'3';
         bare[3] = 3; // v2.3
@@ -234,7 +234,7 @@ public sealed class TagWritePolicyGatingTests : IDisposable
 
     private static byte[] SeedFlacBytes()
     {
-        // Minimal FLAC: "fLaC" + a last-block STREAMINFO (34 bytes) — enough for TagLib to open
+        // Minimal FLAC: "fLaC" + a last-block STREAMINFO (34 bytes) - enough for TagLib to open
         // the file and add a VORBIS_COMMENT block on save.
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);

@@ -31,6 +31,6 @@ public sealed record DedupGroup
     /// </summary>
     [JsonPropertyName("key")]      public required string Key      { get; init; }
     [JsonPropertyName("filePaths")] public List<string> FilePaths  { get; init; } = [];
-    /// <summary>Bytes wasted (all copies minus one) — only set for exact dupes.</summary>
+    /// <summary>Bytes wasted (all copies minus one) - only set for exact dupes.</summary>
     [JsonPropertyName("wastedBytes")] public long WastedBytes     { get; init; }
 }

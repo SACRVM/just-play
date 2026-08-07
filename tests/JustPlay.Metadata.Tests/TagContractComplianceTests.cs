@@ -4,7 +4,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.Metadata.Tests;
 
 /// <summary>
-/// Regression guard for the library tag contract (NAS CLAUDE.md §4) across all three
+/// Regression guard for the library tag contract (NAS CLAUDE.md Sec.4) across all three
 /// container types the library holds. Empirically found violated by the 2026-07-16
 /// ingest of 4,166 files (repaired by library-import/fix_contract.py); these tests pin
 /// the writer so the bugs cannot come back:
@@ -12,13 +12,13 @@ namespace JustPlay.Metadata.Tests;
 ///   1. TKEY (MP3/AIFF) / initialkey+key+tkey (FLAC) hold the CAMELOT code ("6A"),
 ///      never the musical name ("Gm").
 ///   2. The comment is rebuilt from the SAME detected key/energy that TKEY and
-///      TXXX:ENERGY carry — one source, no floor-vs-round or okpc-vs-kpc drift.
+///      TXXX:ENERGY carry - one source, no floor-vs-round or okpc-vs-kpc drift.
 ///   3. MP3: EXACTLY ONE COMM frame (lang="eng", desc="") and NO ID3v1 shadow tag
 ///      (which readers render as a second "ID3v1 Comment" frame).
 ///   4. FLAC: bpm + comment are materialized as Xiph fields (TagLib#'s defaults write
-///      TEMPO/DESCRIPTION, which the contract — and DJ tools — do not read).
+///      TEMPO/DESCRIPTION, which the contract - and DJ tools - do not read).
 ///
-/// Fixtures are synthesised in-memory (see EditableTagsRoundTripTests) — no binary
+/// Fixtures are synthesised in-memory (see EditableTagsRoundTripTests) - no binary
 /// blobs in the repo.
 /// </summary>
 public sealed class TagContractComplianceTests : IDisposable
@@ -26,7 +26,7 @@ public sealed class TagContractComplianceTests : IDisposable
     private readonly List<string> _tempFiles = [];
     private readonly TagLibMetadataWriter _writer = new();
 
-    // G minor: pitch class 7, minor → Camelot "6A" (the report's own example: the old
+    // G minor: pitch class 7, minor -> Camelot "6A" (the report's own example: the old
     // writer stamped "Gm"). Energy 8 / BPM 128 round-trip as plain integers.
     private static readonly MusicalKey Key = new(7, KeyMode.Minor);
     private const int Energy = 8;
@@ -38,7 +38,7 @@ public sealed class TagContractComplianceTests : IDisposable
         Bpm     = Bpm,
         Key     = Key,
         Energy  = Energy,
-        // The comment is built from the SAME values the standard tags get — mirrors
+        // The comment is built from the SAME values the standard tags get - mirrors
         // PromoteCommand's contract write.
         Comment = DjCommentBuilder.Build(Key, Energy, existingComment: null),
     };
@@ -48,7 +48,7 @@ public sealed class TagContractComplianceTests : IDisposable
         foreach (var f in _tempFiles.Where(File.Exists)) File.Delete(f);
     }
 
-    // ── MP3 ───────────────────────────────────────────────────────────────────
+    // -- MP3 -------------------------------------------------------------------
 
     [Fact]
     public void Mp3_Write_StampsCamelotAndSingleEngComm_AndStripsId3v1()
@@ -80,7 +80,7 @@ public sealed class TagContractComplianceTests : IDisposable
         Assert.Equal("", comm.Description);                       //    desc empty, no "ID3v1 Comment"
         Assert.Equal(ExpectedComment, comm.Text);                 // 2. same key/energy as TKEY/ENERGY
 
-        // 3. the v1 shadow tag is gone from the FILE BYTES — the check mutagen-based
+        // 3. the v1 shadow tag is gone from the FILE BYTES - the check mutagen-based
         // verification uses. (TagLib# eagerly materialises an empty in-memory Id3v1
         // object on every MP3 open, so GetTag(Id3v1) is non-null even for clean files.)
         AssertNoId3v1Bytes(path);
@@ -92,7 +92,7 @@ public sealed class TagContractComplianceTests : IDisposable
         var path = CreateMp3();
 
         _writer.Write(path, ContractWrite());
-        _writer.Write(path, ContractWrite()); // idempotence — a re-promote must not double frames
+        _writer.Write(path, ContractWrite()); // idempotence - a re-promote must not double frames
 
         using var file = TagLib.File.Create(path);
         var id3 = Assert.IsType<TagLib.Id3v2.Tag>(file.GetTag(TagLib.TagTypes.Id3v2, false));
@@ -101,7 +101,7 @@ public sealed class TagContractComplianceTests : IDisposable
         AssertNoId3v1Bytes(path);
     }
 
-    // ── AIFF (ID3v2 chunk inside the container) ───────────────────────────────
+    // -- AIFF (ID3v2 chunk inside the container) -------------------------------
 
     [Fact]
     public void Aiff_Write_StampsCamelotAndSingleEngComm()
@@ -122,15 +122,15 @@ public sealed class TagContractComplianceTests : IDisposable
         Assert.Equal("", comm.Description);
         Assert.Equal(ExpectedComment, comm.Text);
 
-        // The FORM container size must span the appended "ID3 " chunk — TagLib# 2.3.0
+        // The FORM container size must span the appended "ID3 " chunk - TagLib# 2.3.0
         // leaves it stale, which makes the whole tag invisible to strict parsers
-        // (mutagen — the contract's verification tool). See RepairAiffFormSize.
+        // (mutagen - the contract's verification tool). See RepairAiffFormSize.
         var bytes = File.ReadAllBytes(path);
         var declared = (uint)((bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7]);
         Assert.Equal((uint)(bytes.Length - 8), declared);
     }
 
-    // ── FLAC (Xiph) ───────────────────────────────────────────────────────────
+    // -- FLAC (Xiph) -----------------------------------------------------------
 
     [Fact]
     public void Flac_Write_MaterializesFullContractFieldSet()
@@ -143,7 +143,7 @@ public sealed class TagContractComplianceTests : IDisposable
         var xiph = Assert.IsType<TagLib.Ogg.XiphComment>(file.GetTag(TagLib.TagTypes.Xiph, false));
 
         // 1./4. the Camelot triple + bpm + energy + comment, all as the fields the
-        // contract (and mutagen verification) reads — not TEMPO/DESCRIPTION.
+        // contract (and mutagen verification) reads - not TEMPO/DESCRIPTION.
         Assert.Equal("6A", xiph.GetFirstField("INITIALKEY"));
         Assert.Equal("6A", xiph.GetFirstField("KEY"));
         Assert.Equal("6A", xiph.GetFirstField("TKEY"));
@@ -154,11 +154,11 @@ public sealed class TagContractComplianceTests : IDisposable
             "DESCRIPTION must not carry a second comment copy");
     }
 
-    // ── fixture builders ──────────────────────────────────────────────────────
+    // -- fixture builders ------------------------------------------------------
 
     private string CreateMp3()
     {
-        // Bare ID3v2.3 header + one MPEG1 Layer3 sync header — the same minimal shape
+        // Bare ID3v2.3 header + one MPEG1 Layer3 sync header - the same minimal shape
         // EditableTagsRoundTripTests uses; TagLib parses it as a taggable MP3.
         var bare = new byte[14];
         bare[0] = (byte)'I'; bare[1] = (byte)'D'; bare[2] = (byte)'3';
@@ -188,7 +188,7 @@ public sealed class TagContractComplianceTests : IDisposable
 
     private string CreateFlac()
     {
-        // Minimal FLAC: "fLaC" + a last-block STREAMINFO (34 bytes) — enough for TagLib
+        // Minimal FLAC: "fLaC" + a last-block STREAMINFO (34 bytes) - enough for TagLib
         // to open the file and add a VORBIS_COMMENT block on save.
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
@@ -199,7 +199,7 @@ public sealed class TagContractComplianceTests : IDisposable
         si[0] = 0x10; si[1] = 0x00;                // min block size 4096
         si[2] = 0x10; si[3] = 0x00;                // max block size 4096
         // sample rate 44100 (20 bit), channels-1 = 1 (3 bit), bps-1 = 15 (5 bit):
-        // 44100 = 0x0AC44 → bytes 10..12: 0x0A 0xC4 0x4_, then ((1)<<1)|(15>>4) …
+        // 44100 = 0x0AC44 -> bytes 10..12: 0x0A 0xC4 0x4_, then ((1)<<1)|(15>>4) ...
         si[10] = 0x0A; si[11] = 0xC4; si[12] = 0x42; si[13] = 0xF0;
         w.Write(si);
         return WriteTemp(".flac", ms.ToArray());
@@ -213,7 +213,7 @@ public sealed class TagContractComplianceTests : IDisposable
         return path;
     }
 
-    // ── assertion helpers ─────────────────────────────────────────────────────
+    // -- assertion helpers -----------------------------------------------------
 
     private static string? GetTxxx(TagLib.Id3v2.Tag id3, string desc)
         => TagLib.Id3v2.UserTextInformationFrame.Get(id3, desc, false)?.Text is { Length: > 0 } t

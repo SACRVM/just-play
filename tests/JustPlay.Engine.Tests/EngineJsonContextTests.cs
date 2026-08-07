@@ -6,11 +6,11 @@ namespace JustPlay.Engine.Tests;
 
 /// <summary>
 /// Verifies that all facade DTOs round-trip correctly through the source-generated
-/// <see cref="EngineJsonContext"/>. No BASS, no Avalonia, no file I/O — pure JSON.
+/// <see cref="EngineJsonContext"/>. No BASS, no Avalonia, no file I/O - pure JSON.
 /// </summary>
 public class EngineJsonContextTests
 {
-    // ── TrackAnalysisDto ──────────────────────────────────────────────────────
+    // -- TrackAnalysisDto ------------------------------------------------------
 
     [Fact]
     public void TrackAnalysisDto_RoundTrips_AllFields()
@@ -55,7 +55,7 @@ public class EngineJsonContextTests
 
         var json = JsonSerializer.Serialize(dto, EngineJsonContext.Default.TrackAnalysisDto);
 
-        // Source-gen option WhenWritingNull — nullable fields must not appear.
+        // Source-gen option WhenWritingNull - nullable fields must not appear.
         Assert.DoesNotContain("\"bpm\"",          json);
         Assert.DoesNotContain("\"keyName\"",      json);
         Assert.DoesNotContain("\"keyCamelot\"",   json);
@@ -64,7 +64,7 @@ public class EngineJsonContextTests
         Assert.Contains("\"error\"",              json);
     }
 
-    // ── TrackTagsDto ──────────────────────────────────────────────────────────
+    // -- TrackTagsDto ----------------------------------------------------------
 
     [Fact]
     public void TrackTagsDto_RoundTrips_AllFields()
@@ -104,7 +104,7 @@ public class EngineJsonContextTests
         Assert.Equal(original.HasStoredAnalysis, restored.HasStoredAnalysis);
     }
 
-    // ── WriteTagsRequest ──────────────────────────────────────────────────────
+    // -- WriteTagsRequest ------------------------------------------------------
 
     [Fact]
     public void WriteTagsRequest_RoundTrips()
@@ -141,7 +141,7 @@ public class EngineJsonContextTests
         Assert.Null(restored.Favorite);
     }
 
-    // ── WriteTagsResult ──────────────────────────────────────────────────────
+    // -- WriteTagsResult ------------------------------------------------------
 
     [Fact]
     public void WriteTagsResult_Success_RoundTrips()
@@ -173,7 +173,7 @@ public class EngineJsonContextTests
         Assert.Equal("Access denied", restored.Error);
     }
 
-    // ── LibraryAnalysisResult ─────────────────────────────────────────────────
+    // -- LibraryAnalysisResult -------------------------------------------------
 
     [Fact]
     public void LibraryAnalysisResult_RoundTrips()

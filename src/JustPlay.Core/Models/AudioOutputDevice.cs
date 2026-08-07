@@ -6,7 +6,7 @@ namespace JustPlay.Core.Models;
 ///
 /// <paramref name="Index"/> is the BASS device index (starts at 1; 0 is "No sound").
 /// It can change across reboots (e.g. if devices are added/removed), so persistence
-/// uses <paramref name="Name"/> — which is stable for a given piece of hardware —
+/// uses <paramref name="Name"/> - which is stable for a given piece of hardware -
 /// and resolves the index at runtime.
 /// </summary>
 /// <param name="Index">BASS device index (1-based).</param>

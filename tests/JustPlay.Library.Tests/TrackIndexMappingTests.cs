@@ -25,7 +25,7 @@ public sealed class TrackIndexMappingTests
         EnergyDecision = FieldDecision.Applied,
     };
 
-    // ── TrackAnalysisState.AnalysedAtUtc round-trips through the codec ─────────
+    // -- TrackAnalysisState.AnalysedAtUtc round-trips through the codec ---------
 
     [Fact]
     public void Codec_round_trips_AnalysedAtUtc_to_the_second()
@@ -69,7 +69,7 @@ public sealed class TrackIndexMappingTests
         Assert.Equal(6, restored.Detected.Energy);
     }
 
-    // ── TrackIndexMapping.FromStoredBlob uses it ────────────────────────────────
+    // -- TrackIndexMapping.FromStoredBlob uses it --------------------------------
 
     [Fact]
     public void FromStoredBlob_records_the_blobs_own_analysedAt_when_present()
@@ -87,7 +87,7 @@ public sealed class TrackIndexMappingTests
     [Fact]
     public void FromStoredBlob_falls_back_to_the_unknown_sentinel_not_to_now()
     {
-        // The blob is real (v9, fully applied) but carries no AnalysedAtUtc — exactly the shape
+        // The blob is real (v9, fully applied) but carries no AnalysedAtUtc - exactly the shape
         // of every blob written before this field existed. Before the L7 fix this stamped
         // DateTime.UtcNow (the import moment); that is the bug the night report measured.
         var before = DateTime.UtcNow;
@@ -134,7 +134,7 @@ public sealed class TrackIndexMappingTests
     public void ToIndexEntry_still_stamps_now_for_a_genuinely_fresh_DSP_run()
     {
         // A caller that just ran the DSP (not importing a blob) and doesn't pass analysedAtUtc
-        // must keep getting "now" — that default is correct there; only FromStoredBlob's fallback
+        // must keep getting "now" - that default is correct there; only FromStoredBlob's fallback
         // changed. Guards against fixing this by changing ToIndexEntry's own default instead.
         var before = DateTime.UtcNow;
         var entry = TrackIndexMapping.ToIndexEntry(

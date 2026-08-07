@@ -6,13 +6,13 @@ namespace JustPlay.Tag.ViewModels;
 /// What the search actually DECIDES, as pure functions over one row and one condition.
 ///
 /// <para>It was private inside <see cref="TaggerViewModel"/> until Chloe reported the filter behaving
-/// "inverted" (2026-08-05) — and a search whose behaviour can only be checked by clicking through the
+/// "inverted" (2026-08-05) - and a search whose behaviour can only be checked by clicking through the
 /// app is a search nobody can check. Every mode below is now pinned by a test, so a claim about what
 /// "is not" does is a fact and not a reading of the code.</para>
 ///
 /// <para>The rules that are easy to get backwards, stated once:</para>
 /// <list type="bullet">
-///   <item>An ABSENT field is <c>null</c>, never <c>""</c> and never <c>"0"</c> — otherwise "is empty"
+///   <item>An ABSENT field is <c>null</c>, never <c>""</c> and never <c>"0"</c> - otherwise "is empty"
 ///         would stop finding the very files it exists for.</item>
 ///   <item>An absent field counts as "does not contain" and as "is not". Otherwise "ID3 version is not
 ///         2.4" would hide exactly the files that carry no tag at all.</item>
@@ -30,14 +30,14 @@ public static class TagSearch
     /// Whether a value box is needed for this FIELD + MODE pair. Artwork is the one field with nothing
     /// to type: it is present or it is not, so choosing it means choosing between the two emptiness
     /// modes and the box goes away (Chloe 2026-08-05: "dann blendet man eben text feld aus wenn man
-    /// cover wählt").
+    /// cover waehlt").
     /// </summary>
     public static bool NeedsValue(TagField field, MatchMode? mode) =>
         field != TagField.Cover && NeedsValue(mode);
 
     /// <summary>
     /// A condition only counts once it can actually decide something: an emptiness test needs no text,
-    /// everything else does. A condition that is not active is simply not applied — it never narrows
+    /// everything else does. A condition that is not active is simply not applied - it never narrows
     /// the list to nothing and never widens it to everything.
     /// </summary>
     public static bool IsActive(TagField field, MatchMode? mode, string? value) =>
@@ -49,7 +49,7 @@ public static class TagSearch
         var value = raw?.Trim() ?? "";
 
         // "All fields" is the "just type something" case: name, title, artist and genre at once.
-        // Only the two text modes mean anything across four fields at the same time — asking whether
+        // Only the two text modes mean anything across four fields at the same time - asking whether
         // "all fields are empty" is not a question, so those fall back to the broad contains.
         if (field == TagField.All)
             return mode switch
@@ -71,7 +71,7 @@ public static class TagSearch
             MatchMode.Is          => has && string.Equals(text!.Trim(), value, StringComparison.OrdinalIgnoreCase),
             MatchMode.StartsWith  => has && text!.TrimStart().StartsWith(value, StringComparison.OrdinalIgnoreCase),
 
-            // Negative tests: an absent field DOES satisfy one — "genre is not techno" must return the
+            // Negative tests: an absent field DOES satisfy one - "genre is not techno" must return the
             // untagged files too, because those are precisely the ones that need fixing.
             MatchMode.NotContains => !(has && text!.Contains(value, StringComparison.OrdinalIgnoreCase)),
             MatchMode.IsNot       => !(has && string.Equals(text!.Trim(), value, StringComparison.OrdinalIgnoreCase)),

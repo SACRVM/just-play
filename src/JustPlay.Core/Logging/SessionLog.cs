@@ -6,17 +6,17 @@ namespace JustPlay.Core.Logging;
 
 /// <summary>
 /// Persists an app's event log to a rolling daily file in <c>%LOCALAPPDATA%\&lt;appFolder&gt;</c>
-/// (<c>session-YYYY-MM-DD.log</c>) so a DJ can review a session afterwards — when a connection dropped,
+/// (<c>session-YYYY-MM-DD.log</c>) so a DJ can review a session afterwards - when a connection dropped,
 /// what was recorded, which file couldn't be tagged. This is the SAME feed shown live in the shared log
 /// window, not low-level BASS console diagnostics (those live in the adapter layer, which must not depend
 /// on the app's logger). Shared by the J.U.S.T. suite; the folder name (e.g. "JustPlay" / "JustStream")
 /// is passed in.
 ///
-/// Retention: files older than <see cref="RetentionDays"/> are pruned on startup — scoped strictly to OUR
+/// Retention: files older than <see cref="RetentionDays"/> are pruned on startup - scoped strictly to OUR
 /// folder and OUR <c>session-*.log</c> pattern, never anything else (Chloe 2026-07-05: 7 days).
 ///
 /// Robustness: every operation is wrapped so a logging failure (disk full, locked file, denied path) can
-/// NEVER take the app down — the show must go on even if it can't write its own log.
+/// NEVER take the app down - the show must go on even if it can't write its own log.
 /// </summary>
 public sealed class SessionLog : ISessionLog
 {
@@ -49,13 +49,13 @@ public sealed class SessionLog : ISessionLog
         }
         catch (Exception ex)
         {
-            // Logging must never crash the app — the in-memory log + Console still have it. Surface the
+            // Logging must never crash the app - the in-memory log + Console still have it. Surface the
             // FIRST failure to the log window, then stay quiet (a full disk would otherwise spam a line
-            // per entry). Reporting itself is wrapped — it can never throw here.
+            // per entry). Reporting itself is wrapped - it can never throw here.
             if (!_reportedFailure)
             {
                 _reportedFailure = true;
-                try { OnWriteFailed?.Invoke($"Session log could not be written ({ex.Message}) — logging to this window only from here."); }
+                try { OnWriteFailed?.Invoke($"Session log could not be written ({ex.Message}) - logging to this window only from here."); }
                 catch { /* the error reporter must never become the error */ }
             }
         }
@@ -63,7 +63,7 @@ public sealed class SessionLog : ISessionLog
 
     /// <summary>
     /// Delete OUR OWN <c>session-*.log</c> files older than <see cref="RetentionDays"/> days. Deliberately
-    /// narrow: only our folder, only our filename pattern, only by age — it must be impossible for this to
+    /// narrow: only our folder, only our filename pattern, only by age - it must be impossible for this to
     /// touch a user file. Any single failure is swallowed and pruning continues.
     /// </summary>
     private void Prune()

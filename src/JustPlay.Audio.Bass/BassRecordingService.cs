@@ -12,32 +12,32 @@ using ManagedBass.Enc;
 namespace JustPlay.Audio.Bass;
 
 /// <summary>
-/// <see cref="IRecordingService"/> implementation backed by un4seen BASSenc — "record your
+/// <see cref="IRecordingService"/> implementation backed by un4seen BASSenc - "record your
 /// set" for JUST STREAM.
 ///
 /// Architecture: this starts a SECOND, fully independent in-process encoder directly on
-/// <see cref="IBassMixerSource.OutputChannel"/> — the SAME persistent mixer output the
-/// broadcast encoder (<see cref="BassBroadcastService"/>) taps — via its own
+/// <see cref="IBassMixerSource.OutputChannel"/> - the SAME persistent mixer output the
+/// broadcast encoder (<see cref="BassBroadcastService"/>) taps - via its own
 /// <c>BASS_Encode_&lt;Codec&gt;_StartFile</c> handle. A BASS mixer output can drive any
 /// number of independent encoder taps simultaneously; this is not a tee of the cast
 /// encoder's bytes, it is its own encode session with its own handle, its own pinned notify
 /// delegate, and its own state machine. There is ZERO shared state with
 /// <see cref="BassBroadcastService"/>.
 ///
-/// HARD INVARIANT (see IRecordingService.cs remarks): a recording failure — disk full,
-/// unreachable NAS folder, encoder death — must NEVER interrupt or degrade the broadcast.
+/// HARD INVARIANT (see IRecordingService.cs remarks): a recording failure - disk full,
+/// unreachable NAS folder, encoder death - must NEVER interrupt or degrade the broadcast.
 /// This class never calls into <see cref="BassBroadcastService"/>, never throws across the
 /// <see cref="IRecordingService"/> boundary, and every failure path here only ever mutates
 /// recording-local fields (<c>_encoder</c>, <c>_state</c>, <c>_lastError</c>).
 ///
 /// Native deps (native/win-x64, see the DLL comment block in JustPlay.Audio.Bass.csproj):
-///   bassenc.dll (BASS_Encode_StartPCMFile — WAV/AIFF), bassenc_mp3.dll (MP3, LAME),
-///   bassenc_opus.dll (Opus, libopus), bassenc_flac.dll (FLAC — recording-only add-on).
+///   bassenc.dll (BASS_Encode_StartPCMFile - WAV/AIFF), bassenc_mp3.dll (MP3, LAME),
+///   bassenc_opus.dll (Opus, libopus), bassenc_flac.dll (FLAC - recording-only add-on).
 /// </summary>
 public sealed class BassRecordingService : IRecordingService
 {
     // The same mixer-output source the broadcast service reads. We only ever read
-    // OutputChannel — fully decoupled, see the class doc's hard invariant.
+    // OutputChannel - fully decoupled, see the class doc's hard invariant.
     private readonly IBassMixerSource _source;
 
     // Encoder handle returned by the format-selected StartFile function. Zero when idle.
@@ -49,35 +49,35 @@ public sealed class BassRecordingService : IRecordingService
     private string? _lastError;
 
     // Full path of the file currently (or most recently) being written. Deliberately NOT
-    // cleared on StopAsync — see IRecordingService.CurrentFilePath ("saved to …" in the UI).
+    // cleared on StopAsync - see IRecordingService.CurrentFilePath ("saved to ..." in the UI).
     private string? _currentFilePath;
 
     // Pin the notify delegate to prevent GC collection while BASS holds the native function
-    // pointer for the lifetime of the encoder (CallbackOnCollectedDelegate risk — same pattern
+    // pointer for the lifetime of the encoder (CallbackOnCollectedDelegate risk - same pattern
     // as BassBroadcastService._notifyProc / BassAudioEngine._endSync).
     private EncodeNotifyProcedure? _notifyProc;
 
-    // ── Auto-trim silence gate (Chloe, 2026-07-04: "erst online, dann Musik — 10-15 min
-    // Stille am Anfang… und am Ende" + "diese Stille ist dann aufgezeichnet — ob wir wollen
-    // oder nicht") ────────────────────────────────────────────────────────────────────────
-    // Silence is never WRITTEN — including the tail. The naive approach (pause the encoder
+    // -- Auto-trim silence gate (Chloe, 2026-07-04: "erst online, dann Musik - 10-15 min
+    // Stille am Anfang... und am Ende" + "diese Stille ist dann aufgezeichnet - ob wir wollen
+    // oder nicht") ------------------------------------------------------------------------
+    // Silence is never WRITTEN - including the tail. The naive approach (pause the encoder
     // after N s of silence) still records those N s before the pause; her follow-up killed it.
     // Instead the encoder runs permanently PAUSED (= BASS never auto-feeds it) and we feed it
     // MANUALLY via BASS_Encode_Write from our own DSP tap on the mixer, through a LOOK-BEHIND
     // ring buffer of TailHoldSeconds:
-    //   · signal        → flush any held audio + the live block straight through (file ~live)
-    //   · short silence → held back in the ring; if music returns within the hold, the break
+    //   - signal        -> flush any held audio + the live block straight through (file ~live)
+    //   - short silence -> held back in the ring; if music returns within the hold, the break
     //                     is flushed 1:1 (deliberate mix pauses are NEVER collapsed)
-    //   · long silence  → the ring is dropped, the gap is CUT from the file entirely
-    //   · stop          → whatever silence sits in the ring is discarded, never flushed —
+    //   - long silence  -> the ring is dropped, the gap is CUT from the file entirely
+    //   - stop          -> whatever silence sits in the ring is discarded, never flushed -
     //                     the file ends on the last beat, with ZERO trailing dead air.
     // Leading silence starts in "gap" state, so the file also begins on the first beat.
     // BASS_Encode_SetPaused doc (un4seen.com/doc/bassenc/BASS_Encode_SetPaused.html) states
-    // paused encoders receive no DSP data but CAN be fed via BASS_Encode_Write — that
+    // paused encoders receive no DSP data but CAN be fed via BASS_Encode_Write - that
     // combination is what makes this possible. Identical behaviour for all five codecs.
     //
     // The gate runs inside the mixer's DSP chain (BASS mixer thread): sample-accurate,
-    // independent of the UI render loop (which throttles when the window is minimized —
+    // independent of the UI render loop (which throttles when the window is minimized -
     // exactly when a DJ is playing). No locks, no allocation in the callback.
     private readonly object _gateSync = new();
     private readonly Stopwatch _written = new(); // RecordedDuration for the UNGATED mode only
@@ -85,18 +85,18 @@ public sealed class BassRecordingService : IRecordingService
     private volatile bool _gateEverOpened; // any audio written (drives ARMED display + empty-file discard)
 
     // DSP-thread state (touched only from GateDsp between install and removal).
-    private ManagedBass.DSPProcedure? _dspProc; // pinned — same GC rationale as _notifyProc
+    private ManagedBass.DSPProcedure? _dspProc; // pinned - same GC rationale as _notifyProc
     private int _dspHandle;
     private int _dspMixer;      // mixer the DSP was installed on (for removal)
     private float[]? _ring;     // look-behind buffer, capacity = hold + 1 s slack
     private int _ringStart, _ringCount;
     private long _silenceRun;   // samples of continuous silence so far
-    private bool _inGap;        // true = current silence is a decided gap (or leading) → discard
-    private long _samplesWritten; // total samples fed to the encoder (Volatile) → RecordedDuration
+    private bool _inGap;        // true = current silence is a decided gap (or leading) -> discard
+    private long _samplesWritten; // total samples fed to the encoder (Volatile) -> RecordedDuration
     private int _freq, _chans;
 
     // -54 dBFS peak = true silence (digital dead air, faders down), safely below any audible
-    // content — a quiet outro or reverb tail never trips it. Deliberately LOWER than the UI's
+    // content - a quiet outro or reverb tail never trips it. Deliberately LOWER than the UI's
     // -48 dBFS "signal present" pulse threshold: the gate must be the more conservative of the two.
     private const double SilenceThresholdPeak = 0.002;
 
@@ -111,34 +111,34 @@ public sealed class BassRecordingService : IRecordingService
     // auto-feed would read.
     private const int GateDspPriority = -800;
 
-    // un4seen.com/doc/bassenc/BASS_Encode_SetPaused.html — while paused, no sample data is
+    // un4seen.com/doc/bassenc/BASS_Encode_SetPaused.html - while paused, no sample data is
     // fed to the encoder by the DSP system, but manual BASS_Encode_Write still works. Direct
     // P/Invoke for the same self-contained-auditability reason as the StartFile entry points.
     [DllImport("bassenc")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool BASS_Encode_SetPaused(int handle, [MarshalAs(UnmanagedType.Bool)] bool paused);
 
-    // un4seen.com/doc/bassenc/BASS_Encode_Write.html — feed sample data manually (length in
+    // un4seen.com/doc/bassenc/BASS_Encode_Write.html - feed sample data manually (length in
     // BYTES, whole samples; format = the source channel's, i.e. float here). With the QUEUE
-    // flag the call only enqueues (non-blocking — safe from the DSP callback).
+    // flag the call only enqueues (non-blocking - safe from the DSP callback).
     [DllImport("bassenc")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool BASS_Encode_Write(int handle, IntPtr buffer, int length);
 
-    // BASS_ENCODE_PAUSE (bassenc.h = 32): start the encoder in the paused state — the file
+    // BASS_ENCODE_PAUSE (bassenc.h = 32): start the encoder in the paused state - the file
     // (incl. its placeholder header) is created, but no sample data flows until we feed it.
     private const int BASS_ENCODE_PAUSE = 32;
 
-    // ── P/Invokes: BASSenc's per-codec "StartFile" entry points ───────────────────────────
+    // -- P/Invokes: BASSenc's per-codec "StartFile" entry points ---------------------------
     // ManagedBass.Enc 4.0.2 ships no managed wrapper for any of these four (confirmed by
     // reflecting the assembly: BassEnc has no MP3/PCM "StartFile" member; BassEnc_Opus and
     // BassEnc_Flac DO expose a managed "Start(handle, options, flags, filename)" overload,
-    // but we P/Invoke directly here for all four codecs — MP3 and WAV/AIFF have no managed
+    // but we P/Invoke directly here for all four codecs - MP3 and WAV/AIFF have no managed
     // wrapper at all, so raw P/Invoke was required anyway, and doing it uniformly keeps this
     // file self-contained and trivially auditable against the un4seen docs, mirroring
     // BassBroadcastService's direct P/Invoke of BASS_Encode_MP3_Start.
     //
-    // All four return the encoder handle (0 = failure — read ManagedBass.Bass.LastError).
+    // All four return the encoder handle (0 = failure - read ManagedBass.Bass.LastError).
 
     // un4seen.com/doc/bassenc_mp3/BASS_Encode_MP3_StartFile.html
     // HENCODE BASS_Encode_MP3_StartFile(DWORD handle, const char *options, DWORD flags, const char *filename)
@@ -161,14 +161,14 @@ public sealed class BassRecordingService : IRecordingService
     private static extern int BASS_Encode_StartPCMFile(int handle, int flags, string filename);
 
     // BASS_ENCODE_* flags used by the StartFile calls above (verified against the bassenc.h
-    // shipped with these DLLs, and cross-checked by reflecting ManagedBass.Enc.EncodeFlags —
+    // shipped with these DLLs, and cross-checked by reflecting ManagedBass.Enc.EncodeFlags -
     // its ConvertFloatTo16BitInt/Queue/AIFF/Dither members carry these exact values: 4, 0x200,
     // 0x4000, 0x8000. We use raw ints here because the StartFile P/Invokes above take a plain
     // DWORD flags parameter, not the EncodeFlags enum type).
-    private const int BASS_ENCODE_FP_16BIT = 4;      // convert float mixer output → 16-bit int
-    private const int BASS_ENCODE_QUEUE    = 0x200;  // async feed — a slow disk (NAS!) can never block the mixer thread
+    private const int BASS_ENCODE_FP_16BIT = 4;      // convert float mixer output -> 16-bit int
+    private const int BASS_ENCODE_QUEUE    = 0x200;  // async feed - a slow disk (NAS!) can never block the mixer thread
     private const int BASS_ENCODE_AIFF     = 0x4000; // AIFF header instead of WAVE (StartPCMFile only)
-    private const int BASS_ENCODE_DITHER   = 0x8000; // TPDF dither on the float→int conversion
+    private const int BASS_ENCODE_DITHER   = 0x8000; // TPDF dither on the float->int conversion
 
     public BassRecordingService(IBassMixerSource source)
     {
@@ -185,7 +185,7 @@ public sealed class BassRecordingService : IRecordingService
     /// <remarks>
     /// ManagedBass.Enc 4.0.2's <c>BassEnc.EncodeGetCount(int, EncodeCount)</c> returns
     /// <c>long</c> and does expose an <c>EncodeCount.Out</c> member (confirmed by reflecting
-    /// the assembly — no raw P/Invoke fallback needed here). Polled from a UI meter-rate
+    /// the assembly - no raw P/Invoke fallback needed here). Polled from a UI meter-rate
     /// timer, so any failure is swallowed rather than thrown.
     /// </remarks>
     public long BytesWritten
@@ -207,7 +207,7 @@ public sealed class BassRecordingService : IRecordingService
     }
 
     /// <inheritdoc/>
-    /// <remarks>Gated mode counts the samples actually fed to the encoder — the file's exact
+    /// <remarks>Gated mode counts the samples actually fed to the encoder - the file's exact
     /// length. Ungated mode uses a plain wall-clock stopwatch (everything is written anyway).</remarks>
     public TimeSpan RecordedDuration
     {
@@ -230,7 +230,7 @@ public sealed class BassRecordingService : IRecordingService
     /// <inheritdoc/>
     /// <remarks>
     /// Threading: called from the UI thread (via an async RelayCommand), same as
-    /// BassBroadcastService.ConnectAsync. All BASS calls are synchronous P/Invokes — cheap
+    /// BassBroadcastService.ConnectAsync. All BASS calls are synchronous P/Invokes - cheap
     /// enough (no network dial-up, just opening a local file) to run inline. Never throws;
     /// failures set State = Error and populate LastError.
     /// </remarks>
@@ -248,14 +248,14 @@ public sealed class BassRecordingService : IRecordingService
         {
             // The mixer is created lazily by the capture engine. Recording before capture has
             // started is a rare edge case; surface it as an error rather than guessing.
-            _lastError = "No audio source yet — start capture before recording.";
+            _lastError = "No audio source yet - start capture before recording.";
             SetState(RecordingState.Error);
             Console.WriteLine("[Recording] " + _lastError);
             return Task.CompletedTask;
         }
 
-        // ── Step 1: make sure the target folder exists ────────────────────────────────
-        // Wrapped defensively — an unreachable NAS path, a permissions issue, or a malformed
+        // -- Step 1: make sure the target folder exists --------------------------------
+        // Wrapped defensively - an unreachable NAS path, a permissions issue, or a malformed
         // path must degrade to Error, never throw across the interface boundary.
         try
         {
@@ -269,17 +269,17 @@ public sealed class BassRecordingService : IRecordingService
             return Task.CompletedTask;
         }
 
-        // ── Step 2: start the codec-specific in-process encoder, writing straight to file ──
+        // -- Step 2: start the codec-specific in-process encoder, writing straight to file --
         // MP3: LAME-style "-b {kbps}" = CBR (mirrors BassBroadcastService's MP3 options).
         // Opus: opusenc-style "--bitrate {kbps}" = CBR.
         // FLAC: cannot take float input; BASS_ENCODE_FP_16BIT + BASS_ENCODE_DITHER convert the
         //   mixer's float output to dithered 16-bit explicitly (rather than relying on any
         //   codec-specific default float handling).
         // WAV/AIFF: BASS_Encode_StartPCMFile defaults to a WAVE header; BASS_ENCODE_AIFF swaps
-        //   it for an AIFF header. Same float→16-bit-dither conversion as FLAC.
+        //   it for an AIFF header. Same float->16-bit-dither conversion as FLAC.
         // BASS_ENCODE_QUEUE on every codec: encoding happens off the mixer thread via an async
         //   queue, so a slow NAS write can never block or glitch playback/the broadcast.
-        // BASS_ENCODE_PAUSE when auto-trim is on: the recorder starts ARMED — the file is
+        // BASS_ENCODE_PAUSE when auto-trim is on: the recorder starts ARMED - the file is
         //   created but nothing is written until the silence gate sees the first signal.
         var gateFlags = job.TrimSilence ? BASS_ENCODE_PAUSE : 0;
         _encoder = job.Codec switch
@@ -310,17 +310,17 @@ public sealed class BassRecordingService : IRecordingService
             return Task.CompletedTask;
         }
 
-        // ── Step 3: register the encoder-died / queue-full notification ───────────────────
+        // -- Step 3: register the encoder-died / queue-full notification -------------------
         // The delegate is pinned as a field (GC safety, see _notifyProc doc above).
         _notifyProc = (_, status, _) =>
         {
-            // Fires on a BASS internal thread — do NOT call UI APIs here, and NEVER reach into
+            // Fires on a BASS internal thread - do NOT call UI APIs here, and NEVER reach into
             // BassBroadcastService: a recording failure must never touch the broadcast.
             if (status == EncodeNotifyStatus.EncoderDied)
             {
-                _lastError = $"Recording stopped by itself — disk full or file write error? Last file: {_currentFilePath}";
+                _lastError = $"Recording stopped by itself - disk full or file write error? Last file: {_currentFilePath}";
                 Console.WriteLine("[Recording] " + _lastError);
-                // The encoder already died on BASS's side — just drop our handle/delegate,
+                // The encoder already died on BASS's side - just drop our handle/delegate,
                 // do NOT call BASS_Encode_Stop on an already-dead handle.
                 lock (_gateSync)
                 {
@@ -333,15 +333,15 @@ public sealed class BassRecordingService : IRecordingService
             }
             else if (status == EncodeNotifyStatus.QueueFull)
             {
-                // BASS_ENCODE_QUEUE's async buffer overflowed — the disk couldn't keep up and
+                // BASS_ENCODE_QUEUE's async buffer overflowed - the disk couldn't keep up and
                 // some audio was dropped from the FILE. The mixer/broadcast were never blocked.
                 // Not fatal: keep recording, just surface that the disk is the bottleneck.
-                Console.WriteLine("[Recording] encode queue overflowed — some audio was dropped (slow disk?)");
+                Console.WriteLine("[Recording] encode queue overflowed - some audio was dropped (slow disk?)");
             }
         };
         BassEnc.EncodeSetNotify(_encoder, _notifyProc);
 
-        // ── Step 4: arm the silence gate (or run ungated) ─────────────────────────────────
+        // -- Step 4: arm the silence gate (or run ungated) ---------------------------------
         lock (_gateSync)
         {
             _trimSilence = job.TrimSilence;
@@ -350,7 +350,7 @@ public sealed class BassRecordingService : IRecordingService
             if (job.TrimSilence)
             {
                 // Armed: the encoder stays PERMANENTLY paused (no auto-feed; the PAUSE start
-                // flag above + belt-and-braces SetPaused) — our DSP tap feeds it manually
+                // flag above + belt-and-braces SetPaused) - our DSP tap feeds it manually
                 // through the look-behind ring, so silence never reaches the file at all.
                 _gateEverOpened = false;
                 BASS_Encode_SetPaused(_encoder, true);
@@ -359,19 +359,19 @@ public sealed class BassRecordingService : IRecordingService
                 _freq = info.Frequency;
                 _chans = Math.Max(1, info.Channels);
                 var holdSamples = (long)(TailHoldSeconds * _freq) * _chans;
-                _ring = new float[(int)(holdSamples + (long)_freq * _chans)]; // hold + 1 s slack (≈12 MB at 48 kHz stereo)
+                _ring = new float[(int)(holdSamples + (long)_freq * _chans)]; // hold + 1 s slack (~12 MB at 48 kHz stereo)
                 _ringStart = _ringCount = 0;
                 _silenceRun = 0;
-                _inGap = true; // leading silence is ALWAYS a gap — the file starts on the first beat
+                _inGap = true; // leading silence is ALWAYS a gap - the file starts on the first beat
 
                 _dspProc = GateDsp;
                 _dspMixer = mixer;
                 _dspHandle = ManagedBass.Bass.ChannelSetDSP(mixer, _dspProc, IntPtr.Zero, GateDspPriority);
                 if (_dspHandle == 0)
                 {
-                    // Gate tap failed (shouldn't happen) — degrade to an UNGATED recording
+                    // Gate tap failed (shouldn't happen) - degrade to an UNGATED recording
                     // rather than a silent no-op file: un-pause the auto-feed and log it.
-                    Console.WriteLine($"[Recording] Auto-trim tap failed ({ManagedBass.Bass.LastError}) — recording without trim.");
+                    Console.WriteLine($"[Recording] Auto-trim tap failed ({ManagedBass.Bass.LastError}) - recording without trim.");
                     _trimSilence = false;
                     _dspProc = null;
                     _ring = null;
@@ -391,13 +391,13 @@ public sealed class BassRecordingService : IRecordingService
         _currentFilePath = job.FilePath;
         SetState(RecordingState.Recording);
         Console.WriteLine(job.TrimSilence
-            ? $"[Recording] Armed for {job.FilePath} ({job.Codec}{bitrateSuffix}) — writing starts with the first signal."
+            ? $"[Recording] Armed for {job.FilePath} ({job.Codec}{bitrateSuffix}) - writing starts with the first signal."
             : $"[Recording] Recording to {job.FilePath} ({job.Codec}{bitrateSuffix})");
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// The silence gate — runs INSIDE the mixer's DSP chain on the BASS mixer thread, on the
+    /// The silence gate - runs INSIDE the mixer's DSP chain on the BASS mixer thread, on the
     /// exact post-limiter samples the encoders see. No locks, no allocation: peak scan, then
     /// either feed the encoder (signal / short break) or hold/discard (silence). See the gate
     /// design comment at the top of the field block.
@@ -418,7 +418,7 @@ public sealed class BassRecordingService : IRecordingService
 
         if (peak >= (float)SilenceThresholdPeak)
         {
-            // Signal. Any HELD silence was a short, deliberate break — flush it 1:1 first,
+            // Signal. Any HELD silence was a short, deliberate break - flush it 1:1 first,
             // then the live block. (After a decided gap the ring is empty, so the file simply
             // continues seamlessly on this beat.)
             _silenceRun = 0;
@@ -429,21 +429,21 @@ public sealed class BassRecordingService : IRecordingService
             if (!_gateEverOpened)
             {
                 _gateEverOpened = true;
-                Console.WriteLine("[Recording] First signal — recording begins.");
+                Console.WriteLine("[Recording] First signal - recording begins.");
             }
         }
         else
         {
-            if (_inGap) return; // leading silence or an already-decided gap → discard outright
+            if (_inGap) return; // leading silence or an already-decided gap -> discard outright
 
             _silenceRun += n;
             if (_silenceRun >= (long)(TailHoldSeconds * _freq) * _chans || _ringCount + n > ring.Length)
             {
-                // The break outgrew the hold window → it's a real gap. Drop the held silence;
+                // The break outgrew the hold window -> it's a real gap. Drop the held silence;
                 // none of it ever reaches the file.
                 _ringStart = _ringCount = 0;
                 _inGap = true;
-                Console.WriteLine($"[Recording] {TailHoldSeconds:0}+ s of silence — cut from the file; resumes with the music.");
+                Console.WriteLine($"[Recording] {TailHoldSeconds:0}+ s of silence - cut from the file; resumes with the music.");
                 return;
             }
 
@@ -464,7 +464,7 @@ public sealed class BassRecordingService : IRecordingService
         _ringCount += data.Length;
     }
 
-    /// <summary>Flush the held ring content (a short break) to the encoder — up to two segments.</summary>
+    /// <summary>Flush the held ring content (a short break) to the encoder - up to two segments.</summary>
     private unsafe void FlushRing(int enc, float[] ring)
     {
         if (_ringCount == 0) return;
@@ -484,7 +484,7 @@ public sealed class BassRecordingService : IRecordingService
     }
 
     /// <inheritdoc/>
-    /// <remarks>Always completes without throwing — see IRecordingService.StopAsync doc.</remarks>
+    /// <remarks>Always completes without throwing - see IRecordingService.StopAsync doc.</remarks>
     public Task StopAsync()
     {
         StopEncoder();
@@ -498,7 +498,7 @@ public sealed class BassRecordingService : IRecordingService
         {
             if (_encoder == 0) return;
 
-            // Detach the gate tap FIRST — after ChannelRemoveDSP returns, no more GateDsp
+            // Detach the gate tap FIRST - after ChannelRemoveDSP returns, no more GateDsp
             // callbacks run, so EncodeStop below can't race a manual write. Whatever silence
             // still sits in the ring is deliberately dropped: the file ends on the last beat.
             RemoveGateTap();
@@ -507,13 +507,13 @@ public sealed class BassRecordingService : IRecordingService
             try
             {
                 // Finalizes the WAVE/AIFF/FLAC headers (sample count, chunk sizes) so the file is
-                // playable immediately — BASS writes placeholder headers at Start and patches them
+                // playable immediately - BASS writes placeholder headers at Start and patches them
                 // on Stop. un4seen.com/doc/bassenc/BASS_Encode_Stop.html
                 BassEnc.EncodeStop(_encoder);
             }
             catch
             {
-                // Never throw out of a stop path — worst case the file's headers stay at their
+                // Never throw out of a stop path - worst case the file's headers stay at their
                 // placeholder values (most players still recover duration by scanning).
             }
 
@@ -521,7 +521,7 @@ public sealed class BassRecordingService : IRecordingService
             _notifyProc = null;
 
             // Auto-trim + the gate never opened = the file contains zero audio (only placeholder
-            // headers) — discard it instead of littering the folder with 44-byte corpses. This is
+            // headers) - discard it instead of littering the folder with 44-byte corpses. This is
             // a file WE created seconds ago and it is provably empty; say so loudly in the log.
             // CurrentFilePath is nulled so the UI reports "discarded", not "saved".
             if (_trimSilence && !_gateEverOpened && _currentFilePath is { } emptyFile)
@@ -529,7 +529,7 @@ public sealed class BassRecordingService : IRecordingService
                 try
                 {
                     File.Delete(emptyFile);
-                    Console.WriteLine($"[Recording] Nothing was recorded (no signal ever arrived) — empty file discarded: {emptyFile}");
+                    Console.WriteLine($"[Recording] Nothing was recorded (no signal ever arrived) - empty file discarded: {emptyFile}");
                 }
                 catch
                 {
@@ -539,7 +539,7 @@ public sealed class BassRecordingService : IRecordingService
                 return;
             }
 
-            // CurrentFilePath is intentionally left set — the UI shows "saved to <path>".
+            // CurrentFilePath is intentionally left set - the UI shows "saved to <path>".
         }
     }
 
@@ -549,7 +549,7 @@ public sealed class BassRecordingService : IRecordingService
         if (_dspHandle != 0)
         {
             try { ManagedBass.Bass.ChannelRemoveDSP(_dspMixer, _dspHandle); }
-            catch { /* mixer may already be gone (sample-rate teardown) — nothing to detach */ }
+            catch { /* mixer may already be gone (sample-rate teardown) - nothing to detach */ }
         }
         _dspHandle = 0;
         _dspMixer = 0;

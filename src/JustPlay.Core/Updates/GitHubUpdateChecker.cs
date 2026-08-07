@@ -14,7 +14,7 @@ namespace JustPlay.Core.Updates;
 /// double-check). The <c>JustPlaySetup-*.exe</c> asset, if present, is surfaced so the shell
 /// can download + run it silently.
 /// <para>
-/// The <see cref="HttpClient"/> is injected so tests drive it with a fake handler — we don't
+/// The <see cref="HttpClient"/> is injected so tests drive it with a fake handler - we don't
 /// mock the network, we mock the transport boundary. Platform-agnostic: BCL only.
 /// </para>
 /// </summary>

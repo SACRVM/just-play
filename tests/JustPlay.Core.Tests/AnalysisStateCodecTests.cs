@@ -41,7 +41,7 @@ public class AnalysisStateCodecTests
     public void RoundTrips_Original_ForReversibleWrites()
     {
         // We overwrote a foreign BPM (128) and key (9A) with our detected values; the originals
-        // are stashed so the write can be undone. Energy was never overwritten → no original.
+        // are stashed so the write can be undone. Energy was never overwritten -> no original.
         var state = new TrackAnalysisState
         {
             Detected = new AnalysisResult { Bpm = 127.98, Key = new MusicalKey(9, KeyMode.Minor), Energy = 7 }, // 8A
@@ -78,7 +78,7 @@ public class AnalysisStateCodecTests
     [Fact]
     public void RoundTrips_PartialResult()
     {
-        // BPM only — key/energy not yet detected; nulls must survive.
+        // BPM only - key/energy not yet detected; nulls must survive.
         var state = new TrackAnalysisState
         {
             Detected = new AnalysisResult { Bpm = 120 },
@@ -105,7 +105,7 @@ public class AnalysisStateCodecTests
         Assert.Null(AnalysisStateCodec.TryParse(blob));
     }
 
-    // ── AnalysedAtUtc (L7, post-L6 night report) ────────────────────────────────
+    // -- AnalysedAtUtc (L7, post-L6 night report) --------------------------------
 
     [Fact]
     public void RoundTrips_AnalysedAtUtc()
@@ -128,7 +128,7 @@ public class AnalysisStateCodecTests
     [Fact]
     public void AnalysedAtUtc_IsNull_WhenNeverSet()
     {
-        // Default construction — same shape every pre-L7 caller already produces.
+        // Default construction - same shape every pre-L7 caller already produces.
         var state = new TrackAnalysisState
         {
             Detected = new AnalysisResult { Bpm = 120 },
@@ -145,7 +145,7 @@ public class AnalysisStateCodecTests
     public void OldBlob_WithNoAatKey_StillParses_WithAnalysedAtUtcNull()
     {
         // Verbatim shape of a blob written before AnalysedAtUtc existed: no "aat" key at all.
-        // Backward-compat is non-negotiable — this blob lives in Chloe's actual music files.
+        // Backward-compat is non-negotiable - this blob lives in Chloe's actual music files.
         const string oldBlob =
             "{\"v\":9,\"bpm\":127.98,\"kpc\":9,\"kmd\":\"min\",\"kcf\":0.82,\"nrg\":7," +
             "\"abpm\":\"A\",\"akey\":\"P\",\"anrg\":\"K\"}";

@@ -2,7 +2,7 @@ namespace JustPlay.Library.Tests;
 
 /// <summary>
 /// The pure decision core (0.6, P2). Nothing here sleeps, opens a file, touches the database or
-/// decodes a sample — the whole point of splitting the state machine out of
+/// decodes a sample - the whole point of splitting the state machine out of
 /// <see cref="AnalysisBatchRunner"/> is that pause-mid-file, a gate flipping, cancellation and
 /// resume become table-driven assertions instead of timing experiments.
 /// </summary>
@@ -63,7 +63,7 @@ public sealed class AnalysisQueueTests
     }
 
     // =========================================================================
-    // 2. The one decision: empty → paused → gate → lease.
+    // 2. The one decision: empty -> paused -> gate -> lease.
     // =========================================================================
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class AnalysisQueueTests
 
         Assert.Equal(AnalysisLease.Paused, q.TryLease(mayWorkNow: true, out var path));
         Assert.Null(path);
-        Assert.Equal(2, q.PendingCount);   // ⚠ pause must not lose the queue
+        Assert.Equal(2, q.PendingCount);   // (!) pause must not lose the queue
         Assert.True(q.IsPaused);
 
         q.Resume();
@@ -197,14 +197,14 @@ public sealed class AnalysisQueueTests
         var q = Queue(null, "a.mp3");
 
         q.TryLease(true, out var a);
-        q.Enqueue("a.mp3");     // refused — still in flight
+        q.Enqueue("a.mp3");     // refused - still in flight
         q.Release(a!);
 
         Assert.Equal(1, q.PendingCount);
     }
 
     // =========================================================================
-    // 4. Phases — what the overlay's phase line gets to say.
+    // 4. Phases - what the overlay's phase line gets to say.
     // =========================================================================
 
     [Fact]
@@ -244,7 +244,7 @@ public sealed class AnalysisQueueTests
 
         var s = q.Snapshot(true);
         Assert.Equal(AnalysisPhase.Paused, s.Phase);
-        Assert.Equal(1, s.InFlight);            // "pausing — 1 track finishing"
+        Assert.Equal(1, s.InFlight);            // "pausing - 1 track finishing"
         Assert.Equal("a.mp3", s.CurrentPath);
     }
 
@@ -275,7 +275,7 @@ public sealed class AnalysisQueueTests
     }
 
     // =========================================================================
-    // 5. Elapsed + ETA — the clock-injectable part.
+    // 5. Elapsed + ETA - the clock-injectable part.
     // =========================================================================
 
     [Fact]
@@ -315,7 +315,7 @@ public sealed class AnalysisQueueTests
         q.NoteSucceeded(a!);
         q.NoteSucceeded(b!);
 
-        // Two files, ten seconds of wall clock — not twenty. That is what makes the estimate
+        // Two files, ten seconds of wall clock - not twenty. That is what makes the estimate
         // account for concurrency without this class knowing what the concurrency is.
         Assert.Equal(TimeSpan.FromSeconds(10), q.Elapsed);
     }
@@ -349,7 +349,7 @@ public sealed class AnalysisQueueTests
         var clock = new FakeClock();
         var q = Queue(clock, "a.mp3", "b.mp3", "c.mp3", "d.mp3", "e.mp3", "f.mp3");
 
-        // Three real analyses at 4 s each …
+        // Three real analyses at 4 s each ...
         for (var i = 0; i < 3; i++)
         {
             q.TryLease(true, out var p);
@@ -357,7 +357,7 @@ public sealed class AnalysisQueueTests
             q.NoteSucceeded(p!);
         }
 
-        // … then a free skip (someone else had already analysed it).
+        // ... then a free skip (someone else had already analysed it).
         q.TryLease(true, out var skipped);
         q.NoteSkipped(skipped!);
 

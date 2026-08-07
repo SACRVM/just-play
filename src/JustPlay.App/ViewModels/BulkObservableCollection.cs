@@ -9,10 +9,10 @@ namespace JustPlay.App.ViewModels;
 /// An <see cref="ObservableCollection{T}"/> that can remove or replace many items with a SINGLE
 /// <see cref="NotifyCollectionChangedAction.Reset"/> notification instead of one event per item.
 ///
-/// <para><b>Why this exists:</b> deleting a large multi-selection (e.g. Ctrl+A → Delete on a 10-hour
+/// <para><b>Why this exists:</b> deleting a large multi-selection (e.g. Ctrl+A -> Delete on a 10-hour
 /// queue) via a per-item <c>Remove</c> loop is pathologically slow: each <c>Remove</c> is an O(n)
 /// search AND raises its own <c>CollectionChanged</c>, so the bound queue list re-lays-out once per
-/// removed row → O(n²) work and N UI re-renders. <see cref="RemoveRange"/> mutates the backing list
+/// removed row -> O(n^2) work and N UI re-renders. <see cref="RemoveRange"/> mutates the backing list
 /// in one O(n) pass and raises a single <c>Reset</c>, so the list rebuilds its (virtualized) rows
 /// exactly once. Same for <see cref="ReplaceAll"/> when bulk-loading.</para>
 ///

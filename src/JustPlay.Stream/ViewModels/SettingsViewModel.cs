@@ -11,11 +11,11 @@ namespace JustPlay.Stream.ViewModels;
 
 /// <summary>
 /// ViewModel for the JUST STREAM settings window (wide-not-tall, horizontal tabs:
-/// Server / Audio / Stream / DSP / Advanced — just-stream-blueprint.md §3a/§7.3).
+/// Server / Audio / Stream / DSP / Advanced - just-stream-blueprint.md Sec.3a/Sec.7.3).
 ///
 /// Server tab: full CRUD over <see cref="StreamViewModel.Profiles"/> via the bindable
 /// <see cref="EditableServerProfile"/> wrapper. Audio / Stream / DSP tabs bind directly to the
-/// shared <see cref="Stream"/> instance (single source of truth — no duplicated state).
+/// shared <see cref="Stream"/> instance (single source of truth - no duplicated state).
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
@@ -39,7 +39,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private EditableServerProfile? _editing;
 
-    /// <summary>Active settings tab — drives the shared underline-tab strip (Server | Advanced),
+    /// <summary>Active settings tab - drives the shared underline-tab strip (Server | Advanced),
     /// same pattern as JustPlay's tweaks tabs (a string + IsVisible toggles, not a raw TabControl).</summary>
     [ObservableProperty]
     private string _settingsTab = "Server";
@@ -56,11 +56,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settingsSvc = settingsSvc;
         _selectedServer = stream.SelectedProfile ?? stream.Profiles.FirstOrDefault();
         LoadEditing();
-        // Lock all server CRUD while on air — changing host/mount/creds mid-broadcast is nonsensical.
+        // Lock all server CRUD while on air - changing host/mount/creds mid-broadcast is nonsensical.
         Stream.PropertyChanged += OnStreamPropertyChanged;
     }
 
-    /// <summary>False while a broadcast is live — the whole Server tab (list + add/dup/del + form) is
+    /// <summary>False while a broadcast is live - the whole Server tab (list + add/dup/del + form) is
     /// disabled so you can't change connection details out from under an active stream.</summary>
     public bool CanEditServers => !Stream.IsConnected;
 
@@ -73,7 +73,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         DuplicateServerCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>Name of the currently active theme — drives the swatch "active" ring in the Look tab.</summary>
+    /// <summary>Name of the currently active theme - drives the swatch "active" ring in the Look tab.</summary>
     public string CurrentTheme => _settingsSvc.Current.Theme;
 
     /// <summary>Apply a named theme live and persist the choice (mirrors JUST PLAY's SetThemeCommand pattern).</summary>
@@ -88,7 +88,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentTheme));
     }
 
-    /// <summary>Server profiles — the SAME collection the main window shows.</summary>
+    /// <summary>Server profiles - the SAME collection the main window shows.</summary>
     public System.Collections.ObjectModel.ObservableCollection<StreamServerProfile> Servers => Stream.Profiles;
 
     partial void OnSelectedServerChanged(StreamServerProfile? value)
@@ -119,15 +119,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         // Does the MAIN window currently point at the profile being edited? Capture this BEFORE the
         // replace below. Swapping Servers[idx] removes the old record from the SHARED Profiles
-        // collection, which makes the main-window ComboBox null its SelectedItem (→ SelectedProfile =
+        // collection, which makes the main-window ComboBox null its SelectedItem (-> SelectedProfile =
         // null) SYNCHRONOUSLY. Testing the condition afterwards would always see null and skip the
-        // restore — that's the "renaming the active profile deselects it in the main window" bug
+        // restore - that's the "renaming the active profile deselects it in the main window" bug
         // (Chloe 2026-07-05). Captured up front, we can put the selection back on the renamed record.
         var mainWindowFollows = Stream.SelectedProfile?.Id == updated.Id;
 
         // Guard the WHOLE mutation. Replacing Servers[idx] makes the ListBox re-evaluate its
-        // SelectedItem (the old record is gone) and push a selection change back SYNCHRONOUSLY —
-        // which, if the guard were set after the replace, would re-enter OnSelectedServerChanged →
+        // SelectedItem (the old record is gone) and push a selection change back SYNCHRONOUSLY -
+        // which, if the guard were set after the replace, would re-enter OnSelectedServerChanged ->
         // LoadEditing and rebuild the editor mid-edit, dropping focus after a single keystroke.
         // We keep the SAME Editing object (Id is stable via ToProfile), so the form bindings survive.
         _syncingSelection = true;

@@ -10,8 +10,8 @@ namespace JustPlay.App.ViewModels;
 
 /// <summary>
 /// Title-bar update badge state + background polling. Asks <see cref="IUpdateChecker"/> (Core)
-/// on startup and on an interval; when a newer release lands — and the user hasn't opted out or
-/// ignored that version — it flips <see cref="IsAvailable"/> so the green badge appears. The
+/// on startup and on an interval; when a newer release lands - and the user hasn't opted out or
+/// ignored that version - it flips <see cref="IsAvailable"/> so the green badge appears. The
 /// actual download + installer hand-off is a view action (it needs the owner window for the
 /// dialog and shuts the app down), driven from <c>UpdateFlow</c>.
 /// <para>
@@ -84,12 +84,12 @@ public sealed partial class UpdateViewModel : ObservableObject
 
             Available = info;
             VersionText = "v" + info.Version.ToString(3);
-            Tooltip = $"JustPlay {info.Version.ToString(3)} is ready — click to update";
+            Tooltip = $"JustPlay {info.Version.ToString(3)} is ready - click to update";
             IsAvailable = true;
         }
         catch
         {
-            // A failed update check must never disrupt the app — stay silent and try next tick.
+            // A failed update check must never disrupt the app - stay silent and try next tick.
         }
     }
 

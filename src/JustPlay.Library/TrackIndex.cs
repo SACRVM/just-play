@@ -9,17 +9,17 @@ namespace JustPlay.Library;
 /// interrupted analyze run does not corrupt it.
 ///
 /// <para>0.6 (THE LIBRARY): moved here from <c>JustPlay.Cli.Index</c> with the schema UNCHANGED.
-/// That is deliberate — every index Chloe already has on disk keeps loading, and the CLI keeps
+/// That is deliberate - every index Chloe already has on disk keeps loading, and the CLI keeps
 /// reading and writing the same format the app does. One format, or the divergence is back.</para>
 ///
 /// <para>Resumability: a scan skips any file whose entry still matches on the cheap key
 /// (<see cref="TrackIndexEntry.LooksUnchanged"/>) or, failing that, on
-/// <see cref="TrackIndexEntry.ContentHash"/> — and which no <see cref="StaleRule"/> rejects.</para>
+/// <see cref="TrackIndexEntry.ContentHash"/> - and which no <see cref="StaleRule"/> rejects.</para>
 /// </summary>
 public sealed class TrackIndex
 {
     /// <summary>
-    /// Version of the detection stack baked into new entries — the SAME number the app stamps into
+    /// Version of the detection stack baked into new entries - the SAME number the app stamps into
     /// a file's JUSTPLAY blob, so an entry's provenance is one value no matter which producer wrote it.
     ///
     /// <para>History worth keeping: this used to be a private counter stuck at <c>1</c> while the
@@ -27,7 +27,7 @@ public sealed class TrackIndex
     /// 6,561 entries of the "v9" index carried <c>detectionVersion: 1</c>. Entries that old
     /// therefore say 1 and mean "unknown".</para>
     ///
-    /// <para>⚠ Still do NOT treat a version bump as the re-analysis trigger — it would mark the
+    /// <para>(!) Still do NOT treat a version bump as the re-analysis trigger - it would mark the
     /// whole library stale and re-run thousands of healthy MP3s. Express what actually needs
     /// redoing as a <see cref="StaleRule"/> (e.g. FLAC-only for the mono-decode bug).</para>
     /// </summary>
@@ -42,7 +42,7 @@ public sealed class TrackIndex
     [JsonPropertyName("lastUpdatedAt")]
     public string LastUpdatedAt { get; set; } = DateTime.UtcNow.ToString("o");
 
-    // ── Load / Save ──────────────────────────────────────────────────────────
+    // -- Load / Save ----------------------------------------------------------
 
     /// <summary>
     /// Loads the index from disk, or returns an empty index if the file does not exist.

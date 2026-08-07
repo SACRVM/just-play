@@ -4,7 +4,7 @@ namespace JustPlay.Tag.Tests;
 
 /// <summary>
 /// What JUST TAG's search actually decides. Written because Chloe reported it behaving "inverted"
-/// (2026-08-05) and the logic was private inside the view model, i.e. only checkable by clicking —
+/// (2026-08-05) and the logic was private inside the view model, i.e. only checkable by clicking -
 /// which is how a filter can be wrong for a while without anyone being able to say how.
 ///
 /// <para>Every mode is pinned twice: once on a row that HAS the field, once on a row where the field is
@@ -32,7 +32,7 @@ public sealed class TagSearchTests
     private static bool Match(FileRow row, TagField f, MatchMode? m, string? v) =>
         TagSearch.Matches(row, f, m, v);
 
-    // ── The positive modes ──────────────────────────────────────────────────────────────────────
+    // -- The positive modes ----------------------------------------------------------------------
 
     [Theory]
     [InlineData(MatchMode.Contains,   "tech", true)]
@@ -55,7 +55,7 @@ public sealed class TagSearchTests
     public void The_negative_modes_are_the_exact_complement(MatchMode mode, string value, bool expected) =>
         Assert.Equal(expected, Match(Row(meta: Meta(genre: "hard techno")), TagField.Genre, mode, value));
 
-    // ── The absent field — the half that decides whether the filter is useful ───────────────────
+    // -- The absent field - the half that decides whether the filter is useful -------------------
 
     /// <summary>A file with no genre can never "contain" one. If this inverted, a search for a genre
     /// would return every untagged file in the folder.</summary>
@@ -66,7 +66,7 @@ public sealed class TagSearchTests
     public void An_absent_field_never_satisfies_a_positive_test(MatchMode mode) =>
         Assert.False(Match(Row(meta: Meta()), TagField.Genre, mode, "techno"));
 
-    /// <summary>…and it DOES satisfy a negative one: "genre is not techno" has to return the files with
+    /// <summary>...and it DOES satisfy a negative one: "genre is not techno" has to return the files with
     /// no genre at all, because those are precisely the ones that need fixing.</summary>
     [Theory]
     [InlineData(MatchMode.NotContains)]
@@ -81,7 +81,7 @@ public sealed class TagSearchTests
         Assert.False(Match(Row(meta: Meta(genre: "techno")), TagField.Genre, MatchMode.IsEmpty, null));
     }
 
-    /// <summary>A row whose tags have not been read yet has NO metadata at all — it must behave exactly
+    /// <summary>A row whose tags have not been read yet has NO metadata at all - it must behave exactly
     /// like a file with empty fields, never like a match.</summary>
     [Fact]
     public void A_row_that_was_never_read_behaves_like_an_empty_field()
@@ -91,7 +91,7 @@ public sealed class TagSearchTests
         Assert.True(Match(unread, TagField.Genre, MatchMode.IsEmpty, null));
     }
 
-    // ── ART: present or absent, never text ──────────────────────────────────────────────────────
+    // -- ART: present or absent, never text ------------------------------------------------------
 
     [Fact]
     public void Art_is_found_by_is_not_empty_and_missing_art_by_is_empty()
@@ -116,7 +116,7 @@ public sealed class TagSearchTests
         Assert.False(TagSearch.NeedsValue(TagField.Genre, MatchMode.IsEmpty));
     }
 
-    // ── "All fields" ────────────────────────────────────────────────────────────────────────────
+    // -- "All fields" ----------------------------------------------------------------------------
 
     [Fact]
     public void All_fields_looks_in_name_title_artist_and_genre()
@@ -139,7 +139,7 @@ public sealed class TagSearchTests
         Assert.True(Match(row, TagField.All, MatchMode.NotContains, "amapiano"));
     }
 
-    // ── When a condition counts at all ──────────────────────────────────────────────────────────
+    // -- When a condition counts at all ----------------------------------------------------------
 
     [Fact]
     public void A_text_mode_with_no_text_is_not_an_active_condition()
@@ -158,31 +158,31 @@ public sealed class TagSearchTests
         Assert.True(TagSearch.IsActive(TagField.Cover, MatchMode.Contains, null));
     }
 
-    // ── Two conditions ──────────────────────────────────────────────────────────────────────────
+    // -- Two conditions --------------------------------------------------------------------------
 
     [Fact]
     public void And_narrows_or_widens()
     {
         var row = Row(meta: Meta(genre: "hard techno", artist: "Perc"));
 
-        // genre contains techno AND artist contains perc → true
+        // genre contains techno AND artist contains perc -> true
         Assert.True(TagSearch.Matches(row, TagField.Genre, MatchMode.Contains, "techno",
                                       hasSecond: true, joinAnd: true,
                                       TagField.Artist, MatchMode.Contains, "perc"));
 
-        // genre contains techno AND artist contains blawan → false
+        // genre contains techno AND artist contains blawan -> false
         Assert.False(TagSearch.Matches(row, TagField.Genre, MatchMode.Contains, "techno",
                                        hasSecond: true, joinAnd: true,
                                        TagField.Artist, MatchMode.Contains, "blawan"));
 
-        // …but OR keeps it
+        // ...but OR keeps it
         Assert.True(TagSearch.Matches(row, TagField.Genre, MatchMode.Contains, "techno",
                                       hasSecond: true, joinAnd: false,
                                       TagField.Artist, MatchMode.Contains, "blawan"));
     }
 
     /// <summary>A second condition that is switched OFF, or switched on but still empty, must not
-    /// change the result — neither by narrowing it to nothing nor by widening it to everything.</summary>
+    /// change the result - neither by narrowing it to nothing nor by widening it to everything.</summary>
     [Fact]
     public void An_inactive_second_condition_changes_nothing()
     {
@@ -197,7 +197,7 @@ public sealed class TagSearchTests
                                       TagField.Artist, MatchMode.Contains, ""));
     }
 
-    // ── The file facts ──────────────────────────────────────────────────────────────────────────
+    // -- The file facts --------------------------------------------------------------------------
 
     [Fact]
     public void Id3_version_can_be_asked_for_and_asked_against()

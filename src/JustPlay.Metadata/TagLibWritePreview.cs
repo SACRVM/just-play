@@ -7,7 +7,7 @@ namespace JustPlay.Metadata;
 /// <summary>
 /// Read-only dry-run companion to <see cref="TagLibMetadataWriter"/>: reads a file's CURRENT tag
 /// values with TagLib# and compares them against a candidate <see cref="TagWrite"/>, without ever
-/// calling <c>file.Save()</c> — see <see cref="ITagWritePreview"/>'s read-only guarantee.
+/// calling <c>file.Save()</c> - see <see cref="ITagWritePreview"/>'s read-only guarantee.
 ///
 /// <para>
 /// Deliberately mirrors, field-for-field, exactly what <c>TagLibMetadataWriter.WriteCore</c>
@@ -15,16 +15,16 @@ namespace JustPlay.Metadata;
 /// from the writer it is previewing:
 /// </para>
 /// <list type="bullet">
-///   <item>BPM — <c>Tag.BeatsPerMinute</c>, rounded/clamped exactly like <c>SetBpm</c>.</item>
-///   <item>Key — <c>Tag.InitialKey</c>, parsed with <see cref="MusicalKey.TryParse"/> so a
+///   <item>BPM - <c>Tag.BeatsPerMinute</c>, rounded/clamped exactly like <c>SetBpm</c>.</item>
+///   <item>Key - <c>Tag.InitialKey</c>, parsed with <see cref="MusicalKey.TryParse"/> so a
 ///     musical-notation value ("Gm") written by another tool compares equal to the Camelot code
-///     ("6A") we would write for the same key — mirrors how <c>PromoteCommand</c>/Persist already
+///     ("6A") we would write for the same key - mirrors how <c>PromoteCommand</c>/Persist already
 ///     compare "the original tag value" elsewhere in this codebase.</item>
-///   <item>Energy / JustPlay blob / ReplayGain — the same <see cref="TagCustomFields"/> keys
+///   <item>Energy / JustPlay blob / ReplayGain - the same <see cref="TagCustomFields"/> keys
 ///     ("ENERGY" / "JUSTPLAY" / "REPLAYGAIN_TRACK_GAIN" / "REPLAYGAIN_TRACK_PEAK").</item>
-///   <item>Comment / Grouping — <c>Tag.Comment</c> / <c>Tag.Grouping</c>, the same properties
+///   <item>Comment / Grouping - <c>Tag.Comment</c> / <c>Tag.Grouping</c>, the same properties
 ///     <c>ApplyCleanComment</c> and the plain Grouping setter target.</item>
-///   <item>Rating — <see cref="TagLibMetadataReader.ReadPopm"/> (shared, not duplicated).</item>
+///   <item>Rating - <see cref="TagLibMetadataReader.ReadPopm"/> (shared, not duplicated).</item>
 /// </list>
 /// </summary>
 public sealed class TagLibWritePreview : ITagWritePreview
@@ -74,9 +74,9 @@ public sealed class TagLibWritePreview : ITagWritePreview
         return new TagWritePlan { FilePath = filePath, Fields = fields };
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Per-field planners — one per TagWrite member, mirroring TagLibMetadataWriter 1:1.
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Per-field planners - one per TagWrite member, mirroring TagLibMetadataWriter 1:1.
+    // -------------------------------------------------------------------------
 
     /// <summary>Mirrors <c>TagLibMetadataWriter.SetBpm</c> (TagLibMetadataWriter.cs:275-281).</summary>
     private static TagFieldPlan PlanBpm(TagLib.Tag tag, double bpm, bool allowed)
@@ -93,8 +93,8 @@ public sealed class TagLibWritePreview : ITagWritePreview
     }
 
     /// <summary>Mirrors <c>TagLibMetadataWriter.SetContractKey</c> (TagLibMetadataWriter.cs:259-268).
-    /// Compares on the PARSED Camelot value (not raw text) so "Gm" and "6A" — the same key in two
-    /// notations — read as Unchanged, exactly like the rest of the codebase (e.g. PromoteCommand)
+    /// Compares on the PARSED Camelot value (not raw text) so "Gm" and "6A" - the same key in two
+    /// notations - read as Unchanged, exactly like the rest of the codebase (e.g. PromoteCommand)
     /// already treats "the current key".</summary>
     private static TagFieldPlan PlanKey(TagLib.Tag tag, MusicalKey key, bool allowed)
     {
@@ -143,7 +143,7 @@ public sealed class TagLibWritePreview : ITagWritePreview
 
     /// <summary>
     /// Mirrors <c>ApplyCleanComment</c> (Comment, TagLibMetadataWriter.cs:302-333) and the plain
-    /// Grouping setter (TagLibMetadataWriter.cs:52-53) — both are simple string tag properties
+    /// Grouping setter (TagLibMetadataWriter.cs:52-53) - both are simple string tag properties
     /// where "" is a legitimate explicit "clear" request, so equality (not raw non-null-ness)
     /// decides Unchanged vs. Write/Overwrite.
     /// </summary>
@@ -170,7 +170,7 @@ public sealed class TagLibWritePreview : ITagWritePreview
     }
 
     /// <summary>Mirrors the REPLAYGAIN_TRACK_GAIN / _PEAK custom-field writes (TagLibMetadataWriter.cs:58-64).
-    /// Called once per field (gain, peak) — both share the <see cref="TagFrameFamily.ReplayGain"/> family.</summary>
+    /// Called once per field (gain, peak) - both share the <see cref="TagFrameFamily.ReplayGain"/> family.</summary>
     private static TagFieldPlan PlanReplayGainField(TagLib.File file, string tagKey, string fieldName,
         string proposedRaw, bool allowed)
     {
@@ -181,9 +181,9 @@ public sealed class TagLibWritePreview : ITagWritePreview
         return Plan(TagFrameFamily.ReplayGain, fieldName, currentRaw, proposedRaw, currentIsEmpty, matches, allowed);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Shared action decision — the one place Write/Overwrite/Unchanged/SkippedByPolicy is decided.
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Shared action decision - the one place Write/Overwrite/Unchanged/SkippedByPolicy is decided.
+    // -------------------------------------------------------------------------
 
     /// <summary>
     /// The single decision point for every field: policy wins first (a disallowed family is

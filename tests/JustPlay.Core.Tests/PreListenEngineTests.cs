@@ -9,23 +9,23 @@ namespace JustPlay.Core.Tests;
 
 /// <summary>
 /// Unit tests for the IPreListenEngine state machine contract, plus the Pre-Cue v2 (Phase A)
-/// pure-logic helpers in <see cref="PreCueTransport"/> — both exercised against
+/// pure-logic helpers in <see cref="PreCueTransport"/> - both exercised against
 /// <see cref="FakePreListenEngine"/> (no BASS, no Avalonia; the App project has no test project of
-/// its own, so this is where the shared VM-facing logic gets covered — see CLAUDE.md "Tests").
+/// its own, so this is where the shared VM-facing logic gets covered - see CLAUDE.md "Tests").
 ///
 /// Coverage:
 /// 1. OutputDevice == -1 means disabled: Load/Play are silent no-ops.
-/// 2. Load → Play → state == Playing.
-/// 3. Play → Stop → state == Stopped (position reset). (Pause was removed in v2 — no pause state.)
+/// 2. Load -> Play -> state == Playing.
+/// 3. Play -> Stop -> state == Stopped (position reset). (Pause was removed in v2 - no pause state.)
 /// 4. Unload releases the track (Duration == 0 after Unload).
 /// 5. StateChanged event fires on transitions.
 /// 6. PlaybackEnded event fires when the fake triggers it.
 /// 7. Volume setter propagates to the engine.
 /// 8. GetOutputDevices returns the configured stub list.
 /// 9. Dispose does not throw.
-/// 10. PreCueTransport.ClampedJump — the ±30s jump math (CueJumpForwardCommand/CueJumpBackCommand).
-/// 11. Single-slot replace-on-load — Load() fully replaces the previous cue track, never stacks.
-/// 12. PreCueTransport.TryAutoRebind — the auto-reconnect "CLOU" (saved-by-name device reappearing).
+/// 10. PreCueTransport.ClampedJump - the +/-30s jump math (CueJumpForwardCommand/CueJumpBackCommand).
+/// 11. Single-slot replace-on-load - Load() fully replaces the previous cue track, never stacks.
+/// 12. PreCueTransport.TryAutoRebind - the auto-reconnect "CLOU" (saved-by-name device reappearing).
 /// </summary>
 public class PreListenEngineTests
 {
@@ -54,7 +54,7 @@ public class PreListenEngineTests
     }
 
     // =========================================================================
-    // 2. Load → Play → Playing
+    // 2. Load -> Play -> Playing
     // =========================================================================
 
     [Fact]
@@ -77,9 +77,9 @@ public class PreListenEngineTests
     }
 
     // =========================================================================
-    // 3. Play → Pause → Stop transitions
+    // 3. Play -> Pause -> Stop transitions
     //    (v2 dropped Pause; N26 P1.1 brought it back for the PRE CUE FINDER's play/pause
-    //    browsing mode — Pause keeps the position, Play resumes, Stop rewinds.)
+    //    browsing mode - Pause keeps the position, Play resumes, Stop rewinds.)
     // =========================================================================
 
     [Fact]
@@ -104,7 +104,7 @@ public class PreListenEngineTests
     {
         var engine = new FakePreListenEngine { OutputDevice = 0 };
         engine.Load("track.mp3");
-        engine.Pause(); // never played — must stay Stopped, not flip to Paused
+        engine.Pause(); // never played - must stay Stopped, not flip to Paused
 
         Assert.Equal(PlaybackState.Stopped, engine.State);
     }
@@ -123,7 +123,7 @@ public class PreListenEngineTests
     }
 
     // =========================================================================
-    // 4. Unload releases track → Duration = 0
+    // 4. Unload releases track -> Duration = 0
     // =========================================================================
 
     [Fact]
@@ -227,7 +227,7 @@ public class PreListenEngineTests
     }
 
     // =========================================================================
-    // 10. PreCueTransport.ClampedJump — ±30s jump math (CueJumpForwardCommand/CueJumpBackCommand)
+    // 10. PreCueTransport.ClampedJump - +/-30s jump math (CueJumpForwardCommand/CueJumpBackCommand)
     // =========================================================================
 
     [Fact]
@@ -255,7 +255,7 @@ public class PreListenEngineTests
     [Fact]
     public void ClampedJump_PastTheEnd_ClampsToDuration()
     {
-        // 4:50 + 30s would overshoot a 5:00 track — must clamp to the duration, not overshoot.
+        // 4:50 + 30s would overshoot a 5:00 track - must clamp to the duration, not overshoot.
         var result = PreCueTransport.ClampedJump(
             current: TimeSpan.FromSeconds(290),
             delta: TimeSpan.FromSeconds(30),
@@ -267,7 +267,7 @@ public class PreListenEngineTests
     [Fact]
     public void ClampedJump_BeforeTheStart_ClampsToZero()
     {
-        // 10s back from :15 would go negative — must clamp to zero, not go negative.
+        // 10s back from :15 would go negative - must clamp to zero, not go negative.
         var result = PreCueTransport.ClampedJump(
             current: TimeSpan.FromSeconds(15),
             delta: TimeSpan.FromSeconds(-30),
@@ -279,7 +279,7 @@ public class PreListenEngineTests
     [Fact]
     public void ClampedJump_NothingLoaded_ZeroDurationSkipsUpperClamp()
     {
-        // Duration == 0 (nothing loaded) is treated as "no upper clamp" — in practice the VM guards
+        // Duration == 0 (nothing loaded) is treated as "no upper clamp" - in practice the VM guards
         // the jump commands behind HasPreCueCurrent (CanExecute) so this never fires from the UI with
         // a nonzero current, but the pure function's contract is documented here.
         var result = PreCueTransport.ClampedJump(
@@ -291,7 +291,7 @@ public class PreListenEngineTests
     }
 
     // =========================================================================
-    // 11. Single-slot replace-on-load — Load() fully replaces, never stacks (Pre-Cue v2: ONE slot,
+    // 11. Single-slot replace-on-load - Load() fully replaces, never stacks (Pre-Cue v2: ONE slot,
     //     not an audition list; loading track B while A is cued REPLACES A, exactly what
     //     MainWindowViewModel.LoadPreCueTrackAsync relies on).
     // =========================================================================
@@ -307,7 +307,7 @@ public class PreListenEngineTests
 
         engine.Load("B.mp3");
         Assert.Equal("B.mp3", engine.LastLoadedPath);
-        Assert.Equal(2, engine.LoadCount); // a second, independent load — not appended to a list
+        Assert.Equal(2, engine.LoadCount); // a second, independent load - not appended to a list
         Assert.True(engine.Duration > TimeSpan.Zero); // the ONE slot is still playable, freshly loaded
     }
 
@@ -319,14 +319,14 @@ public class PreListenEngineTests
         engine.Play();
         engine.Position = TimeSpan.FromSeconds(42);
 
-        engine.Load("B.mp3"); // Chloe scouts a new track mid-audition — the slot replaces instantly
+        engine.Load("B.mp3"); // Chloe scouts a new track mid-audition - the slot replaces instantly
 
         Assert.Equal("B.mp3", engine.LastLoadedPath);
         Assert.Equal(TimeSpan.Zero, engine.Position); // fresh load starts at the top
     }
 
     // =========================================================================
-    // 12. PreCueTransport.TryAutoRebind — the auto-reconnect "CLOU"
+    // 12. PreCueTransport.TryAutoRebind - the auto-reconnect "CLOU"
     // =========================================================================
 
     [Fact]
@@ -403,7 +403,7 @@ public class PreListenEngineTests
     [Fact]
     public void TryAutoRebind_AlreadyBound_NeverOverridesLiveSelection()
     {
-        // Never overrides an explicit/already-bound device — the poll only fills in an EMPTY slot.
+        // Never overrides an explicit/already-bound device - the poll only fills in an EMPTY slot.
         var engine = new FakePreListenEngine
         {
             StubbedDevices =
@@ -424,21 +424,21 @@ public class PreListenEngineTests
 }
 
 // =============================================================================
-// Fake IPreListenEngine — in-process stub, no BASS dependency
+// Fake IPreListenEngine - in-process stub, no BASS dependency
 // =============================================================================
 
 /// <summary>
 /// Minimal in-process fake for <see cref="IPreListenEngine"/>.
 ///
 /// Simulates the documented state machine:
-/// - OutputDevice == -1 → Load/Play are no-ops.
+/// - OutputDevice == -1 -> Load/Play are no-ops.
 /// - Load sets a non-zero Duration, resets Position, initialises State = Stopped, and RECORDS the
-///   path in <see cref="LastLoadedPath"/> — a second Load() call replaces it (single-slot semantics,
+///   path in <see cref="LastLoadedPath"/> - a second Load() call replaces it (single-slot semantics,
 ///   never stacks), mirroring BassPreListenEngine.Load's FreeSource-then-load-new behaviour.
-/// - Play  → Playing  (fires StateChanged).
-/// - Stop  → Stopped  + Position = 0 (fires StateChanged). (No Pause in v2.)
-/// - Unload → Stopped + Duration = 0 (fires StateChanged).
-/// - SimulateTrackEnd → Stopped + fires both StateChanged and PlaybackEnded.
+/// - Play  -> Playing  (fires StateChanged).
+/// - Stop  -> Stopped  + Position = 0 (fires StateChanged). (No Pause in v2.)
+/// - Unload -> Stopped + Duration = 0 (fires StateChanged).
+/// - SimulateTrackEnd -> Stopped + fires both StateChanged and PlaybackEnded.
 /// </summary>
 file sealed class FakePreListenEngine : IPreListenEngine
 {
@@ -467,9 +467,9 @@ file sealed class FakePreListenEngine : IPreListenEngine
     {
         if (OutputDevice == -1) return;
         LoadCount++;
-        LastLoadedPath = filePath; // replaces whatever was here before — single slot, not a list
+        LastLoadedPath = filePath; // replaces whatever was here before - single slot, not a list
         _loaded   = true;
-        Duration  = TimeSpan.FromMinutes(5); // stub — non-zero so tests can assert
+        Duration  = TimeSpan.FromMinutes(5); // stub - non-zero so tests can assert
         Position  = TimeSpan.Zero;
         SetState(PlaybackState.Stopped);
     }
@@ -483,7 +483,7 @@ file sealed class FakePreListenEngine : IPreListenEngine
     public void Pause()
     {
         if (_state != PlaybackState.Playing) return;
-        SetState(PlaybackState.Paused); // position kept — Play() resumes
+        SetState(PlaybackState.Paused); // position kept - Play() resumes
     }
 
     public void Stop()

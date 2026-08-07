@@ -10,9 +10,9 @@ namespace JustPlay.UI.Controls;
 /// <summary>
 /// The suite's progress indicator: a round, hand-drawn ring.
 ///
-/// <para>Replaces the 74×3 px bar the busy overlay used to carry (Chloe 2026-07-30: <i>"die bar ist
-/// viel zu schmal … ich hätte lieber was rundes modernes schickes"</i>). Determinate when
-/// <see cref="Progress"/> has a value — a sweeping arc plus the percentage in the middle — and a
+/// <para>Replaces the 74x3 px bar the busy overlay used to carry (Chloe 2026-07-30: <i>"die bar ist
+/// viel zu schmal ... ich haette lieber was rundes modernes schickes"</i>). Determinate when
+/// <see cref="Progress"/> has a value - a sweeping arc plus the percentage in the middle - and a
 /// travelling arc when it is null.</para>
 ///
 /// <para><b>It never twitches.</b> The drawn value EASES toward the target instead of jumping, so a
@@ -81,7 +81,7 @@ public sealed class ProgressRing : Control
         set => SetValue(ShowPercentProperty, value);
     }
 
-    // ── Animation state ──────────────────────────────────────────────────────
+    // -- Animation state ------------------------------------------------------
 
     /// <summary>Seconds for the eased value to cover most of the remaining distance. Slow enough to
     /// read as one motion, fast enough that a finished job snaps shut.</summary>
@@ -108,7 +108,7 @@ public sealed class ProgressRing : Control
     {
         base.OnAttachedToVisualTree(e);
 
-        // Jump to the current value on appear — easing UP from zero every time the overlay opens
+        // Jump to the current value on appear - easing UP from zero every time the overlay opens
         // would read as a replay of work that is already done.
         _shown = Math.Clamp(Progress ?? 0, 0, 1);
 
@@ -135,7 +135,7 @@ public sealed class ProgressRing : Control
             var goal = Math.Clamp(target, 0, 1);
             if (Math.Abs(goal - _shown) > 0.0005)
             {
-                // Exponential approach — frame-rate independent, no overshoot, and a value that
+                // Exponential approach - frame-rate independent, no overshoot, and a value that
                 // jumps forward (a batch of files landing at once) still arrives smoothly.
                 _shown += (goal - _shown) * (1 - Math.Exp(-dt / (EaseSeconds / 3.0)));
                 dirty = true;
@@ -155,7 +155,7 @@ public sealed class ProgressRing : Control
         if (dirty) InvalidateVisual();
     }
 
-    // ── Drawing ──────────────────────────────────────────────────────────────
+    // -- Drawing --------------------------------------------------------------
 
     public override void Render(DrawingContext ctx)
     {
@@ -193,7 +193,7 @@ public sealed class ProgressRing : Control
             $"{(int)Math.Round(fraction * 100)}%",
             System.Globalization.CultureInfo.InvariantCulture,
             FlowDirection.LeftToRight,
-            // A bare Control has no FontFamily of its own — take the inherited one so the ring's
+            // A bare Control has no FontFamily of its own - take the inherited one so the ring's
             // label is in the same face as everything around it.
             new Typeface(TextElement.GetFontFamily(this), FontStyle.Normal, FontWeight.SemiBold),
             size * 0.26,

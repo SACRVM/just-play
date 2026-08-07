@@ -9,15 +9,15 @@ using JustPlay.Core.Theming;
 namespace JustPlay.UI.Theming;
 
 /// <summary>
-/// Renders a JUST app's brand mark — its <see cref="BrandGlyph"/> (white) on the active
-/// theme's cyan→pink chip — into a <see cref="WindowIcon"/> at runtime, so the taskbar /
+/// Renders a JUST app's brand mark - its <see cref="BrandGlyph"/> (white) on the active
+/// theme's cyan->pink chip - into a <see cref="WindowIcon"/> at runtime, so the taskbar /
 /// Alt-Tab / title-bar icon tracks the live palette. Shared by every JUST suite app
 /// (CLAUDE.md "JUST suite UI philosophy": theme-gradient chip + one simple glyph, repaints
 /// on theme switch).
 ///
 /// Built as the SAME visual tree as the in-app brand chip (Border + Path + DropShadowEffect)
 /// and rasterised via <see cref="RenderTargetBitmap.Render"/>, so the glyph carries the same
-/// soft drop shadow — a raw DrawGeometry can't carry a blurred effect.
+/// soft drop shadow - a raw DrawGeometry can't carry a blurred effect.
 /// </summary>
 public static class ThemedWindowIcon
 {
@@ -26,10 +26,10 @@ public static class ThemedWindowIcon
         // Render large so Windows has plenty of source pixels when downscaling to taskbar size.
         const int size = 512;
 
-        // Icon chip gradient = ThemeBrushes.IconGradient — the SAME single source the theme-picker
+        // Icon chip gradient = ThemeBrushes.IconGradient - the SAME single source the theme-picker
         // swatches use ({theming:ThemeSwatch ...}), so icon and swatch can never diverge. A theme may
-        // override the chip (IconFrom/IconTo) when it should differ from its accents — e.g. Onyx
-        // (pitch-black) needs a DARK chip, not its bright in-app accents; otherwise AccentA→AccentB.
+        // override the chip (IconFrom/IconTo) when it should differ from its accents - e.g. Onyx
+        // (pitch-black) needs a DARK chip, not its bright in-app accents; otherwise AccentA->AccentB.
         var bg = ThemeBrushes.IconGradient(theme);
 
         var path = new Path

@@ -1,24 +1,24 @@
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// ⭐ ONE live spectrum tap: rolls the most recent audio into a fixed FFT window and turns it into
-/// <see cref="SpectralProfile.BandCount"/> log-spaced 1/6-octave band POWERS (20 Hz…20 kHz) — the
+/// (*) ONE live spectrum tap: rolls the most recent audio into a fixed FFT window and turns it into
+/// <see cref="SpectralProfile.BandCount"/> log-spaced 1/6-octave band POWERS (20 Hz...20 kHz) - the
 /// same banding the offline <see cref="SpectralProfile"/> and the shared <c>SpectrumWindow</c> speak.
 ///
 /// <para><b>Why it lives here.</b> Two players in the suite grew this exact FFT-band code
 /// independently and now need the identical measurement for their own spectrum window. Written ONCE
 /// (suite rule) so both measure the same thing instead of drifting two hand-copied FFTs apart. The
-/// audio-engine DSP wiring stays per-player — the only app-specific part; this is just the math over
+/// audio-engine DSP wiring stays per-player - the only app-specific part; this is just the math over
 /// a float buffer, so it is platform-agnostic, deterministic, reflection-free and belongs in Analysis.</para>
 ///
 /// <para><b>Threading.</b> <see cref="Capture"/> runs on the audio thread; <see cref="ReadBands"/>
 /// on the UI thread. A lock guards the one shared snapshot buffer (a short copy under the lock, all
-/// FFT work outside it); the FFT scratch is UI-thread-only. One tap = one signal — a dry/wet display
+/// FFT work outside it); the FFT scratch is UI-thread-only. One tap = one signal - a dry/wet display
 /// owns two instances.</para>
 /// </summary>
 public sealed class SpectrumTap
 {
-    /// <summary>FFT window length. 2048 @ 44.1 kHz ≈ 46 ms — enough resolution for the low bands,
+    /// <summary>FFT window length. 2048 @ 44.1 kHz ~ 46 ms - enough resolution for the low bands,
     /// short enough to follow a moving mix.</summary>
     public const int FftSize = 2048;
 
@@ -27,7 +27,7 @@ public sealed class SpectrumTap
     private readonly float[] _snapshot = new float[FftSize];   // most-recent mono window
     private readonly object _lock = new();                     // guards _snapshot only
 
-    // FFT scratch — UI-thread only (ReadBands), never touched by the audio thread.
+    // FFT scratch - UI-thread only (ReadBands), never touched by the audio thread.
     private readonly float[] _re = new float[FftSize];
     private readonly float[] _im = new float[FftSize];
 
@@ -71,7 +71,7 @@ public sealed class SpectrumTap
     /// <c>min(bands.Length, <see cref="SpectralProfile.BandCount"/>)</c> bands.
     /// </summary>
     /// <param name="bands">Destination band-power span (ideally <see cref="SpectralProfile.BandCount"/> long).</param>
-    /// <param name="sampleRateHz">The tapped stream's sample rate — sets the FFT bin width.</param>
+    /// <param name="sampleRateHz">The tapped stream's sample rate - sets the FFT bin width.</param>
     public void ReadBands(Span<float> bands, double sampleRateHz)
     {
         lock (_lock) Array.Copy(_snapshot, _re, FftSize);   // all FFT work happens outside the lock
@@ -89,10 +89,10 @@ public sealed class SpectrumTap
     }
 
     /// <summary>
-    /// RENDER/UI thread. Welch-average the band POWER over a WHOLE buffer — slide 50 %-overlapped Hann
+    /// RENDER/UI thread. Welch-average the band POWER over a WHOLE buffer - slide 50 %-overlapped Hann
     /// windows across it and average the per-band power. This is the stable spectrum of a rendered loop
     /// (the render analyzer measures the RENDER, not a live tap): a single-window snapshot of a periodic
-    /// beat would be biased by wherever it landed (a kick vs a gap). Allocates its own scratch — call off
+    /// beat would be biased by wherever it landed (a kick vs a gap). Allocates its own scratch - call off
     /// the audio thread. Same banding as <see cref="ReadBands"/>, so the two are directly comparable, and
     /// the window's per-curve self-anchoring makes the absolute scale irrelevant. The window count is
     /// capped so a long loop stays cheap.
@@ -131,7 +131,7 @@ public sealed class SpectrumTap
         for (var b = 0; b < fill; b++) bands[b] = (float)(acc[b] / count);
     }
 
-    /// <summary>Sum the linear POWER of the FFT magnitudes into 1/6-octave bands from 20 Hz up — shared
+    /// <summary>Sum the linear POWER of the FFT magnitudes into 1/6-octave bands from 20 Hz up - shared
     /// by the live <see cref="ReadBands"/> and the render-average <see cref="AverageBands"/> so both speak
     /// the identical banding. <paramref name="magnitude"/> holds the first <paramref name="half"/> bins.</summary>
     private static void FillBands(float[] magnitude, int half, double binHz, Span<float> bands)
@@ -150,7 +150,7 @@ public sealed class SpectrumTap
         }
     }
 
-    /// <summary>Forget the captured audio — draws as silence until the next <see cref="Capture"/>.</summary>
+    /// <summary>Forget the captured audio - draws as silence until the next <see cref="Capture"/>.</summary>
     public void Clear()
     {
         lock (_lock) Array.Clear(_snapshot, 0, FftSize);

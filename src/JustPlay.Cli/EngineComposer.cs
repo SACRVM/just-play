@@ -13,7 +13,7 @@ namespace JustPlay.Cli;
 /// <para>
 /// Mirrors the wiring in <c>JustPlay.App.Program.ConfigureServices</c> but skips
 /// Avalonia, ISettingsService, and all UI-only services. Key detection uses the SAME
-/// <see cref="BestKeyDetector"/> as the app (ML model when available, else DSP) — so a
+/// <see cref="BestKeyDetector"/> as the app (ML model when available, else DSP) - so a
 /// track keyed by the CLI shows the identical key in the UI (no key-conflict dots from a
 /// CLI/app detector mismatch). It falls back to DSP automatically if the ONNX runtime/model
 /// is absent in a headless environment.
@@ -35,7 +35,7 @@ internal sealed class EngineComposer : IDisposable
     public IMetadataReader       MetadataReader  { get; }
     /// <summary>
     /// Direct access to the metadata writer, used by the promote command to write
-    /// the JUSTPLAY blob (TrackAnalysisState) + standard tags in a single file save —
+    /// the JUSTPLAY blob (TrackAnalysisState) + standard tags in a single file save -
     /// the Engine facade's WriteTagsAsync does not expose the blob field.
     /// </summary>
     public IMetadataWriter       MetadataWriter  { get; }
@@ -65,7 +65,7 @@ internal sealed class EngineComposer : IDisposable
 
     /// <summary>
     /// Constructs and returns a composed analysis stack ready for use.
-    /// Initialises the BASS library (no output device — decode-only mode via BassAudioDecoder).
+    /// Initialises the BASS library (no output device - decode-only mode via BassAudioDecoder).
     /// </summary>
     public static EngineComposer Build()
     {
@@ -99,7 +99,7 @@ internal sealed class EngineComposer : IDisposable
 
     public void Dispose()
     {
-        // ManagedBass is a static singleton — freeing it here is correct for a
+        // ManagedBass is a static singleton - freeing it here is correct for a
         // CLI process that exits shortly after. Safe to call multiple times.
         try { ManagedBass.Bass.Free(); } catch { /* best-effort */ }
     }

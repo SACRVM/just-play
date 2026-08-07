@@ -5,9 +5,9 @@ using Avalonia.Data.Converters;
 namespace JustPlay.Stream.ViewModels;
 
 /// <summary>
-/// Maps a linear level (0..1) to a 0..1 fill position on a −48..0 dB ProgressBar.
-/// Formula: pos = clamp((20·log10(max(x, 1e-4)) + 48) / 48, 0, 1)
-/// Used by the L/R meter bars in the METERS ROW (just-stream-blueprint.md §3a).
+/// Maps a linear level (0..1) to a 0..1 fill position on a -48..0 dB ProgressBar.
+/// Formula: pos = clamp((20-log10(max(x, 1e-4)) + 48) / 48, 0, 1)
+/// Used by the L/R meter bars in the METERS ROW (just-stream-blueprint.md Sec.3a).
 /// </summary>
 public sealed class LinearToDbFillConverter : IValueConverter
 {

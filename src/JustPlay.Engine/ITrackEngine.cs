@@ -18,12 +18,12 @@ namespace JustPlay.Engine;
 public interface ITrackEngine
 {
     /// <summary>
-    /// Run the full DSP analysis pipeline on one track (BPM → key → energy → beat fingerprint)
+    /// Run the full DSP analysis pipeline on one track (BPM -> key -> energy -> beat fingerprint)
     /// and return the result as a flat DTO.
     /// </summary>
     /// <param name="filePath">Absolute path to the audio file.</param>
     /// <param name="progress">
-    /// Optional callback — receives a partial <see cref="TrackAnalysisDto"/> each time
+    /// Optional callback - receives a partial <see cref="TrackAnalysisDto"/> each time
     /// a detector finishes (same contract as <c>ITrackAnalysisService.AnalyzeAsync</c>).
     /// </param>
     /// <param name="ct">Cancellation token.</param>
@@ -33,7 +33,7 @@ public interface ITrackEngine
         CancellationToken ct = default);
 
     /// <summary>
-    /// Read tag-level metadata (title, artist, BPM tag, key tag, …) from a file.
+    /// Read tag-level metadata (title, artist, BPM tag, key tag, ...) from a file.
     /// Does NOT run DSP analysis; returns whatever is stored in the file's tags.
     /// </summary>
     Task<TrackTagsDto> ReadTagsAsync(string filePath, CancellationToken ct = default);

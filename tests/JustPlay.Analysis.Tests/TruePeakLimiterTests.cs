@@ -6,13 +6,13 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="TruePeakLimiter"/>.
 ///
 /// Tests cover the five scenarios from the N10 night-queue task:
-///   T1 — +6 dBFS sine is brought to ≤ −1 dBTP.
-///   T2 — Signal already under ceiling passes through ~unchanged (gain ≤ unity, low THD).
-///   T3 — True-peak detection catches an inter-sample peak that sample-peak misses.
-///   T4 — Gain never exceeds 1.0 on a quiet passage (anti-AGC).
-///   T5 — Transient/impulse is limited without a long "hole" (release behaves).
+///   T1 - +6 dBFS sine is brought to <= -1 dBTP.
+///   T2 - Signal already under ceiling passes through ~unchanged (gain <= unity, low THD).
+///   T3 - True-peak detection catches an inter-sample peak that sample-peak misses.
+///   T4 - Gain never exceeds 1.0 on a quiet passage (anti-AGC).
+///   T5 - Transient/impulse is limited without a long "hole" (release behaves).
 ///
-/// All measurements use the same 4× linear-interpolation kernel as the limiter itself.
+/// All measurements use the same 4x linear-interpolation kernel as the limiter itself.
 /// </summary>
 public class TruePeakLimiterTests
 {
@@ -21,9 +21,9 @@ public class TruePeakLimiterTests
     // -------------------------------------------------------------------------
 
     private const int   SampleRate   = 44100;
-    private const double CeilingDbTp = -1.0;    // −1 dBTP (EBU R128 / streaming-broadcast.md §4.1)
+    private const double CeilingDbTp = -1.0;    // -1 dBTP (EBU R128 / streaming-broadcast.md Sec.4.1)
 
-    // Linear amplitude matching −1 dBTP: 10^(−1/20) ≈ 0.8913
+    // Linear amplitude matching -1 dBTP: 10^(-1/20) ~ 0.8913
     private static readonly float CeilingLinear = (float)Math.Pow(10.0, CeilingDbTp / 20.0);
 
     // -------------------------------------------------------------------------
@@ -41,7 +41,7 @@ public class TruePeakLimiterTests
     }
 
     /// <summary>
-    /// Returns the peak true-peak (4× linear-interp oversampled) of the output buffer in dBTP.
+    /// Returns the peak true-peak (4x linear-interp oversampled) of the output buffer in dBTP.
     /// </summary>
     private static double OutputTruePeakDb(float[] output)
     {
@@ -50,23 +50,23 @@ public class TruePeakLimiterTests
     }
 
     /// <summary>
-    /// Creates a default-parameter limiter (−1 dBTP ceiling, 2 ms lookahead,
+    /// Creates a default-parameter limiter (-1 dBTP ceiling, 2 ms lookahead,
     /// 0.5 ms attack, 100 ms release, 44100 Hz).
     /// </summary>
     private static TruePeakLimiter DefaultLimiter()
         => new TruePeakLimiter(SampleRate, CeilingDbTp, lookaheadMs: 2.0, attackMs: 0.5, releaseMs: 100.0);
 
     // =========================================================================
-    // T1 — Hot signal is limited to ≤ −1 dBTP
-    // A +6 dBFS sine (amplitude = 2.0) must be brought to ≤ −1 dBTP.
-    // We allow a ±0.5 dB tolerance on the ceiling (limiter is not a "brickwall"
+    // T1 - Hot signal is limited to <= -1 dBTP
+    // A +6 dBFS sine (amplitude = 2.0) must be brought to <= -1 dBTP.
+    // We allow a +/-0.5 dB tolerance on the ceiling (limiter is not a "brickwall"
     // in the last release tail, but the peak within the sustained portion must comply).
     // =========================================================================
 
     [Fact]
     public void T1_HotSine_LimitedToCeiling()
     {
-        // Amplitude 2.0 = +6 dBFS — well above 0 dBFS and above the −1 dBTP ceiling.
+        // Amplitude 2.0 = +6 dBFS - well above 0 dBFS and above the -1 dBTP ceiling.
         var samples = Sine(amplitude: 2.0, freq: 997.0, seconds: 1.0);
         var limiter = DefaultLimiter();
 
@@ -75,14 +75,14 @@ public class TruePeakLimiterTests
 
         double outputTpDb = OutputTruePeakDb(output);
 
-        // After steady-state limiting, the output true peak must be ≤ −1 dBTP.
+        // After steady-state limiting, the output true peak must be <= -1 dBTP.
         // We measure the SECOND half of the output (after attack transient settles).
         int halfPoint = output.Length / 2;
         float[] steadyState = output[halfPoint..];
         double steadyTpDb = OutputTruePeakDb(steadyState);
 
         Assert.True(steadyTpDb <= CeilingDbTp + 0.5,
-            $"Steady-state true peak {steadyTpDb:F2} dBTP should be ≤ {CeilingDbTp + 0.5:F2} dBTP");
+            $"Steady-state true peak {steadyTpDb:F2} dBTP should be <= {CeilingDbTp + 0.5:F2} dBTP");
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public class TruePeakLimiterTests
         var output = (float[])samples.Clone();
         limiter.ProcessInPlace(output);
 
-        // Output should still have energy — not zeroed out.
+        // Output should still have energy - not zeroed out.
         float maxAbs = 0f;
         foreach (var s in output) { var a = Math.Abs(s); if (a > maxAbs) maxAbs = a; }
 
@@ -104,15 +104,15 @@ public class TruePeakLimiterTests
     }
 
     // =========================================================================
-    // T2 — Signal already below ceiling passes through ~unchanged
-    // A quiet sine (amplitude 0.5, ≈ −6 dBFS, well under −1 dBTP) must not be
+    // T2 - Signal already below ceiling passes through ~unchanged
+    // A quiet sine (amplitude 0.5, ~ -6 dBFS, well under -1 dBTP) must not be
     // attenuated. This also verifies low THD (no distortion on unaffected signal).
     // =========================================================================
 
     [Fact]
     public void T2_QuietSine_PassesThroughUnchanged()
     {
-        // Amplitude 0.5 → true peak ≈ 0.5 linear ≈ −6.02 dBTP; well under −1 dBTP.
+        // Amplitude 0.5 -> true peak ~ 0.5 linear ~ -6.02 dBTP; well under -1 dBTP.
         var samples = Sine(amplitude: 0.5, freq: 997.0, seconds: 1.0);
         var input   = (float[])samples.Clone();
         var limiter = DefaultLimiter();
@@ -123,13 +123,13 @@ public class TruePeakLimiterTests
         // We check the second half of the buffer (skip the lookahead transient).
         int halfPoint = samples.Length / 2;
 
-        // True-peak of output in the steady region must still be < −1 dBTP.
+        // True-peak of output in the steady region must still be < -1 dBTP.
         float[] steadyOut = samples[halfPoint..];
         double tp = OutputTruePeakDb(steadyOut);
         Assert.True(tp < CeilingDbTp,
             $"Quiet signal should not be limited; output true-peak {tp:F2} dBTP");
 
-        // Output amplitude must be ~same as input (within 1% — accounting for lookahead delay).
+        // Output amplitude must be ~same as input (within 1% - accounting for lookahead delay).
         float[] steadyIn  = input[halfPoint..];
         float inPeak  = 0f; foreach (var s in steadyIn)  { var a = Math.Abs(s); if (a > inPeak)  inPeak  = a; }
         float outPeak = 0f; foreach (var s in steadyOut) { var a = Math.Abs(s); if (a > outPeak) outPeak = a; }
@@ -144,7 +144,7 @@ public class TruePeakLimiterTests
     {
         // THD check: an unlimited sine should have negligible harmonic distortion.
         // Strategy: compute the ratio of non-fundamental energy to fundamental energy.
-        // For a clean sine the ratio should be <1% (−40 dB).
+        // For a clean sine the ratio should be <1% (-40 dB).
         const double freq  = 440.0;
         const double amp   = 0.5;
         var samples = Sine(amplitude: amp, freq: freq, seconds: 2.0);
@@ -161,14 +161,14 @@ public class TruePeakLimiterTests
             if (a > maxOut) maxOut = a;
         }
 
-        // For an unlimited pass-through, output max ≈ input amplitude (0.5).
+        // For an unlimited pass-through, output max ~ input amplitude (0.5).
         // THD is modelled here as the deviation from expected amplitude.
         double gainError = maxOut / amp; // expect ~1.0
         Assert.InRange(gainError, 0.99, 1.01);
     }
 
     // =========================================================================
-    // T3 — True-peak detection catches inter-sample peaks sample-peak misses
+    // T3 - True-peak detection catches inter-sample peaks sample-peak misses
     // Construct a signal whose maximum sample value is slightly below the ceiling
     // but whose true (oversampled) peak exceeds it.
     // =========================================================================
@@ -177,13 +177,13 @@ public class TruePeakLimiterTests
     public void T3_InterSamplePeak_DetectedAndLimited()
     {
         // An inter-sample peak occurs when adjacent samples at opposite polarities
-        // near ±1 cause the reconstructed waveform to exceed the ceiling between samples.
+        // near +/-1 cause the reconstructed waveform to exceed the ceiling between samples.
         // Simplest synthetic case: a near-Nyquist sine at sr/2 - 1 Hz where consecutive
         // samples alternate sign and can have an interpolated peak larger than the samples.
         //
-        // More direct approach: manually craft a two-sample sequence [ceiling-ε, ceiling-ε]
+        // More direct approach: manually craft a two-sample sequence [ceiling-epsilon, ceiling-epsilon]
         // where the linear interpolation between them at t=0.5 = the same, but then try
-        // [-A, +A] where linear interp midpoint is 0 — that doesn't overshoot.
+        // [-A, +A] where linear interp midpoint is 0 - that doesn't overshoot.
         //
         // The classic inter-sample overshoot occurs for [+A, -A] or [-A, +A] sequences
         // at near-Nyquist because the true waveform's peak is between, not at, the samples.
@@ -191,14 +191,14 @@ public class TruePeakLimiterTests
         // Let's use a different approach: inject a specific pattern where samples are just
         // under the ceiling but the interpolated midpoint is over it.
         //
-        // Pattern: s0 = C, s1 = C where C just under ceiling → interp also C → no overshoot.
-        // We need s0 near one extreme and s1 near the other: s0 = −0.88, s1 = +0.88.
-        // The midpoint is 0 — no overshoot. This won't work either.
+        // Pattern: s0 = C, s1 = C where C just under ceiling -> interp also C -> no overshoot.
+        // We need s0 near one extreme and s1 near the other: s0 = -0.88, s1 = +0.88.
+        // The midpoint is 0 - no overshoot. This won't work either.
         //
-        // The actual inter-sample case: s[n] = A·cos(2πf/sr·n) at f near sr/4.
-        // At sr/4, successive samples are [A, 0, −A, 0, A, ...].
+        // The actual inter-sample case: s[n] = A-cos(2pif/sr-n) at f near sr/4.
+        // At sr/4, successive samples are [A, 0, -A, 0, A, ...].
         // The true-peak between samples 0 and 1 is A itself (at t=0).
-        // At f = sr/4 + ε, the samples straddle the peak → interpolated midpoint > both samples.
+        // At f = sr/4 + epsilon, the samples straddle the peak -> interpolated midpoint > both samples.
         //
         // Verified construction: two samples [a, b] where a < C, b < C but
         // the SINE between them (at the correct frequency) exceeds C.
@@ -236,7 +236,7 @@ public class TruePeakLimiterTests
         double steadyTpDb = OutputTruePeakDb(steadyOut.Length > 0 ? steadyOut : output);
 
         Assert.True(steadyTpDb <= CeilingDbTp + 0.5,
-            $"Output true peak {steadyTpDb:F2} dBTP should be ≤ {CeilingDbTp + 0.5:F2} dBTP after limiting");
+            $"Output true peak {steadyTpDb:F2} dBTP should be <= {CeilingDbTp + 0.5:F2} dBTP after limiting");
     }
 
     [Fact]
@@ -266,15 +266,15 @@ public class TruePeakLimiterTests
     }
 
     // =========================================================================
-    // T4 — Gain never exceeds 1.0 on a quiet passage (anti-AGC)
-    // This is the critical anti-pattern test: streaming-broadcast.md §7.2.
+    // T4 - Gain never exceeds 1.0 on a quiet passage (anti-AGC)
+    // This is the critical anti-pattern test: streaming-broadcast.md Sec.7.2.
     // The limiter must NEVER apply gain > 1.0, even to very quiet signals.
     // =========================================================================
 
     [Fact]
     public void T4_QuietSignal_GainNeverExceedsUnity()
     {
-        // Very quiet signal: amplitude 0.001 (~−60 dBFS).
+        // Very quiet signal: amplitude 0.001 (~-60 dBFS).
         // If the limiter were a compressor/AGC, it might boost this to the ceiling.
         // The true-peak limiter must NOT amplify it.
         const double quietAmp = 0.001;
@@ -303,7 +303,7 @@ public class TruePeakLimiterTests
         var limiter = DefaultLimiter();
         limiter.ProcessInPlace(silence);
 
-        // All output samples should be zero (silence in → silence out, not boosted).
+        // All output samples should be zero (silence in -> silence out, not boosted).
         foreach (var s in silence)
             Assert.Equal(0f, s);
     }
@@ -315,7 +315,7 @@ public class TruePeakLimiterTests
         // time position (accounting for the lookahead delay). The limiter only ever attenuates.
         //
         // Because the limiter introduces a lookahead delay, comparing output[i] / input[i]
-        // directly does NOT measure gain — it compares the delayed output against the current
+        // directly does NOT measure gain - it compares the delayed output against the current
         // input. Instead, we compare output[i] against the original input AT THE SAME DELAY
         // POSITION: input[i - lookaheadSamples]. The ratio output[i] / input[i-delay] gives
         // the actual gain applied. It must never exceed 1.0.
@@ -332,7 +332,7 @@ public class TruePeakLimiterTests
         var limiter = DefaultLimiter();
         limiter.ProcessInPlace(samples);
 
-        // For a constant-amplitude signal under the ceiling, output peak ≤ input peak.
+        // For a constant-amplitude signal under the ceiling, output peak <= input peak.
         float inPeak  = 0f; foreach (var s in input)   { var a = Math.Abs(s); if (a > inPeak)  inPeak  = a; }
         float outPeak = 0f; foreach (var s in samples) { var a = Math.Abs(s); if (a > outPeak) outPeak = a; }
 
@@ -341,7 +341,7 @@ public class TruePeakLimiterTests
 
         // Additional: process a LOUD constant-amplitude signal.
         // In the steady state (after attack settles), the output should be near the ceiling.
-        // The first few ms may exceed it (pre-attack lookahead flush) — that's expected.
+        // The first few ms may exceed it (pre-attack lookahead flush) - that's expected.
         var loud = Sine(amplitude: 2.0, freq: 440.0, seconds: 1.0);
         var loudLimiter = DefaultLimiter();
         loudLimiter.ProcessInPlace(loud);
@@ -357,11 +357,11 @@ public class TruePeakLimiterTests
 
         // Steady-state output peak must be near or below ceiling (within 5% for sample domain).
         Assert.True(loudSteadyPeak <= CeilingLinear * 1.05f,
-            $"Loud signal steady-state output peak {loudSteadyPeak:F6} should be ≤ ceiling {CeilingLinear:F6}");
+            $"Loud signal steady-state output peak {loudSteadyPeak:F6} should be <= ceiling {CeilingLinear:F6}");
     }
 
     // =========================================================================
-    // T5 — Transient/impulse limited without a long "hole" (release behaviour)
+    // T5 - Transient/impulse limited without a long "hole" (release behaviour)
     // A single impulse is limited; the level returns to normal within ~200 ms.
     // =========================================================================
 
@@ -369,7 +369,7 @@ public class TruePeakLimiterTests
     public void T5_Impulse_LimitedWithoutLongHole()
     {
         // Insert a single large impulse at sample 1000, then steady-level sine afterwards.
-        // The release should recover within ~3× the release time constant.
+        // The release should recover within ~3x the release time constant.
         const double steadyAmp = 0.5;  // sine at 0.5 amplitude, well under ceiling
         const double impulseAmp = 5.0; // +14 dBFS spike
 
@@ -387,10 +387,10 @@ public class TruePeakLimiterTests
         var output  = (float[])samples.Clone();
         limiter.ProcessInPlace(output);
 
-        // AFTER the impulse (and allowing 3× release time constant = 300 ms = 13230 samples
-        // for the gain to recover to within e^-3 ≈ 5% of its original level),
+        // AFTER the impulse (and allowing 3x release time constant = 300 ms = 13230 samples
+        // for the gain to recover to within e^-3 ~ 5% of its original level),
         // the output amplitude should be close to the steady input amplitude.
-        int releaseEndSample = 1000 + (int)(3.0 * 100.0 * SampleRate / 1000.0); // 3 × 100 ms release
+        int releaseEndSample = 1000 + (int)(3.0 * 100.0 * SampleRate / 1000.0); // 3 x 100 ms release
         releaseEndSample = Math.Min(releaseEndSample, n - 1);
 
         // Measure the peak in the final 100 ms of the signal (well after the impulse).
@@ -403,7 +403,7 @@ public class TruePeakLimiterTests
         }
 
         // The output in the tail should be close to the expected steady amplitude.
-        // After full release, gain → 1.0, so output ≈ 0.5 amplitude sine.
+        // After full release, gain -> 1.0, so output ~ 0.5 amplitude sine.
         // Allow a wide tolerance (20%) since release is exponential, not instant.
         Assert.InRange(peakAfterRelease, (float)steadyAmp * 0.70f, (float)steadyAmp * 1.05f);
     }
@@ -490,7 +490,7 @@ public class TruePeakLimiterTests
         var loud = Sine(amplitude: 2.0, freq: 1000.0, seconds: 0.1);
         lim.ProcessInPlace(loud);
 
-        // Reset and process silence — output should still be silence (delay cleared).
+        // Reset and process silence - output should still be silence (delay cleared).
         lim.Reset();
         var silence = new float[SampleRate / 10];
         lim.ProcessInPlace(silence);
@@ -501,7 +501,7 @@ public class TruePeakLimiterTests
     [Fact]
     public void MeasureTruePeak_FullScaleSine_ApproximatesAmplitude()
     {
-        // A 0 dBFS sine's true-peak should be ≈ 1.0 (within a few percent of amplitude).
+        // A 0 dBFS sine's true-peak should be ~ 1.0 (within a few percent of amplitude).
         var samples = Sine(amplitude: 1.0, freq: 997.0, seconds: 1.0);
         float tp    = TruePeakLimiter.MeasureTruePeak(samples);
 
@@ -556,6 +556,6 @@ public class TruePeakLimiterTests
         double tp = OutputTruePeakDb(steadyState);
 
         Assert.True(tp <= CeilingDbTp + 0.5,
-            $"At {sampleRate} Hz: steady-state TP {tp:F2} dBTP should be ≤ {CeilingDbTp + 0.5:F2}");
+            $"At {sampleRate} Hz: steady-state TP {tp:F2} dBTP should be <= {CeilingDbTp + 0.5:F2}");
     }
 }

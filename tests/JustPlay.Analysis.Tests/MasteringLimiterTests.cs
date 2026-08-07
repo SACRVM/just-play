@@ -3,28 +3,28 @@ using JustPlay.Analysis;
 namespace JustPlay.Analysis.Tests;
 
 /// <summary>
-/// Unit tests for <see cref="MasteringLimiter"/> — the production stereo true-peak limiter / maximizer
+/// Unit tests for <see cref="MasteringLimiter"/> - the production stereo true-peak limiter / maximizer
 /// wired onto the engine mixer bus.
 ///
 /// Coverage:
-///   M1 — a hot stereo sine (+6 dB over) is brought down to the −1 dBTP ceiling.
-///   M2 — a signal already under the ceiling at 0 dB drive ("Soft") passes through unchanged.
-///   M3 — gain reduction is stereo-LINKED: a peak in L pulls R down by the same factor (image holds).
-///   M4 — maximizer drive raises level when there is headroom (no limiting), and never above ceiling.
-///   M5 — anti-AGC: 0 dB drive never amplifies a quiet signal (gain ≤ unity).
-///   M6 — output stays finite (no NaN/Inf) and Reset() clears state.
+///   M1 - a hot stereo sine (+6 dB over) is brought down to the -1 dBTP ceiling.
+///   M2 - a signal already under the ceiling at 0 dB drive ("Soft") passes through unchanged.
+///   M3 - gain reduction is stereo-LINKED: a peak in L pulls R down by the same factor (image holds).
+///   M4 - maximizer drive raises level when there is headroom (no limiting), and never above ceiling.
+///   M5 - anti-AGC: 0 dB drive never amplifies a quiet signal (gain <= unity).
+///   M6 - output stays finite (no NaN/Inf) and Reset() clears state.
 ///
 /// The ceiling check uses the SAMPLE peak of the output: the limiter targets the oversampled TRUE
-/// peak to the ceiling, and sample-peak ≤ true-peak, so a compliant output never shows a sample over
+/// peak to the ceiling, and sample-peak <= true-peak, so a compliant output never shows a sample over
 /// the ceiling. Measurements skip the first 100 ms to ignore the look-ahead ramp-in.
 /// </summary>
 public class MasteringLimiterTests
 {
     private const int    Rate        = 44100;
     private const double CeilingDbTp = -1.0;
-    private static readonly float CeilingLinear = (float)Math.Pow(10.0, CeilingDbTp / 20.0); // ≈ 0.8913
+    private static readonly float CeilingLinear = (float)Math.Pow(10.0, CeilingDbTp / 20.0); // ~ 0.8913
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // -- Helpers ----------------------------------------------------------------
 
     /// <summary>Interleaved-stereo sine; L and R can have different amplitudes.</summary>
     private static float[] StereoSine(double ampL, double ampR, double freq, double seconds)
@@ -57,7 +57,7 @@ public class MasteringLimiterTests
 
     private static double Db(float linear) => linear <= 0 ? double.NegativeInfinity : 20.0 * Math.Log10(linear);
 
-    // ── M1: hot sine is limited to the ceiling ───────────────────────────────────
+    // -- M1: hot sine is limited to the ceiling -----------------------------------
 
     [Fact]
     public void HotSine_IsBroughtToCeiling()
@@ -74,12 +74,12 @@ public class MasteringLimiterTests
         Assert.True(Db(l) >= CeilingDbTp - 2.0, $"L out {Db(l):F2} dBTP is over-attenuated");
     }
 
-    // ── M2: already-quiet signal at Soft passes through unchanged ─────────────────
+    // -- M2: already-quiet signal at Soft passes through unchanged -----------------
 
     [Fact]
     public void UnderCeiling_Soft_PassesThroughUnchanged()
     {
-        var buf = StereoSine(0.5, 0.5, 1000.0, 0.3);   // ~−6 dBFS, well under ceiling
+        var buf = StereoSine(0.5, 0.5, 1000.0, 0.3);   // ~-6 dBFS, well under ceiling
         var input = (float[])buf.Clone();
         var lim = new MasteringLimiter(Rate, CeilingDbTp, driveDb: 0.0);
         lim.ProcessInterleavedStereo(buf);
@@ -89,7 +89,7 @@ public class MasteringLimiterTests
         Assert.Equal(lIn, lOut, 2);   // unchanged to ~2 decimals (gain stayed at unity)
     }
 
-    // ── M3: gain reduction is stereo-linked ──────────────────────────────────────
+    // -- M3: gain reduction is stereo-linked --------------------------------------
 
     [Fact]
     public void GainReduction_IsStereoLinked()
@@ -106,26 +106,26 @@ public class MasteringLimiterTests
         // Linked: both channels see the SAME gain factor (within tolerance).
         Assert.Equal(gainL, gainR, 2);
         // And R was genuinely pulled down despite being quiet (proves it's not independent).
-        Assert.True(gainR < 0.95, $"R gain {gainR:F3} — quiet channel was not linked to L's reduction");
+        Assert.True(gainR < 0.95, $"R gain {gainR:F3} - quiet channel was not linked to L's reduction");
     }
 
-    // ── M4: maximizer drive raises level when there's headroom ───────────────────
+    // -- M4: maximizer drive raises level when there's headroom -------------------
 
     [Fact]
     public void Drive_RaisesLevel_WhenHeadroomExists_ButNeverAboveCeiling()
     {
-        // Quiet input; +6 dB drive lands it at ~0.4 (still under the 0.8913 ceiling) → no limiting,
-        // so the output should be ~2× the input and clean.
+        // Quiet input; +6 dB drive lands it at ~0.4 (still under the 0.8913 ceiling) -> no limiting,
+        // so the output should be ~2x the input and clean.
         var buf = StereoSine(0.2, 0.2, 1000.0, 0.3);
         var lim = new MasteringLimiter(Rate, CeilingDbTp, driveDb: 6.0);
         lim.ProcessInterleavedStereo(buf);
 
         var (l, _) = SteadyPeak(buf);
-        Assert.True(l > 0.36 && l < 0.45, $"driven peak {l:F3} not ≈ +6 dB of 0.2");
+        Assert.True(l > 0.36 && l < 0.45, $"driven peak {l:F3} not ~ +6 dB of 0.2");
         Assert.True(Db(l) <= CeilingDbTp + 0.3, "driven output exceeded ceiling");
     }
 
-    // ── M5: anti-AGC — 0 dB drive never amplifies ────────────────────────────────
+    // -- M5: anti-AGC - 0 dB drive never amplifies --------------------------------
 
     [Fact]
     public void Soft_NeverAmplifies()
@@ -137,10 +137,10 @@ public class MasteringLimiterTests
 
         var (lOut, _) = SteadyPeak(buf);
         var (lIn, _)  = SteadyPeak(input);
-        Assert.True(lOut <= lIn + 1e-4, $"output {lOut:F4} exceeds input {lIn:F4} — limiter inflated gain");
+        Assert.True(lOut <= lIn + 1e-4, $"output {lOut:F4} exceeds input {lIn:F4} - limiter inflated gain");
     }
 
-    // ── M6: numerically stable + Reset clears state ──────────────────────────────
+    // -- M6: numerically stable + Reset clears state ------------------------------
 
     [Fact]
     public void Output_IsFinite_AndResetClearsState()
@@ -151,7 +151,7 @@ public class MasteringLimiterTests
         foreach (var s in buf)
             Assert.True(float.IsFinite(s), "non-finite sample in output");
 
-        // Reset then push silence — output must be silence (no leftover envelope/delay energy).
+        // Reset then push silence - output must be silence (no leftover envelope/delay energy).
         lim.Reset();
         var silence = new float[Rate];   // 0.5 s stereo of zeros
         lim.ProcessInterleavedStereo(silence);

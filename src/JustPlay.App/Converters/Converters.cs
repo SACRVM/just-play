@@ -15,7 +15,7 @@ internal static class ThemeColors
 }
 
 // CamelotWheelBrushConverter, ConflictWeightConverter and ConflictForegroundConverter moved to
-// JustPlay.UI/Converters/TrackConverters.cs (2026-08-05) — they are the shared TrackRow's cell
+// JustPlay.UI/Converters/TrackConverters.cs (2026-08-05) - they are the shared TrackRow's cell
 // converters, so they travel with the row. Their resource keys are unchanged (CamelotWheelBrush,
 // ConflictWeight, ConflictForeground); they now arrive via the merged TrackTable dictionary, which
 // is why MiniView's key-pill binding still resolves.
@@ -57,13 +57,13 @@ public sealed class EnergyBarColorConverter : IValueConverter
     }
 }
 
-/// <summary>True (playing) → pause path; false → play triangle path. Both fit a 20×22 box.</summary>
+/// <summary>True (playing) -> pause path; false -> play triangle path. Both fit a 20x22 box.</summary>
 /// <remarks>
 /// The play triangle's VISUAL CENTROID is at ((x1+x2+x3)/3, (y1+y2+y3)/3), not the bounding-box
-/// centre. A naive triangle "M 0,0 L 0,22 L 20,11 Z" has centroid x=6.67 vs box-centre x=10 —
+/// centre. A naive triangle "M 0,0 L 0,22 L 20,11 Z" has centroid x=6.67 vs box-centre x=10 -
 /// the icon looks left-shifted at rest and that asymmetry becomes obvious on hover-scale.
 /// We use "M 5,0 L 5,22 L 20,11 Z": narrower (15-wide instead of 20) but centroid lands at
-/// x=(5+5+20)/3 = 10 — exactly the box centre. Same height; reads as a clean, symmetric play head.
+/// x=(5+5+20)/3 = 10 - exactly the box centre. Same height; reads as a clean, symmetric play head.
 /// </remarks>
 public sealed class PlayPausePathConverter : IValueConverter
 {

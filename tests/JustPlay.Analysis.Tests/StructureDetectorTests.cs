@@ -7,21 +7,21 @@ namespace JustPlay.Analysis.Tests;
 /// <summary>
 /// Unit tests for <see cref="StructureDetector"/>.
 ///
-/// All signals are synthetically generated — no real audio files are read.
+/// All signals are synthetically generated - no real audio files are read.
 /// The core design principle for each test: **if the detector cannot find a
 /// clear boundary in a signal that was deliberately constructed to have one,
 /// it is broken.**
 ///
 /// Test categories:
 /// 1. Edge-case / contract (too short, silence, empty).
-/// 2. Two-section boundary detection: low-energy → high-energy transition.
+/// 2. Two-section boundary detection: low-energy -> high-energy transition.
 ///    This is the minimum viable test for drop detection in EDM.
-/// 3. Three-section signal: two transitions → two boundaries detected.
-/// 4. No-boundary signal: uniform signal → no false boundaries.
+/// 3. Three-section signal: two transitions -> two boundaries detected.
+/// 4. No-boundary signal: uniform signal -> no false boundaries.
 /// 5. Beatgrid snap: with BPM supplied, boundary moves to nearest phrase.
-/// 6. Output contracts: timestamps ordered, NoveltyScore ∈ (0,1].
+/// 6. Output contracts: timestamps ordered, NoveltyScore  in  (0,1].
 ///
-/// [structure-detection.md §Foote SSM; §EDM structure is ENERGY/TIMBRE/RHYTHM]
+/// [structure-detection.md Sec.Foote SSM; Sec.EDM structure is ENERGY/TIMBRE/RHYTHM]
 /// </summary>
 public class StructureDetectorTests
 {
@@ -29,7 +29,7 @@ public class StructureDetectorTests
     private const int SampleRate = 11025;
 
     // =========================================================================
-    // 1. Edge cases — contract guarantees
+    // 1. Edge cases - contract guarantees
     // =========================================================================
 
     [Fact]
@@ -45,7 +45,7 @@ public class StructureDetectorTests
     [Fact]
     public void Silence_ReturnsEmpty()
     {
-        // 30 s of zeros — no spectral content, no gradients, no peaks.
+        // 30 s of zeros - no spectral content, no gradients, no peaks.
         var det   = new StructureDetector();
         var audio = new DecodedAudio(new float[SampleRate * 30], SampleRate);
         var result = det.Detect(audio);
@@ -62,7 +62,7 @@ public class StructureDetectorTests
     }
 
     // =========================================================================
-    // 2. Two-section signal: low-energy → high-energy
+    // 2. Two-section signal: low-energy -> high-energy
     //    (minimum viable "drop" test)
     // =========================================================================
 
@@ -78,7 +78,7 @@ public class StructureDetectorTests
     /// (sub-bass energy, bass energy, mid energy, hi energy, centroid,
     /// flatness, flux), so the novelty peak should be unmissable.
     ///
-    /// Detection tolerance: the boundary must land within ±10% of total duration
+    /// Detection tolerance: the boundary must land within +/-10% of total duration
     /// from the true midpoint (i.e. within [0.40T, 0.60T]).
     /// </summary>
     [Fact]
@@ -93,14 +93,14 @@ public class StructureDetectorTests
 
         Assert.NotEmpty(result);
 
-        // At least one boundary must fall within ±10% of the midpoint.
+        // At least one boundary must fall within +/-10% of the midpoint.
         var midpoint = totalSeconds / 2.0;
         var tolerance = totalSeconds * 0.10;
         var foundNearMid = result.Any(b =>
             Math.Abs(b.TimeSeconds - midpoint) <= tolerance);
 
         Assert.True(foundNearMid,
-            $"Expected a boundary near midpoint {midpoint:F1}s (±{tolerance:F1}s), " +
+            $"Expected a boundary near midpoint {midpoint:F1}s (+/-{tolerance:F1}s), " +
             $"but got boundaries at: [{string.Join(", ", result.Select(b => $"{b.TimeSeconds:F1}s"))}]");
     }
 
@@ -134,15 +134,15 @@ public class StructureDetectorTests
     // =========================================================================
 
     /// <summary>
-    /// A three-section signal (A→B→A pattern: quiet→loud→quiet) should produce
+    /// A three-section signal (A->B->A pattern: quiet->loud->quiet) should produce
     /// at least two boundaries, one near each transition.
     ///
-    ///   Section A : 0   – T/3  : quiet 200 Hz sine (0.02 amp)
-    ///   Section B : T/3 – 2T/3 : loud broadband burst (0.9 amp)
-    ///   Section A': 2T/3 – T  : quiet 200 Hz sine again (0.02 amp)
+    ///   Section A : 0   - T/3  : quiet 200 Hz sine (0.02 amp)
+    ///   Section B : T/3 - 2T/3 : loud broadband burst (0.9 amp)
+    ///   Section A': 2T/3 - T  : quiet 200 Hz sine again (0.02 amp)
     ///
     /// With a 90-second total track, the two transitions are at 30 s and 60 s.
-    /// Both should be detected within ±10 s.
+    /// Both should be detected within +/-10 s.
     /// </summary>
     [Fact]
     public void ThreeSectionSignal_TwoBoundariesDetected()
@@ -168,15 +168,15 @@ public class StructureDetectorTests
         var foundT2 = result.Any(b => Math.Abs(b.TimeSeconds - t2) <= tol);
 
         Assert.True(foundT1,
-            $"Expected boundary near {t1:F1}s (±{tol}s). " +
+            $"Expected boundary near {t1:F1}s (+/-{tol}s). " +
             $"Got: [{string.Join(", ", result.Select(b => $"{b.TimeSeconds:F1}s"))}]");
         Assert.True(foundT2,
-            $"Expected boundary near {t2:F1}s (±{tol}s). " +
+            $"Expected boundary near {t2:F1}s (+/-{tol}s). " +
             $"Got: [{string.Join(", ", result.Select(b => $"{b.TimeSeconds:F1}s"))}]");
     }
 
     // =========================================================================
-    // 4. Uniform signal — no false boundaries
+    // 4. Uniform signal - no false boundaries
     // =========================================================================
 
     /// <summary>
@@ -184,7 +184,7 @@ public class StructureDetectorTests
     /// amplitude) should produce NO boundaries.  This guards against false positives
     /// from boundary effects of the kernel at the SSM edges.
     ///
-    /// We use a high threshold (2σ) to make sure only genuine novelty peaks are
+    /// We use a high threshold (2sigma) to make sure only genuine novelty peaks are
     /// counted.
     /// </summary>
     [Fact]
@@ -199,7 +199,7 @@ public class StructureDetectorTests
     }
 
     // =========================================================================
-    // 5. Beatgrid snap — boundary moves to phrase boundary
+    // 5. Beatgrid snap - boundary moves to phrase boundary
     // =========================================================================
 
     /// <summary>
@@ -207,15 +207,15 @@ public class StructureDetectorTests
     /// 4-bar phrase boundary.  We engineer the signal so the raw detection lands
     /// slightly off the grid, then verify it has been snapped.
     ///
-    /// 128 BPM → 4-bar phrase = 4 × 4 × (60/128) ≈ 7.5 s.
+    /// 128 BPM -> 4-bar phrase = 4 x 4 x (60/128) ~ 7.5 s.
     ///
     /// Signal: two sections, transition at exactly T = 30.0 s.
-    /// Nearest phrase boundary to 30.0 s = round(30.0 / 7.5) × 7.5 = 4 × 7.5 = 30.0 s.
-    /// (30 s is exactly on a phrase boundary at 128 BPM → snap has no effect, but
+    /// Nearest phrase boundary to 30.0 s = round(30.0 / 7.5) x 7.5 = 4 x 7.5 = 30.0 s.
+    /// (30 s is exactly on a phrase boundary at 128 BPM -> snap has no effect, but
     /// the boundary must still be present and close to 30 s.)
     ///
-    /// Also verifies that the snapped timestamp is within ±7.5 s of the raw transition
-    /// (i.e. within ±1 phrase).
+    /// Also verifies that the snapped timestamp is within +/-7.5 s of the raw transition
+    /// (i.e. within +/-1 phrase).
     /// </summary>
     [Fact]
     public void BeatgridSnap_BoundaryIsNearPhraseGrid()
@@ -231,7 +231,7 @@ public class StructureDetectorTests
 
         Assert.NotEmpty(result);
 
-        var phraseDuration = 4.0 * 4.0 * 60.0 / bpm;  // ≈ 7.5 s
+        var phraseDuration = 4.0 * 4.0 * 60.0 / bpm;  // ~ 7.5 s
         var midpoint       = totalSeconds / 2.0;        // 30.0 s
 
         // All boundaries must lie on the phrase grid (within floating-point of a multiple).
@@ -316,7 +316,7 @@ public class StructureDetectorTests
             var noise = (rng.NextDouble() * 2.0 - 1.0) * 0.9;
             // Sub-bass tone (80 Hz): high sub-bass energy, low centroid.
             var bass  = 0.9 * Math.Sin(2.0 * Math.PI * 80.0 * t);
-            // Combined — high total energy, very different from section 1.
+            // Combined - high total energy, very different from section 1.
             x[i] = (float)Math.Clamp((noise + bass) * 0.5, -1.0, 1.0);
         }
 
@@ -324,7 +324,7 @@ public class StructureDetectorTests
     }
 
     /// <summary>
-    /// Three-section A–B–A signal: quiet → loud → quiet.
+    /// Three-section A-B-A signal: quiet -> loud -> quiet.
     /// </summary>
     private static float[] ThreeSectionSignal(double totalSeconds, int sampleRate)
     {
@@ -361,7 +361,7 @@ public class StructureDetectorTests
     }
 
     /// <summary>
-    /// Uniform white noise at constant amplitude — no structural changes.
+    /// Uniform white noise at constant amplitude - no structural changes.
     /// </summary>
     private static float[] UniformNoise(double totalSeconds, int sampleRate, float amplitude)
     {

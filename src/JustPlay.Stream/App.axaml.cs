@@ -16,7 +16,7 @@ public partial class App : Application
 {
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
-    // "About Just Stream" in the macOS app menu — same shared About dialog as the Funkturm
+    // "About Just Stream" in the macOS app menu - same shared About dialog as the Funkturm
     // brand mark in the chrome (MainWindow.OnAbout), owned by the main window.
     private void OnAboutMenu(object? sender, System.EventArgs e)
     {
@@ -37,7 +37,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // Apply the saved theme BEFORE the window opens — this publishes the full palette (incl.
+        // Apply the saved theme BEFORE the window opens - this publishes the full palette (incl.
         // the glow/alpha keys that have no XAML default) into Application.Resources, so the shared
         // design system renders correctly and JUST STREAM matches JUST PLAY. Falls back to Aurora when
         // the settings file is missing or the saved name is stale (Themes.ByNameOrDefault).
@@ -53,14 +53,14 @@ public partial class App : Application
             };
 
             // Schema F: the Funkturm brand mark on the active theme gradient as the taskbar /
-            // Alt-Tab icon, via the SHARED renderer (JustPlay.UI) — re-rendered on every theme switch.
+            // Alt-Tab icon, via the SHARED renderer (JustPlay.UI) - re-rendered on every theme switch.
             window.Icon = ThemedWindowIcon.Render(themeSvc.Current, BrandGlyphs.RadioTower);
             themeSvc.ThemeChanged += (_, theme) =>
                 Dispatcher.UIThread.Post(() => window.Icon = ThemedWindowIcon.Render(theme, BrandGlyphs.RadioTower));
 
             desktop.MainWindow = window;
 
-            // Dispose the VM on shutdown — it finalizes a running set recording (EncodeStop
+            // Dispose the VM on shutdown - it finalizes a running set recording (EncodeStop
             // completes the WAV/AIFF/FLAC headers; dying mid-write leaves an unplayable file).
             desktop.Exit += (_, _) => (window.DataContext as StreamViewModel)?.Dispose();
         }

@@ -4,22 +4,22 @@ using JustPlay.Core.Models;
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// SHIPPED key detector (since 2026-06-01) — <b>GiantSteps ground truth: MIREX 0.629, 52%
+/// SHIPPED key detector (since 2026-06-01) - <b>GiantSteps ground truth: MIREX 0.629, 52%
 /// exact, 74% harmonically ok</b>, beating the previous braw+cosine chromagram (0.562 / 41%).
 /// Ports the portable parts of Faraldo's <c>edmkey</c> reference chain (anxefaraldo/edmkey,
-/// branch AES2017) — the implementation that DERIVED the braw/edma profiles on the GiantSteps
+/// branch AES2017) - the implementation that DERIVED the braw/edma profiles on the GiantSteps
 /// set and reports ~0.74 MIREX. Reached by copying edmkey's fine-tuning rather than guessing
 /// (the first naive HPCP scored 0.465); further headroom to ~0.74 likely remains in the
 /// still-approximated bits noted below.
 ///
 /// <para>edmkey's documented chain (edmkey.py):
-/// MonoLoader@44.1k → HighPass(200 Hz)×3 → per frame: FrameCutter(4096/4096) → Hann →
-/// Spectrum → SpectralPeaks(25–3500 Hz, thr 1e-4, ≤60) → SpectralWhitening → HPCP(size 12,
-/// harmonics 4, cosine weight, 1-semitone window, ref 440) → SUM frames → peak-normalise →
-/// gate (&lt;0.2 → 0) → detuning shift → Pearson template match.</para>
+/// MonoLoader@44.1k -> HighPass(200 Hz)x3 -> per frame: FrameCutter(4096/4096) -> Hann ->
+/// Spectrum -> SpectralPeaks(25-3500 Hz, thr 1e-4, <=60) -> SpectralWhitening -> HPCP(size 12,
+/// harmonics 4, cosine weight, 1-semitone window, ref 440) -> SUM frames -> peak-normalise ->
+/// gate (&lt;0.2 -> 0) -> detuning shift -> Pearson template match.</para>
 ///
 /// <para>Faithfully ported here: 200 Hz triple high-pass, 4096/4096 framing, top-60
-/// peak-picking in 25–3500 Hz with parabolic interpolation, a (simplified) spectral
+/// peak-picking in 25-3500 Hz with parabolic interpolation, a (simplified) spectral
 /// whitening, SUM aggregation (no per-frame normalisation), peak-normalise + 0.2 gate, and
 /// tuning-corrected fold. Approximated/deferred: Essentia's exact SpectralWhitening BPF
 /// envelope and HPCP harmonic weighting are simplified. Classification reuses the shipped
@@ -29,9 +29,9 @@ namespace JustPlay.Analysis;
 public sealed class HpcpKeyDetector : IKeyDetector
 {
     // Finer than edmkey's 4096 (a deliberate improvement): at 44.1 kHz, 8192 = 5.4 Hz/bin
-    // vs edmkey's 10.8 — better bass-octave peak localisation (a semitone at 100 Hz is ~6 Hz,
-    // unresolvable at 4096). 50% overlap (hop = size/2) gives ~2× frames for a steadier sum.
-    // Measured sweet spot: 8192 → MIREX 0.686; 16384 over-smooths across chord changes
+    // vs edmkey's 10.8 - better bass-octave peak localisation (a semitone at 100 Hz is ~6 Hz,
+    // unresolvable at 4096). 50% overlap (hop = size/2) gives ~2x frames for a steadier sum.
+    // Measured sweet spot: 8192 -> MIREX 0.686; 16384 over-smooths across chord changes
     // (0.37 s window) and regressed to 0.667; 4096 was 0.629.
     private const int FrameSize = 8192;
     private const int HopSize = 4096;
@@ -40,11 +40,11 @@ public sealed class HpcpKeyDetector : IKeyDetector
     private const double MaxHz = 3500.0;              // edmkey MAX_HZ
     // edmkey uses 200 Hz (kills kick AND bassline). We use 100: with our finer 8192 FFT the
     // bass octave is now resolved, so keeping the tonic-defining bassline root (~80-200 Hz)
-    // is a tonic cue edmkey throws away. Still applied ×3 to kill the sub-bass / tuned kick.
+    // is a tonic cue edmkey throws away. Still applied x3 to kill the sub-bass / tuned kick.
     private const double HighpassHz = 100.0;
     private const int MaxPeaks = 60;                  // edmkey SPECTRAL_PEAKS_MAX
     private const double PcpGate = 0.2;               // edmkey PCP_THRESHOLD
-    // (PeakThreshold removed — we now keep local maxima and take the strongest MaxPeaks.)
+    // (PeakThreshold removed - we now keep local maxima and take the strongest MaxPeaks.)
     // (Harmonic contribution now uses Essentia's faithful HarmonicTable, nHarmonics=4.)
     private const int BinsPerSemitone = 3;
     private const int ChromaBins = 12 * BinsPerSemitone; // 36 (fine, for tuning)
@@ -52,7 +52,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
 
     public (MusicalKey Key, double Confidence)? Detect(DecodedAudio audio, CancellationToken ct = default)
     {
-        // braw + cosine + no bias. A profile×metric×bias sweep over this (8192 / faithful-
+        // braw + cosine + no bias. A profilexmetricxbias sweep over this (8192 / faithful-
         // whitening / faithful-HPCP-harmonics) chroma puts braw+cosine+0 and bgate+cosine+0.05
         // tied at MIREX 0.698; braw+0 is simpler and marginally higher on exact (63% vs 62%).
         var chroma = BuildChroma12(audio, ct);
@@ -65,7 +65,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
     /// decode + build ONCE and then re-score under different profiles/metrics cheaply.
     /// </summary>
     /// <summary>
-    /// The combined, L1-normalised 36-bin (3 bins/semitone) multi-resolution HPCP — the rich
+    /// The combined, L1-normalised 36-bin (3 bins/semitone) multi-resolution HPCP - the rich
     /// pre-fold feature. Exposed for ML feature export (the static-chroma input a learned
     /// classifier would train on, vs the hand-set template).
     /// </summary>
@@ -81,7 +81,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
         // Multi-resolution (a creative gain edmkey lacks): combine an 8192-pt chroma (fine
         // bass-octave frequency resolution) with a 4096-pt chroma (finer time resolution for
         // fast chord changes). Each is L1-normalised so neither octave-energy scale dominates,
-        // then summed — richer harmonic evidence for the classifier.
+        // then summed - richer harmonic evidence for the classifier.
         var fineA = BuildHpcp(filtered, sampleRate, FrameSize, HopSize, ct);
         var fineB = BuildHpcp(filtered, sampleRate, 4096, 2048, ct);
         if (fineA is null && fineB is null)
@@ -106,7 +106,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
 
         var chroma = FoldToTwelve(fine);
 
-        // edmkey: peak-normalise then gate (zero everything below PcpGate × max).
+        // edmkey: peak-normalise then gate (zero everything below PcpGate x max).
         var max = 0.0;
         for (var i = 0; i < 12; i++) max = Math.Max(max, chroma[i]);
         if (max <= SilenceFloor) return null;
@@ -123,7 +123,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
     }
 
     /// <summary>First-order high-pass applied three times (cascaded), matching edmkey's
-    /// <c>hpf(hpf(hpf(audio)))</c> — removes the tuned kick / sub-bass below ~200 Hz.</summary>
+    /// <c>hpf(hpf(hpf(audio)))</c> - removes the tuned kick / sub-bass below ~200 Hz.</summary>
     private static float[] HighPassCubed(float[] x, int sampleRate, double cutoffHz)
     {
         var rc = 1.0 / (2.0 * Math.PI * cutoffHz);
@@ -222,8 +222,8 @@ public sealed class HpcpKeyDetector : IKeyDetector
     /// <summary>
     /// Faithful port of Essentia <c>SpectralWhitening</c> (`spectralwhitening.cpp`): builds a
     /// dB noise envelope ("true-envelope"-style BPF, 100 Hz steps, energy-weighted triangular
-    /// windows) from the full magnitude spectrum, then expresses each peak relative to it —
-    /// peaks at/above the envelope → 0 dB, peaks below → attenuated, far below → killed, plus
+    /// windows) from the full magnitude spectrum, then expresses each peak relative to it -
+    /// peaks at/above the envelope -> 0 dB, peaks below -> attenuated, far below -> killed, plus
     /// a high-frequency de-emphasis tilt. Flattens timbre so harmony peaks contribute
     /// comparably regardless of instrument. Writes linear whitened magnitudes to
     /// <paramref name="outWhite"/>[0..count).
@@ -313,11 +313,11 @@ public sealed class HpcpKeyDetector : IKeyDetector
 
     // Faithful port of Essentia HPCP's harmonic-contribution table
     // (`hpcp.cpp::initHarmonicContributionTable`, nHarmonics=4): for each harmonic i, the
-    // semitone offset 12·log2(i+1) is reduced mod 12 and given strength 1/max(1,(sem/12)·0.5),
+    // semitone offset 12-log2(i+1) is reduced mod 12 and given strength 1/max(1,(sem/12)-0.5),
     // accumulating across harmonics that share a semitone class. Result (nHarm=4):
-    //   semitone 0     → strength 3.000  (fundamental + octaves 2 & 4 reinforce)
-    //   semitone 7.02  → strength 1.000  (perfect fifth, from the 3rd harmonic)
-    //   semitone 3.86  → strength 0.861  (major third, from the 5th harmonic)
+    //   semitone 0     -> strength 3.000  (fundamental + octaves 2 & 4 reinforce)
+    //   semitone 7.02  -> strength 1.000  (perfect fifth, from the 3rd harmonic)
+    //   semitone 3.86  -> strength 0.861  (major third, from the 5th harmonic)
     // A peak is then treated as each of these harmonics of a lower fundamental.
     private static readonly (double Semitone, double Strength)[] HarmonicTable = BuildHarmonicTable(4);
 
@@ -340,7 +340,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
     /// <summary>
     /// Essentia HPCP <c>addContribution</c>: a peak at <paramref name="freq"/> is hypothesised
     /// as each harmonic in <see cref="HarmonicTable"/> of a lower fundamental, each placed into
-    /// the fine chroma with a cosine window (1-semitone wide), value = window · mag² · strength²
+    /// the fine chroma with a cosine window (1-semitone wide), value = window - mag^2 - strength^2
     /// (both magnitude and harmonic strength squared, per `hpcp.cpp::addContributionWithWeight`).
     /// </summary>
     private static void AddContribution(double[] fine, double freq, double mag)
@@ -355,7 +355,7 @@ public sealed class HpcpKeyDetector : IKeyDetector
     }
 
     /// <summary>Cosine-windowed placement into the 36-bin fine chroma, windowSize = 1 semitone
-    /// (Essentia HPCP weightType=cosine): bins within ±1.5 fine bins get cos(π·dist/semitone).</summary>
+    /// (Essentia HPCP weightType=cosine): bins within +/-1.5 fine bins get cos(pi-dist/semitone).</summary>
     private static void AddWindowed(double[] fine, double freq, double value)
     {
         const double resolution = ChromaBins / 12.0;   // fine bins per semitone (= 3)

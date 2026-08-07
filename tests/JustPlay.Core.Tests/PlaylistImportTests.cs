@@ -6,15 +6,15 @@ using Xunit;
 namespace JustPlay.Core.Tests;
 
 /// <summary>
-/// N25: PLS + XSPF playlist import, mirroring the coverage <see cref="M3uPlaylistTests"/> has for M3U —
+/// N25: PLS + XSPF playlist import, mirroring the coverage <see cref="M3uPlaylistTests"/> has for M3U -
 /// happy path with order preserved, relative-path resolution against the playlist's own folder,
 /// malformed/blank entries skipped, "file://" URIs (incl. UNC) resolved to local paths, "http(s)://"
-/// entries skipped (LOCAL library importer only), empty playlist → empty list, and the
-/// <see cref="Playlist"/> façade dispatching each extension to the right parser.
+/// entries skipped (LOCAL library importer only), empty playlist -> empty list, and the
+/// <see cref="Playlist"/> facade dispatching each extension to the right parser.
 /// </summary>
 public class PlaylistImportTests
 {
-    // ── IsPlaylist / façade extension detection ─────────────────────────────
+    // -- IsPlaylist / facade extension detection -----------------------------
 
     [Theory]
     [InlineData("set.pls", true)]
@@ -42,7 +42,7 @@ public class PlaylistImportTests
     public void Facade_IsPlaylist_DetectsAnyRecognizedFormat(string? path, bool expected)
         => Assert.Equal(expected, Playlist.IsPlaylist(path));
 
-    // ── PLS ──────────────────────────────────────────────────────────────────
+    // -- PLS ------------------------------------------------------------------
 
     [Fact]
     public void Pls_ReadPaths_OrderIsByFileIndex_NotLineOrder()
@@ -54,7 +54,7 @@ public class PlaylistImportTests
             var b = Path.Combine(dir, "b.mp3"); File.WriteAllText(b, "");
             var c = Path.Combine(dir, "c.mp3"); File.WriteAllText(c, "");
 
-            // Lines deliberately out of order on disk (File3, then File1, then File2) — N must win.
+            // Lines deliberately out of order on disk (File3, then File1, then File2) - N must win.
             var pls = Path.Combine(dir, "set.pls");
             File.WriteAllText(pls,
                 "[playlist]\n" +
@@ -90,10 +90,10 @@ public class PlaylistImportTests
                 "NumberOfEntries=3\n" +
                 "File1=real.mp3\n" +
                 "\n" +                                   // blank line
-                "this line has no equals sign\n" +        // malformed — no key=value shape
-                "File2=http://example.com/stream.mp3\n" + // remote — skipped
+                "this line has no equals sign\n" +        // malformed - no key=value shape
+                "File2=http://example.com/stream.mp3\n" + // remote - skipped
                 "Title2=Radio\n" +
-                "File3=missing.mp3\n" +                   // never created — filtered like M3U does
+                "File3=missing.mp3\n" +                   // never created - filtered like M3U does
                 "Version=2\n");
 
             var paths = PlsPlaylist.ReadPaths(pls);
@@ -136,7 +136,7 @@ public class PlaylistImportTests
         finally { Directory.Delete(dir, true); }
     }
 
-    // ── XSPF ─────────────────────────────────────────────────────────────────
+    // -- XSPF -----------------------------------------------------------------
 
     [Fact]
     public void Xspf_ReadPaths_HappyPath_OrderPreserved()
@@ -278,7 +278,7 @@ public class PlaylistImportTests
             var real = Path.Combine(dir, "real.mp3"); File.WriteAllText(real, "");
 
             var xspf = Path.Combine(dir, "set.xspf");
-            // No xmlns at all — a lazy/older exporter. Must still resolve by local-name matching.
+            // No xmlns at all - a lazy/older exporter. Must still resolve by local-name matching.
             File.WriteAllText(xspf,
                 """<playlist><trackList><track><location>real.mp3</location></track></trackList></playlist>""");
 
@@ -296,7 +296,7 @@ public class PlaylistImportTests
         try
         {
             var xspf = Path.Combine(dir, "broken.xspf");
-            // Missing closing tags — not well-formed XML.
+            // Missing closing tags - not well-formed XML.
             File.WriteAllText(xspf, "<playlist><trackList><track><location>real.mp3</location>");
 
             var ex = Record.Exception(() => XspfPlaylist.ReadPaths(xspf));
@@ -306,13 +306,13 @@ public class PlaylistImportTests
         finally { Directory.Delete(dir, true); }
     }
 
-    // ── PlaylistUriResolver (internal — direct coverage of the URI edge cases) ─
+    // -- PlaylistUriResolver (internal - direct coverage of the URI edge cases) -
 
     [Fact]
     public void UriResolver_UncFileUri_ResolvesToUncPath()
     {
-        // file://host/share/track.mp3 → \\host\share\track.mp3 (Uri.LocalPath's own documented UNC
-        // behaviour). Tested directly since we don't need a REAL reachable UNC host to exercise it —
+        // file://host/share/track.mp3 -> \\host\share\track.mp3 (Uri.LocalPath's own documented UNC
+        // behaviour). Tested directly since we don't need a REAL reachable UNC host to exercise it -
         // ResolveLocalPath itself does no existence check (only the callers filter by File.Exists).
         var resolved = PlaylistUriResolver.ResolveLocalPath("file://host/share/track.mp3", baseDir: "");
         Assert.Equal(@"\\host\share\track.mp3", resolved);
@@ -333,7 +333,7 @@ public class PlaylistImportTests
         Assert.Equal(Path.GetFullPath(Path.Combine(baseDir, "track.mp3")), resolved);
     }
 
-    // ── Façade dispatch ──────────────────────────────────────────────────────
+    // -- Facade dispatch ------------------------------------------------------
 
     [Fact]
     public void Facade_ReadPaths_DispatchesEachExtensionToItsParser()

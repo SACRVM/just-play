@@ -5,7 +5,7 @@
              Name="Just Stream"
              RequestedThemeVariant="Dark">
 
-    <!-- macOS app menu — the bold "Just Stream" menu in the mac menu bar (title from Name=
+    <!-- macOS app menu - the bold "Just Stream" menu in the mac menu bar (title from Name=
          above). About opens the same shared About dialog as the Funkturm brand mark;
          Avalonia appends Hide/Quit itself. Inert on Windows/Linux. -->
     <NativeMenu.Menu>
@@ -15,17 +15,17 @@
     </NativeMenu.Menu>
 
     <!--
-      JUST STREAM design system — now built on the SHARED J.U.S.T. palette + styles from
+      JUST STREAM design system - now built on the SHARED J.U.S.T. palette + styles from
       JustPlay.UI (merged below), so the two products are one family and switch themes LIVE
       together (AvaloniaThemeService, registered in Program.cs). The theme brushes mutate in
       place, so existing StaticResource brush references still follow the active theme; only
       raw-Color references need {DynamicResource} (see the Funkturm glow in MainWindow).
-      The broadcast SIGNATURE is the ON-AIR band (Border.onair / .live) — a tally light that
+      The broadcast SIGNATURE is the ON-AIR band (Border.onair / .live) - a tally light that
       genuinely glows green on air. Everything else stays quiet and disciplined around it.
     -->
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Shared J.U.S.T. theme palette (JustPlay.UI) — same colours, brushes, text ramp,
+            <!-- Shared J.U.S.T. theme palette (JustPlay.UI) - same colours, brushes, text ramp,
                  ToggleSwitch overrides and swatches as JUST PLAY, so the two products are one
                  family AND switch themes live. Broadcast-specific resources (ON-AIR green, card,
                  meters) stay inline below. -->
@@ -43,7 +43,7 @@
             <GradientStop Offset="1" Color="#08FFFFFF"/>
         </LinearGradientBrush>
 
-        <!-- Audio level meter: green → amber → red (reads instantly as "level/peak") -->
+        <!-- Audio level meter: green -> amber -> red (reads instantly as "level/peak") -->
         <LinearGradientBrush x:Key="MeterGradient" StartPoint="0%,0%" EndPoint="100%,0%">
             <GradientStop Offset="0" Color="#34d17a"/>
             <GradientStop Offset="0.7" Color="#34d17a"/>
@@ -92,7 +92,7 @@
             <Setter Property="BoxShadow" Value="0 8 24 -8 #66000000"/>
         </Style>
 
-        <!-- ═══ SIGNATURE: ON-AIR band ═══
+        <!-- === SIGNATURE: ON-AIR band ===
              Offline = quiet dark glass. Live (Classes.live bound to OnAir) = green wash + green
              glow halo so a glance across the room tells you you're transmitting. -->
         <Style Selector="Border.onair">
@@ -110,7 +110,7 @@
         </Style>
         <Style Selector="Border.onair.live">
             <!-- Live: themed ACCENT frame (was a hard green that clashed with the theme at the big size).
-                 The tally LAMP stays green (Border.tally.live) — only the box frame/wash/glow follow the
+                 The tally LAMP stays green (Border.tally.live) - only the box frame/wash/glow follow the
                  active theme accent now, and the glow (OnAirHalo) is softer than the old green bloom. -->
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
@@ -134,9 +134,9 @@
             <Setter Property="BoxShadow" Value="0 0 12 1 #CC36e07a"/>
         </Style>
 
-        <!-- Primary CTA: wide pill, cyan→pink gradient, pink glow, hover lift (port of JustPlay's
+        <!-- Primary CTA: wide pill, cyan->pink gradient, pink glow, hover lift (port of JustPlay's
              primary treatment, pill form for CONNECT). BoxShadow lives on the template Border
-             (#root) — Button itself has no BoxShadow property. -->
+             (#root) - Button itself has no BoxShadow property. -->
         <Style Selector="Button.primary">
             <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -146,7 +146,7 @@
             <Setter Property="CornerRadius" Value="11"/>
             <Setter Property="Padding" Value="22,11"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <!-- MUST be "50%,50%" with the % — bare "0.5,0.5" parses as ABSOLUTE pixels (≈ top-left
+            <!-- MUST be "50%,50%" with the % - bare "0.5,0.5" parses as ABSOLUTE pixels (~ top-left
                  corner), so the hover scale pivots at the corner and the button zooms down-right
                  instead of from its centre. (Verified: Avalonia RelativePoint.Parse, release/12.0.3.) -->
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
@@ -177,14 +177,14 @@
         <Style Selector="Button.primary:pressed">
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
-        <!-- ═══ CONNECT / DISCONNECT — ONE quiet-glass CTA, two colours (Chloe, 2026-06-29) ═══
+        <!-- === CONNECT / DISCONNECT - ONE quiet-glass CTA, two colours (Chloe, 2026-06-29) ===
              Both states share the EXACT same shape + a FIXED width, so nothing jumps when the label
-             changes (CONNECT ↔ CONNECTING… ↔ DISCONNECT). Only the COLOUR + glyph differ:
-               offline = theme accent + ▶ play mark   ·   live = red + ■ stop mark   (glyphs in ConnectLabel).
-             A small, deliberate break from the gradient-CTA convention (SEND keeps the gradient pill) — the
+             changes (CONNECT <-> CONNECTING... <-> DISCONNECT). Only the COLOUR + glyph differ:
+               offline = theme accent + > play mark   -   live = red + stop stop mark   (glyphs in ConnectLabel).
+             A small, deliberate break from the gradient-CTA convention (SEND keeps the gradient pill) - the
              glowing ON-AIR band stays the only signature; the transport CTA is calm dark glass. The old hard
              red/green-style fills clashed with cool themes; a thin coloured border + text is a small SIGNAL
-             (like the green tally lamp), not a clashing slab. No glow, no hover-zoom — disciplined. -->
+             (like the green tally lamp), not a clashing slab. No glow, no hover-zoom - disciplined. -->
         <Style Selector="Button.cta">
             <Setter Property="Background" Value="#40000000"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
@@ -196,7 +196,7 @@
             <Setter Property="CornerRadius" Value="11"/>
             <Setter Property="Padding" Value="14,11"/>
             <!-- Fixed width = both states identical, no rumspringen. Sized to clear the longest label
-                 ("RECONNECTING…"); padding trimmed with it. 184→164: Chloe 2026-07-05 — REC + CONNECT
+                 ("RECONNECTING..."); padding trimmed with it. 184->164: Chloe 2026-07-05 - REC + CONNECT
                  ate ~50% of the mini bar. -->
             <Setter Property="Width" Value="164"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -270,7 +270,7 @@
         </Style>
 
         <!-- Button.seg moved to the SHARED JustStyles (JustPlay.UI) so JUST PLAY + STREAM use the
-             identical segmented / compact button (incl. the device-rescan ↻). -->
+             identical segmented / compact button (incl. the device-rescan refresh). -->
 
 
         <!-- Level meter: gradient indicator on a dark track, rounded -->
@@ -283,7 +283,7 @@
             <Setter Property="Foreground" Value="{StaticResource MeterGradient}"/>
             <!-- Sub-pixel indicator glide: WITHOUT this the indicator width is rounded to whole device
                  pixels, so on the narrower MINI bar the small per-frame value steps fall under 1px and
-                 the meter visibly stutters (smooth on the wider MAX bar). Off → smooth at any width. -->
+                 the meter visibly stutters (smooth on the wider MAX bar). Off -> smooth at any width. -->
             <Setter Property="UseLayoutRounding" Value="False"/>
         </Style>
 
@@ -302,7 +302,7 @@
             <Setter Property="Background" Value="#22FFFFFF"/>
             <Setter Property="BorderBrush" Value="#33FFFFFF"/>
         </Style>
-        <!-- Open flyout + items — themed exactly like JUST PLAY's device-picker dropdown so the
+        <!-- Open flyout + items - themed exactly like JUST PLAY's device-picker dropdown so the
              Fluent SYSTEM-ACCENT (red on this machine) never shows on hover/selected. Generic =
              applies to EVERY ComboBox in JUST STREAM. -->
         <Style Selector="ComboBox /template/ Popup Border">
@@ -339,7 +339,7 @@
             <Setter Property="CaretBrush" Value="#D9FFFFFF"/>
         </Style>
         <!-- Kill the Fluent SYSTEM-ACCENT (red on this machine) on the focus/hover BORDER. Fluent paints
-             the TextBox border on PART_BorderElement and swaps it to the accent on :focus — so it MUST be
+             the TextBox border on PART_BorderElement and swaps it to the accent on :focus - so it MUST be
              overridden there (the control-level BorderBrush above is ignored once focused). Generic =
              every TextBox in JUST STREAM (NOW PLAYING + the server-info fields). -->
         <Style Selector="TextBox /template/ Border#PART_BorderElement">
@@ -365,7 +365,7 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
-        <!-- Tabs (settings) — quiet header, white when selected, accent underline pipe -->
+        <!-- Tabs (settings) - quiet header, white when selected, accent underline pipe -->
         <Style Selector="TabItem">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -388,7 +388,7 @@
             <Setter Property="Margin" Value="6,4"/>
         </Style>
 
-        <!-- Hairline divider between de-boxed sections (no card frames — JUST PLAY pattern,
+        <!-- Hairline divider between de-boxed sections (no card frames - JUST PLAY pattern,
              see CLAUDE.md JUST suite UI philosophy: thin separators, not nested containers). -->
         <Style Selector="Border.sep">
             <Setter Property="Height" Value="1"/>
@@ -397,7 +397,7 @@
         </Style>
 
 
-        <!-- Brand/About mark button in the chrome bar (top-left) — IDENTICAL behaviour to JUST PLAY's
+        <!-- Brand/About mark button in the chrome bar (top-left) - IDENTICAL behaviour to JUST PLAY's
              Button.brand (App.axaml): the brand mark is clickable but NEVER renders button chrome on
              hover/press (no background appears). A Button only so the frameless drag handler treats it
              as interactive. -->

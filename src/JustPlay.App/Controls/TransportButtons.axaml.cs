@@ -8,7 +8,7 @@ namespace JustPlay.App.Controls;
 /// <summary>
 /// Prev / play / next cluster. Defaults to MaxView sizes; set <see cref="Compact"/>=True
 /// for MiniView sizes. All other visual treatment (gradient, halo, hover glow, centred
-/// scale) is inherited from App.axaml's Button.ctrl / Button.primary styles — so both
+/// scale) is inherited from App.axaml's Button.ctrl / Button.primary styles - so both
 /// view-modes look identical apart from absolute size.
 /// </summary>
 public partial class TransportButtons : UserControl
@@ -28,8 +28,8 @@ public partial class TransportButtons : UserControl
     }
 
     /// <summary>
-    /// True → MiniView sizes (54-px play, 38-px ctrl, spacing 14, icons scaled 0.78×).
-    /// False → MaxView sizes (70 / 46 / 18 / standard icons). App.axaml's class styles
+    /// True -> MiniView sizes (54-px play, 38-px ctrl, spacing 14, icons scaled 0.78x).
+    /// False -> MaxView sizes (70 / 46 / 18 / standard icons). App.axaml's class styles
     /// set the default 70/46, so for False we just CLEAR the local overrides we set when
     /// switching to compact.
     /// </summary>
@@ -43,14 +43,14 @@ public partial class TransportButtons : UserControl
     {
         base.OnAttachedToVisualTree(e);
         // ApplySize is also called on Compact property changes, but the very first attach
-        // happens AFTER the property has its initial value — call here so the visual tree
+        // happens AFTER the property has its initial value - call here so the visual tree
         // is up-to-date as soon as it's rendered.
         ApplySize();
     }
 
     private void ApplySize()
     {
-        // Named elements come from x:Name in XAML — FindControl is safe once attached.
+        // Named elements come from x:Name in XAML - FindControl is safe once attached.
         var prev = this.FindControl<Button>("PrevButton");
         var play = this.FindControl<Button>("PlayButton");
         var next = this.FindControl<Button>("NextButton");
@@ -72,7 +72,7 @@ public partial class TransportButtons : UserControl
             play.CornerRadius = new CornerRadius(27);
             stack.Spacing = 14;
 
-            // Icons keep their original Width/Height (layout box) — only the RENDER is
+            // Icons keep their original Width/Height (layout box) - only the RENDER is
             // scaled, around the icon's own centre (RenderTransformOrigin=50%,50% in XAML).
             // That way the carefully-balanced centroid of the play triangle stays at the
             // box centre = button centre. Just shrinking Width/Height would re-introduce
@@ -92,7 +92,7 @@ public partial class TransportButtons : UserControl
             play.ClearValue(WidthProperty);    play.ClearValue(HeightProperty);    play.ClearValue(CornerRadiusProperty);
             stack.Spacing = 18;
 
-            // Remove any compact-mode scale so icons render at their natural 1.0×.
+            // Remove any compact-mode scale so icons render at their natural 1.0x.
             ApplyScale(prevIcon, null);
             ApplyScale(playIcon, null);
             ApplyScale(pauseIcon, null);

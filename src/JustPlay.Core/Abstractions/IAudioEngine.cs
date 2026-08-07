@@ -4,7 +4,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.Core.Abstractions;
 
 /// <summary>
-/// The playback engine. One track loaded at a time — load, play, seek, stop.
+/// The playback engine. One track loaded at a time - load, play, seek, stop.
 /// Implemented per platform (ManagedBass today); the UI only ever sees this interface.
 /// </summary>
 public interface IAudioEngine : IDisposable, ISpectrumSource
@@ -18,7 +18,7 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// Per-track loudness-normalization gain in dB, applied to the current source channel only
     /// (independent of <see cref="Volume"/>, which is the master). 0 = unity (no change). Set by
     /// the controller from the track's ReplayGain when playback normalization is on; re-applied
-    /// automatically whenever a source is (re)loaded. Non-destructive — the file is never touched.
+    /// automatically whenever a source is (re)loaded. Non-destructive - the file is never touched.
     /// </summary>
     double NormalizationGainDb { get; set; }
 
@@ -33,7 +33,7 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// <summary>Raised when the loaded track reaches its end naturally.</summary>
     event EventHandler? PlaybackEnded;
 
-    /// <summary>Load a file and make it ready to play. Fast path — no analysis here.</summary>
+    /// <summary>Load a file and make it ready to play. Fast path - no analysis here.</summary>
     void Load(string filePath);
 
     void Play();
@@ -45,8 +45,8 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// playing source fades out while the new track fades in to its <paramref name="normGainDb"/>
     /// level, both overlapping on the mixer. The new track becomes the current track immediately
     /// (<see cref="Position"/>/<see cref="Duration"/>/seek follow it). When nothing is playing or
-    /// <paramref name="fadeMs"/> ≤ 0 this is equivalent to <see cref="Load"/> + set gain + <see cref="Play"/>.
-    /// The outgoing source does NOT raise <see cref="PlaybackEnded"/> — the queue already advanced when
+    /// <paramref name="fadeMs"/> <= 0 this is equivalent to <see cref="Load"/> + set gain + <see cref="Play"/>.
+    /// The outgoing source does NOT raise <see cref="PlaybackEnded"/> - the queue already advanced when
     /// the crossfade began, so only the new track's natural end fires it.
     /// </summary>
     void CrossfadeTo(string filePath, double normGainDb, int fadeMs);
@@ -54,7 +54,7 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// <summary>
     /// Fully release the loaded stream and its underlying file handle (unlike
     /// <see cref="Stop"/>, which keeps the file open). Needed before another
-    /// process — e.g. the tag writer — can open the file for writing. After this
+    /// process - e.g. the tag writer - can open the file for writing. After this
     /// the engine has nothing loaded; call <see cref="Load"/> again to resume.
     /// </summary>
     void Unload();
@@ -67,17 +67,17 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// Order: <c>[bass, lowMid, mid, treble]</c>. Returns zeros (and decays the
     /// internal smoothing state) when nothing is playing.
     ///
-    /// Cheap enough to call at 60 fps from the UI thread. Visualizers only —
+    /// Cheap enough to call at 60 fps from the UI thread. Visualizers only -
     /// not intended as an analysis source (use <see cref="IAudioDecoder"/> for
     /// offline analysis).
     /// </summary>
     void GetFftBands(Span<float> destination);
 
     // The live spectrum + limiter-GR telemetry methods (GetSpectrum / SetSpectrumTapEnabled /
-    // GetLimiterGainReductionDb) now live on ISpectrumSource — IAudioEngine inherits it so the SHARED
+    // GetLimiterGainReductionDb) now live on ISpectrumSource - IAudioEngine inherits it so the SHARED
     // JustPlay.UI analyzer window depends only on ISpectrumSource, not this playback-specific interface.
 
-    // ── Output device selection ───────────────────────────────────────────
+    // -- Output device selection -------------------------------------------
 
     /// <summary>
     /// Returns the list of enabled audio output devices currently available to
@@ -93,15 +93,15 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// (the <see cref="AudioOutputDevice.Index"/> value from <see cref="GetOutputDevices"/>).
     ///
     /// Implementation contract:
-    ///   • If the target device is not yet initialised, <c>Bass.Init(index)</c> is
+    ///   - If the target device is not yet initialised, <c>Bass.Init(index)</c> is
     ///     called first; <c>Errors.Already</c> is treated as success.
-    ///   • The persistent mixer channel is then moved to the new device via
+    ///   - The persistent mixer channel is then moved to the new device via
     ///     <c>Bass.ChannelSetDevice(_mixer, index)</c>. Because the Icecast encoder
     ///     (BassBroadcastService) is attached to the mixer, NOT to the device,
-    ///     moving the mixer's output device does NOT affect the encoder — the stream
+    ///     moving the mixer's output device does NOT affect the encoder - the stream
     ///     continues seamlessly across a device switch. See implementation comment
     ///     in BassAudioEngine for the BASS_Mixer / BASSenc interaction.
-    ///   • On failure the engine logs and keeps the previous device; it does NOT throw
+    ///   - On failure the engine logs and keeps the previous device; it does NOT throw
     ///     (the user might be unplugging headphones mid-session).
     /// </summary>
     void SetOutputDevice(int index);
@@ -122,7 +122,7 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// <list type="bullet">
     ///   <item>No-op (returns immediately) when nothing is playing.</item>
     ///   <item>Guard against double-fade (second call while one is already running returns immediately).</item>
-    ///   <item>Does NOT persist the volume change — Volume property and user settings are left untouched;
+    ///   <item>Does NOT persist the volume change - Volume property and user settings are left untouched;
     ///         only the hardware output level slides to zero. The process exits right after, so there is
     ///         nothing to restore.</item>
     ///   <item>The slide is non-blocking on the audio thread; the method awaits a
@@ -130,23 +130,23 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     ///         so the caller does not have to block the UI thread.</item>
     /// </list>
     /// </summary>
-    /// <param name="fadeMs">Target ramp duration in milliseconds. Clamped to 50–500 ms.</param>
+    /// <param name="fadeMs">Target ramp duration in milliseconds. Clamped to 50-500 ms.</param>
     Task FadeOutAsync(int fadeMs = 200);
 
     /// <summary>
     /// Configure the master true-peak limiter / maximizer on the output bus. Sits on the persistent
     /// mixer, so it shapes BOTH the local playback and the Icecast stream (the encoder taps the mixer
-    /// after the DSP chain). True-peak ceiling is fixed at −1 dBTP (broadcast-safe) inside the engine.
+    /// after the DSP chain). True-peak ceiling is fixed at -1 dBTP (broadcast-safe) inside the engine.
     ///
-    /// <para><paramref name="enabled"/> false removes the DSP entirely (true bypass — zero cost).
+    /// <para><paramref name="enabled"/> false removes the DSP entirely (true bypass - zero cost).
     /// <paramref name="driveDb"/> is the maximizer makeup gain pushed in before limiting:
     /// 0 dB = transparent safety limiter (peaks only); higher = louder/denser "club" level.
-    /// <paramref name="ceilingDbTp"/> is the true-peak ceiling: −1 dBTP is broadcast-safe; the Tweaks
-    /// "Loud" mode raises it toward −0.1 dBTP to squeeze out the last bit of level. The engine maps
+    /// <paramref name="ceilingDbTp"/> is the true-peak ceiling: -1 dBTP is broadcast-safe; the Tweaks
+    /// "Loud" mode raises it toward -0.1 dBTP to squeeze out the last bit of level. The engine maps
     /// its Off/Soft/Club/Loud control onto these arguments.</para>
     ///
     /// <para>Idempotent and live: safe to call repeatedly while playing; changing drive/ceiling swaps
-    /// the limiter without dropping the stream. Non-destructive — files are never touched.</para>
+    /// the limiter without dropping the stream. Non-destructive - files are never touched.</para>
     /// </summary>
     void SetLimiter(bool enabled, double driveDb, double ceilingDbTp);
 
@@ -156,15 +156,15 @@ public interface IAudioEngine : IDisposable, ISpectrumSource
     /// of virtual bass and the limiter), so tone shaping happens first and feeds both local playback
     /// and the Icecast stream.
     ///
-    /// <para>When all three gains are unity (flat) the engine removes the DSP entirely (true bypass —
+    /// <para>When all three gains are unity (flat) the engine removes the DSP entirely (true bypass -
     /// zero cost, perfectly transparent). Live and idempotent; safe to call while playing. The
     /// crossovers are fixed at 200 Hz and 4 kHz. Non-destructive.</para>
     /// </summary>
     void SetEqualizer(double lowGain, double midGain, double highGain);
 
-    // ── "Revive" rack — anti-flat enhancement, all on the output bus just after the EQ, so they
+    // -- "Revive" rack - anti-flat enhancement, all on the output bus just after the EQ, so they
     //    shape both local playback and the Icecast stream. Each is neutral (true bypass) at its zero
-    //    value, live/idempotent, and non-destructive (files are never touched). ──
+    //    value, live/idempotent, and non-destructive (files are never touched). --
 
     /// <summary>
     /// Adaptive spectral "tilt" (a gentle auto-master): slowly nudges a track's low/high balance toward

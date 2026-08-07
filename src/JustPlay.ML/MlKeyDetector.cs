@@ -10,7 +10,7 @@ namespace JustPlay.ML;
 /// "AI key" detector: runs a small trained MLP (<c>keymodel.onnx</c>) on JustPlay's own
 /// 36-bin HPCP chroma (<see cref="HpcpKeyDetector.BuildFine36"/>). On the GiantSteps
 /// ground-truth set this reaches <b>MIREX ~0.75 / ~69% exact</b> vs the DSP template's
-/// 0.712 — it resolves the relative/fifth confusions the template can't.
+/// 0.712 - it resolves the relative/fifth confusions the template can't.
 ///
 /// <para>The model is tiny (~58 KB, an MLP not a CNN). The only heavyweight piece is the
 /// ONNX Runtime native library, which is why this lives in its own adapter project (native
@@ -38,7 +38,7 @@ public sealed class MlKeyDetector : IKeyDetector, IDisposable
             var path = Path.Combine(AppContext.BaseDirectory, "keymodel.onnx");
             if (!File.Exists(path))
             {
-                Console.WriteLine($"[MlKeyDetector] model not found at {path} — falling back to DSP.");
+                Console.WriteLine($"[MlKeyDetector] model not found at {path} - falling back to DSP.");
                 return;
             }
             _session = new InferenceSession(path);
@@ -47,7 +47,7 @@ public sealed class MlKeyDetector : IKeyDetector, IDisposable
         catch (Exception ex)
         {
             // Missing native runtime, bad model, etc. Stay unavailable; the router falls back.
-            Console.WriteLine($"[MlKeyDetector] unavailable ({ex.GetType().Name}: {ex.Message}) — falling back to DSP.");
+            Console.WriteLine($"[MlKeyDetector] unavailable ({ex.GetType().Name}: {ex.Message}) - falling back to DSP.");
             _session = null;
         }
     }

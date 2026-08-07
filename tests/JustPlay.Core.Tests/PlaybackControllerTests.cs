@@ -14,15 +14,15 @@ namespace JustPlay.Core.Tests;
 /// 1. <c>ComputeGainDb</c> logic (tested via the public surface: <see cref="PlaybackController.Play"/>
 ///    and <see cref="PlaybackController.RefreshNormalization"/>).
 /// 2. <see cref="PlaybackController.TogglePlayPause"/> state transitions.
-/// 3. <see cref="PlaybackController.WithFileReleased"/> — release, action, restore semantics.
+/// 3. <see cref="PlaybackController.WithFileReleased"/> - release, action, restore semantics.
 /// 4. Event forwarding: StateChanged, TrackEnded, CurrentTrackChanged.
 ///
-/// Uses a minimal in-process fake (<see cref="FakeAudioEngine"/>) — no BASS, no Avalonia.
+/// Uses a minimal in-process fake (<see cref="FakeAudioEngine"/>) - no BASS, no Avalonia.
 /// </summary>
 public class PlaybackControllerTests
 {
     // =========================================================================
-    // 1. NormalizationEnabled = false → gain is always 0 regardless of tags
+    // 1. NormalizationEnabled = false -> gain is always 0 regardless of tags
     // =========================================================================
 
     [Fact]
@@ -31,7 +31,7 @@ public class PlaybackControllerTests
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = false };
 
-        // Track has ReplayGain info — but normalization is off.
+        // Track has ReplayGain info - but normalization is off.
         var track = TrackWithGain(replayGainDb: -6.0, peak: 0.5);
         ctrl.Play(track);
 
@@ -39,9 +39,9 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 2. NormalizationEnabled = true, gain fits within headroom → gain applied as-is
-    //    ReplayGain −6 dB, peak 0.5 (−6 dBFS). Applied: peak + gain = −6+−6 = −12 dBFS.
-    //    That is well under 0 dBFS, so no clipping protection needed → gain = −6.
+    // 2. NormalizationEnabled = true, gain fits within headroom -> gain applied as-is
+    //    ReplayGain -6 dB, peak 0.5 (-6 dBFS). Applied: peak + gain = -6+-6 = -12 dBFS.
+    //    That is well under 0 dBFS, so no clipping protection needed -> gain = -6.
     // =========================================================================
 
     [Fact]
@@ -50,7 +50,7 @@ public class PlaybackControllerTests
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = true };
 
-        // peak 0.5 = −6.02 dBFS; gain −6 dB → peak + gain ≈ −12 dBFS. No clip.
+        // peak 0.5 = -6.02 dBFS; gain -6 dB -> peak + gain ~ -12 dBFS. No clip.
         var track = TrackWithGain(replayGainDb: -6.0, peak: 0.5);
         ctrl.Play(track);
 
@@ -58,10 +58,10 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 3. Positive gain would cause clipping (peak + gain > 0 dBFS) → gain capped
-    //    ReplayGain +10 dB, peak 0.95 (−0.446 dBFS).
-    //    Un-capped: 0.95 → 0 dBFS with gain = +0.446 dB, NOT +10 dB.
-    //    The controller must cap at −peakDb = −20*log10(0.95) ≈ +0.446 dB.
+    // 3. Positive gain would cause clipping (peak + gain > 0 dBFS) -> gain capped
+    //    ReplayGain +10 dB, peak 0.95 (-0.446 dBFS).
+    //    Un-capped: 0.95 -> 0 dBFS with gain = +0.446 dB, NOT +10 dB.
+    //    The controller must cap at -peakDb = -20*log10(0.95) ~ +0.446 dB.
     // =========================================================================
 
     [Fact]
@@ -70,10 +70,10 @@ public class PlaybackControllerTests
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = true };
 
-        // peak 0.95: peak + 10 dB would clip → gain must be capped to −peakDb.
+        // peak 0.95: peak + 10 dB would clip -> gain must be capped to -peakDb.
         var peak    = 0.95;
-        var peakDb  = 20.0 * Math.Log10(peak);   // ≈ −0.446 dB
-        var expected = -peakDb;                    // ≈ +0.446 dB
+        var peakDb  = 20.0 * Math.Log10(peak);   // ~ -0.446 dB
+        var expected = -peakDb;                    // ~ +0.446 dB
 
         var track = TrackWithGain(replayGainDb: 10.0, peak: peak);
         ctrl.Play(track);
@@ -82,7 +82,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 4. Positive gain + peak unknown → gain = 0 (no blind amplification)
+    // 4. Positive gain + peak unknown -> gain = 0 (no blind amplification)
     //    ReplayGain +5 dB, peak = null. Controller must not amplify.
     // =========================================================================
 
@@ -99,7 +99,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 5. Negative gain + peak unknown → gain is applied (attenuation is safe)
+    // 5. Negative gain + peak unknown -> gain is applied (attenuation is safe)
     // =========================================================================
 
     [Fact]
@@ -108,7 +108,7 @@ public class PlaybackControllerTests
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = true };
 
-        // Negative gain is always safe (it cannot cause clipping) — applies even without peak.
+        // Negative gain is always safe (it cannot cause clipping) - applies even without peak.
         var track = TrackWithGain(replayGainDb: -8.0, peak: null);
         ctrl.Play(track);
 
@@ -116,7 +116,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 6. Track has no Analysis at all → gain = 0
+    // 6. Track has no Analysis at all -> gain = 0
     // =========================================================================
 
     [Fact]
@@ -132,7 +132,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 7. Track analysed but ReplayGainDb is null → gain = 0
+    // 7. Track analysed but ReplayGainDb is null -> gain = 0
     // =========================================================================
 
     [Fact]
@@ -164,7 +164,7 @@ public class PlaybackControllerTests
         ctrl.Play(track);
         Assert.Equal(0.0, engine.NormalizationGainDb);   // off during Play
 
-        // Enable normalization and refresh — no reload should happen.
+        // Enable normalization and refresh - no reload should happen.
         var loadsBefore = engine.LoadCount;
         ctrl.NormalizationEnabled = true;
         ctrl.RefreshNormalization();
@@ -174,7 +174,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 9. RefreshNormalization with no current track — no crash, gain = 0
+    // 9. RefreshNormalization with no current track - no crash, gain = 0
     // =========================================================================
 
     [Fact]
@@ -183,15 +183,15 @@ public class PlaybackControllerTests
         var engine = new FakeAudioEngine();
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = true };
 
-        // No track has been played — CurrentTrack is null.
+        // No track has been played - CurrentTrack is null.
         var ex = Record.Exception(() => ctrl.RefreshNormalization());
         Assert.Null(ex);
         Assert.Equal(0.0, engine.NormalizationGainDb);
     }
 
     // =========================================================================
-    // 10. TogglePlayPause: stopped + CurrentTrack → no-op (nothing loaded yet)
-    //     (PlaybackState.Stopped + CurrentTrack != null → engine.Play() is called)
+    // 10. TogglePlayPause: stopped + CurrentTrack -> no-op (nothing loaded yet)
+    //     (PlaybackState.Stopped + CurrentTrack != null -> engine.Play() is called)
     // =========================================================================
 
     [Fact]
@@ -215,8 +215,8 @@ public class PlaybackControllerTests
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = false };
 
         ctrl.Play(TrackWithGain(replayGainDb: -1.0, peak: 0.5));
-        ctrl.TogglePlayPause();  // → Paused
-        ctrl.TogglePlayPause();  // → Playing again
+        ctrl.TogglePlayPause();  // -> Paused
+        ctrl.TogglePlayPause();  // -> Playing again
         Assert.Equal(PlaybackState.Playing, engine.State);
     }
 
@@ -233,7 +233,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 11. WithFileReleased — non-current track runs the action directly, no unload
+    // 11. WithFileReleased - non-current track runs the action directly, no unload
     // =========================================================================
 
     [Fact]
@@ -256,7 +256,7 @@ public class PlaybackControllerTests
     }
 
     // =========================================================================
-    // 12. WithFileReleased — current track: DEFERS the write, never unloads
+    // 12. WithFileReleased - current track: DEFERS the write, never unloads
     //     (playback must not be interrupted to write tags)
     // =========================================================================
 
@@ -274,7 +274,7 @@ public class PlaybackControllerTests
         var actionRan = false;
         ctrl.WithFileReleased(track, () => actionRan = true);
 
-        Assert.False(actionRan);                          // deferred — does NOT run while playing
+        Assert.False(actionRan);                          // deferred - does NOT run while playing
         Assert.Equal(unloadsBefore, engine.UnloadCount);  // playing track is never unloaded
         Assert.Equal(loadsBefore, engine.LoadCount);      // and never reloaded
         Assert.Equal(PlaybackState.Playing, engine.State);// still playing
@@ -299,7 +299,7 @@ public class PlaybackControllerTests
         Assert.False(actionRan);                  // still deferred
 
         ctrl.Play(new Track("C:\\next.mp3"));      // track change frees the old handle
-        Assert.True(actionRan);                    // → the deferred write now runs
+        Assert.True(actionRan);                    // -> the deferred write now runs
     }
 
     // =========================================================================
@@ -322,7 +322,7 @@ public class PlaybackControllerTests
         Assert.False(ran);                                        // not flushed while a fades
 
         ctrl.Play(new Track("C:\\c.mp3"));                        // a is long gone now
-        Assert.True(ran);                                         // → flushed
+        Assert.True(ran);                                         // -> flushed
     }
 
     // =========================================================================
@@ -407,7 +407,7 @@ public class PlaybackControllerTests
 
     // =========================================================================
     // 17. FadeOutAsync: called before teardown, the engine records the request
-    //     (graceful-quit contract — no BASS, no real audio; tests the seam)
+    //     (graceful-quit contract - no BASS, no real audio; tests the seam)
     // =========================================================================
 
     [Fact]
@@ -429,7 +429,7 @@ public class PlaybackControllerTests
     [Fact]
     public async Task FadeOutAsync_WhenStopped_IsStillRecorded_NoCrash()
     {
-        // When nothing is playing the fake (and real) engine return immediately — no click,
+        // When nothing is playing the fake (and real) engine return immediately - no click,
         // no error. The caller must still be able to call it safely.
         var engine = new FakeAudioEngine();
 
@@ -445,7 +445,7 @@ public class PlaybackControllerTests
         // The real engine has an Interlocked guard; the fake records every call so we can
         // confirm the real contract: two rapid calls from different code paths (window close
         // AND self-update shutdown racing) result in ONE fade, not two.
-        // The fake doesn't replicate the guard — this test documents the intended real behaviour
+        // The fake doesn't replicate the guard - this test documents the intended real behaviour
         // and uses the fake to confirm the method signature is callable asynchronously.
         var engine = new FakeAudioEngine();
         // Play a track so the engine is in Playing state.
@@ -497,7 +497,7 @@ public class PlaybackControllerTests
         var ctrl   = new PlaybackController(engine) { NormalizationEnabled = true };
 
         ctrl.Play(new Track("C:\\a.mp3"));
-        // peak 0.5 = −6.02 dBFS; gain −6 dB → no clip → applied as-is.
+        // peak 0.5 = -6.02 dBFS; gain -6 dB -> no clip -> applied as-is.
         ctrl.CrossfadeTo(TrackWithGain(replayGainDb: -6.0, peak: 0.5), fadeMs: 2000);
 
         Assert.Equal(-6.0, engine.NormalizationGainDb, precision: 6);
@@ -519,7 +519,7 @@ public class PlaybackControllerTests
 }
 
 // =============================================================================
-// Fake IAudioEngine — in-process stub, no BASS dependency
+// Fake IAudioEngine - in-process stub, no BASS dependency
 // =============================================================================
 
 /// <summary>
@@ -645,7 +645,7 @@ file sealed class FakeAudioEngine : IAudioEngine
 
     public void Dispose() { }
 
-    // Test helpers — let tests trigger engine events directly.
+    // Test helpers - let tests trigger engine events directly.
     public void RaiseStateChanged(PlaybackState state)
         => StateChanged?.Invoke(this, state);
 

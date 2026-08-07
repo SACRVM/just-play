@@ -6,10 +6,10 @@ using System.Text;
 namespace JustPlay.Core.Playlists;
 
 /// <summary>
-/// Minimal reader/writer for the classic M3U / M3U8 playlist format — the universal interchange
-/// format every player and DJ tool (Traktor, rekordbox, Serato, VirtualDJ, Engine…) can import.
+/// Minimal reader/writer for the classic M3U / M3U8 playlist format - the universal interchange
+/// format every player and DJ tool (Traktor, rekordbox, Serato, VirtualDJ, Engine...) can import.
 /// We write UTF-8 (.m3u8) and carry the running order; the track analysis (BPM/key/energy) rides
-/// along in the files' OWN tags, which those tools read on import — so we hand over a set as a
+/// along in the files' OWN tags, which those tools read on import - so we hand over a set as a
 /// standalone file and never touch the other tool's library.
 ///
 /// Platform-agnostic: pure text + path logic, no external dependencies.
@@ -26,9 +26,9 @@ public static class M3uPlaylist
     public readonly record struct Entry(string Path, TimeSpan? Duration, string? Title);
 
     /// <summary>Write an extended M3U8 (UTF-8, no BOM, CRLF) listing the entries in order. Paths are
-    /// ALWAYS written RELATIVE with FORWARD slashes whenever the track shares a root with the playlist —
+    /// ALWAYS written RELATIVE with FORWARD slashes whenever the track shares a root with the playlist -
     /// INCLUDING climbing out with "../" (a set in SETS/ references its tracks in the sibling GENRES/ as
-    /// ../GENRES/…). This is the format Chloe's Mac/Traktor needs (see the traktor-playlist-format note):
+    /// ../GENRES/...). This is the format Chloe's Mac/Traktor needs (see the traktor-playlist-format note):
     /// relative + forward-slash so the set resolves on any machine/mount. Only a track on a DIFFERENT
     /// drive/root (no relative path possible) stays absolute. ReadPaths resolves relatives against the
     /// playlist's own folder, so this round-trips.</summary>
@@ -49,7 +49,7 @@ public static class M3uPlaylist
     }
 
     /// <summary>Relative, forward-slash path whenever <paramref name="fullPath"/> shares a root with
-    /// <paramref name="baseDir"/> — INCLUDING "../" parents (sibling folders like SETS/ ↔ GENRES/). Only
+    /// <paramref name="baseDir"/> - INCLUDING "../" parents (sibling folders like SETS/ <-> GENRES/). Only
     /// a different drive/root (Path.GetRelativePath returns a rooted path) stays absolute. Forward slashes
     /// because the sets are played on a Mac/Traktor deck. Never throws.</summary>
     private static string ToPortablePath(string fullPath, string baseDir)
@@ -58,8 +58,8 @@ public static class M3uPlaylist
         try
         {
             var rel = Path.GetRelativePath(baseDir, fullPath);
-            // A rooted result means there's no shared root (different drive/UNC host) → can't be relative.
-            // Otherwise use it relative, even when it climbs out with ".." — that's the normal SETS→GENRES case.
+            // A rooted result means there's no shared root (different drive/UNC host) -> can't be relative.
+            // Otherwise use it relative, even when it climbs out with ".." - that's the normal SETS->GENRES case.
             return (Path.IsPathRooted(rel) ? fullPath : rel).Replace('\\', '/');
         }
         catch
@@ -68,10 +68,10 @@ public static class M3uPlaylist
         }
     }
 
-    /// <summary>Read a playlist and return the file paths it references — resolved to absolute
+    /// <summary>Read a playlist and return the file paths it references - resolved to absolute
     /// (relative entries against the playlist's own folder), de-duplicated, order preserved, and
-    /// filtered to files that actually exist. Directive / comment lines (#…) are skipped. Never
-    /// throws on a malformed entry — it's just skipped.</summary>
+    /// filtered to files that actually exist. Directive / comment lines (#...) are skipped. Never
+    /// throws on a malformed entry - it's just skipped.</summary>
     public static List<string> ReadPaths(string playlistPath)
     {
         var result = new List<string>();
@@ -92,7 +92,7 @@ public static class M3uPlaylist
             }
             catch
             {
-                continue; // malformed path — skip, never break the import
+                continue; // malformed path - skip, never break the import
             }
 
             if (File.Exists(full) && seen.Add(full)) result.Add(full);

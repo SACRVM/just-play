@@ -5,18 +5,18 @@ namespace JustPlay.Analysis;
 /// <see cref="MixCompatibility.Score"/> scores on consecutive pairs, then refines
 /// the path with 2-opt swaps.
 ///
-/// <para><b>Algorithm (O(n²)):</b></para>
+/// <para><b>Algorithm (O(n^2)):</b></para>
 /// <list type="number">
 ///   <item>
 ///     <b>Partition:</b> separate tracks into "scoreable" (have at least one of
 ///     Key, Bpm, Energy) and "unanalyzed" (all three null).  Unanalyzed tracks are
-///     appended at the END in their original relative order — they cannot contribute
+///     appended at the END in their original relative order - they cannot contribute
 ///     to a meaningful compatibility score so they must not perturb the sequenced
 ///     block. The count is reported via <see cref="HarmonicSequenceResult.UnanalyzedCount"/>.
 ///   </item>
 ///   <item>
 ///     <b>Greedy nearest-neighbour:</b> start from the pinned track (index 0 of the
-///     scoreable segment, which is the caller's chosen anchor — typically the currently
+///     scoreable segment, which is the caller's chosen anchor - typically the currently
 ///     playing track). On each step, pick the unused track with the highest
 ///     <c>CompatResult.Combined</c> to the last placed track. Ties are broken by the
 ///     original position (stable).
@@ -34,7 +34,7 @@ namespace JustPlay.Analysis;
 /// <see cref="MixCompatibility.Score"/> uses Beat (0.40), Tempo (0.30), Harmonic (0.20),
 /// and Energy (0.10) when all data is present.  Tracks analysed before blob v4 (or tracks
 /// too short for the fingerprint extractor) will have <c>Fingerprint = null</c>;
-/// <see cref="MixCompatibility"/> degrades gracefully — the Beat axis is excluded and
+/// <see cref="MixCompatibility"/> degrades gracefully - the Beat axis is excluded and
 /// the remaining weights are renormalised.
 /// Planned next iteration:
 /// <list type="bullet">
@@ -43,7 +43,7 @@ namespace JustPlay.Analysis;
 /// </list>
 ///
 /// <para>
-/// Pure / deterministic — no Avalonia, no ManagedBass, no NuGet, reflection-free,
+/// Pure / deterministic - no Avalonia, no ManagedBass, no NuGet, reflection-free,
 /// trim-/AOT-safe.  Part of the north-star "sort by harmony" roadmap.
 /// </para>
 /// </summary>
@@ -73,7 +73,7 @@ public static class HarmonicSequencer
         if (tracks.Count == 0)
             return new HarmonicSequenceResult([], 0);
 
-        // ── 1. Partition into scoreable vs unanalyzed ───────────────────────
+        // -- 1. Partition into scoreable vs unanalyzed -----------------------
         // A track is "scoreable" if it has at least one of Bpm / Key / Energy.
         var scoreable   = new List<int>();  // original indices, in original order
         var unanalyzed  = new List<int>();  // original indices, in original order
@@ -87,14 +87,14 @@ public static class HarmonicSequencer
                 unanalyzed.Add(i);
         }
 
-        // Short-circuit: nothing scoreable — return original order.
+        // Short-circuit: nothing scoreable - return original order.
         if (scoreable.Count == 0)
         {
             var trivial = Enumerable.Range(0, tracks.Count).ToArray();
             return new HarmonicSequenceResult(trivial, unanalyzed.Count);
         }
 
-        // ── 2. Determine the pinned start within the scoreable segment ───────
+        // -- 2. Determine the pinned start within the scoreable segment -------
         // If startIndex points at a scoreable track, pin it first.
         // Otherwise (unanalyzed, out-of-range, -1), let greedy pick its own start.
         int pinnedLocal = -1; // index within `scoreable`
@@ -104,8 +104,8 @@ public static class HarmonicSequencer
             if (posInScoreable >= 0) pinnedLocal = posInScoreable;
         }
 
-        // ── 3. Pre-compute the full pairwise compatibility matrix ────────────
-        // O(n²) comparisons, but queues are small (tens of tracks).
+        // -- 3. Pre-compute the full pairwise compatibility matrix ------------
+        // O(n^2) comparisons, but queues are small (tens of tracks).
         var n = scoreable.Count;
         var compat = new double[n, n];
         for (var i = 0; i < n; i++)
@@ -120,7 +120,7 @@ public static class HarmonicSequencer
             }
         }
 
-        // ── 4. Greedy nearest-neighbour ─────────────────────────────────────
+        // -- 4. Greedy nearest-neighbour -------------------------------------
         var path    = new int[n];  // local indices (into `scoreable`)
         var used    = new bool[n];
         int cursor;
@@ -168,10 +168,10 @@ public static class HarmonicSequencer
             cursor = step;
         }
 
-        // ── 5. 2-opt improvement ─────────────────────────────────────────────
+        // -- 5. 2-opt improvement ---------------------------------------------
         // Pin position 0 (the anchor track must stay first).
         // Reverse the segment path[i..j] if it improves the total path cost.
-        // The reversed segment must not include index 0 — so i >= 1.
+        // The reversed segment must not include index 0 - so i >= 1.
         bool improved = true;
         while (improved)
         {
@@ -208,7 +208,7 @@ public static class HarmonicSequencer
             }
         }
 
-        // ── 6. Assemble final permutation (original indices) ─────────────────
+        // -- 6. Assemble final permutation (original indices) -----------------
         // Scoreable tracks in optimised order, then unanalyzed in original order.
         var order = new int[tracks.Count];
         for (var i = 0; i < n; i++)

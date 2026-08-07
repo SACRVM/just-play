@@ -5,7 +5,7 @@ namespace JustPlay.Engine;
 
 /// <summary>
 /// Source-generated JSON serialization context for all <c>JustPlay.Engine</c> DTOs.
-/// Reflection-free and trim/AOT-safe — the same approach used by
+/// Reflection-free and trim/AOT-safe - the same approach used by
 /// <c>AnalysisStateJsonContext</c> in JustPlay.Core and <c>StreamingJsonContext</c>.
 ///
 /// <para>Usage (serialize):</para>

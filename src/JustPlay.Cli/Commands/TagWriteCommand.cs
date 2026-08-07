@@ -10,13 +10,13 @@ namespace JustPlay.Cli.Commands;
 /// <para>
 /// Batch-writes JustPlay analysis tags from a sidecar index into the audio files:
 /// <list type="bullet">
-///   <item><b>BPM</b> → standard tempo tag (rounded integer).</item>
-///   <item><b>Key</b> → standard key tag (e.g. "Am", via Camelot conversion in the engine).</item>
-///   <item><b>Energy</b> → <c>TXXX:ENERGY</c> custom tag (1–10).</item>
-///   <item><b>Comment</b> → clean Mixed-In-Key-style <c>8A - Energy 7</c> prepended to the
-///     existing comment, preserving user text (idempotent — any prior JP/MIK prefix is stripped).</item>
-///   <item><b>Grouping</b> → any legacy JP vibe blob is stripped (the remainder, e.g. catalog
-///     codes, is kept). The machine-readable vibe data is NOT written to human-facing tags —
+///   <item><b>BPM</b> -> standard tempo tag (rounded integer).</item>
+///   <item><b>Key</b> -> standard key tag (e.g. "Am", via Camelot conversion in the engine).</item>
+///   <item><b>Energy</b> -> <c>TXXX:ENERGY</c> custom tag (1-10).</item>
+///   <item><b>Comment</b> -> clean Mixed-In-Key-style <c>8A - Energy 7</c> prepended to the
+///     existing comment, preserving user text (idempotent - any prior JP/MIK prefix is stripped).</item>
+///   <item><b>Grouping</b> -> any legacy JP vibe blob is stripped (the remainder, e.g. catalog
+///     codes, is kept). The machine-readable vibe data is NOT written to human-facing tags -
 ///     it lives in the JUSTPLAY blob (written by <c>promote</c>) + the sidecar index.</item>
 /// </list>
 /// </para>
@@ -71,7 +71,7 @@ internal static class TagWriteCommand
 
         if (!apply)
         {
-            Console.WriteLine("  (Dry-run — no writes. Pass --apply to commit.)");
+            Console.WriteLine("  (Dry-run - no writes. Pass --apply to commit.)");
             Console.WriteLine();
         }
 
@@ -106,12 +106,12 @@ internal static class TagWriteCommand
 
             // Comment: clean Mixed-In-Key style "8A - Energy 7" (NOT the machine blob).
             // Build() strips any prior JP/MIK prefix and keeps trailing user text; when neither
-            // key nor energy is known it returns null → fall back to stripping only.
+            // key nor energy is known it returns null -> fall back to stripping only.
             var key = JustPlay.Core.Models.MusicalKey.TryParse(entry.KeyCamelot);
             var newComment = DjCommentBuilder.Build(key, entry.Energy, existingComment)
                              ?? VibeTagEncoder.StripJpPrefix(existingComment);
 
-            // Grouping: never write the vibe blob here anymore — strip any legacy JP block and
+            // Grouping: never write the vibe blob here anymore - strip any legacy JP block and
             // keep the remainder (catalog/label codes etc.). The full vibe data lives in the
             // JUSTPLAY blob (written by `promote`) + the sidecar index, never in human-facing tags.
             var newGrouping = VibeTagEncoder.StripJpPrefix(existingGrouping);

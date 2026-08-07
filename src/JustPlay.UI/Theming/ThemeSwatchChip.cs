@@ -10,9 +10,9 @@ using JustPlay.Core.Theming;
 namespace JustPlay.UI.Theming;
 
 /// <summary>
-/// Theme-picker swatch chip (Chloe 2026-06-30). A square split DIAGONALLY from bottom-left → top-right:
+/// Theme-picker swatch chip (Chloe 2026-06-30). A square split DIAGONALLY from bottom-left -> top-right:
 /// the UPPER-left triangle shows the theme's HIGHLIGHT/accent gradient (<see cref="ThemeBrushes.IconGradient"/>),
-/// the LOWER-right shows the theme's BACKGROUND gradient (<see cref="ThemeBrushes.BackgroundGradient"/>) —
+/// the LOWER-right shows the theme's BACKGROUND gradient (<see cref="ThemeBrushes.BackgroundGradient"/>) -
 /// so dark themes (Onyx/Midnight) read dark and the chip honestly previews the theme, not just its bright
 /// accents. A thin <c>AccentA</c> ring is always shown; on hover (and persistently while
 /// <see cref="IsActive"/>) the ring switches to <c>AccentB</c> with a glow, and hover adds a slight zoom.
@@ -23,7 +23,7 @@ namespace JustPlay.UI.Theming;
 /// click/command; this control owns the look (split, ring, hover, active, glow).
 ///
 /// RENDERING (avalonia skill, verified): the glow is a <see cref="BoxShadow"/> on the NON-clipped outer
-/// <c>PART_Glow</c> layer — NOT a <see cref="DropShadowEffect"/> on the control. An Effect rasterises the
+/// <c>PART_Glow</c> layer - NOT a <see cref="DropShadowEffect"/> on the control. An Effect rasterises the
 /// whole chip to an offscreen bitmap, which aliased the rounded/diagonal edges ("pixelig"), dropped the
 /// glow, and blacked out the background field. BoxShadow draws crisp and vector-clean; the inner layer
 /// clips the split. The wrapping <c>Button.swatchbtn</c> (and its ContentPresenter) are ClipToBounds=False
@@ -31,12 +31,12 @@ namespace JustPlay.UI.Theming;
 /// </summary>
 public class ThemeSwatchChip : TemplatedControl
 {
-    // Named ThemeName, NOT Theme — StyledElement already has a Theme property (ControlTheme); a string
+    // Named ThemeName, NOT Theme - StyledElement already has a Theme property (ControlTheme); a string
     // Theme here would hide it (CS0108) and tangle with the control-theme system.
     public static readonly StyledProperty<string?> ThemeNameProperty =
         AvaloniaProperty.Register<ThemeSwatchChip, string?>(nameof(ThemeName));
 
-    /// <summary>True when this chip's theme is the active one — keeps the AccentB ring + glow on at rest.</summary>
+    /// <summary>True when this chip's theme is the active one - keeps the AccentB ring + glow on at rest.</summary>
     public static readonly StyledProperty<bool> IsActiveProperty =
         AvaloniaProperty.Register<ThemeSwatchChip, bool>(nameof(IsActive));
 
@@ -53,10 +53,10 @@ public class ThemeSwatchChip : TemplatedControl
         set => SetValue(IsActiveProperty, value);
     }
 
-    private Border? _glow;   // sibling behind, not clipped — carries the glow BoxShadow
+    private Border? _glow;   // sibling behind, not clipped - carries the glow BoxShadow
     private Border? _card;   // the per-theme ring (outline on top)
-    private Border? _bg;     // the chip face — Background = theme background gradient
-    private Shape? _accent;  // upper-left triangle — accent gradient
+    private Border? _bg;     // the chip face - Background = theme background gradient
+    private Shape? _accent;  // upper-left triangle - accent gradient
     private bool _hover;
     private Color _accentA;
     private Color _accentB;
@@ -96,7 +96,7 @@ public class ThemeSwatchChip : TemplatedControl
     }
 
     // Safety net: if a chip is removed while still hovered (e.g. the settings window closes mid-preview),
-    // PointerExited may not fire — revert here so the app never sticks on an un-committed preview theme.
+    // PointerExited may not fire - revert here so the app never sticks on an un-committed preview theme.
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
@@ -124,7 +124,7 @@ public class ThemeSwatchChip : TemplatedControl
         if (_card is not null)
             _card.BorderBrush = new SolidColorBrush(lit ? _accentB : _accentA);
 
-        // Glow only when lit — a crisp BoxShadow on the non-clipped outer layer (NOT an offscreen Effect).
+        // Glow only when lit - a crisp BoxShadow on the non-clipped outer layer (NOT an offscreen Effect).
         if (_glow is not null)
             _glow.BoxShadow = lit
                 // Reach kept modest (~11px) so it fits the breathing room the host views leave around the

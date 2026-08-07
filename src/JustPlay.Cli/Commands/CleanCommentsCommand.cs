@@ -11,16 +11,16 @@ namespace JustPlay.Cli.Commands;
 /// <c>justplay tag clean --root &lt;dir&gt; [--apply] [--backup-dir &lt;dir&gt;]</c>
 ///
 /// <para>
-/// One-shot cleanup: replace the cryptic machine-readable <c>JP|E7|K8A|bpm140|gc.57|…</c>
+/// One-shot cleanup: replace the cryptic machine-readable <c>JP|E7|K8A|bpm140|gc.57|...</c>
 /// vibe blob that an early "tag write" batch left in the human-facing Comment (and Grouping)
-/// tags with the clean, Mixed-In-Key-style <c>8A - Energy 7</c> comment — and remove the blob
+/// tags with the clean, Mixed-In-Key-style <c>8A - Energy 7</c> comment - and remove the blob
 /// from Grouping entirely.
 /// </para>
 ///
 /// <para>
 /// <b>Why this exists / why it enumerates by root (not the index):</b> the v9 SETS index paths
-/// are stale (files moved SETS → GENRES), so an index-driven pass can't find the files. This
-/// command walks the GENRES root directly and uses each file's OWN tags — it needs no index.
+/// are stale (files moved SETS -> GENRES), so an index-driven pass can't find the files. This
+/// command walks the GENRES root directly and uses each file's OWN tags - it needs no index.
 /// Key + Energy for the clean comment come from the standard TKEY/ENERGY tags (written by
 /// <see cref="PromoteCommand"/>), falling back to the JUSTPLAY blob's detected values.
 /// </para>
@@ -89,7 +89,7 @@ internal static class CleanCommentsCommand
         string? backupDir,
         bool force = false)
     {
-        Console.WriteLine($"[tag clean] Mode : {(apply ? "APPLY (files will be written)" : "DRY-RUN (no files touched)")}{(force ? " [FORCE: rewrite even when the visible comment already looks clean — collapses hidden COMM frames]" : "")}");
+        Console.WriteLine($"[tag clean] Mode : {(apply ? "APPLY (files will be written)" : "DRY-RUN (no files touched)")}{(force ? " [FORCE: rewrite even when the visible comment already looks clean - collapses hidden COMM frames]" : "")}");
         Console.WriteLine();
 
         Console.WriteLine($"[tag clean] Audio files {sourceLabel}");
@@ -99,7 +99,7 @@ internal static class CleanCommentsCommand
         var backupExists = File.Exists(backupPath);
         if (apply)
             Console.WriteLine(backupExists
-                ? $"[tag clean] Backup already exists at {backupPath} — will NOT overwrite."
+                ? $"[tag clean] Backup already exists at {backupPath} - will NOT overwrite."
                 : $"[tag clean] Backup will be written to: {backupPath}");
         Console.WriteLine();
 
@@ -132,7 +132,7 @@ internal static class CleanCommentsCommand
                       ?? meta.StoredAnalysis?.Detected.Energy;
 
             // Comment: rebuild clean. Build() strips any JP/MIK prefix and prepends "8A - Energy 7".
-            // When neither key nor energy is known (un-promoted new ingest), Build() returns null →
+            // When neither key nor energy is known (un-promoted new ingest), Build() returns null ->
             // fall back to stripping ONLY the JP blob, keeping whatever follows (e.g. an older MIK
             // segment or user text). We never delete the file's best-available key/energy info.
             var newComment = DjCommentBuilder.Build(key, energy, meta.Comment)
@@ -166,7 +166,7 @@ internal static class CleanCommentsCommand
                     Console.WriteLine($"      grouping : {Show(meta.Grouping)}  ->  {Show(newGrouping)}");
                 samples++;
                 if (samples == 12)
-                    Console.WriteLine("      … (further changes not printed) …");
+                    Console.WriteLine("      ... (further changes not printed) ...");
             }
 
             backupRecords.Add(new CleanBackupEntry
@@ -210,7 +210,7 @@ internal static class CleanCommentsCommand
             changed++;
         }
 
-        // Save backup (once, before the writes are lost) — only when applying.
+        // Save backup (once, before the writes are lost) - only when applying.
         if (apply && backupRecords.Count > 0 && !backupExists)
         {
             try
@@ -237,7 +237,7 @@ internal static class CleanCommentsCommand
         if (!apply)
         {
             Console.WriteLine();
-            Console.WriteLine("[tag clean] DRY-RUN only — no files were written. Re-run with --apply to commit.");
+            Console.WriteLine("[tag clean] DRY-RUN only - no files were written. Re-run with --apply to commit.");
         }
 
         return failed > 0 ? 2 : 0;
@@ -252,7 +252,7 @@ internal static class CleanCommentsCommand
         => string.IsNullOrEmpty(s) ? "(empty)" : $"\"{s}\"";
 }
 
-// ─── Backup DTO + JSON context ────────────────────────────────────────────────
+// --- Backup DTO + JSON context ------------------------------------------------
 
 /// <summary>One entry in the comment-clean backup: the pre-clean Comment + Grouping.</summary>
 internal sealed record CleanBackupEntry

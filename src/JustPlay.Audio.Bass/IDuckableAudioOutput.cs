@@ -7,7 +7,7 @@ namespace JustPlay.Audio.Bass;
 /// device-bound audible output for the "cue wins on a shared device" invariant, without taking a
 /// concrete dependency on <see cref="BassAudioEngine"/> or its playback/DSP/broadcast surface.
 ///
-/// Implemented by <see cref="BassAudioEngine"/>. Lives in this assembly (not JustPlay.Core) —
+/// Implemented by <see cref="BassAudioEngine"/>. Lives in this assembly (not JustPlay.Core) -
 /// "device-output-only volume, decoupled from the DSP/encoder chain" is a BASS-specific concept
 /// (BASS_ATTRIB_VOL vs BASS_ATTRIB_VOLDSP) with no platform-agnostic meaning; Core only sees the
 /// pure decision logic (<see cref="JustPlay.Core.Playback.CueArbiter"/>).
@@ -28,7 +28,7 @@ public interface IDuckableAudioOutput
     /// true) or back to its normal level (false) over a short, click-free fade.
     ///
     /// <para>MUST NOT touch playback/pause state, per-track normalization, or anything the
-    /// broadcast encoder taps — implementations must use a device-output-only attribute
+    /// broadcast encoder taps - implementations must use a device-output-only attribute
     /// (BASS_ATTRIB_VOL), never anything that reaches the DSP chain (BASS_ATTRIB_VOLDSP). See
     /// <c>BassAudioEngine.SetDucked</c> for the verified BASS-doc citation. Idempotent: calling
     /// with the same value twice is a no-op.</para>

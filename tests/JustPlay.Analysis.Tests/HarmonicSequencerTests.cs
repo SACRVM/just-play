@@ -8,7 +8,7 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="HarmonicSequencer"/>.
 ///
 /// Each test is designed so the "right" ordering is obvious from the compatibility
-/// scores — e.g. a tight compatible cluster vs a clear outlier — and the assertions
+/// scores - e.g. a tight compatible cluster vs a clear outlier - and the assertions
 /// verify both the outlier placement and the unanalyzed-last rule.
 ///
 /// The sequencer tests use Fingerprint = null to keep the tests focused on key/BPM/energy
@@ -16,14 +16,14 @@ namespace JustPlay.Analysis.Tests;
 /// </summary>
 public class HarmonicSequencerTests
 {
-    // ── Key factories ────────────────────────────────────────────────────────
+    // -- Key factories --------------------------------------------------------
     private static MusicalKey CMajor  => new(0, KeyMode.Major);   // 8B
     private static MusicalKey AMinor  => new(9, KeyMode.Minor);   // 8A  relative of C major
     private static MusicalKey GMajor  => new(7, KeyMode.Major);   // 9B  adjacent to C major
     private static MusicalKey FSharp  => new(6, KeyMode.Major);   // 2B  tritone from C major (clashing)
 
-    // ── Feature factory ───────────────────────────────────────────────────────
-    /// <summary>Fingerprint = null — sequencer tests focus on key/BPM/energy axis.</summary>
+    // -- Feature factory -------------------------------------------------------
+    /// <summary>Fingerprint = null - sequencer tests focus on key/BPM/energy axis.</summary>
     private static TrackFeatures F(double? bpm, MusicalKey? key, int? energy)
         => new(bpm, key, energy, Fingerprint: null);
 
@@ -33,7 +33,7 @@ public class HarmonicSequencerTests
 
     /// <summary>
     /// Three tracks in the same Camelot neighbourhood (C major 8B / A minor 8A / G major 9B)
-    /// at very similar BPMs share high compatibility.  A fourth track (F# major 2B — tritone
+    /// at very similar BPMs share high compatibility.  A fourth track (F# major 2B - tritone
     /// from C major, the worst possible harmonic position) at a wildly different BPM is the
     /// outlier.  The sequencer must not insert the outlier between two highly-compatible tracks;
     /// it should float to the end of the scoreable block where it damages the fewest edges.
@@ -46,8 +46,8 @@ public class HarmonicSequencerTests
     {
         // Three mutually-compatible tracks (same Camelot neighbourhood, ~128 BPM)
         var t0 = F(128.0, CMajor, 7);   // start track (pinned)
-        var t1 = F(128.5, AMinor, 7);   // relative of C major, nearly same BPM → high compat
-        var t2 = F(127.0, GMajor, 8);   // adjacent on wheel, same BPM → high compat
+        var t1 = F(128.5, AMinor, 7);   // relative of C major, nearly same BPM -> high compat
+        var t2 = F(127.0, GMajor, 8);   // adjacent on wheel, same BPM -> high compat
 
         // Outlier: tritone (clashing key) + very different BPM
         var t3 = F(180.0, FSharp,  3);   // 2B = tritone from 8B/8A/9B cluster, 180 BPM
@@ -140,7 +140,7 @@ public class HarmonicSequencerTests
     }
 
     // =========================================================================
-    // 5. Single-track queue — trivial identity permutation
+    // 5. Single-track queue - trivial identity permutation
     // =========================================================================
 
     [Fact]
@@ -155,7 +155,7 @@ public class HarmonicSequencerTests
     }
 
     // =========================================================================
-    // 6. All-unanalyzed queue — returns original order
+    // 6. All-unanalyzed queue - returns original order
     // =========================================================================
 
     [Fact]
@@ -170,7 +170,7 @@ public class HarmonicSequencerTests
     }
 
     // =========================================================================
-    // 7. Empty queue — returns empty result without exception
+    // 7. Empty queue - returns empty result without exception
     // =========================================================================
 
     [Fact]
@@ -193,14 +193,14 @@ public class HarmonicSequencerTests
     {
         // Three tracks in the same Camelot+BPM neighbourhood.
         var t0 = F(128.0, CMajor, 7);  // pinned start
-        var t1 = F(128.0, CMajor, 7);  // identical to t0 → highest compat with it
-        var t2 = F(128.5, AMinor, 7);  // adjacent → very high compat
+        var t1 = F(128.0, CMajor, 7);  // identical to t0 -> highest compat with it
+        var t2 = F(128.5, AMinor, 7);  // adjacent -> very high compat
 
-        // Outlier: clashing key + BPM barely outside the ≥20% zero-band from 128.
-        // 128 / 1.25 = 102.4 → |1 - 128/102.4| = 0.25 > 0.20 for r=1.
-        // Check others: r=2 → 204.8, |1-128/204.8| = 0.375 > 0.20
-        //               r=0.5 → 51.2, |1-128/51.2| = 1.5 > 0.20
-        //               r=1.5 → 153.6, |1-128/153.6| = 0.167 < 0.20  → IN BAND for r=1.5
+        // Outlier: clashing key + BPM barely outside the >=20% zero-band from 128.
+        // 128 / 1.25 = 102.4 -> |1 - 128/102.4| = 0.25 > 0.20 for r=1.
+        // Check others: r=2 -> 204.8, |1-128/204.8| = 0.375 > 0.20
+        //               r=0.5 -> 51.2, |1-128/51.2| = 1.5 > 0.20
+        //               r=1.5 -> 153.6, |1-128/153.6| = 0.167 < 0.20  -> IN BAND for r=1.5
         // Simpler: use BPM 65 (half of ~128 only gives 64, close to in-band); use FSharp key only.
         // Main differentiator is the clashing key. Use BPM close to one-half so tempo is ~ok,
         // but key is terrible (tritone). Score should still push it last due to harmonic clash.

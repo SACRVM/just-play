@@ -10,7 +10,7 @@ namespace JustPlay.Engine.Tests;
 /// <summary>
 /// Integration tests for <see cref="TrackEngine"/> using:
 /// <list type="bullet">
-///   <item>A stub <see cref="IBpmDetector"/> (returns a fixed value — avoids the BASS dependency).</item>
+///   <item>A stub <see cref="IBpmDetector"/> (returns a fixed value - avoids the BASS dependency).</item>
 ///   <item>A stub <see cref="IAudioDecoder"/> (returns synthesized audio).</item>
 ///   <item>The real <see cref="ChromagramKeyDetector"/> and <see cref="SpectralEnergyDetector"/>
 ///         (platform-agnostic DSP, no BASS).</item>
@@ -18,11 +18,11 @@ namespace JustPlay.Engine.Tests;
 ///   <item>The real <see cref="TagLibMetadataReader"/> / <see cref="TagLibMetadataWriter"/>
 ///         operating on a temp file synthesized the same way as <c>FavoriteRoundTripTests</c>.</item>
 /// </list>
-/// No BASS libraries, no Avalonia — runs on any machine with just the .NET runtime.
+/// No BASS libraries, no Avalonia - runs on any machine with just the .NET runtime.
 /// </summary>
 public sealed class TrackEngineTests : IDisposable
 {
-    // ── Audio constants (matching the analysis service internals) ─────────────
+    // -- Audio constants (matching the analysis service internals) -------------
     private const int EnergySampleRate = 11025;
     private const int KeySampleRate    = 44100;
 
@@ -31,7 +31,7 @@ public sealed class TrackEngineTests : IDisposable
     private const double E4 = 329.6276;
     private const double G4 = 391.9954;
 
-    // ── Temp MP3 used for tag round-trip tests ────────────────────────────────
+    // -- Temp MP3 used for tag round-trip tests --------------------------------
     private readonly string _tempFile;
     private readonly ITrackEngine _engine;
 
@@ -48,7 +48,7 @@ public sealed class TrackEngineTests : IDisposable
         if (File.Exists(_tempFile)) File.Delete(_tempFile);
     }
 
-    // ── ReadTags ──────────────────────────────────────────────────────────────
+    // -- ReadTags --------------------------------------------------------------
 
     [Fact]
     public async Task ReadTags_MinimalMp3_ReturnsFilePath()
@@ -81,7 +81,7 @@ public sealed class TrackEngineTests : IDisposable
         Assert.False(string.IsNullOrWhiteSpace(dto.FilePath));
     }
 
-    // ── WriteTags ─────────────────────────────────────────────────────────────
+    // -- WriteTags -------------------------------------------------------------
 
     [Fact]
     public async Task WriteTags_Bpm_RoundTrips()
@@ -106,7 +106,7 @@ public sealed class TrackEngineTests : IDisposable
 
         var readBack = await _engine.ReadTagsAsync(_tempFile);
         Assert.NotNull(readBack.TaggedKey);
-        // The stored key string is whatever TagLib# writes — just verify it is non-empty.
+        // The stored key string is whatever TagLib# writes - just verify it is non-empty.
         Assert.False(string.IsNullOrWhiteSpace(readBack.TaggedKey));
     }
 
@@ -171,7 +171,7 @@ public sealed class TrackEngineTests : IDisposable
         Assert.True(readBack.IsFavorite);
     }
 
-    // ── AnalyzeTrack ──────────────────────────────────────────────────────────
+    // -- AnalyzeTrack ----------------------------------------------------------
 
     [Fact]
     public async Task AnalyzeTrack_SyntheticAudio_ReturnsBpm()
@@ -187,8 +187,8 @@ public sealed class TrackEngineTests : IDisposable
     [Fact]
     public async Task AnalyzeTrack_SyntheticCMajorTriad_ReturnsKey()
     {
-        // The stub decoder returns a C-major triad → ChromagramKeyDetector should
-        // identify C major (or an adjacent key — the engine's contract is that key
+        // The stub decoder returns a C-major triad -> ChromagramKeyDetector should
+        // identify C major (or an adjacent key - the engine's contract is that key
         // is a non-null string on success).
         var dto = await _engine.AnalyzeTrackAsync(_tempFile);
 
@@ -224,7 +224,7 @@ public sealed class TrackEngineTests : IDisposable
 
         await _engine.AnalyzeTrackAsync(_tempFile, progress);
 
-        // TrackAnalysisService reports after BPM, key, energy — at minimum one.
+        // TrackAnalysisService reports after BPM, key, energy - at minimum one.
         Assert.NotEmpty(reports);
     }
 
@@ -239,11 +239,11 @@ public sealed class TrackEngineTests : IDisposable
         var ex = await Record.ExceptionAsync(
             () => _engine.AnalyzeTrackAsync("   "));
 
-        // ArgumentException.ThrowIfNullOrWhiteSpace — expect ArgumentException.
+        // ArgumentException.ThrowIfNullOrWhiteSpace - expect ArgumentException.
         Assert.IsType<ArgumentException>(ex);
     }
 
-    // ── AnalyzeLibrary ────────────────────────────────────────────────────────
+    // -- AnalyzeLibrary --------------------------------------------------------
 
     [Fact]
     public async Task AnalyzeLibrary_SingleFile_ReturnsOneResult()
@@ -275,7 +275,7 @@ public sealed class TrackEngineTests : IDisposable
         }
     }
 
-    // ── Constructor guards ─────────────────────────────────────────────────────
+    // -- Constructor guards -----------------------------------------------------
 
     [Fact]
     public void Constructor_NullAnalysisService_Throws()
@@ -314,7 +314,7 @@ public sealed class TrackEngineTests : IDisposable
                 null!));
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // -- Helpers ---------------------------------------------------------------
 
     /// <summary>
     /// Builds a <see cref="TrackEngine"/> wired with platform-agnostic stubs so no
@@ -361,7 +361,7 @@ public sealed class TrackEngineTests : IDisposable
 
     /// <summary>
     /// Synthesises a minimal ID3v2-tagged MP3 file in memory (TagLib# writes the header).
-    /// Same technique as FavoriteRoundTripTests — no hand-crafted frame bytes.
+    /// Same technique as FavoriteRoundTripTests - no hand-crafted frame bytes.
     /// </summary>
     private static byte[] MinimalMp3()
     {
@@ -388,7 +388,7 @@ public sealed class TrackEngineTests : IDisposable
     }
 }
 
-// ── Test stubs ────────────────────────────────────────────────────────────────
+// -- Test stubs ----------------------------------------------------------------
 
 /// <summary>
 /// Platform-agnostic stub BPM detector that returns a fixed value.

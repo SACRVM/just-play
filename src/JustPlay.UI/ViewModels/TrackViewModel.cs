@@ -24,12 +24,12 @@ public sealed partial class TrackViewModel : ObservableObject
     /// </summary>
     public Func<TrackViewModel, bool, System.Threading.Tasks.Task>? ToggleFavoriteCallback { get; set; }
 
-    // ── Pre-listen (PFL) row entry point ────────────────────────────────────
-    // Pre-Cue v2 (Phase A): the audition list is gone (ONE slot now — the shell VM's
+    // -- Pre-listen (PFL) row entry point ------------------------------------
+    // Pre-Cue v2 (Phase A): the audition list is gone (ONE slot now - the shell VM's
     // PreCueCurrent), so "add to main queue" / "discard" moved to slot-level VM commands
     // (CueAddCommand / CueKickCommand). This is the one entry point that stays on the row itself:
     // wired on every main-queue TrackViewModel (mirrors ToggleFavoriteCallback) so any row can be
-    // sent into the pre-cue slot for headphone audition — see MainWindowViewModel.AddPathsAsync.
+    // sent into the pre-cue slot for headphone audition - see MainWindowViewModel.AddPathsAsync.
 
     /// <summary>Injected by MainWindowViewModel on every queue row. Loads this track into the
     /// single pre-cue slot and autoplays it on headphones (replaces whatever was cued before).</summary>
@@ -64,7 +64,7 @@ public sealed partial class TrackViewModel : ObservableObject
     private System.Threading.Tasks.Task ToggleFavorite()
     {
         var newState = !IsFavorite;
-        IsFavorite = newState; // optimistic — immediate visual feedback
+        IsFavorite = newState; // optimistic - immediate visual feedback
         if (ToggleFavoriteCallback is { } cb)
             return cb(this, newState);
         return System.Threading.Tasks.Task.CompletedTask;
@@ -82,23 +82,23 @@ public sealed partial class TrackViewModel : ObservableObject
         Model.Metadata?.DisplayTitle ?? Path.GetFileNameWithoutExtension(Model.FilePath);
 
     public string Artist =>
-        string.IsNullOrWhiteSpace(Model.Metadata?.Artist) ? "—" : Model.Metadata!.Artist!;
+        string.IsNullOrWhiteSpace(Model.Metadata?.Artist) ? "-" : Model.Metadata!.Artist!;
 
     /// <summary>Genre from the file's tag. Exposed as a VM property (rather than binding the column
     /// directly to <c>Model.Metadata.Genre</c>) so it refreshes with the rest of the row on
-    /// <see cref="Refresh"/>. A direct three-level binding through Track/TrackMetadata — neither of
-    /// which raises change notifications — only updated lazily when the row was recycled by list
+    /// <see cref="Refresh"/>. A direct three-level binding through Track/TrackMetadata - neither of
+    /// which raises change notifications - only updated lazily when the row was recycled by list
     /// virtualization, so genre appeared to "lazy load" while title/artist showed immediately.</summary>
     public string GenreText => Model.Metadata?.Genre ?? "";
 
-    /// <summary>The file's comment tag (ID3 COMM / Vorbis COMMENT) verbatim — this is the field DJ software
+    /// <summary>The file's comment tag (ID3 COMM / Vorbis COMMENT) verbatim - this is the field DJ software
     /// reads, so the finder/queue can surface it as a control column to eyeball what a track carries. Same
     /// Refresh()-driven pattern as <see cref="GenreText"/>.</summary>
     public string CommentText => Model.Metadata?.Comment ?? "";
 
-    // ── The editorial + file-fact cells (JUST TAG's focus) ───────────────────
+    // -- The editorial + file-fact cells (JUST TAG's focus) -------------------
     // Same Refresh()-driven pattern as GenreText. Every one of them is BLANK when absent, never "0"
-    // or "unknown" — an empty cell is exactly the thing a tagger is looking for, so it must look empty.
+    // or "unknown" - an empty cell is exactly the thing a tagger is looking for, so it must look empty.
 
     public string AlbumText => Model.Metadata?.Album ?? "";
 
@@ -125,13 +125,13 @@ public sealed partial class TrackViewModel : ObservableObject
     /// </summary>
     public bool? Artwork { get; set; }
 
-    /// <summary>Whether the file carries embedded artwork at all — the thing you cannot see by looking
+    /// <summary>Whether the file carries embedded artwork at all - the thing you cannot see by looking
     /// at a name, and the reason "cover is empty" is a search worth having.</summary>
     public bool HasCover => Artwork ?? Model.Metadata?.CoverArt is { Length: > 0 };
 
     /// <summary>
     /// The ID3v2 version at the head of the file ("2.3"), when the host has read it. It is NOT part of
-    /// <c>TrackMetadata</c> — it is four bytes off the file head, not a tag — so the host fills it and
+    /// <c>TrackMetadata</c> - it is four bytes off the file head, not a tag - so the host fills it and
     /// the column simply stays empty in the apps that never look (JUST PLAY, the Finder). JUST TAG
     /// reads it because "find everything still on 2.2" has to be a search, not a guess.
     /// </summary>
@@ -144,10 +144,10 @@ public sealed partial class TrackViewModel : ObservableObject
     public string FileTypeText =>
         Path.GetExtension(Model.FilePath).TrimStart('.').ToUpperInvariant();
 
-    /// <summary>The name on disk, extension included — what the tagger is about to rename.</summary>
+    /// <summary>The name on disk, extension included - what the tagger is about to rename.</summary>
     public string FileNameText => Path.GetFileName(Model.FilePath);
 
-    // ── Analysis freshness — the traffic light ───────────────────────────────
+    // -- Analysis freshness - the traffic light -------------------------------
     // Chloe 2026-08-05: JUST TAG is also where you CHECK and re-trigger our own analysis, so one
     // column has to answer "is this file's analysis current, stale, or missing" at a glance.
     // It reads the stored blob's VERSION, which is the only honest source: an old blob is trusted
@@ -155,7 +155,7 @@ public sealed partial class TrackViewModel : ObservableObject
     // to the user, never something the app does behind her back.
 
     /// <summary>
-    /// The detector version a host knows about WITHOUT having opened the file — the library index
+    /// The detector version a host knows about WITHOUT having opened the file - the library index
     /// carries it per row (<c>TrackIndexEntry.DetectionVersion</c>, the same number as
     /// <see cref="TrackAnalysisState.CurrentVersion"/> by definition). Null when the host has no such
     /// knowledge, which is the normal case. The file's own blob always wins over it: the file is the
@@ -175,21 +175,21 @@ public sealed partial class TrackViewModel : ObservableObject
     public bool IsAnalysisOutdated => Freshness == AnalysisFreshness.Outdated;
     public bool IsAnalysisMissing  => Freshness == AnalysisFreshness.None;
 
-    /// <summary>What the dot means, in words — the column is 34 px, so the sentence lives in the tip.</summary>
+    /// <summary>What the dot means, in words - the column is 34 px, so the sentence lives in the tip.</summary>
     public string FreshnessTooltip => Freshness switch
     {
-        AnalysisFreshness.Current  => $"Analysed — current (v{TrackAnalysisState.CurrentVersion})",
+        AnalysisFreshness.Current  => $"Analysed - current (v{TrackAnalysisState.CurrentVersion})",
         AnalysisFreshness.Outdated =>
-            $"Analysed with v{Model.Metadata?.StoredAnalysis?.Version ?? IndexedAnalysisVersion} — " +
+            $"Analysed with v{Model.Metadata?.StoredAnalysis?.Version ?? IndexedAnalysisVersion} - " +
             $"v{TrackAnalysisState.CurrentVersion} is available, re-analysing is recommended",
         _                          => "Never analysed",
     };
 
-    /// <summary>True while a BPM/key/energy analysis pass is in flight for this row — drives the
+    /// <summary>True while a BPM/key/energy analysis pass is in flight for this row - drives the
     /// rotating spinner in the index column (in place of the number / play-bars).</summary>
     public bool IsAnalyzing => Model.AnalysisStatus == AnalysisStatus.Running;
 
-    /// <summary>Whether this track already carries our analysis — drives "Analyze" vs "Re-analyze".</summary>
+    /// <summary>Whether this track already carries our analysis - drives "Analyze" vs "Re-analyze".</summary>
     public bool HasAnalysis => Model.Analysis is not null;
 
     /// <summary>There is a detected value to write into tags (so "Write meta tags" has an effect).</summary>
@@ -213,10 +213,10 @@ public sealed partial class TrackViewModel : ObservableObject
     public string DurationText =>
         Model.Metadata is { Duration: var d } && d > TimeSpan.Zero
             ? d.ToString(@"m\:ss")
-            : "–:––";
+            : "-:--";
 
     /// <summary>
-    /// Numeric BPM — analysed value wins, falls back to the embedded tag.
+    /// Numeric BPM - analysed value wins, falls back to the embedded tag.
     /// Null when neither source has it (e.g. analysis still running on a
     /// freshly-dropped file with no BPM tag).
     /// </summary>
@@ -232,28 +232,28 @@ public sealed partial class TrackViewModel : ObservableObject
         ?? MusicalKey.TryParse(Model.Metadata?.TaggedKey)?.Camelot
         ?? Model.Metadata?.TaggedKey ?? "";
 
-    /// <summary>Detected energy if we have it, else whatever the tag claimed — mirrors
+    /// <summary>Detected energy if we have it, else whatever the tag claimed - mirrors
     /// <see cref="Bpm"/>/<see cref="KeyText"/> so all three value columns fill together (from the
     /// tags) in the metadata pass, instead of energy lagging a step behind into the analysis pass.</summary>
     public int? Energy => Model.Analysis?.Energy ?? Model.Metadata?.TaggedEnergy;
 
     public string EnergyText => Energy is int e ? e.ToString() : "";
 
-    // ── PREP lens: loudness / ReplayGain + beat (danceability) ───────────────
+    // -- PREP lens: loudness / ReplayGain + beat (danceability) ---------------
     // These have no standard-tag fallback (the REPLAYGAIN_* fields aren't read into Metadata),
-    // so they come from the live analysis OR the stored v5 blob — so a file analysed in a prior
+    // so they come from the live analysis OR the stored v5 blob - so a file analysed in a prior
     // session shows its gain/beat immediately on load, like KeyText does from the tags.
 
-    /// <summary>ReplayGain 2.0 track gain in dB (−18 LUFS reference). Null until analysed.</summary>
+    /// <summary>ReplayGain 2.0 track gain in dB (-18 LUFS reference). Null until analysed.</summary>
     public double? ReplayGainDb => Model.Analysis?.ReplayGainDb ?? StoredCurrent?.Detected.ReplayGainDb;
 
     /// <summary>BS.1770 integrated loudness in LUFS (shown in the GAIN cell's tooltip).</summary>
     public double? LoudnessLufs => Model.Analysis?.LoudnessLufs ?? StoredCurrent?.Detected.LoudnessLufs;
 
     /// <summary>
-    /// The playback loudness target (LUFS) the GAIN column re-references to — set by the shell VM from
-    /// the user's Quiet/Normal/Loud level so the column shows the gain ACTUALLY applied, not the −18
-    /// tag value. Defaults to −18 (so before the VM sets it, GAIN == the raw tag gain).
+    /// The playback loudness target (LUFS) the GAIN column re-references to - set by the shell VM from
+    /// the user's Quiet/Normal/Loud level so the column shows the gain ACTUALLY applied, not the -18
+    /// tag value. Defaults to -18 (so before the VM sets it, GAIN == the raw tag gain).
     /// </summary>
     public double NormalizationTargetDb { get; set; } = ReplayGain.ReferenceLufs;
 
@@ -266,8 +266,8 @@ public sealed partial class TrackViewModel : ObservableObject
         OnPropertyChanged(nameof(GainTooltip));
     }
 
-    /// <summary>Signed gain ACTUALLY applied at the active level (clip-capped), e.g. "−1.0" / "+3.2";
-    /// blank if un-analysed. The written REPLAYGAIN tag stays the −18 standard regardless.</summary>
+    /// <summary>Signed gain ACTUALLY applied at the active level (clip-capped), e.g. "-1.0" / "+3.2";
+    /// blank if un-analysed. The written REPLAYGAIN tag stays the -18 standard regardless.</summary>
     public string GainText => ReplayGainDb is { } rg
         ? (AppliedGain is { } g && g >= 0.05 ? "+" : "") + (AppliedGain ?? 0).ToString("0.0", CultureInfo.InvariantCulture)
         : "";
@@ -280,44 +280,44 @@ public sealed partial class TrackViewModel : ObservableObject
     private double? DesiredGain =>
         ReplayGainDb is { } rg ? rg + (NormalizationTargetDb - ReplayGain.ReferenceLufs) : null;
 
-    /// <summary>Absolute integrated loudness for the LUFS column, e.g. "−9.5"; blank if none.</summary>
+    /// <summary>Absolute integrated loudness for the LUFS column, e.g. "-9.5"; blank if none.</summary>
     public string LufsText => LoudnessLufs is { } l ? l.ToString("0.0", CultureInfo.InvariantCulture) : "";
 
-    /// <summary>Linear sample peak (0..~1) from analysis. Not shown directly — drives the clip flag.</summary>
+    /// <summary>Linear sample peak (0..~1) from analysis. Not shown directly - drives the clip flag.</summary>
     public double? PeakLinear => Model.Analysis?.Peak ?? StoredCurrent?.Detected.Peak;
 
-    /// <summary>Sample peak in dBFS: 0 = full scale, negative = headroom. −∞ for silence, null un-analysed.</summary>
+    /// <summary>Sample peak in dBFS: 0 = full scale, negative = headroom. -inf for silence, null un-analysed.</summary>
     private double? PeakDbfs => PeakLinear is { } p ? (p > 0 ? 20.0 * Math.Log10(p) : double.NegativeInfinity) : null;
 
     /// <summary>True only when a POSITIVE (amplifying) gain is held back by the ceiling at the active
-    /// level — i.e. the track wants to be louder to hit the target but the measured peak won't allow it
+    /// level - i.e. the track wants to be louder to hit the target but the measured peak won't allow it
     /// without clipping (brick-walled, or the gain overflows 0 dBFS). Reds the GAIN cell. A track being
-    /// turned DOWN (g ≤ 0) can never clip, so it is never flagged — in an all-brick-walled club library
+    /// turned DOWN (g <= 0) can never clip, so it is never flagged - in an all-brick-walled club library
     /// that keeps red rare and actionable instead of lighting up almost every row.</summary>
     public bool GainClips =>
         PeakDbfs is { } pk && DesiredGain is { } g && g > 0 && (pk >= -0.1 || pk + g > 0);
 
     /// <summary>Tooltip on the GAIN cell: the clip reason when a positive gain is capped, else the peak
-    /// (noting a brick-walled master as plain info — only the capped case is the red "problem").</summary>
+    /// (noting a brick-walled master as plain info - only the capped case is the red "problem").</summary>
     public string GainTooltip
     {
         get
         {
             if (DesiredGain is not { } g || PeakDbfs is not { } pk) return "";
             if (g > 0 && pk + g > 0) return $"Capped: wants +{g:0.0} dB but peak {pk:0.0} dBFS limits it";
-            if (pk >= -0.1) return $"Brick-walled master — peak {pk:0.0} dBFS";
+            if (pk >= -0.1) return $"Brick-walled master - peak {pk:0.0} dBFS";
             return $"Peak {pk:0.0} dBFS";
         }
     }
 
-    // Danceability (1/α DFA, range ~0..3) — computed and persisted, but NOT shown yet. Reserved for
-    // a future "FEEL" lens (MIX │ PREP │ FEEL): it discriminates dance-vs-not, so it clusters high in
+    // Danceability (1/alpha DFA, range ~0..3) - computed and persisted, but NOT shown yet. Reserved for
+    // a future "FEEL" lens (MIX | PREP | FEEL): it discriminates dance-vs-not, so it clusters high in
     // an all-club library and needs companion groove features before it earns a column.
-    /// <summary>Danceability (DFA 1/α, ~0..3) from the beat fingerprint. Reserved for the FEEL lens.</summary>
+    /// <summary>Danceability (DFA 1/alpha, ~0..3) from the beat fingerprint. Reserved for the FEEL lens.</summary>
     public double? Beat =>
         (Model.Analysis?.Fingerprint ?? StoredCurrent?.Detected.Fingerprint) is { } fp ? (double)fp.Danceability : null;
 
-    // ── Detected vs. claimed: conflict ("bold") computation ──────────────────
+    // -- Detected vs. claimed: conflict ("bold") computation ------------------
     // The displayed value above is always "detected wins, tag as fallback". A cell is
     // a CONFLICT (rendered bold, right-clickable to write/keep) when our detected value
     // differs from a foreign tag value AND the user hasn't decided yet (Pending). Once
@@ -325,17 +325,17 @@ public sealed partial class TrackViewModel : ObservableObject
     // bold. See memory analysis-tag-persistence-design.
 
     /// <summary>
-    /// The file's stored analysis blob — <b>whatever version it carries</b>.
+    /// The file's stored analysis blob - <b>whatever version it carries</b>.
     ///
-    /// <para>⚠ This used to require <c>Version == CurrentVersion</c> and drop the blob otherwise, which
+    /// <para>(!) This used to require <c>Version == CurrentVersion</c> and drop the blob otherwise, which
     /// meant the next detector-version bump would blank GAIN, LUFS and every vibe cell across the whole
-    /// library at once — including files whose values are perfectly fine — until each one had been
+    /// library at once - including files whose values are perfectly fine - until each one had been
     /// re-analysed. That turns "re-analysing is recommended" into "re-analyse or lose your columns", and
     /// it contradicts the rule the rest of the suite follows: trust the blob as-is, any version, because
     /// re-analysis is an explicit action nobody takes on the user's behalf (memory
     /// <c>analysis-tag-persistence-design</c>).</para>
     ///
-    /// <para>Staleness is REPORTED instead, by <see cref="Freshness"/> — one job per thing: this one
+    /// <para>Staleness is REPORTED instead, by <see cref="Freshness"/> - one job per thing: this one
     /// hands over the values, that one says how old they are. (Chloe 2026-08-05.)</para>
     /// </summary>
     private TrackAnalysisState? StoredCurrent => Model.Metadata?.StoredAnalysis;
@@ -352,7 +352,7 @@ public sealed partial class TrackViewModel : ObservableObject
     public int? ClaimedEnergy => Model.Metadata?.TaggedEnergy;
 
     /// <summary>BPM is a conflict only when our value diverges from a claimed BPM and neither a
-    /// rounding-equal nor a ½/×2-time relationship explains it (DJs routinely halve/double).</summary>
+    /// rounding-equal nor a 1/2/x2-time relationship explains it (DJs routinely halve/double).</summary>
     public bool BpmConflict =>
         BpmDecision == FieldDecision.Pending
         && DetectedBpm is > 0 && ClaimedBpm is > 0
@@ -382,15 +382,15 @@ public sealed partial class TrackViewModel : ObservableObject
     public string RestoreKeyLabel => $"Restore original ({StoredCurrent?.Original?.Key?.Camelot})";
     public string RestoreEnergyLabel => $"Restore original ({StoredCurrent?.Original?.Energy})";
 
-    /// <summary>True when the per-field section of the context menu has any entry to show — drives
+    /// <summary>True when the per-field section of the context menu has any entry to show - drives
     /// the separator between the field actions and the bulk actions.</summary>
     public bool HasFieldMenu => HasAnyConflict || CanRestoreBpm || CanRestoreKey || CanRestoreEnergy;
 
-    // Inline "claimed → detected" labels for the context-menu entries (recovers the
+    // Inline "claimed -> detected" labels for the context-menu entries (recovers the
     // original-vs-detected info without a popup, per the design).
-    public string BpmConflictLabel => $"{ClaimedBpm:0} → {DetectedBpm:0}";
-    public string KeyConflictLabel => $"{ClaimedKeyDisplay} → {DetectedKey?.Camelot}";
-    public string EnergyConflictLabel => $"{ClaimedEnergy} → {DetectedEnergy}";
+    public string BpmConflictLabel => $"{ClaimedBpm:0} -> {DetectedBpm:0}";
+    public string KeyConflictLabel => $"{ClaimedKeyDisplay} -> {DetectedKey?.Camelot}";
+    public string EnergyConflictLabel => $"{ClaimedEnergy} -> {DetectedEnergy}";
 
     // Full per-field context-menu headers (single-row, divergent cell).
     public string WriteBpmMenu => $"Write BPM   {BpmConflictLabel}";
@@ -411,9 +411,9 @@ public sealed partial class TrackViewModel : ObservableObject
         return Math.Abs(ra - rb) <= 1 || Math.Abs(ra - 2 * rb) <= 1 || Math.Abs(2 * ra - rb) <= 1;
     }
 
-    // ── Analyzer detail (PRE CUE FINDER detail panel; groundwork for a future FEEL lens) ────
+    // -- Analyzer detail (PRE CUE FINDER detail panel; groundwork for a future FEEL lens) ----
     // Same live-analysis-or-stored-blob fallback as the PREP lens above, bundled once. The bar
-    // scores default to 0 instead of null so ProgressBar bindings never see a nullable — the
+    // scores default to 0 instead of null so ProgressBar bindings never see a nullable - the
     // detail panel hides the whole vibe section while HasAnalysis is false anyway.
 
     private AnalysisResult? DetailAnalysis => Model.Analysis ?? StoredCurrent?.Detected;
@@ -424,7 +424,7 @@ public sealed partial class TrackViewModel : ObservableObject
     public double PunchScore    => DetailAnalysis?.BassPunch ?? 0;
     public double HarshScore    => DetailAnalysis?.Harshness ?? 0;
 
-    // Same scores as "0.00" text for the finder's optional vibe columns — blank (not "0.00") when the
+    // Same scores as "0.00" text for the finder's optional vibe columns - blank (not "0.00") when the
     // track carries no analysis, so an un-analysed row reads as empty like BPM/KEY do. Uses the non-null
     // *Score properties (the AnalysisResult fields themselves are double?).
     public string DarkText     => DetailAnalysis is not null ? DarkScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
@@ -434,15 +434,15 @@ public sealed partial class TrackViewModel : ObservableObject
     public string HarshText    => DetailAnalysis is not null ? HarshScore.ToString("0.00", CultureInfo.InvariantCulture) : "";
 
     /// <summary>Rhythm label from the fingerprint, e.g. "4x4-driving"; em-dash until analysed.</summary>
-    public string BeatTypeText => DetailAnalysis?.Rhythm?.BeatType ?? "—";
+    public string BeatTypeText => DetailAnalysis?.Rhythm?.BeatType ?? "-";
 
     public double? GridConfidence => DetailAnalysis?.GridConfidence;
 
     public string GridConfidenceText =>
-        GridConfidence is { } gc ? gc.ToString("0.00", CultureInfo.InvariantCulture) : "—";
+        GridConfidence is { } gc ? gc.ToString("0.00", CultureInfo.InvariantCulture) : "-";
 
     /// <summary>Beatgrid-confidence warning: below 0.45 external DJ software (Traktor et al.) is
-    /// likely to botch the beatgrid — the gig-validated threshold from the composite score.</summary>
+    /// likely to botch the beatgrid - the gig-validated threshold from the composite score.</summary>
     public bool GridSoft => GridConfidence is < 0.45;
 
     /// <summary>Key detection confidence as "82%"; empty until analysed.</summary>
@@ -463,17 +463,17 @@ public sealed partial class TrackViewModel : ObservableObject
                 try
                 {
                     _cover = new Bitmap(new MemoryStream(data));
-                    Console.WriteLine($"[Cover OK] {Path.GetFileName(Model.FilePath)} → {data.Length} bytes");
+                    Console.WriteLine($"[Cover OK] {Path.GetFileName(Model.FilePath)} -> {data.Length} bytes");
                 }
                 catch (Exception ex)
                 {
                     _cover = null;
-                    Console.WriteLine($"[Cover FAIL] {Path.GetFileName(Model.FilePath)} → {ex.GetType().Name}: {ex.Message}");
+                    Console.WriteLine($"[Cover FAIL] {Path.GetFileName(Model.FilePath)} -> {ex.GetType().Name}: {ex.Message}");
                 }
             }
             else
             {
-                Console.WriteLine($"[Cover NONE] {Path.GetFileName(Model.FilePath)} → no embedded picture");
+                Console.WriteLine($"[Cover NONE] {Path.GetFileName(Model.FilePath)} -> no embedded picture");
             }
             return _cover;
         }

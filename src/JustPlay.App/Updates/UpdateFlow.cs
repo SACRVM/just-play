@@ -12,7 +12,7 @@ namespace JustPlay.App.Updates;
 
 /// <summary>
 /// Drives what happens when the user clicks the title-bar update badge: show the themed
-/// <see cref="UpdateDialog"/>, then act on the choice — silently download + install + relaunch
+/// <see cref="UpdateDialog"/>, then act on the choice - silently download + install + relaunch
 /// (installer builds), open the release page (portable builds), or persist "ignore this version".
 /// Lives in the App layer because it needs the owner window and shuts the app down; the state it
 /// reads (<see cref="UpdateViewModel.Available"/>) comes from the polling VM.
@@ -59,7 +59,7 @@ internal static class UpdateFlow
         }
         catch
         {
-            // Download / hand-off failed — fall back to the manual route so the user isn't stuck.
+            // Download / hand-off failed - fall back to the manual route so the user isn't stuck.
             OpenReleasePage(info.ReleaseUrl);
         }
     }

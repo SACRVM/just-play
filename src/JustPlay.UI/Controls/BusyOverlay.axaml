@@ -5,30 +5,30 @@
              IsHitTestVisible="False">
 
     <!--
-      Shared J.U.S.T. progress overlay — a floating card in a card's OVERLAY layer, so showing
+      Shared J.U.S.T. progress overlay - a floating card in a card's OVERLAY layer, so showing
       progress NEVER reflows the layout (Chloe 2026-07-15: an inline progress bar "schiebt unten
-      alles rechts raus - das ist schlechtes design. können wir kein generelles overlay basteln was
-      wir überall nutzen können?"). Drop it as the LAST child of a card's Panel, bind IsActive to a
+      alles rechts raus - das ist schlechtes design. koennen wir kein generelles overlay basteln was
+      wir ueberall nutzen koennen?"). Drop it as the LAST child of a card's Panel, bind IsActive to a
       busy flag, Message to a status line and (optionally) Progress to a 0..1 value. It is
-      IsHitTestVisible=False — purely visual, it never eats a click on the controls underneath.
+      IsHitTestVisible=False - purely visual, it never eats a click on the controls underneath.
 
-      0.6 rebuild (Chloe 2026-07-30: "ich mag die progress anzeige überhaupt nicht .. zuckelt zum
-      wenn sich der text ändert (es er ständig tut) die bar ist viel zu schmal … ich hätte lieber
-      was rundes modernes schickes", then "braucht der progress ne box? dann der ring nicht größer
+      0.6 rebuild (Chloe 2026-07-30: "ich mag die progress anzeige ueberhaupt nicht .. zuckelt zum
+      wenn sich der text aendert (es er staendig tut) die bar ist viel zu schmal ... ich haette lieber
+      was rundes modernes schickes", then "braucht der progress ne box? dann der ring nicht groesser
       sein?"):
 
-        · ROUND, and it IS the whole thing. A filled disc with the progress arc riding its rim,
+        - ROUND, and it IS the whole thing. A filled disc with the progress arc riding its rim,
           and every line of text living inside it. Nothing is drawn outside the circle, so no
-          label can ever land on a list row and turn to mush — which is what the old card, and
+          label can ever land on a list row and turn to mush - which is what the old card, and
           then a scrim, were both compensating for.
-        · NO CARD. The bordered pill only ever earned its keep by making TEXT readable over
+        - NO CARD. The bordered pill only ever earned its keep by making TEXT readable over
           arbitrary content; once the text moved inside the disc there was nothing left for it
           to do.
-        · IT CANNOT JITTER. The content sits in a FIXED-size panel with the text centred and each
+        - IT CANNOT JITTER. The content sits in a FIXED-size panel with the text centred and each
           line at a fixed height, so a message changing per file moves nothing. The original was
-          centre-aligned with automatic width — every new string re-measured it and shoved it
+          centre-aligned with automatic width - every new string re-measured it and shoved it
           sideways, which is exactly what she saw.
-        · The ring's value EASES toward its target (see ProgressRing), so per-file reporting reads
+        - The ring's value EASES toward its target (see ProgressRing), so per-file reporting reads
           as one smooth sweep instead of a stutter.
 
       Anti-flicker is unchanged: nothing appears before ShowDelayMs of continuous busy, so the fast
@@ -40,8 +40,8 @@
                HorizontalAlignment="Center" VerticalAlignment="Center">
 
             <!-- The disc. Everything the overlay shows lives INSIDE it (Chloe 2026-07-30:
-                 "innenfläche ist gefüllt und beherbergt den text … dadurch nie overlapping
-                 gefahr"), so no text can ever land on a list row and turn to mush — which is what
+                 "innenflaeche ist gefuellt und beherbergt den text ... dadurch nie overlapping
+                 gefahr"), so no text can ever land on a list row and turn to mush - which is what
                  the card, and then the scrim, had been there to prevent. Themed fill + hairline +
                  shadow, so it still reads as a JUST object and tracks the live theme. -->
             <Ellipse Width="188" Height="188" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -53,13 +53,13 @@
             <Ellipse Width="188" Height="188" HorizontalAlignment="Center" VerticalAlignment="Center"
                      Fill="{DynamicResource BgGlowA}"/>
 
-            <!-- ⚠ The rim must sit ENTIRELY on the disc, never across its edge. The track is
+            <!-- (!) The rim must sit ENTIRELY on the disc, never across its edge. The track is
                  semi-transparent, so wherever the disc's boundary crosses the band it composites
-                 against the disc on one side and the pane on the other — and that shows up as a
-                 seam drawn straight through the ring (Chloe 2026-07-30: "da ist eine dünne linie im
-                 ring", then "der ring innen - als wäre er immer noch kaputt" after I had removed a
-                 hairline that was only a second line in the same place). Disc Ø188 / ring Ø178 at
-                 11 px = band radius 78–89 against disc radius 94: the whole rim lands on filled
+                 against the disc on one side and the pane on the other - and that shows up as a
+                 seam drawn straight through the ring (Chloe 2026-07-30: "da ist eine duenne linie im
+                 ring", then "der ring innen - als waere er immer noch kaputt" after I had removed a
+                 hairline that was only a second line in the same place). Disc O188 / ring O178 at
+                 11 px = band radius 78-89 against disc radius 94: the whole rim lands on filled
                  pixels. Keep that margin if either number ever changes. -->
             <c:ProgressRing x:Name="Ring"
                             Width="178" Height="178"
@@ -70,7 +70,7 @@
                             ArcBrush="{DynamicResource AccentGradient}"/>
 
             <!-- Inside the disc: phase on top, the counter below it. Both centred at fixed heights
-                 in a fixed-width column — the width is the disc's inscribed square (170/√2 ≈ 120),
+                 in a fixed-width column - the width is the disc's inscribed square (170/sqrt2 ~ 120),
                  so a longer string trims instead of pushing anything around. -->
             <StackPanel Width="122" Spacing="7"
                         HorizontalAlignment="Center" VerticalAlignment="Center">

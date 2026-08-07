@@ -16,12 +16,12 @@ namespace JustPlay.App.Settings;
 ///   Linux:   <c>~/.local/share/JustPlay/settings.json</c>
 ///
 /// Same path on each OS that the BCL would pick for any other reasonable
-/// app — no need for OS-specific code. The file is JSON so the user can
+/// app - no need for OS-specific code. The file is JSON so the user can
 /// poke it manually if a tweak gets stuck (it shouldn't, but the option
 /// matters for debugging).
 ///
 /// First-run / missing file / corrupt JSON all silently fall back to
-/// <see cref="UserSettings.Defaults"/> — preferences are convenience, not
+/// <see cref="UserSettings.Defaults"/> - preferences are convenience, not
 /// data integrity; a parsing crash that prevents the app starting would
 /// be a much worse user experience than losing one customisation.
 /// </summary>

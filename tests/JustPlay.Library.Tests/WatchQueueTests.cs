@@ -2,7 +2,7 @@ namespace JustPlay.Library.Tests;
 
 /// <summary>
 /// The pure state machine behind the observer (0.6, P4): a settle buffer with coalescing, a dirty
-/// flag, and periodic-sweep scheduling — all driven by an injected clock, exactly like
+/// flag, and periodic-sweep scheduling - all driven by an injected clock, exactly like
 /// <c>PendingTagWriteQueueTests</c> drives <c>PendingTagWriteQueue</c>. No sleeping anywhere here:
 /// every "time passes" step is a fake clock advance, never a real wait.
 /// </summary>
@@ -72,7 +72,7 @@ public sealed class WatchQueueTests
     }
 
     // =========================================================================
-    // 2. Re-touching restarts the wait — an editor saving five times, or a file
+    // 2. Re-touching restarts the wait - an editor saving five times, or a file
     //    still being copied, must never settle mid-write.
     // =========================================================================
 
@@ -84,7 +84,7 @@ public sealed class WatchQueueTests
 
         q.Touch(@"C:\a.mp3");
         clock.Now += TimeSpan.FromSeconds(8);
-        q.Touch(@"C:\a.mp3");                       // still being written — restarts the 10s wait
+        q.Touch(@"C:\a.mp3");                       // still being written - restarts the 10s wait
 
         clock.Now += TimeSpan.FromSeconds(8);        // 16s since the FIRST touch, only 8s since the second
         Assert.Empty(q.DrainReady());
@@ -109,7 +109,7 @@ public sealed class WatchQueueTests
     }
 
     // =========================================================================
-    // 3. Coalescing across many DIFFERENT paths — the "300-file copy must be
+    // 3. Coalescing across many DIFFERENT paths - the "300-file copy must be
     //    ONE batch, not a storm" requirement.
     // =========================================================================
 
@@ -140,7 +140,7 @@ public sealed class WatchQueueTests
         foreach (var p in paths)
         {
             q.Touch(p);
-            clock.Now += TimeSpan.FromMicroseconds(1);   // a fast local copy — microseconds apart
+            clock.Now += TimeSpan.FromMicroseconds(1);   // a fast local copy - microseconds apart
         }
 
         Assert.Equal(300, q.PendingCount);
@@ -166,7 +166,7 @@ public sealed class WatchQueueTests
     }
 
     // =========================================================================
-    // 4. The dirty flag — the fallback for anything the buffer can't represent.
+    // 4. The dirty flag - the fallback for anything the buffer can't represent.
     // =========================================================================
 
     [Fact]
@@ -196,7 +196,7 @@ public sealed class WatchQueueTests
     }
 
     // =========================================================================
-    // 5. Sweep scheduling — "is a full sweep due" is the other half of "what is
+    // 5. Sweep scheduling - "is a full sweep due" is the other half of "what is
     //    ready to process".
     // =========================================================================
 
@@ -253,7 +253,7 @@ public sealed class WatchQueueTests
     public void Defaults_match_the_milestone_doc()
     {
         // .claude/milestone-0.6-scope.md, P4: "~10 s" settle window. The sweep interval has no
-        // single fixed number in the doc ("can run every few minutes") — 10 minutes is this
+        // single fixed number in the doc ("can run every few minutes") - 10 minutes is this
         // implementation's conservative default, pinned here so a future change is a deliberate edit.
         Assert.Equal(TimeSpan.FromSeconds(10), WatchQueue.DefaultSettleWindow);
         Assert.Equal(TimeSpan.FromMinutes(10), WatchQueue.DefaultSweepInterval);

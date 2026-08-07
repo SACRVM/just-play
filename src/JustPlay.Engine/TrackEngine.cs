@@ -10,7 +10,7 @@ namespace JustPlay.Engine;
 /// <see cref="IMetadataWriter"/> behind a single high-level surface.
 ///
 /// <para>
-/// No analysis or metadata logic lives here — this class purely maps between the
+/// No analysis or metadata logic lives here - this class purely maps between the
 /// Core/Analysis/Metadata domain types and the facade DTOs.  All behaviour changes
 /// belong in the underlying services.
 /// </para>
@@ -197,7 +197,7 @@ public sealed class TrackEngine : ITrackEngine
     }
 
     // -------------------------------------------------------------------------
-    // Mapping helpers — Core domain → facade DTOs
+    // Mapping helpers - Core domain -> facade DTOs
     // -------------------------------------------------------------------------
 
     private static TrackAnalysisDto MapAnalysis(

@@ -1,7 +1,7 @@
 namespace JustPlay.Core.Models;
 
 /// <summary>
-/// Transport repeat behaviour, cycled by the repeat button (Off → All → One → Off).
+/// Transport repeat behaviour, cycled by the repeat button (Off -> All -> One -> Off).
 /// Mirrors the design's 0/1/2 <c>repeatMode</c> (app.jsx:451).
 /// </summary>
 public enum RepeatMode

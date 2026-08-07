@@ -19,8 +19,8 @@ public partial class TransportProgressBar : UserControl
         CompactProperty.Changed.AddClassHandler<TransportProgressBar>((c, _) => c.ApplySize());
     }
 
-    /// <summary>True → MiniView sizing (font 10, time min-width 32, slider inset 8).
-    /// False → MaxView sizing (font 12, min-width 42, slider inset 12).</summary>
+    /// <summary>True -> MiniView sizing (font 10, time min-width 32, slider inset 8).
+    /// False -> MaxView sizing (font 12, min-width 42, slider inset 12).</summary>
     public bool Compact
     {
         get => GetValue(CompactProperty);

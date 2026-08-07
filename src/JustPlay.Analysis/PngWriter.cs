@@ -4,14 +4,14 @@ using System.Runtime.CompilerServices;
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// Minimal zero-dependency RGBA raster canvas with a built-in PNG encoder and a 5×7 bitmap font.
-/// Intended for offline spectrum plots — no NuGet, no native dependencies.
+/// Minimal zero-dependency RGBA raster canvas with a built-in PNG encoder and a 5x7 bitmap font.
+/// Intended for offline spectrum plots - no NuGet, no native dependencies.
 ///
 /// <para><b>PNG encoding (RFC 2083 / ISO 15948) using only BCL primitives:</b></para>
 /// <list type="number">
 ///   <item>8-byte PNG signature.</item>
-///   <item>IHDR — 8-bit RGBA (colour type 6), no interlace.</item>
-///   <item>IDAT — zlib-wrapped DEFLATE via <see cref="DeflateStream"/>:
+///   <item>IHDR - 8-bit RGBA (colour type 6), no interlace.</item>
+///   <item>IDAT - zlib-wrapped DEFLATE via <see cref="DeflateStream"/>:
 ///     2-byte zlib header (CMF=0x78, FLG=0x9C), raw DEFLATE stream, then 4-byte big-endian
 ///     Adler-32 checksum of the uncompressed scanline data (filter-byte 0 per row + RGBA pixels).</item>
 ///   <item>IEND.</item>
@@ -27,7 +27,7 @@ namespace JustPlay.Analysis;
 /// </summary>
 public sealed class PngWriter
 {
-    // ── Canvas ───────────────────────────────────────────────────────────────
+    // -- Canvas ---------------------------------------------------------------
 
     /// <summary>Canvas width in pixels.</summary>
     public int Width  { get; }
@@ -47,7 +47,7 @@ public sealed class PngWriter
         _pixels = new byte[width * height * 4];
     }
 
-    // ── Drawing primitives ────────────────────────────────────────────────────
+    // -- Drawing primitives ----------------------------------------------------
 
     /// <summary>Fill the entire canvas with <paramref name="rgba"/>.</summary>
     public void Clear(uint rgba)
@@ -165,10 +165,10 @@ public sealed class PngWriter
         DrawVLine(x + w - 1, y,         y + h - 1, rgba);
     }
 
-    // ── Text rendering (built-in 5×7 bitmap font) ────────────────────────────
+    // -- Text rendering (built-in 5x7 bitmap font) ----------------------------
 
     /// <summary>
-    /// Draw a string using the built-in 5×7 bitmap font.
+    /// Draw a string using the built-in 5x7 bitmap font.
     /// Characters not in the glyph table are drawn as a blank 5-pixel gap.
     /// Lowercase letters without dedicated glyphs are mapped to uppercase.
     /// </summary>
@@ -176,7 +176,7 @@ public sealed class PngWriter
     /// <param name="y">Top edge of the first glyph.</param>
     /// <param name="text">String to render.</param>
     /// <param name="rgba">Pixel colour (RRGGBBAA).</param>
-    /// <param name="scale">Integer pixel scale (1 = 5×7 px natural size).</param>
+    /// <param name="scale">Integer pixel scale (1 = 5x7 px natural size).</param>
     public void DrawText(int x, int y, string text, uint rgba, int scale = 1)
     {
         if (string.IsNullOrEmpty(text)) return;
@@ -217,7 +217,7 @@ public sealed class PngWriter
         }
     }
 
-    // ── PNG encode ────────────────────────────────────────────────────────────
+    // -- PNG encode ------------------------------------------------------------
 
     /// <summary>Encode the canvas to a PNG byte array.</summary>
     public byte[] EncodePng()
@@ -236,10 +236,10 @@ public sealed class PngWriter
 
     private void WritePng(Stream s)
     {
-        // ── Signature ─────────────────────────────────────────────────────────
+        // -- Signature ---------------------------------------------------------
         s.Write(PngSig);
 
-        // ── IHDR ──────────────────────────────────────────────────────────────
+        // -- IHDR --------------------------------------------------------------
         byte[] ihdr = new byte[13];
         WriteU32BE(ihdr, 0, (uint)Width);
         WriteU32BE(ihdr, 4, (uint)Height);
@@ -248,7 +248,7 @@ public sealed class PngWriter
         // ihdr[10..12] = 0: deflate / adaptive filter / no interlace (already zeroed)
         WriteChunk(s, IhdrType, ihdr);
 
-        // ── IDAT ──────────────────────────────────────────────────────────────
+        // -- IDAT --------------------------------------------------------------
         // Raw scanlines: one filter-byte (0 = None) + Width*4 RGBA bytes per row.
         int    scanStride = 1 + Width * 4;
         byte[] raw        = new byte[Height * scanStride];
@@ -265,7 +265,7 @@ public sealed class PngWriter
         // Build the zlib stream: 2-byte header + raw DEFLATE + 4-byte Adler-32.
         using var idat = new MemoryStream();
         idat.WriteByte(0x78);  // CMF: deflate, window 32 KB
-        idat.WriteByte(0x9C);  // FLG: default compression, no dict; 0x789C % 31 == 0 ✓
+        idat.WriteByte(0x9C);  // FLG: default compression, no dict; 0x789C % 31 == 0 ok
         using (var deflate = new DeflateStream(idat, CompressionLevel.Optimal, leaveOpen: true))
             deflate.Write(raw);
         idat.WriteByte((byte)(adler >> 24));
@@ -275,11 +275,11 @@ public sealed class PngWriter
 
         WriteChunk(s, IdatType, idat.ToArray());
 
-        // ── IEND ──────────────────────────────────────────────────────────────
+        // -- IEND --------------------------------------------------------------
         WriteChunk(s, IendType, []);
     }
 
-    // ── Chunk writer ──────────────────────────────────────────────────────────
+    // -- Chunk writer ----------------------------------------------------------
 
     private static void WriteChunk(Stream s, byte[] type, byte[] data)
     {
@@ -309,7 +309,7 @@ public sealed class PngWriter
         buf[2] = (byte)(v >>  8); buf[3] = (byte) v;
     }
 
-    // ── CRC-32 (ITU-T V.42 / ISO 3309, polynomial 0xEDB88320) ────────────────
+    // -- CRC-32 (ITU-T V.42 / ISO 3309, polynomial 0xEDB88320) ----------------
 
     private const uint CrcInit = 0xFFFFFFFF;
 
@@ -334,7 +334,7 @@ public sealed class PngWriter
         return crc;
     }
 
-    // ── Adler-32 ─────────────────────────────────────────────────────────────
+    // -- Adler-32 -------------------------------------------------------------
 
     private static uint Adler32(byte[] data)
     {
@@ -344,16 +344,16 @@ public sealed class PngWriter
         return (s2 << 16) | s1;
     }
 
-    // ── PNG type constants ────────────────────────────────────────────────────
+    // -- PNG type constants ----------------------------------------------------
 
     private static readonly byte[] PngSig   = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     private static readonly byte[] IhdrType = [0x49, 0x48, 0x44, 0x52]; // "IHDR"
     private static readonly byte[] IdatType = [0x49, 0x44, 0x41, 0x54]; // "IDAT"
     private static readonly byte[] IendType = [0x49, 0x45, 0x4E, 0x44]; // "IEND"
 
-    // ── Built-in 5×7 bitmap font ─────────────────────────────────────────────
+    // -- Built-in 5x7 bitmap font ---------------------------------------------
     //
-    // Each glyph: 7 bytes, one per row (top→bottom).  Each byte encodes 5 pixels in bits
+    // Each glyph: 7 bytes, one per row (top->bottom).  Each byte encodes 5 pixels in bits
     // [4..0]: bit 4 = leftmost column, bit 0 = rightmost column.
     // Lowercase letters without an explicit entry are mapped to their uppercase equivalent.
 
@@ -361,7 +361,7 @@ public sealed class PngWriter
     {
         private static readonly Dictionary<char, byte[]> Glyphs = new(96)
         {
-            // ── Specials ──────────────────────────────────────────────────────
+            // -- Specials ------------------------------------------------------
             [' '] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
             ['-'] = [0x00, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x00],
             ['+'] = [0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00],
@@ -369,7 +369,7 @@ public sealed class PngWriter
             ['_'] = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F],
             ['/'] = [0x01, 0x01, 0x02, 0x04, 0x08, 0x10, 0x10],
 
-            // ── Digits ────────────────────────────────────────────────────────
+            // -- Digits --------------------------------------------------------
             ['0'] = [0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E],
             ['1'] = [0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x0E],
             ['2'] = [0x0E, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1F],
@@ -381,7 +381,7 @@ public sealed class PngWriter
             ['8'] = [0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E],
             ['9'] = [0x0E, 0x11, 0x11, 0x0F, 0x01, 0x02, 0x0C],
 
-            // ── Uppercase A–Z ─────────────────────────────────────────────────
+            // -- Uppercase A-Z -------------------------------------------------
             ['A'] = [0x04, 0x0A, 0x11, 0x11, 0x1F, 0x11, 0x11],
             ['B'] = [0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x1E],
             ['C'] = [0x0E, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0E],
@@ -409,7 +409,7 @@ public sealed class PngWriter
             ['Y'] = [0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04],
             ['Z'] = [0x1F, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1F],
 
-            // ── Lowercase specials named in the spec ──────────────────────────
+            // -- Lowercase specials named in the spec --------------------------
             // 'k' (1k, 2k, 5k frequency labels)
             ['k'] = [0x10, 0x10, 0x12, 0x14, 0x18, 0x14, 0x12],
             // 'z' ("Hz" unit label)
@@ -421,7 +421,7 @@ public sealed class PngWriter
         internal static bool TryGetGlyph(char ch, out byte[]? rows)
         {
             if (Glyphs.TryGetValue(ch, out rows)) return true;
-            // Map lowercase → uppercase for any other letters not in the table.
+            // Map lowercase -> uppercase for any other letters not in the table.
             if (ch >= 'a' && ch <= 'z')
             {
                 char upper = (char)(ch - ('a' - 'A'));

@@ -13,7 +13,7 @@ namespace JustPlay.App.Services;
 ///
 /// <para><b>Indexing is opt-in and must stay opt-in.</b> Nothing here touches the disk until
 /// somebody asks for library data: reads open the database only if it already exists, and the file
-/// is CREATED by exactly one action — an explicit scan. A user who browses folders and never turns
+/// is CREATED by exactly one action - an explicit scan. A user who browses folders and never turns
 /// on "+ subfolders" ends up with no index file at all, and the finder behaves exactly as it did
 /// in 0.5.</para>
 ///
@@ -31,23 +31,23 @@ public interface ILibraryIndexService
     int Count { get; }
 
     /// <summary>
-    /// Points the service at a library root. Records it and drops any previous handle — it does NOT
+    /// Points the service at a library root. Records it and drops any previous handle - it does NOT
     /// open or create anything, so merely opening the finder never leaves an index file behind.
     /// </summary>
     void UseRoot(string? root);
 
-    /// <summary>Runs a query. Returns empty when no index is open — never throws for that reason.</summary>
+    /// <summary>Runs a query. Returns empty when no index is open - never throws for that reason.</summary>
     IReadOnlyList<TrackIndexEntry> Query(LibraryQuery query);
 
     /// <summary>
-    /// What the index knows about a specific set of files. Empty when there is no index — the
+    /// What the index knows about a specific set of files. Empty when there is no index - the
     /// caller then falls back to reading tags, per row.
     /// </summary>
     IReadOnlyDictionary<string, TrackIndexEntry> LookupMany(IReadOnlyList<string> paths);
 
     /// <summary>
     /// The tracks the index holds for exactly this folder (not its sub-folders). Empty means the
-    /// folder was never indexed — the caller then reads it from disk.
+    /// folder was never indexed - the caller then reads it from disk.
     /// </summary>
     IReadOnlyList<TrackIndexEntry> QueryFolder(string folder);
 
@@ -59,26 +59,26 @@ public interface ILibraryIndexService
     Task<FolderVerifyResult?> VerifyFolderAsync(string folder, CancellationToken ct = default);
 
     /// <summary>
-    /// The same check for an explicit list of tracks — what a playlist needs, since it has no folder
+    /// The same check for an explicit list of tracks - what a playlist needs, since it has no folder
     /// to fingerprint. Also meant to run behind an already-painted list.
     /// </summary>
     Task<TrackVerifyResult?> VerifyTracksAsync(IReadOnlyList<string> paths, CancellationToken ct = default);
 
     /// <summary>
     /// Forgets a folder's stored fingerprint, so the next check cannot early-out on it. This is what
-    /// an explicit Refresh does — the escape hatch for anything the cheap comparison cannot see.
+    /// an explicit Refresh does - the escape hatch for anything the cheap comparison cannot see.
     /// </summary>
     void ForgetFolderState(string folder);
 
     /// <summary>
-    /// The genres this library actually uses, most-used first — what the tag editor suggests from
+    /// The genres this library actually uses, most-used first - what the tag editor suggests from
     /// before falling back to a canned list. Empty when there is no index yet (never creates one).
     /// </summary>
     IReadOnlyList<string> Genres();
 
     /// <summary>
     /// Brings the index in line with the disk. Long-running on a first run (measured ~13.5 min for
-    /// 14k files over SMB — the tag reads dominate), near-instant afterwards, because an unchanged
+    /// 14k files over SMB - the tag reads dominate), near-instant afterwards, because an unchanged
     /// file is recognised by its directory entry and never opened.
     /// </summary>
     Task<SyncReport?> SyncAsync(IProgress<SyncProgress>? progress = null, CancellationToken ct = default);
@@ -131,7 +131,7 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
             _db  = null;
             Root = root;
 
-            // Announce the root to the suite as soon as it is set — but only when an index FILE really
+            // Announce the root to the suite as soon as it is set - but only when an index FILE really
             // exists for it. Doing it here (and not only on the first open) is what lets JUST TAG know
             // about the index without JUST PLAY's finder having been opened once in this session; the
             // File.Exists guard is what stops a root that was never scanned from claiming to be indexed.
@@ -158,7 +158,7 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         try
         {
             _db = LibraryDb.Open(path);
-            // This machine now has an index for this root — record it where the whole suite can see
+            // This machine now has an index for this root - record it where the whole suite can see
             // it, so JUST TAG (and anything after it) can answer "is this folder indexed?" without
             // reading JUST PLAY's settings file. Only here, where an index actually EXISTS or was
             // just created by an explicit scan; browsing alone never registers anything.
@@ -227,7 +227,7 @@ public sealed class LibraryIndexService(IMetadataReader metadata) : ILibraryInde
         }
         catch (OperationCanceledException)
         {
-            return null;   // navigated away — a newer check owns the pane
+            return null;   // navigated away - a newer check owns the pane
         }
         catch (Exception ex)
         {

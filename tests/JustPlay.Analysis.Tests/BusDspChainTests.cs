@@ -6,22 +6,22 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="BusDspChain"/>.
 ///
 /// Coverage:
-///   BC1 — All-neutral parameters → output ≈ input (bit-transparent through all bypass paths).
-///   BC2 — EQ low-boost raises low-band energy vs. neutral.
-///   BC3 — Limiter with a hot signal reduces peak amplitude.
-///   BC4 — Reset() clears state (two independent runs of the same signal produce equal results).
+///   BC1 - All-neutral parameters -> output ~ input (bit-transparent through all bypass paths).
+///   BC2 - EQ low-boost raises low-band energy vs. neutral.
+///   BC3 - Limiter with a hot signal reduces peak amplitude.
+///   BC4 - Reset() clears state (two independent runs of the same signal produce equal results).
 /// </summary>
 public class BusDspChainTests
 {
     private const int Rate = 44100;
 
-    // ── BC1: Neutral chain is bit-transparent ─────────────────────────────────
+    // -- BC1: Neutral chain is bit-transparent ---------------------------------
 
     [Fact]
     public void NeutralParams_OutputApproximatesInput()
     {
         // All DSP stages at bypass/neutral values:
-        // EQ unity (identity biquads — mathematically but not bit-exactly transparent;
+        // EQ unity (identity biquads - mathematically but not bit-exactly transparent;
         // float rounding in the filter accumulates ~1e-7 relative error per sample),
         // tilt=0, punch=0, no limiter.
         // Stages with explicit code-level bypasses (Tilt, Transient) are
@@ -36,7 +36,7 @@ public class BusDspChainTests
         float[] output = (float[])input.Clone();
         chain.ProcessInterleavedStereo(output);
 
-        const float Tolerance = 5e-5f; // 3× float machine eps per biquad stage, 3 stages in series
+        const float Tolerance = 5e-5f; // 3x float machine eps per biquad stage, 3 stages in series
         float maxErr = 0f;
         for (int i = 0; i < input.Length; i++)
         {
@@ -47,7 +47,7 @@ public class BusDspChainTests
             $"Neutral chain max absolute error {maxErr:E3} exceeds tolerance {Tolerance:E0}");
     }
 
-    // ── BC2: EQ low-boost raises low-band energy ─────────────────────────────
+    // -- BC2: EQ low-boost raises low-band energy -----------------------------
 
     [Fact]
     public void EqLowBoost_RaisesLowBandEnergy()
@@ -62,13 +62,13 @@ public class BusDspChainTests
             stereo[i * 2] = s; stereo[i * 2 + 1] = s;
         }
 
-        // Neutral chain — measure low-band RMS
+        // Neutral chain - measure low-band RMS
         var chainFlat = new BusDspChain(eqLow: 1.0);
         var flatOut   = (float[])stereo.Clone();
         chainFlat.ProcessInterleavedStereo(flatOut);
         double rmsFlat = LowBandRms(flatOut, Rate);
 
-        // Low-boosted chain (+6 dB EQ low shelf — linear gain 2.0)
+        // Low-boosted chain (+6 dB EQ low shelf - linear gain 2.0)
         var chainBoosted = new BusDspChain(eqLow: 2.0);
         var boostOut     = (float[])stereo.Clone();
         chainBoosted.ProcessInterleavedStereo(boostOut);
@@ -78,12 +78,12 @@ public class BusDspChainTests
             $"EQ low boost should raise low-band RMS; flat={rmsFlat:F4}, boosted={rmsBoosted:F4}");
     }
 
-    // ── BC3: Limiter clamps hot signal ───────────────────────────────────────
+    // -- BC3: Limiter clamps hot signal ---------------------------------------
 
     [Fact]
     public void LimiterEnabled_ClampsPeak()
     {
-        // Generate a signal at 0 dBFS (+6 dB drive → would clip at +6 dBFS without limiter).
+        // Generate a signal at 0 dBFS (+6 dB drive -> would clip at +6 dBFS without limiter).
         float[] hot = StereoSine(1000.0, 1.0, 2.0, Rate);
 
         var chain  = new BusDspChain(
@@ -91,8 +91,8 @@ public class BusDspChainTests
         var output = (float[])hot.Clone();
         chain.ProcessInterleavedStereo(output);
 
-        // Skip the first 100 ms (look-ahead ramp-in) and check sample peak ≤ ceiling.
-        const float Ceiling = 0.8913f; // 10^(−1/20) ≈ −1 dBTP
+        // Skip the first 100 ms (look-ahead ramp-in) and check sample peak <= ceiling.
+        const float Ceiling = 0.8913f; // 10^(-1/20) ~ -1 dBTP
         int skip = (int)(0.1 * Rate);
         float peak = 0f;
         for (int i = skip; i < output.Length; i++)
@@ -100,12 +100,12 @@ public class BusDspChainTests
             float a = Math.Abs(output[i]);
             if (a > peak) peak = a;
         }
-        // Sample peak should be ≤ true-peak ceiling (sample peak ≤ true peak by definition)
+        // Sample peak should be <= true-peak ceiling (sample peak <= true peak by definition)
         Assert.True(peak <= Ceiling + 0.01f,
-            $"Output sample peak {peak:F4} exceeds −1 dBTP ceiling {Ceiling:F4}");
+            $"Output sample peak {peak:F4} exceeds -1 dBTP ceiling {Ceiling:F4}");
     }
 
-    // ── BC4: Reset isolates sequential runs ───────────────────────────────────
+    // -- BC4: Reset isolates sequential runs -----------------------------------
 
     [Fact]
     public void Reset_TwoRunsProduceSameOutput()
@@ -127,7 +127,7 @@ public class BusDspChainTests
             Assert.Equal(out1[i], out2[i]);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // -- Helpers ---------------------------------------------------------------
 
     private static float[] StereoSine(double freqHz, double amp, double seconds, int fs)
     {
@@ -147,7 +147,7 @@ public class BusDspChainTests
     /// </summary>
     private static double LowBandRms(float[] interleaved, int fs)
     {
-        // Downsample by 64 (equivalent LP at fs/128 ≈ 345 Hz) then compute RMS.
+        // Downsample by 64 (equivalent LP at fs/128 ~ 345 Hz) then compute RMS.
         const int Decimate = 64;
         double sumSq = 0;
         int count    = 0;

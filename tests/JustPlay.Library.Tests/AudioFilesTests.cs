@@ -4,7 +4,7 @@ using System.Linq;
 namespace JustPlay.Library.Tests;
 
 /// <summary>
-/// What counts as a track. The app, the finder, the CLI and JUST TAG share this enumeration —
+/// What counts as a track. The app, the finder, the CLI and JUST TAG share this enumeration -
 /// if it drifts, two front-ends disagree about the size of the same library.
 /// </summary>
 public sealed class AudioFilesTests : IDisposable
@@ -32,7 +32,7 @@ public sealed class AudioFilesTests : IDisposable
         File.WriteAllText(Path.Combine(genres, "cover.jpg"), "x");
         File.WriteAllText(Path.Combine(_root, "list.m3u"), "x");
 
-        // GetFileName!() — the paths come from an enumeration of real files, so a null name is not a
+        // GetFileName!() - the paths come from an enumeration of real files, so a null name is not a
         // case this test can hit; without it the compiler infers string?[] and CS8631 fires on Equal.
         var found = AudioFiles.Enumerate(_root).Select(p => Path.GetFileName(p)!).OrderBy(n => n).ToArray();
 

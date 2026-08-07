@@ -7,24 +7,24 @@ using JustPlay.Core.Theming;
 namespace JustPlay.UI.Theming;
 
 /// <summary>
-/// The brand-chip gradient for a theme — the SINGLE source of truth shared by the app icon
+/// The brand-chip gradient for a theme - the SINGLE source of truth shared by the app icon
 /// (<see cref="ThemedWindowIcon"/>) and the theme-picker swatch chips, so the two can never
 /// diverge again. (Previously the swatches were hand-painted brushes in JustPalette.axaml that
-/// drifted from the icon: different stop counts, and for some themes entirely different colours —
+/// drifted from the icon: different stop counts, and for some themes entirely different colours -
 /// only Onyx happened to match. Chloe 2026-06-29: "das ist wild - bitte sortiere das mal
 /// auseinander".)
 /// </summary>
 public static class ThemeBrushes
 {
     /// <summary>
-    /// The icon/swatch chip gradient for <paramref name="theme"/> — a colourful 2-stop diagonal of the
-    /// theme's two HIGHLIGHT accents (<c>AccentB→AccentA</c>), matching the CD-cover placeholder
+    /// The icon/swatch chip gradient for <paramref name="theme"/> - a colourful 2-stop diagonal of the
+    /// theme's two HIGHLIGHT accents (<c>AccentB->AccentA</c>), matching the CD-cover placeholder
     /// (Vinyl.axaml). Deliberately 2 colours and NOT the dark <c>AccentC</c> in the middle: AccentC is a
-    /// background-bloom tone (dark on Midnight/Onyx), so a 3-stop B→C→A gradient banded dark across the
-    /// diagonal there (Chloe 2026-06-30). This is the ONE definition — the OS app icon
+    /// background-bloom tone (dark on Midnight/Onyx), so a 3-stop B->C->A gradient banded dark across the
+    /// diagonal there (Chloe 2026-06-30). This is the ONE definition - the OS app icon
     /// (<see cref="ThemedWindowIcon"/>) and the theme-picker swatch markup-extension both call it, so
     /// they can never diverge. (Note: a theme's IconFrom/IconTo override is intentionally NOT consulted
-    /// here — icons stay colourful for every theme, including the dark ones.)
+    /// here - icons stay colourful for every theme, including the dark ones.)
     /// </summary>
     public static LinearGradientBrush IconGradient(Theme theme)
     {
@@ -39,7 +39,7 @@ public static class ThemeBrushes
     }
 
     /// <summary>
-    /// The theme's BACKGROUND gradient (<c>BgFrom→BgVia→BgTo</c>, same diagonal as the app window's
+    /// The theme's BACKGROUND gradient (<c>BgFrom->BgVia->BgTo</c>, same diagonal as the app window's
     /// BgLinear). Used by <see cref="ThemeSwatchChip"/>'s lower-right triangle so a swatch honestly
     /// previews the theme's surface (dark for Onyx/Midnight), not just its bright accents
     /// (Chloe 2026-06-30).
@@ -48,8 +48,8 @@ public static class ThemeBrushes
     {
         // BgTo (the DARKEST stop) at the top-left, fading to BgFrom (the theme's lightest / most
         // recognisable background tone) at the bottom-right. This matters because the chip only SHOWS
-        // this brush in its lower-right triangle — a plain BgFrom→BgTo diagonal would land the darkest
-        // stop exactly in that corner, so every theme's field read as a near-black blob ("repräsentiert
+        // this brush in its lower-right triangle - a plain BgFrom->BgTo diagonal would land the darkest
+        // stop exactly in that corner, so every theme's field read as a near-black blob ("repraesentiert
         // NICHT den background", Chloe 2026-06-30). Flipped, the corner shows the theme's actual bg colour.
         var brush = new LinearGradientBrush
         {
@@ -84,7 +84,7 @@ public sealed class ThemeSwatchExtension : MarkupExtension
 
 /// <summary>
 /// XAML markup extension: <c>{theming:ThemeAccent Aurora}</c> resolves to that theme's HIGHLIGHT
-/// colour (its <c>AccentB</c> — the signature glow/halo accent) as a solid brush. Used for the
+/// colour (its <c>AccentB</c> - the signature glow/halo accent) as a solid brush. Used for the
 /// theme-picker swatch ring: each swatch carries ITS OWN theme's highlight (not the globally-active
 /// one), shown when the swatch is the active theme or hovered. Per-theme because all swatches are on
 /// screen at once, so the live <c>AccentBBrush</c> DynamicResource (= only the active theme) won't do.

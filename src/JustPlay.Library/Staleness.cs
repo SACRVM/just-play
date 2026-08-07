@@ -6,20 +6,20 @@ namespace JustPlay.Library;
 /// One reason an existing index entry should be re-analysed even though the FILE has not changed.
 ///
 /// <para>Why a rule and not a version number: measured 2026-07-30, all 6,561 entries of the "v9"
-/// library index carry <c>detectionVersion: 1</c> — a single scalar cannot express what actually
+/// library index carry <c>detectionVersion: 1</c> - a single scalar cannot express what actually
 /// needs redoing. The FLAC mono-decode bug (fixed in c687d46, 2026-07-10) corrupted vibe/LUFS/
 /// rhythm on FLACs while keys and BPM stayed correct; bumping a global version would have
 /// re-analysed thousands of healthy MP3s to fix a few hundred FLACs. Rules are recombinable,
 /// which is both smaller and more honest than a version matrix.</para>
 /// </summary>
-/// <param name="Reason">Short, user-facing reason — shown in the library panel's stale count.</param>
+/// <param name="Reason">Short, user-facing reason - shown in the library panel's stale count.</param>
 /// <param name="Matches">True when this rule considers the entry stale.</param>
 public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matches)
 {
-    // ── Rule factories ────────────────────────────────────────────────────────
+    // -- Rule factories --------------------------------------------------------
 
     /// <summary>
-    /// Entries whose analysis FAILED — worth retrying (a locked or half-copied file).
+    /// Entries whose analysis FAILED - worth retrying (a locked or half-copied file).
     /// Deliberately not the same as never-analysed: a panel that reports "412 failed" when those
     /// files were simply never processed sends the reader hunting for a bug that is not there.
     /// </summary>
@@ -41,18 +41,18 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
     /// <summary>
     /// Entries analysed before <paramref name="cutoffUtc"/> whose file has one of
     /// <paramref name="extensions"/>. Two independent "we don't actually know" cases both err
-    /// toward re-analysis, deliberately — a wrong "needs redoing" costs DSP time, a wrong "clean"
+    /// toward re-analysis, deliberately - a wrong "needs redoing" costs DSP time, a wrong "clean"
     /// ships bad numbers forever:
     /// <list type="bullet">
     /// <item>An unparsable <c>AnalysedAt</c> (garbage/foreign data) counts as old.</item>
     /// <item>
     /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> (the sentinel <see cref="TrackIndexMapping.FromStoredBlob"/>
     /// stamps when a blob carries no timestamp of its own) parses FINE and is simply always
-    /// earlier than any real-world <paramref name="cutoffUtc"/> — no special-casing needed here,
+    /// earlier than any real-world <paramref name="cutoffUtc"/> - no special-casing needed here,
     /// it falls straight through the normal comparison below. Measured 2026-08-01 (night report
     /// L6): before that sentinel existed, this path stamped the IMPORT moment instead, which made
     /// every rule built on this helper blind on any row that came from a tag import (i.e. most of
-    /// the library) — it always looked freshly analysed. See
+    /// the library) - it always looked freshly analysed. See
     /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> for the full reasoning.
     /// </item>
     /// </list>
@@ -72,15 +72,15 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
         });
 
     /// <summary>
-    /// ⚠ The FLAC/WAV/AIFF mono-decode debt. <c>DecodeMono</c> handed BASS's interleaved stereo
+    /// (!) The FLAC/WAV/AIFF mono-decode debt. <c>DecodeMono</c> handed BASS's interleaved stereo
     /// back as "mono" until commit c687d46 (2026-07-10), which shifted vibe quartet, LUFS and
     /// rhythm features on every file whose BASS decoder plugin ignores the mono flag (keys and BPM
-    /// were unaffected — see that commit's message). That is FLAC, WAV and AIFF/AIF, not just
+    /// were unaffected - see that commit's message). That is FLAC, WAV and AIFF/AIF, not just
     /// FLAC: measured 2026-08-01 (night report L6), the rule scoped to <c>.flac</c> alone missed
-    /// ~473 further WAV/AIFF/AIF files — AIFF alone is 23% of the library, so this was not a
+    /// ~473 further WAV/AIFF/AIF files - AIFF alone is 23% of the library, so this was not a
     /// rounding-error gap.
     ///
-    /// <para>Our pipeline re-runs all detectors, so this re-measures key/BPM too — wasteful but
+    /// <para>Our pipeline re-runs all detectors, so this re-measures key/BPM too - wasteful but
     /// correct. It is the rule that finally pays the debt off in the background instead of by hand.</para>
     /// </summary>
     public static StaleRule FlacMonoDecodeBug() =>
@@ -93,7 +93,7 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
 /// <summary>
 /// The set of <see cref="StaleRule"/>s a scan applies. Empty = trust every existing entry, which
 /// is the library's default posture: a stale blob is trusted as-is and never silently re-analysed
-/// (analysis-tag-persistence design). Re-analysis is something a rule — or Chloe — asks for.
+/// (analysis-tag-persistence design). Re-analysis is something a rule - or Chloe - asks for.
 /// </summary>
 public sealed class StalenessPolicy
 {
@@ -114,7 +114,7 @@ public sealed class StalenessPolicy
     /// <summary>
     /// The first reason <paramref name="entry"/> is stale, or null if it is trustworthy.
     /// Returning the REASON (not just a bool) is what lets the library panel say
-    /// "412 stale — FLAC mono-decode fix" instead of an unexplained number.
+    /// "412 stale - FLAC mono-decode fix" instead of an unexplained number.
     /// </summary>
     public string? StaleReason(TrackIndexEntry entry)
     {
@@ -124,7 +124,7 @@ public sealed class StalenessPolicy
         return null;
     }
 
-    /// <summary>Groups the stale entries of <paramref name="index"/> by reason — the panel's counts.</summary>
+    /// <summary>Groups the stale entries of <paramref name="index"/> by reason - the panel's counts.</summary>
     public IReadOnlyDictionary<string, int> CountByReason(TrackIndex index)
     {
         var counts = new Dictionary<string, int>(StringComparer.Ordinal);

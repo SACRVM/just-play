@@ -5,7 +5,7 @@ namespace JustPlay.Metadata.Tests;
 
 /// <summary>
 /// Round-trip tests for the POPM (Popularimeter) favourite feature:
-/// write → read → assert; unfavourite → read → assert false; verify other
+/// write -> read -> assert; unfavourite -> read -> assert false; verify other
 /// tags are preserved. All tests use a real (temp-file) MP3 synthesised
 /// in memory via TagLib# so no audio fixture is needed in the repo.
 /// </summary>
@@ -67,7 +67,7 @@ public class FavoriteRoundTripTests : IDisposable
     [Fact]
     public void WriteFavoriteNull_LeavesPopmUntouched()
     {
-        // Like it, then write with Favorite = null — POPM must not be cleared.
+        // Like it, then write with Favorite = null - POPM must not be cleared.
         _writer.Write(_tempFile, new TagWrite { Favorite = true });
         Assert.True(_reader.Read(_tempFile).IsFavorite);
 
@@ -85,7 +85,7 @@ public class FavoriteRoundTripTests : IDisposable
         Assert.False(_reader.Read(_tempFile).IsFavorite);
     }
 
-    // ── Synthesise a minimal valid ID3v2-tagged MP3 with a title ─────────────
+    // -- Synthesise a minimal valid ID3v2-tagged MP3 with a title -------------
     // Same technique as DjCommentRoundTripTests: ask TagLib# to write a title tag
     // so we don't hand-craft frame bytes. The MPEG audio content is irrelevant.
 

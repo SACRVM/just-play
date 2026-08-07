@@ -8,25 +8,25 @@ namespace JustPlay.Analysis;
 /// <para>All five features are tempo-aware: they align against the beat grid implied by
 /// <paramref name="bpm"/> and the known sample rate. The features are computed from the
 /// same 11 kHz onset-strength envelope that BeatFingerprintExtractor and
-/// TempoOctaveCorrector use — no second decode is needed.</para>
+/// TempoOctaveCorrector use - no second decode is needed.</para>
 ///
 /// <para>Algorithm references:</para>
 /// <list type="bullet">
-///   <item>FourOnFloor / Syncopation — Hockman et al. "Computational Analysis of
+///   <item>FourOnFloor / Syncopation - Hockman et al. "Computational Analysis of
 ///     Perceived Metrical Strength in EDM" (ISMIR 2012); beat-grid onset energy ratio.</item>
-///   <item>OffbeatEnergy / Swing — Butterfield "Why Do Jazz Musicians Swing Their
-///     Eighth Notes?" (Music Perception 2011) + Räsänen et al. "Automated Methods for
+///   <item>OffbeatEnergy / Swing - Butterfield "Why Do Jazz Musicians Swing Their
+///     Eighth Notes?" (Music Perception 2011) + Raesaenen et al. "Automated Methods for
 ///     the Transcription and Analysis of Rhythm" (Computer Music Journal 2015).</item>
-///   <item>HalfTimeFeel — autocorrelation at half-tempo lag (2× beat period).</item>
+///   <item>HalfTimeFeel - autocorrelation at half-tempo lag (2x beat period).</item>
 /// </list>
 ///
 /// <para>Platform-agnostic: no Avalonia, no ManagedBass, reflection-free, trim-/AOT-safe.
-/// No new NuGet packages — reuses Fft.cs already in this project.</para>
+/// No new NuGet packages - reuses Fft.cs already in this project.</para>
 /// </summary>
 public static class RhythmPatternDetector
 {
     // =========================================================================
-    // Thresholds (named constants — tune these on Chloe's ear, not a corpus).
+    // Thresholds (named constants - tune these on Chloe's ear, not a corpus).
     // The BeatType label is entirely determined by these thresholds. Raise or
     // lower them in this one block; nothing else needs to change.
     // =========================================================================
@@ -37,7 +37,7 @@ public static class RhythmPatternDetector
         // --- HalfTimeFeel wins first (strongest over-riding signal) ---
 
         /// <summary>
-        /// HalfTimeFeel above this → "halftime" regardless of other features.
+        /// HalfTimeFeel above this -> "halftime" regardless of other features.
         /// Dubstep / trap: dominant pulse at half the detected tempo.
         /// </summary>
         public const double HalftimeWin = 0.55;
@@ -45,31 +45,31 @@ public static class RhythmPatternDetector
         // --- Breaks detection ---
 
         /// <summary>
-        /// FourOnFloor below this threshold → kick is NOT consistently on every beat → breaks / syncopated.
+        /// FourOnFloor below this threshold -> kick is NOT consistently on every beat -> breaks / syncopated.
         /// </summary>
         public const double FofBreaksMax = 0.45;
 
         /// <summary>
-        /// Syncopation above this threshold → confirmed breaks character.
+        /// Syncopation above this threshold -> confirmed breaks character.
         /// </summary>
         public const double SynBreaksMin = 0.35;
 
         // --- 4x4-groovy vs 4x4-driving ---
 
         /// <summary>
-        /// OffbeatEnergy above this → house feel (hi-hat / open-hat emphasis on the "and").
+        /// OffbeatEnergy above this -> house feel (hi-hat / open-hat emphasis on the "and").
         /// </summary>
         public const double OffbeatGroovyMin = 0.38;
 
         /// <summary>
-        /// Swing above this → house shuffle feel.
+        /// Swing above this -> house shuffle feel.
         /// </summary>
         public const double SwingGroovyMin = 0.30;
 
         // --- offbeat-bass: four-on-floor + strong off-beat but no swing ---
 
         /// <summary>
-        /// OffbeatEnergy above this even when swing is low → "offbeat-bass" pattern (stabs, synth hooks).
+        /// OffbeatEnergy above this even when swing is low -> "offbeat-bass" pattern (stabs, synth hooks).
         /// </summary>
         public const double OffbeatBassMin = 0.50;
     }
@@ -79,27 +79,27 @@ public static class RhythmPatternDetector
     // =========================================================================
 
     private const int OnsetFrameSize = 512;
-    private const int OnsetHopSize   = OnsetFrameSize / 4;  // 128 samples @ 11025 Hz ≈ 11.6 ms
+    private const int OnsetHopSize   = OnsetFrameSize / 4;  // 128 samples @ 11025 Hz ~ 11.6 ms
 
     // =========================================================================
     // Band splitting for FourOnFloor vs OffbeatEnergy
     // At 11025 Hz the FFT has OnsetFrameSize/2 = 256 bins.
-    // Bin spacing = 11025 / 512 ≈ 21.5 Hz.
-    // Kick drum fundamental: 40–120 Hz → bins 2..5
-    // Low band (kick body + sub): 0–250 Hz → bins 0..11
-    // Mid band (snare/hat, offbeat emphasis): 250–3500 Hz → bins 12..162
+    // Bin spacing = 11025 / 512 ~ 21.5 Hz.
+    // Kick drum fundamental: 40-120 Hz -> bins 2..5
+    // Low band (kick body + sub): 0-250 Hz -> bins 0..11
+    // Mid band (snare/hat, offbeat emphasis): 250-3500 Hz -> bins 12..162
     // =========================================================================
 
-    private const int LowBandMaxBin  = 11;   // ≤ ~237 Hz (kick body)
-    private const int MidBandMaxBin  = 162;  // ≤ ~3483 Hz (snare / hi-hat range)
+    private const int LowBandMaxBin  = 11;   // <= ~237 Hz (kick body)
+    private const int MidBandMaxBin  = 162;  // <= ~3483 Hz (snare / hi-hat range)
 
-    // Minimum number of onset frames — tracks shorter than this yield null.
+    // Minimum number of onset frames - tracks shorter than this yield null.
     private const int MinFrames = 32;
 
-    // When scoring beat-grid alignment we look at a neighbourhood of ±HalfWindowFrames
+    // When scoring beat-grid alignment we look at a neighbourhood of +/-HalfWindowFrames
     // around each nominal grid position to absorb small timing jitter (quantisation).
-    // At hop=128/sr=11025 → 1 frame ≈ 11.6 ms; ±1 frame window covers ±23 ms (typical
-    // kick transient width). ±2 frames cover ±46 ms for looser grooves.
+    // At hop=128/sr=11025 -> 1 frame ~ 11.6 ms; +/-1 frame window covers +/-23 ms (typical
+    // kick transient width). +/-2 frames cover +/-46 ms for looser grooves.
     private const int HalfWindowFrames = 2;
 
     // =========================================================================
@@ -139,19 +139,19 @@ public static class RhythmPatternDetector
         // Beat period in frames (float, fractional).
         var beatPeriodFrames = (sampleRate / (double)OnsetHopSize) * (60.0 / bpm);
 
-        // ---- Step 3: FourOnFloor — low-band onset energy on every beat ----
+        // ---- Step 3: FourOnFloor - low-band onset energy on every beat ----
         var fof = ComputeFourOnFloor(lowEnvelope, beatPeriodFrames, ct);
 
-        // ---- Step 4: OffbeatEnergy — mid-band onset at the half-beat ("and") ----
+        // ---- Step 4: OffbeatEnergy - mid-band onset at the half-beat ("and") ----
         var offbeat = ComputeOffbeatEnergy(midEnvelope, beatPeriodFrames, ct);
 
-        // ---- Step 5: Swing — timing deviation of off-beat events ----
+        // ---- Step 5: Swing - timing deviation of off-beat events ----
         var swing = ComputeSwing(midEnvelope, beatPeriodFrames, ct);
 
-        // ---- Step 6: Syncopation — full-band onset energy off the beat grid ----
+        // ---- Step 6: Syncopation - full-band onset energy off the beat grid ----
         var syncopation = ComputeSyncopation(fullEnvelope, beatPeriodFrames, ct);
 
-        // ---- Step 7: HalfTimeFeel — ACF energy at the double-beat period ----
+        // ---- Step 7: HalfTimeFeel - ACF energy at the double-beat period ----
         var halfTime = ComputeHalfTimeFeel(fullEnvelope, beatPeriodFrames, sampleRate, ct);
 
         // ---- Step 8: Rule-based label ----
@@ -178,11 +178,11 @@ public static class RhythmPatternDetector
     /// first match wins.
     ///
     /// Rule precedence:
-    /// 1. halftime — dominant half-time ACF peak.
-    /// 2. breaks — low four-on-floor + high syncopation.
-    /// 3. offbeat-bass — very high offbeat energy but LOW swing (stabs/bass hooks, not house).
-    /// 4. 4x4-groovy — four-on-floor + moderate offbeat OR swing (house feel).
-    /// 5. 4x4-driving — default: straight four-on-floor.
+    /// 1. halftime - dominant half-time ACF peak.
+    /// 2. breaks - low four-on-floor + high syncopation.
+    /// 3. offbeat-bass - very high offbeat energy but LOW swing (stabs/bass hooks, not house).
+    /// 4. 4x4-groovy - four-on-floor + moderate offbeat OR swing (house feel).
+    /// 5. 4x4-driving - default: straight four-on-floor.
     /// </summary>
     public static string ClassifyBeatType(
         double fof, double offbeat, double swing, double syncopation, double halfTime)
@@ -195,7 +195,7 @@ public static class RhythmPatternDetector
         if (fof < Thresholds.FofBreaksMax && syncopation >= Thresholds.SynBreaksMin)
             return "breaks";
 
-        // 3. offbeat-bass: VERY high offbeat energy but no swing → stab chords, bass hooks.
+        // 3. offbeat-bass: VERY high offbeat energy but no swing -> stab chords, bass hooks.
         //    Must check BEFORE 4x4-groovy because OffbeatBassMin > OffbeatGroovyMin,
         //    and we want to reserve "4x4-groovy" for cases with genuine swing/shuffle.
         if (offbeat >= Thresholds.OffbeatBassMin && swing < Thresholds.SwingGroovyMin)
@@ -217,7 +217,7 @@ public static class RhythmPatternDetector
     /// FourOnFloor: fraction of beat positions that have a significant low-band onset.
     ///
     /// For each nominal beat position we take the PEAK low-band onset within a
-    /// ±HalfWindowFrames neighbourhood (to absorb timing jitter). A beat position is
+    /// +/-HalfWindowFrames neighbourhood (to absorb timing jitter). A beat position is
     /// "active" if its peak exceeds an adaptive threshold (mean envelope level). The
     /// fraction of active positions is the FourOnFloor score.
     ///
@@ -263,18 +263,18 @@ public static class RhythmPatternDetector
 
     /// <summary>
     /// OffbeatEnergy: fraction of the mid-band (hi-hat/snare) onset energy that falls in the
-    /// OFF-beat REGION — the second quarter of each beat period (between the beat and the
+    /// OFF-beat REGION - the second quarter of each beat period (between the beat and the
     /// three-quarter mark).
     ///
-    /// Unlike a narrow ±window around the exact half-beat, this measures the broad "and" region
-    /// [beat + ¼, beat + ¾ × period], which captures both straight and swung off-beat events.
+    /// Unlike a narrow +/-window around the exact half-beat, this measures the broad "and" region
+    /// [beat + 1/4, beat + 3/4 x period], which captures both straight and swung off-beat events.
     /// A track with hi-hats anywhere in the off-beat region scores high; a track with only
     /// kick (on-beat) scores near 0.
     ///
     /// Formula:
-    ///   offbeatEnergy = sum of midEnv frames where offset ∈ (¼, ¾) of the beat period
+    ///   offbeatEnergy = sum of midEnv frames where offset  in  (1/4, 3/4) of the beat period
     ///   totalEnergy   = sum of all midEnv frames
-    ///   score = offbeatEnergy / totalEnergy → [0, 1]
+    ///   score = offbeatEnergy / totalEnergy -> [0, 1]
     /// </summary>
     private static double ComputeOffbeatEnergy(
         double[] midEnv, double beatPeriodFrames, CancellationToken ct)
@@ -290,7 +290,7 @@ public static class RhythmPatternDetector
         {
             ct.ThrowIfCancellationRequested();
 
-            // Off-beat region: [beat + ¼*period, beat + ¾*period).
+            // Off-beat region: [beat + 1/4*period, beat + 3/4*period).
             var regionLo = (int)Math.Round(beat * beatPeriodFrames + beatPeriodFrames * 0.25);
             var regionHi = (int)Math.Round(beat * beatPeriodFrames + beatPeriodFrames * 0.75);
             regionLo = Math.Max(0, regionLo);
@@ -304,20 +304,20 @@ public static class RhythmPatternDetector
     }
 
     /// <summary>
-    /// Swing: how far from the exact half-beat position (0.5 × period) the dominant
+    /// Swing: how far from the exact half-beat position (0.5 x period) the dominant
     /// off-beat mid-band event falls, averaged over all beat intervals.
     ///
     /// For each inter-beat interval:
     ///   1. Compute the centroid (energy-weighted mean frame) of mid-band energy in the
-    ///      off-beat region [¼, ¾] × period. This is more robust than the peak because
-    ///      hat transients are short and may span only 1–2 frames.
+    ///      off-beat region [1/4, 3/4] x period. This is more robust than the peak because
+    ///      hat transients are short and may span only 1-2 frames.
     ///   2. Only include intervals where the off-beat region has more energy than the
     ///      on-beat region (prevents kick-dominant beats from contributing false swing).
-    ///   3. Measure deviation of the centroid from the exact half-beat (¼ period away
-    ///      from centre of the ¼–¾ window), normalised to [0, 1].
+    ///   3. Measure deviation of the centroid from the exact half-beat (1/4 period away
+    ///      from centre of the 1/4-3/4 window), normalised to [0, 1].
     ///
-    /// Straight groove: centroid near 0.5 × period → low deviation → Swing ≈ 0.
-    /// Swung groove: centroid near 0.65 × period → deviation ≈ 0.3 → Swing elevated.
+    /// Straight groove: centroid near 0.5 x period -> low deviation -> Swing ~ 0.
+    /// Swung groove: centroid near 0.65 x period -> deviation ~ 0.3 -> Swing elevated.
     /// </summary>
     private static double ComputeSwing(
         double[] midEnv, double beatPeriodFrames, CancellationToken ct)
@@ -334,14 +334,14 @@ public static class RhythmPatternDetector
             var beatOrigin = beat * beatPeriodFrames;
             var beatEnd    = (beat + 1) * beatPeriodFrames;
 
-            // Off-beat region: [beat + ¼, beat + ¾).
+            // Off-beat region: [beat + 1/4, beat + 3/4).
             var obLo = (int)Math.Round(beatOrigin + beatPeriodFrames * 0.25);
             var obHi = (int)Math.Round(beatOrigin + beatPeriodFrames * 0.75) - 1;
             obLo = Math.Clamp(obLo, 0, nFrames - 1);
             obHi = Math.Clamp(obHi, 0, nFrames - 1);
             if (obHi <= obLo) continue;
 
-            // On-beat region: [beat, beat + ¼) ∪ [beat + ¾, beat+1).
+            // On-beat region: [beat, beat + 1/4)  union  [beat + 3/4, beat+1).
             var onBeatEnergy  = 0.0;
             var offBeatEnergy = 0.0;
             var offBeatWtSum  = 0.0;  // weighted sum for centroid
@@ -376,9 +376,9 @@ public static class RhythmPatternDetector
             // Exact half-beat position (relative to beat origin).
             var exactHalf = beatOrigin + beatPeriodFrames * 0.5;
 
-            // Deviation from the half-beat, normalised so that ¼ period deviation = 1.0.
-            // The off-beat region spans ¼–¾, so the max possible deviation from the
-            // exact half is ¼ of the period. Divide by (period/4) to normalise to [0, 1].
+            // Deviation from the half-beat, normalised so that 1/4 period deviation = 1.0.
+            // The off-beat region spans 1/4-3/4, so the max possible deviation from the
+            // exact half is 1/4 of the period. Divide by (period/4) to normalise to [0, 1].
             var deviation = Math.Abs(centroid - exactHalf) / (beatPeriodFrames * 0.25);
             swingSum += Math.Min(1.0, deviation);
             swingCount++;
@@ -391,13 +391,13 @@ public static class RhythmPatternDetector
     /// Syncopation: fraction of the full-band onset energy that falls AWAY from the beat grid.
     ///
     /// We split the beat grid into four sub-beat positions per beat:
-    ///   position 0 (on-beat), ¼ (e), ½ (and/off-beat), ¾ (a).
-    /// On-beat energy = window around positions 0 and ½ of each period.
-    /// Off-grid energy = windows around ¼ and ¾ positions.
+    ///   position 0 (on-beat), 1/4 (e), 1/2 (and/off-beat), 3/4 (a).
+    /// On-beat energy = window around positions 0 and 1/2 of each period.
+    /// Off-grid energy = windows around 1/4 and 3/4 positions.
     /// Syncopation = off-grid energy / total energy.
     ///
-    /// A pure 4/4 kick has all energy at position 0 → low syncopation.
-    /// A breakbeat spreads energy across all four sub-beats → high syncopation.
+    /// A pure 4/4 kick has all energy at position 0 -> low syncopation.
+    /// A breakbeat spreads energy across all four sub-beats -> high syncopation.
     /// </summary>
     private static double ComputeSyncopation(
         double[] env, double beatPeriodFrames, CancellationToken ct)
@@ -409,21 +409,21 @@ public static class RhythmPatternDetector
         var nFrames = env.Length;
         var quarterPeriod = beatPeriodFrames * 0.25;
 
-        // We test the ¼ and ¾ offsets (off-grid) vs. 0 and ½ (on-grid).
-        // Walk beats; for each beat test the ¼ and ¾ sub-positions.
+        // We test the 1/4 and 3/4 offsets (off-grid) vs. 0 and 1/2 (on-grid).
+        // Walk beats; for each beat test the 1/4 and 3/4 sub-positions.
         for (var beat = 0; beat * beatPeriodFrames < nFrames + beatPeriodFrames * 0.5; beat++)
         {
             ct.ThrowIfCancellationRequested();
             var beatOrigin = beat * beatPeriodFrames;
 
-            // ¼ sub-position.
+            // 1/4 sub-position.
             var quarter = (int)Math.Round(beatOrigin + quarterPeriod);
             var lo1 = Math.Max(0, quarter - HalfWindowFrames);
             var hi1 = Math.Min(nFrames - 1, quarter + HalfWindowFrames);
             for (var f = lo1; f <= hi1; f++)
                 offGridEnergy += env[f];
 
-            // ¾ sub-position.
+            // 3/4 sub-position.
             var threeQuarter = (int)Math.Round(beatOrigin + 3.0 * quarterPeriod);
             var lo2 = Math.Max(0, threeQuarter - HalfWindowFrames);
             var hi2 = Math.Min(nFrames - 1, threeQuarter + HalfWindowFrames);
@@ -435,11 +435,11 @@ public static class RhythmPatternDetector
     }
 
     /// <summary>
-    /// HalfTimeFeel: ratio of the ACF value at the double-beat period (2× beatPeriod) to
+    /// HalfTimeFeel: ratio of the ACF value at the double-beat period (2x beatPeriod) to
     /// the ACF value at the beat period.
     ///
     /// If the dominant pulse is at the beat period the ratio is &lt; 1 (normal 4/4).
-    /// If the dominant pulse is at 2× the beat period (snare every 2 beats → "two and four"
+    /// If the dominant pulse is at 2x the beat period (snare every 2 beats -> "two and four"
     /// feels like a half-time snare) the ratio exceeds 1. We normalise to [0, 1] by
     /// dividing through by the sum of both ACF values.
     ///
@@ -489,12 +489,12 @@ public static class RhythmPatternDetector
     /// <summary>
     /// Builds two onset-strength envelopes from the same spectral-flux computation:
     /// <list type="bullet">
-    ///   <item><paramref name="lowEnv"/> — positive magnitude differences summed over bins 0..LowBandMaxBin
-    ///     (kick body + sub, ~0–237 Hz @ 11 kHz).</item>
-    ///   <item><paramref name="midEnv"/> — same over bins LowBandMaxBin+1..MidBandMaxBin
-    ///     (snare / hi-hat range, ~237–3483 Hz).</item>
+    ///   <item><paramref name="lowEnv"/> - positive magnitude differences summed over bins 0..LowBandMaxBin
+    ///     (kick body + sub, ~0-237 Hz @ 11 kHz).</item>
+    ///   <item><paramref name="midEnv"/> - same over bins LowBandMaxBin+1..MidBandMaxBin
+    ///     (snare / hi-hat range, ~237-3483 Hz).</item>
     /// </list>
-    /// One FFT pass, two partial sums — no extra decode.
+    /// One FFT pass, two partial sums - no extra decode.
     /// </summary>
     private static void BuildBandOnsets(
         float[] samples,
@@ -574,7 +574,7 @@ public static class RhythmPatternDetector
     }
 
     // =========================================================================
-    // Short ACF (only up to maxLag — cheaper than the full BeatFingerprint ACF)
+    // Short ACF (only up to maxLag - cheaper than the full BeatFingerprint ACF)
     // =========================================================================
 
     private static double[] AutocorrelateShort(double[] signal, int maxLag, CancellationToken ct)

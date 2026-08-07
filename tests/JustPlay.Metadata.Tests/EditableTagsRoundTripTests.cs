@@ -6,7 +6,7 @@ namespace JustPlay.Metadata.Tests;
 
 /// <summary>
 /// Round-trip tests for the editorial tag editing surface:
-/// <see cref="IMetadataWriter.WriteEditable"/> → <see cref="IMetadataReader.ReadEditable"/> /
+/// <see cref="IMetadataWriter.WriteEditable"/> -> <see cref="IMetadataReader.ReadEditable"/> /
 /// <see cref="IMetadataReader.Read"/>. All tests use a throwaway temp MP3 synthesised in memory
 /// via TagLib# so no audio fixture is needed in the repo. The key regression guard also verifies
 /// that a JustPlay analysis blob written via the existing <see cref="IMetadataWriter.Write"/>
@@ -29,7 +29,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         if (File.Exists(_tempFile)) File.Delete(_tempFile);
     }
 
-    // ── Editorial field round-trips ───────────────────────────────────────────
+    // -- Editorial field round-trips -------------------------------------------
 
     [Fact]
     public void WriteEditable_AllFields_RoundTripViaReadEditable()
@@ -85,7 +85,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         Assert.Equal(3u,                  back.TrackNumber);
     }
 
-    // ── Year / TrackNumber zero clears ────────────────────────────────────────
+    // -- Year / TrackNumber zero clears ----------------------------------------
 
     [Fact]
     public void WriteEditable_YearZero_ClearsYearTag()
@@ -99,7 +99,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         var back = _reader.ReadEditable(_tempFile);
         Assert.Equal(0u, back.Year);
 
-        // And Read() should also return null (Year == 0 → null in TrackMetadata).
+        // And Read() should also return null (Year == 0 -> null in TrackMetadata).
         Assert.Null(_reader.Read(_tempFile).Year);
     }
 
@@ -115,11 +115,11 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         var back = _reader.ReadEditable(_tempFile);
         Assert.Equal(0u, back.TrackNumber);
 
-        // And Read() should return null (Track == 0 → null in TrackMetadata).
+        // And Read() should return null (Track == 0 -> null in TrackMetadata).
         Assert.Null(_reader.Read(_tempFile).TrackNumber);
     }
 
-    // ── Cover art: Replace → read returns bytes ───────────────────────────────
+    // -- Cover art: Replace -> read returns bytes -------------------------------
 
     [Fact]
     public void WriteEditable_CoverReplace_ReadReturnsTheSameBytes()
@@ -134,7 +134,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         Assert.Equal(fakeJpeg, back.CoverArt);
     }
 
-    // ── Cover art: Remove clears cover ───────────────────────────────────────
+    // -- Cover art: Remove clears cover ---------------------------------------
 
     [Fact]
     public void WriteEditable_CoverRemove_ClearsCoverArt()
@@ -149,7 +149,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         Assert.Null(_reader.Read(_tempFile).CoverArt);
     }
 
-    // ── Cover art: Keep preserves existing cover ──────────────────────────────
+    // -- Cover art: Keep preserves existing cover ------------------------------
 
     [Fact]
     public void WriteEditable_CoverKeep_PreservesExistingCover()
@@ -168,7 +168,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         Assert.Equal(fakeJpeg, back.CoverArt);
     }
 
-    // ── Regression: analysis blob written by Write() survives WriteEditable() ─
+    // -- Regression: analysis blob written by Write() survives WriteEditable() -
 
     [Fact]
     public void WriteEditable_AfterWrite_PreservesAnalysisBlob()
@@ -200,7 +200,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         Assert.Equal(140.0, before.TaggedBpm);
         Assert.Equal(8,     before.TaggedEnergy);
 
-        // Now do an editorial write — must not touch analysis fields.
+        // Now do an editorial write - must not touch analysis fields.
         _writer.WriteEditable(_tempFile, new EditableTags { Title = "Edited" }, CoverAction.Keep, null, null);
 
         var after = _reader.Read(_tempFile);
@@ -215,18 +215,18 @@ public sealed class EditableTagsRoundTripTests : IDisposable
                      after.StoredAnalysis!.Version);
     }
 
-    // ── ReadEditable degrades gracefully on corrupt/missing file ─────────────
+    // -- ReadEditable degrades gracefully on corrupt/missing file -------------
 
     [Fact]
     public void ReadEditable_OnNonExistentFile_ReturnsEmptyRatherThanThrowing()
     {
         var missing = Path.Combine(Path.GetTempPath(), $"no_such_file_{Guid.NewGuid():N}.mp3");
         var result = Record.Exception(() => _reader.ReadEditable(missing));
-        // Must not throw — graceful degradation.
+        // Must not throw - graceful degradation.
         Assert.Null(result);
     }
 
-    // ── Minimal MP3 factory (same technique as DjCommentRoundTripTests) ───────
+    // -- Minimal MP3 factory (same technique as DjCommentRoundTripTests) -------
 
     private static byte[] BuildMinimalMp3()
     {

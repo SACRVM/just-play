@@ -19,12 +19,12 @@ public static class BeatFingerprintExtractor
     private const int OnsetHopSize   = OnsetFrameSize / 4;   // 128
 
     // ---- Scale Transform / ACF parameters ----
-    // Max ACF lag: 1.5 s = 40 BPM; at 11025 Hz / hop 128 → ~130 frames.
+    // Max ACF lag: 1.5 s = 40 BPM; at 11025 Hz / hop 128 -> ~130 frames.
     private const double AcfMaxLagSeconds = 1.5;
 
     // Number of log-spaced samples for Mellin resampling (warped ACF).
     // Must be a power of two for the FFT. 128 gives good resolution (rhythm-similarity.md
-    // §"Cyclic tempogram" uses M=15..120; 128 overshoots slightly but is cheap).
+    // Sec."Cyclic tempogram" uses M=15..120; 128 overshoots slightly but is cheap).
     private const int MellinResampleN = 128;
 
     // ---- Cyclic tempogram parameters ----
@@ -33,11 +33,11 @@ public static class BeatFingerprintExtractor
     private const double CtMaxBpm = 200.0;
 
     // Number of bins PER OCTAVE for the cyclic tempogram. 12 (one per semitone) follows
-    // the chroma analogy; Grosche et al. use 15–120 — 24 is a practical middle ground.
+    // the chroma analogy; Grosche et al. use 15-120 - 24 is a practical middle ground.
     private const int CtBinsPerOctave = 24;
 
     // ---- DFA parameters (Streich & Herrera AES 2005 / Essentia danceability.cpp) ----
-    // 10 ms frame → RMS envelope → integrate → DFA.
+    // 10 ms frame -> RMS envelope -> integrate -> DFA.
     private const double DfaFrameMs   = 10.0;   // per-frame length
     private const double DfaTauMinMs  = 310.0;  // shortest segment length
     private const double DfaTauMaxMs  = 8800.0; // longest segment length
@@ -86,7 +86,7 @@ public static class BeatFingerprintExtractor
         var stVec = ComputeScaleTransform(acfDetrended, ct);
 
         // ---- Step 4: Cyclic tempogram ----
-        // Uses the ORIGINAL ACF (not detrended) — the CT accumulates ACF[lag] scores
+        // Uses the ORIGINAL ACF (not detrended) - the CT accumulates ACF[lag] scores
         // for each tempo-BPM bin, and those scores must be non-negative (detrending would
         // introduce negative values that confuse the histogram accumulation).
         var ctVec = ComputeCyclicTempogram(acf, sampleRate, ct);
@@ -114,8 +114,8 @@ public static class BeatFingerprintExtractor
 
     /// <summary>
     /// Blended groove similarity: cosine of Scale Transform (primary) + cosine of
-    /// cyclic tempogram (secondary). The caller controls the weights α (ST) and β (CT).
-    /// A danceability penalty term is excluded here — it belongs in the outer compat score.
+    /// cyclic tempogram (secondary). The caller controls the weights alpha (ST) and beta (CT).
+    /// A danceability penalty term is excluded here - it belongs in the outer compat score.
     /// </summary>
     public static double BlendedSimilarity(
         BeatFingerprint a, BeatFingerprint b,
@@ -131,7 +131,7 @@ public static class BeatFingerprintExtractor
     // -------------------------------------------------------------------------
 
     // Number of lowest-order Scale Transform bins to zero out (set to 0 before L2-normalising).
-    // Bins 0–2 encode the global ACF decay envelope — a slow monotonic trend shared by ALL
+    // Bins 0-2 encode the global ACF decay envelope - a slow monotonic trend shared by ALL
     // 4/4 dance music, not discriminative groove structure. They dominate the L2-normalised
     // vector and saturate cosine similarity near 1.0 for all track pairs.
     // Zeroing rather than dropping preserves the documented output length (halfN = 64).
@@ -151,26 +151,26 @@ public static class BeatFingerprintExtractor
     /// <list type="number">
     ///   <item>Skips lag 0 (zero-lag = total power; carries no groove info).</item>
     ///   <item>Log-warps the lag axis: samples the ACF at exponentially-spaced lags
-    ///         log(1) … log(maxLag), giving MellinResampleN samples — this maps lag-scaling
+    ///         log(1) ... log(maxLag), giving MellinResampleN samples - this maps lag-scaling
     ///         in the original domain (tempo change) to a translation in the log domain.</item>
     ///   <item>Applies a Hann window to suppress spectral leakage.</item>
-    ///   <item>FFT → magnitude spectrum (lower half = non-redundant part).</item>
-    ///   <item><b>Zeros bins 0..(StDropLowBins-1)</b> — those bins encode the residual global
+    ///   <item>FFT -> magnitude spectrum (lower half = non-redundant part).</item>
+    ///   <item><b>Zeros bins 0..(StDropLowBins-1)</b> - those bins encode the residual global
     ///         decay envelope of the ACF (common to all 4/4 dance music) and saturate the
     ///         cosine at ~1.0. Zeroing is safe for tempo invariance: a tempo shift = translation
     ///         in the log-warp domain = phase shift in the FFT; the MAGNITUDE at each bin k is
     ///         unchanged. So the zeroed bins are present in all tracks at all tempos, and
     ///         removing them from all tracks symmetrically does not change tempo invariance.</item>
-    ///   <item>L2-normalises → cosine distance = 1 − dot product.</item>
+    ///   <item>L2-normalises -> cosine distance = 1 - dot product.</item>
     /// </list>
     ///
     /// <para>
-    /// Tempo invariance: if two grooves differ only in tempo (one is 2× the other),
-    /// their ACFs differ by a SCALING of the lag axis → TRANSLATION after log-warping →
-    /// FFT phase shift only → MAGNITUDE SPECTRUM UNCHANGED → cosine similarity = 1.
+    /// Tempo invariance: if two grooves differ only in tempo (one is 2x the other),
+    /// their ACFs differ by a SCALING of the lag axis -> TRANSLATION after log-warping ->
+    /// FFT phase shift only -> MAGNITUDE SPECTRUM UNCHANGED -> cosine similarity = 1.
     /// </para>
     ///
-    /// References: rhythm-similarity.md §"Scale Transform"; Panteli &amp; Dixon ISMIR 2016.
+    /// References: rhythm-similarity.md Sec."Scale Transform"; Panteli &amp; Dixon ISMIR 2016.
     /// </summary>
     private static float[] ComputeScaleTransform(double[] acf, CancellationToken ct)
     {
@@ -207,7 +207,7 @@ public static class BeatFingerprintExtractor
         // Forward FFT on the log-warped ACF.
         Fft.Forward(re, im);
 
-        // Magnitude spectrum (lower half only — upper half is the mirror for real input).
+        // Magnitude spectrum (lower half only - upper half is the mirror for real input).
         var halfN = n / 2;
 
         // Magnitude spectrum. Bins 0..(StDropLowBins-1) are zeroed (they encode the global
@@ -217,7 +217,7 @@ public static class BeatFingerprintExtractor
         for (var k = StDropLowBins; k < halfN; k++)
             mag[k] = (float)Math.Sqrt((double)re[k] * re[k] + (double)im[k] * im[k]);
 
-        // L2-normalise so cosine distance = 1 − dot product.
+        // L2-normalise so cosine distance = 1 - dot product.
         return L2Normalise(mag);
     }
 
@@ -228,20 +228,20 @@ public static class BeatFingerprintExtractor
     /// <summary>
     /// Builds the cyclic/octave-folded tempogram from the onset-envelope ACF.
     ///
-    /// <para>Algorithm (Grosche, Müller &amp; Kurth ICASSP 2010):</para>
+    /// <para>Algorithm (Grosche, Mueller &amp; Kurth ICASSP 2010):</para>
     /// <list type="number">
     ///   <item>ACF-based periodicity: score each integer BPM in [CtMinBpm, CtMaxBpm]
     ///         via ACF[lag] (same as the tempo corrector, without the prior weight).</item>
-    ///   <item>Fold to one octave (60–120 BPM by convention, CtBinsPerOctave bins):
+    ///   <item>Fold to one octave (60-120 BPM by convention, CtBinsPerOctave bins):
     ///         any BPM b is mapped to b / 2^k where 2^k is the largest power of 2
-    ///         such that b / 2^k ≥ 60 BPM.</item>
-    ///   <item>Accumulate folded BPM score → histogram of CtBinsPerOctave bins.</item>
+    ///         such that b / 2^k >= 60 BPM.</item>
+    ///   <item>Accumulate folded BPM score -> histogram of CtBinsPerOctave bins.</item>
     ///   <item>L2-normalise.</item>
     /// </list>
     ///
     /// Power-of-two invariant: 120 BPM, 60 BPM, 240 BPM all map to the same bin.
-    /// Only 2:1 ratios are folded — 3:1 (triplet grooves) are NOT (Grosche et al. note this).
-    /// Reference: rhythm-similarity.md §"Cyclic tempogram".
+    /// Only 2:1 ratios are folded - 3:1 (triplet grooves) are NOT (Grosche et al. note this).
+    /// Reference: rhythm-similarity.md Sec."Cyclic tempogram".
     /// </summary>
     private static float[] ComputeCyclicTempogram(
         double[] acf, int sampleRate, CancellationToken ct)
@@ -270,7 +270,7 @@ public static class BeatFingerprintExtractor
             while (folded >= BaseOctaveMax) folded *= 0.5;
             while (folded <  BaseOctaveMin) folded *= 2.0;
 
-            // Map [60, 120) → [0, CtBinsPerOctave).
+            // Map [60, 120) -> [0, CtBinsPerOctave).
             var binIdx = (int)Math.Floor(
                 (folded - BaseOctaveMin) / (BaseOctaveMax - BaseOctaveMin) * CtBinsPerOctave);
             binIdx = Math.Clamp(binIdx, 0, CtBinsPerOctave - 1);
@@ -296,19 +296,19 @@ public static class BeatFingerprintExtractor
     /// <list type="number">
     ///   <item>Chop into <c>DfaFrameMs</c> (10 ms) frames; compute per-frame RMS.</item>
     ///   <item>Compute cumulative sum (integration) of the RMS envelope.</item>
-    ///   <item>For each segment length τ (geometric series DfaTauMin…DfaTauMax, ×DfaTauMult):
+    ///   <item>For each segment length tau (geometric series DfaTauMin...DfaTauMax, xDfaTauMult):
     ///     <list type="bullet">
-    ///       <item>Divide the integrated series into non-overlapping windows of length τ.</item>
+    ///       <item>Divide the integrated series into non-overlapping windows of length tau.</item>
     ///       <item>Fit a linear trend in each window (detrend).</item>
-    ///       <item>Compute RMS of the residuals (fluctuation F(τ)).</item>
+    ///       <item>Compute RMS of the residuals (fluctuation F(tau)).</item>
     ///     </list>
     ///   </item>
-    ///   <item>Fit log F(τ) ~ α log τ by least-squares → DFA exponent α.</item>
-    ///   <item>Danceability = 1 / α (steady beat → low α → high danceability).</item>
+    ///   <item>Fit log F(tau) ~ alpha log tau by least-squares -> DFA exponent alpha.</item>
+    ///   <item>Danceability = 1 / alpha (steady beat -> low alpha -> high danceability).</item>
     /// </list>
     ///
     /// Returns 0 if the audio is too short for at least two tau scales.
-    /// Reference: Streich &amp; Herrera (AES 2005); rhythm-similarity.md §"DFA danceability".
+    /// Reference: Streich &amp; Herrera (AES 2005); rhythm-similarity.md Sec."DFA danceability".
     /// </summary>
     private static double ComputeDfaDanceability(
         float[] samples, int sampleRate, CancellationToken ct)
@@ -342,7 +342,7 @@ public static class BeatFingerprintExtractor
             integrated[i] = runSum;
         }
 
-        // ---- Step 3: DFA fluctuation F(τ) for a range of segment lengths ----
+        // ---- Step 3: DFA fluctuation F(tau) for a range of segment lengths ----
         // Tau is measured in frames; DfaTauMinMs / frameMs gives the minimum frame count.
         var tauMinFrames = (int)Math.Round(DfaTauMinMs / DfaFrameMs);
         var tauMaxFrames = (int)Math.Round(DfaTauMaxMs / DfaFrameMs);
@@ -388,7 +388,7 @@ public static class BeatFingerprintExtractor
             }
 
             if (fluctCnt == 0) continue;
-            var fluctuation = Math.Sqrt(fluctSum / fluctCnt);  // F(τ)
+            var fluctuation = Math.Sqrt(fluctSum / fluctCnt);  // F(tau)
             if (fluctuation <= 0.0) continue;
 
             logTaus.Add(Math.Log(tau));
@@ -397,11 +397,11 @@ public static class BeatFingerprintExtractor
 
         if (logTaus.Count < 2) return 0.0;
 
-        // ---- Step 4: fit log F(τ) = α · log τ + const → least-squares α ----
+        // ---- Step 4: fit log F(tau) = alpha - log tau + const -> least-squares alpha ----
         var (alpha, _) = LinearFitArrays(
             logTaus.ToArray(), logFluxs.ToArray());
 
-        // ---- Step 5: danceability = 1 / α (lower exponent → more periodic → more danceable) ----
+        // ---- Step 5: danceability = 1 / alpha (lower exponent -> more periodic -> more danceable) ----
         if (alpha <= 0.0) return 0.0;
         return Math.Clamp(1.0 / alpha, 0.0, 3.0);
     }
@@ -412,7 +412,7 @@ public static class BeatFingerprintExtractor
 
     /// <summary>
     /// Builds a short-time spectral flux onset-strength envelope.
-    /// Identical algorithm to <see cref="TempoOctaveCorrector"/> — half-wave-rectified
+    /// Identical algorithm to <see cref="TempoOctaveCorrector"/> - half-wave-rectified
     /// positive magnitude differences between successive Hann-windowed FFT frames.
     /// Kept as a private copy here so BeatFingerprintExtractor has no dependency on the
     /// internal details of TempoOctaveCorrector (layering hygiene).
@@ -492,20 +492,20 @@ public static class BeatFingerprintExtractor
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Fits y = intercept + slope·x over elements [start, start+length) of
-    /// <paramref name="y"/>, where x = 0, 1, …, length-1.
+    /// Fits y = intercept + slope-x over elements [start, start+length) of
+    /// <paramref name="y"/>, where x = 0, 1, ..., length-1.
     /// Returns (slope, intercept).
     /// </summary>
     private static (double Slope, double Intercept) LinearFit(
         double[] y, int start, int length)
     {
         // Closed-form ordinary least squares for integer x = 0..n-1.
-        // n·Σ(xy) − Σx·Σy
-        // ───────────────────  = slope
-        // n·Σ(x²) − (Σx)²
+        // n-sum(xy) - sumx-sumy
+        // -------------------  = slope
+        // n-sum(x^2) - (sumx)^2
         var n    = (double)length;
-        var sumX = n * (n - 1) / 2.0;            // 0+1+…+(n-1)
-        var sumX2 = n * (n - 1) * (2 * n - 1) / 6.0;  // 0²+1²+…+(n-1)²
+        var sumX = n * (n - 1) / 2.0;            // 0+1+...+(n-1)
+        var sumX2 = n * (n - 1) * (2 * n - 1) / 6.0;  // 0^2+1^2+...+(n-1)^2
 
         var sumY  = 0.0;
         var sumXY = 0.0;
@@ -524,8 +524,8 @@ public static class BeatFingerprintExtractor
     }
 
     /// <summary>
-    /// Fits y = slope·x + intercept over two parallel arrays of the same length.
-    /// Used for the DFA log–log regression: logTaus → logFluxs.
+    /// Fits y = slope-x + intercept over two parallel arrays of the same length.
+    /// Used for the DFA log-log regression: logTaus -> logFluxs.
     /// Returns (slope, intercept).
     /// </summary>
     private static (double Slope, double Intercept) LinearFitArrays(
@@ -559,7 +559,7 @@ public static class BeatFingerprintExtractor
     /// Detrends the ACF by subtracting a box-smoothed (running-average) version of itself.
     ///
     /// <para>
-    /// The biased autocorrelation of the onset envelope has a monotonic decay envelope —
+    /// The biased autocorrelation of the onset envelope has a monotonic decay envelope -
     /// a slow trend shared by ALL 4/4 dance music that is NOT groove-discriminative.
     /// Subtracting a smoothed version removes this trend while preserving the oscillatory
     /// beat-periodicity peaks that carry groove identity.
@@ -567,7 +567,7 @@ public static class BeatFingerprintExtractor
     ///
     /// <para>
     /// Lag 0 is kept unchanged (zero-lag = total power, excluded from detrend).
-    /// Smoothing window = ~1/4 of the ACF length — wide enough to capture the slow decay
+    /// Smoothing window = ~1/4 of the ACF length - wide enough to capture the slow decay
     /// trend across multiple beat periods, but not wide enough to smooth out beat peaks.
     /// </para>
     ///
@@ -601,7 +601,7 @@ public static class BeatFingerprintExtractor
     {
         var sumSq = 0.0;
         foreach (var x in v) sumSq += (double)x * x;
-        if (sumSq <= 0.0) return v;  // zero vector — leave as-is
+        if (sumSq <= 0.0) return v;  // zero vector - leave as-is
 
         var inv = 1.0 / Math.Sqrt(sumSq);
         var result = new float[v.Length];
@@ -611,28 +611,28 @@ public static class BeatFingerprintExtractor
     }
 
     // Partial mean-centering coefficient for the ST cosine similarity.
-    // α=0 → plain cosine (no centering); α=1 → full Pearson correlation.
+    // alpha=0 -> plain cosine (no centering); alpha=1 -> full Pearson correlation.
     //
-    // Full Pearson (α=1) breaks tempo invariance for synthetic click trains at very low
+    // Full Pearson (alpha=1) breaks tempo invariance for synthetic click trains at very low
     // tempos (e.g. 64 BPM in a 1.5 s window = ~1.5 beat periods), because the finite
     // ACF window makes the 64 BPM and 128 BPM ST spectra DIFFERENT SHAPES rather than
     // translations of each other (as Mellin theory requires for infinite windows).
     //
-    // α=0.08 is a calibrated compromise:
-    // - Removes 8% of the shared DC component that causes cosine saturation → +7% stdev
-    //   on the 100-track real-music benchmark (0.0496 → 0.0529).
-    // - Leaves 92% of the original vector direction intact → all tempo-invariance tests
-    //   still pass (the 160/80 BPM pair — the tightest case — scores 0.853 vs threshold 0.85).
+    // alpha=0.08 is a calibrated compromise:
+    // - Removes 8% of the shared DC component that causes cosine saturation -> +7% stdev
+    //   on the 100-track real-music benchmark (0.0496 -> 0.0529).
+    // - Leaves 92% of the original vector direction intact -> all tempo-invariance tests
+    //   still pass (the 160/80 BPM pair - the tightest case - scores 0.853 vs threshold 0.85).
     private const double StPearsonAlpha = 0.08;
 
     /// <summary>
     /// Cosine similarity over the retained (non-zero) bins of two L2-normalised ST vectors,
-    /// with partial mean-centering (Pearson fraction α = StPearsonAlpha).
+    /// with partial mean-centering (Pearson fraction alpha = StPearsonAlpha).
     ///
     /// <para>
-    /// Partial centering subtracts α * mean from each vector before computing the dot product,
-    /// then re-normalises. At α=0 this is plain cosine; at α=1 it is the Pearson correlation.
-    /// The partial form removes the fraction α of the shared DC (the "all music sounds periodic"
+    /// Partial centering subtracts alpha * mean from each vector before computing the dot product,
+    /// then re-normalises. At alpha=0 this is plain cosine; at alpha=1 it is the Pearson correlation.
+    /// The partial form removes the fraction alpha of the shared DC (the "all music sounds periodic"
     /// baseline) while preserving enough of the original direction for tempo invariance.
     /// </para>
     /// </summary>
@@ -674,7 +674,7 @@ public static class BeatFingerprintExtractor
 
     /// <summary>
     /// Standard cosine similarity over all elements of two L2-normalised vectors.
-    /// Used for the cyclic tempogram (all 24 bins are meaningful — no zeroed padding).
+    /// Used for the cyclic tempogram (all 24 bins are meaningful - no zeroed padding).
     /// </summary>
     private static double CosineVecFull(float[] a, float[] b)
     {

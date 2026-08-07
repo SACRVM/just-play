@@ -5,13 +5,13 @@ using Xunit;
 namespace JustPlay.Core.Tests;
 
 /// <summary>
-/// Tests for the pure policy helpers in <see cref="Recording"/> — format resolution, file
+/// Tests for the pure policy helpers in <see cref="Recording"/> - format resolution, file
 /// extensions, and file-name construction. No IO, no BASS; see BassRecordingService in
 /// JustPlay.Audio.Bass for the encoder-facing implementation this feeds.
 /// </summary>
 public class RecordingTests
 {
-    // ── Resolve ───────────────────────────────────────────────────────────────────────
+    // -- Resolve -----------------------------------------------------------------------
 
     [Fact]
     public void Resolve_SameAsStream_Mp3_MirrorsCodecAndBitrate()
@@ -54,7 +54,7 @@ public class RecordingTests
         Assert.Equal(0, bitrate);
     }
 
-    // ── FileExtension ─────────────────────────────────────────────────────────────────
+    // -- FileExtension -----------------------------------------------------------------
 
     [Theory]
     [InlineData(RecordingCodec.Mp3, ".mp3")]
@@ -67,7 +67,7 @@ public class RecordingTests
         Assert.Equal(expected, Recording.FileExtension(codec));
     }
 
-    // ── BuildFileName ─────────────────────────────────────────────────────────────────
+    // -- BuildFileName -----------------------------------------------------------------
 
     private static readonly DateTime FixedNow = new(2026, 7, 4, 21, 30, 5);
 

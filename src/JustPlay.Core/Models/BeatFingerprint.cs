@@ -13,17 +13,17 @@ namespace JustPlay.Core.Models;
 ///
 /// <list type="bullet">
 ///   <item>
-///     <b>ScaleTransform</b> — L2-normalised Scale Transform magnitude vector (64 bins).
+///     <b>ScaleTransform</b> - L2-normalised Scale Transform magnitude vector (64 bins).
 ///     Primary groove descriptor; cosine similarity is tempo-invariant.
 ///     (Holzapfel &amp; Stylianou TASLP 2011; Panteli &amp; Dixon ISMIR 2016.)
 ///   </item>
 ///   <item>
-///     <b>CyclicTempogram</b> — octave-folded tempo periodicity histogram (24 bins),
+///     <b>CyclicTempogram</b> - octave-folded tempo periodicity histogram (24 bins),
 ///     L2-normalised. Invariant to 2:1 tempo scaling.
-///     (Grosche, Müller &amp; Kurth ICASSP 2010.)
+///     (Grosche, Mueller &amp; Kurth ICASSP 2010.)
 ///   </item>
 ///   <item>
-///     <b>Danceability</b> — DFA (Detrended Fluctuation Analysis) scalar ≈ 0–3;
+///     <b>Danceability</b> - DFA (Detrended Fluctuation Analysis) scalar ~ 0-3;
 ///     higher = more rhythmically steady / danceable.
 ///     (Streich &amp; Herrera AES 2005 / Essentia danceability.)
 ///   </item>
@@ -35,19 +35,19 @@ public sealed class BeatFingerprint
 {
     /// <summary>
     /// L2-normalised Scale Transform magnitude vector (64 bins).
-    /// Primary groove descriptor — cosine similarity is the recommended distance.
+    /// Primary groove descriptor - cosine similarity is the recommended distance.
     /// </summary>
     public float[] ScaleTransform { get; }
 
     /// <summary>
-    /// Cyclic tempogram — octave-folded periodicity histogram (24 bins), L2-normalised.
+    /// Cyclic tempogram - octave-folded periodicity histogram (24 bins), L2-normalised.
     /// Complement to the Scale Transform; invariant to power-of-two tempo scaling.
     /// </summary>
     public float[] CyclicTempogram { get; }
 
     /// <summary>
-    /// DFA danceability scalar — reciprocal of mean DFA exponent α.
-    /// Range roughly 0–3; higher = more rhythmically steady / danceable.
+    /// DFA danceability scalar - reciprocal of mean DFA exponent alpha.
+    /// Range roughly 0-3; higher = more rhythmically steady / danceable.
     /// </summary>
     public float Danceability { get; }
 

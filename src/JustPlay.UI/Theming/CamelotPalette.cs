@@ -4,7 +4,7 @@ using Avalonia.Media;
 namespace JustPlay.UI.Theming;
 
 /// <summary>
-/// The single source of truth for Camelot key colours — the 12-hue mixing-wheel palette, shared by the
+/// The single source of truth for Camelot key colours - the 12-hue mixing-wheel palette, shared by the
 /// <see cref="Controls.KeyWheel"/> and the key-badge converter so the wheel and every "8A" pill can never
 /// drift apart again (Chloe 2026-07-07). Same number = same hue (evenly around the circle of fifths);
 /// A/minor sits a touch darker than B/major, matching the wheel's inner/outer rings.
@@ -33,7 +33,7 @@ public static class CamelotPalette
         return int.TryParse(code[..^1], out n) && n is >= 1 and <= 12;
     }
 
-    /// <summary>HSL → opaque Color (h in degrees, s/l in 0..1).</summary>
+    /// <summary>HSL -> opaque Color (h in degrees, s/l in 0..1).</summary>
     public static Color Hsl(double h, double s, double l, byte a = 0xFF)
     {
         h = ((h % 360) + 360) % 360;

@@ -7,25 +7,25 @@ using Avalonia.Media;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// One-channel output PEAK level bar — the SHARED meter for the whole J.U.S.T. suite. Compose as many
+/// One-channel output PEAK level bar - the SHARED meter for the whole J.U.S.T. suite. Compose as many
 /// as you need: JUST PLAY stacks two vertical ones (L + R) in the analyzer's OUT column; JUST STREAM
 /// drops a horizontal one into each of its L/R rows. Fed each render frame via <see cref="Push"/>
 /// (raw peak + frame dt): the control OWNS the ballistics (fast attack / slow release, dt-rescaled
-/// so the glide is identical at any refresh rate — the SAME K values as STREAM's old meter) and a
+/// so the glide is identical at any refresh rate - the SAME K values as STREAM's old meter) and a
 /// peak-hold marker. The marker is a FLAT 2 px line with square ends (white with headroom, red within
-/// 1 dB of 0 dBFS). dBFS scale −60..0; green → amber → red toward 0. <see cref="Orientation"/>
-/// = bar grows bottom→top (Vertical) or left→right (Horizontal). No labels — the host adds them.
+/// 1 dB of 0 dBFS). dBFS scale -60..0; green -> amber -> red toward 0. <see cref="Orientation"/>
+/// = bar grows bottom->top (Vertical) or left->right (Horizontal). No labels - the host adds them.
 ///
 /// <para><b>The fed level is NOT clamped to 1.0</b> (2026-07-13). Float buses can and do go past
-/// 0 dBFS, and that overshoot is precisely the news — clamping it at the source made "over" invisible
+/// 0 dBFS, and that overshoot is precisely the news - clamping it at the source made "over" invisible
 /// by construction. Anything that reaches 0 dBFS lights the <b>OVER</b> cap at the top of the track,
 /// which holds for <see cref="OverHoldSeconds"/> s after the last one. The bar itself still pins at
-/// 0 dBFS: the scale stays −60..0 so the useful range isn't squeezed to make room for headroom nobody
+/// 0 dBFS: the scale stays -60..0 so the useful range isn't squeezed to make room for headroom nobody
 /// reads in numbers.</para>
 ///
 /// <para><b>Optional pre-limiter ghost</b> (<see cref="PushInput"/>, cyan hairline): on a master meter
-/// the bar is measured AFTER the limiter, so by construction it can never go over — holding it under is
-/// the limiter's entire job — and it therefore cannot answer "am I driving this too hard?". The ghost
+/// the bar is measured AFTER the limiter, so by construction it can never go over - holding it under is
+/// the limiter's entire job - and it therefore cannot answer "am I driving this too hard?". The ghost
 /// can: it is the peak the limiter SEES. Ghost above the bar = the limiter is eating the difference,
 /// and the GR meter next to it says how much. Hosts that never call PushInput never see it.</para>
 /// </summary>
@@ -50,11 +50,11 @@ public sealed class LevelMeter : Control
     /// NOW", and a persistent overdrive simply keeps re-arming it.</summary>
     private const double OverHoldSeconds = 3.0;
 
-    /// <summary>−0.1 dBFS counts as over. A 16-bit round-trip can't resolve finer, and a meter that
+    /// <summary>-0.1 dBFS counts as over. A 16-bit round-trip can't resolve finer, and a meter that
     /// insists on exactly 0.0 would sit there silent while the signal is audibly against the ceiling.</summary>
     private const double OverDb = -0.1;
 
-    private double _lvl;             // smoothed linear peak — NOT capped at 1
+    private double _lvl;             // smoothed linear peak - NOT capped at 1
     private double _peakDb = MinDb;
     private double _hold;            // peak-hold seconds remaining
     private double _over;            // OVER cap: seconds left to show
@@ -66,13 +66,13 @@ public sealed class LevelMeter : Control
     static LevelMeter() => AffectsRender<LevelMeter>(OrientationProperty);
 
     /// <summary>Feed one frame: raw peak (linear; >1 is allowed and means OVER) + seconds since the
-    /// last frame. Push owns the clock — it is the only method that ages the holds.</summary>
+    /// last frame. Push owns the clock - it is the only method that ages the holds.</summary>
     public void Push(double level, double dt)
     {
         double steps = dt > 0 ? dt / RefStep : 1.0;
         double aK = 1.0 - Math.Pow(1.0 - AttackK, steps);
         double rK = 1.0 - Math.Pow(1.0 - ReleaseK, steps);
-        double tgt = Math.Max(0, level);          // no upper clamp — see the class remarks
+        double tgt = Math.Max(0, level);          // no upper clamp - see the class remarks
         _lvl += (tgt - _lvl) * (tgt > _lvl ? aK : rK);
 
         double db = ToDb(_lvl);
@@ -110,7 +110,7 @@ public sealed class LevelMeter : Control
         if (b.Width < 4 || b.Height < 4) return;
         bool vert = Orientation == Orientation.Vertical;
 
-        // Track: full length on the main axis, bar thickness (≤20, centred) on the cross axis.
+        // Track: full length on the main axis, bar thickness (<=20, centred) on the cross axis.
         double thick = Math.Min(MaxThickness, vert ? b.Width : b.Height);
         double x = vert ? (b.Width - thick) / 2 : 0;
         double y = vert ? 0 : (b.Height - thick) / 2;
@@ -123,7 +123,7 @@ public sealed class LevelMeter : Control
         double frac = Frac(ToDb(_lvl));
         if (frac > 0.001)
         {
-            // Clip to the filled portion, then paint the full-track green→amber→red gradient so the
+            // Clip to the filled portion, then paint the full-track green->amber->red gradient so the
             // colour reflects the dB level (not the fill size).
             Rect fill = vert
                 ? new Rect(x, y + h - frac * h, w, frac * h)  // grow up
@@ -133,7 +133,7 @@ public sealed class LevelMeter : Control
         }
 
         // Pre-limiter GHOST (master meters only): what the limiter SEES. Cyan so it can't be mistaken
-        // for the white output peak-hold — they are different signals at different points in the chain.
+        // for the white output peak-hold - they are different signals at different points in the chain.
         if (_inputFed && _inputDb > MinDb + 0.5)
         {
             double gf = Frac(_inputDb);
@@ -142,7 +142,7 @@ public sealed class LevelMeter : Control
             else      ctx.FillRectangle(gb, new Rect(x + gf * w - 0.5, y, 1, h));
         }
 
-        // Peak-hold: FLAT 2 px line, square ends (FillRectangle, not a Pen → can't get rounded caps).
+        // Peak-hold: FLAT 2 px line, square ends (FillRectangle, not a Pen -> can't get rounded caps).
         if (_peakDb > MinDb + 0.5)
         {
             double pf = Frac(_peakDb);
@@ -152,7 +152,7 @@ public sealed class LevelMeter : Control
             else      ctx.FillRectangle(pb, new Rect(x + pf * w - 1, y, 2, h));
         }
 
-        // OVER — 0 dBFS was touched. A solid red cap at the 0 dB END of the track, drawn last so it
+        // OVER - 0 dBFS was touched. A solid red cap at the 0 dB END of the track, drawn last so it
         // wins over the bar and both markers. This is the only thing on the meter that means "stop".
         if (_over > 0)
         {
@@ -162,7 +162,7 @@ public sealed class LevelMeter : Control
         }
     }
 
-    // Green (low) → amber → red (high = 0 dBFS), along the bar's main axis.
+    // Green (low) -> amber -> red (high = 0 dBFS), along the bar's main axis.
     private static LinearGradientBrush ZoneGradient(bool vert)
     {
         var g = new LinearGradientBrush
@@ -171,8 +171,8 @@ public sealed class LevelMeter : Control
             EndPoint   = new RelativePoint(vert ? 0.5 : 1.0, vert ? 0.0 : 0.5, RelativeUnit.Relative), // 0 dBFS end
         };
         g.GradientStops.Add(new GradientStop(Color.FromRgb(0x2B, 0xD4, 0x6A), 0.0));   // green
-        g.GradientStops.Add(new GradientStop(Color.FromRgb(0x2B, 0xD4, 0x6A), 0.78));  // green to ~−13 dB
-        g.GradientStops.Add(new GradientStop(Color.FromRgb(0xE8, 0xC0, 0x20), 0.86));  // amber ~−8 dB
+        g.GradientStops.Add(new GradientStop(Color.FromRgb(0x2B, 0xD4, 0x6A), 0.78));  // green to ~-13 dB
+        g.GradientStops.Add(new GradientStop(Color.FromRgb(0xE8, 0xC0, 0x20), 0.86));  // amber ~-8 dB
         g.GradientStops.Add(new GradientStop(Color.FromRgb(0xFF, 0x3B, 0x30), 1.0));   // red at 0 dB
         return g;
     }

@@ -23,7 +23,7 @@ public sealed partial class EditableServerProfile : ObservableObject
     [ObservableProperty] private bool _useTls;
     [ObservableProperty] private IcecastProtocol _protocol;
 
-    // Station info (ICY directory fields — optional, DJ-owned).
+    // Station info (ICY directory fields - optional, DJ-owned).
     [ObservableProperty] private string _url;
     [ObservableProperty] private string _genre;
     [ObservableProperty] private string _description;

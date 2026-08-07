@@ -31,7 +31,7 @@ public class CaptureAppFilterTests
     {
         var apps = CaptureAppFilter.ToCaptureApps(new[]
         {
-            Proc(10, "notepad"),   // unknown but windowed → "other"
+            Proc(10, "notepad"),   // unknown but windowed -> "other"
             Proc(20, "spotify"),   // media
         });
 
@@ -45,7 +45,7 @@ public class CaptureAppFilterTests
     {
         var apps = CaptureAppFilter.ToCaptureApps(new[]
         {
-            Proc(10, "audiodg", window: false),   // system service, no window, unknown → drop
+            Proc(10, "audiodg", window: false),   // system service, no window, unknown -> drop
             Proc(20, "rekordbox", window: false), // DJ app qualifies even without a window
         });
 
@@ -87,7 +87,7 @@ public class CaptureAppFilterTests
     [Fact]
     public void VersionedDjExecutable_IsRecognisedAndFriendlyNamed()
     {
-        // Traktor's real process name carries the edition + version ("Traktor Pro 4") — the exact-match
+        // Traktor's real process name carries the edition + version ("Traktor Pro 4") - the exact-match
         // lookup missed it, so Auto fell back to full-mix (cue bleed). Token matching fixes it.
         var apps = CaptureAppFilter.ToCaptureApps(new[] { Proc(1, "Traktor Pro 4") });
         Assert.Single(apps);

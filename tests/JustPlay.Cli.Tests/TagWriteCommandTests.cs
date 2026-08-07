@@ -9,10 +9,10 @@ namespace JustPlay.Cli.Tests;
 
 /// <summary>
 /// Tests for <see cref="VibeTagEncoder"/> (encode / decode / comment helpers)
-/// and the full WriteTags → ReadTags round-trip for the new Grouping + Comment
+/// and the full WriteTags -> ReadTags round-trip for the new Grouping + Comment
 /// fields introduced by the <c>justplay tag write</c> command.
 ///
-/// These are purely managed tests — no BASS, no audio decoding needed.
+/// These are purely managed tests - no BASS, no audio decoding needed.
 /// The round-trip tests operate on a temp TagLib#-tagged MP3 synthesized in memory.
 /// </summary>
 public sealed class TagWriteCommandTests : IDisposable
@@ -30,9 +30,9 @@ public sealed class TagWriteCommandTests : IDisposable
         if (File.Exists(_tempFile)) File.Delete(_tempFile);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // VibeTagEncoder — Encode round-trips
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // VibeTagEncoder - Encode round-trips
+    // -------------------------------------------------------------------------
 
     [Fact]
     public void Encode_AllFieldsPresent_ProducesExpectedString()
@@ -70,7 +70,7 @@ public sealed class TagWriteCommandTests : IDisposable
     [Fact]
     public void Encode_BpmRounding_CorrectlyRounds()
     {
-        // 128.4 → 128; 128.6 → 129
+        // 128.4 -> 128; 128.6 -> 129
         Assert.Contains("|bpm128", VibeTagEncoder.Encode(bpm: 128.4));
         Assert.Contains("|bpm129", VibeTagEncoder.Encode(bpm: 128.6));
     }
@@ -78,7 +78,7 @@ public sealed class TagWriteCommandTests : IDisposable
     [Fact]
     public void Encode_PercentValues_ZeroPaddedTwoDigits()
     {
-        // hypnotic=0.02 → "hy.02" (zero-padded), harshness=0.09 → "hx.09"
+        // hypnotic=0.02 -> "hy.02" (zero-padded), harshness=0.09 -> "hx.09"
         var tag = VibeTagEncoder.Encode(hypnotic: 0.02, harshness: 0.09);
         Assert.Contains("hy.02", tag);
         Assert.Contains("hx.09", tag);
@@ -87,19 +87,19 @@ public sealed class TagWriteCommandTests : IDisposable
     [Fact]
     public void Encode_PercentClamping_ClampsBeyondBounds()
     {
-        // Values above 1.0 should be clamped to 1.0 → 100, but we store 00-99 via Math.Round.
-        // 1.0 → ToPct(1.0) = round(100) = 100 → "D2" = "100" (three chars) — by design.
-        // Values below 0.0 → 0.
-        var tagHigh = VibeTagEncoder.Encode(harshness: 1.5); // clamped to 1.0 → 100
+        // Values above 1.0 should be clamped to 1.0 -> 100, but we store 00-99 via Math.Round.
+        // 1.0 -> ToPct(1.0) = round(100) = 100 -> "D2" = "100" (three chars) - by design.
+        // Values below 0.0 -> 0.
+        var tagHigh = VibeTagEncoder.Encode(harshness: 1.5); // clamped to 1.0 -> 100
         Assert.Contains("hx.100", tagHigh);
 
-        var tagLow = VibeTagEncoder.Encode(harshness: -0.5); // clamped to 0.0 → 0
+        var tagLow = VibeTagEncoder.Encode(harshness: -0.5); // clamped to 0.0 -> 0
         Assert.Contains("hx.00", tagLow);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // VibeTagEncoder — Decode round-trips
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // VibeTagEncoder - Decode round-trips
+    // -------------------------------------------------------------------------
 
     [Fact]
     public void Decode_FullTag_RoundTrips()
@@ -160,9 +160,9 @@ public sealed class TagWriteCommandTests : IDisposable
         Assert.Equal(140.0,  fields.Bpm);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // VibeTagEncoder — Comment helpers (BuildComment / StripJpPrefix)
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // VibeTagEncoder - Comment helpers (BuildComment / StripJpPrefix)
+    // -------------------------------------------------------------------------
 
     [Fact]
     public void BuildComment_NoExistingText_ReturnsVibeTagOnly()
@@ -201,11 +201,11 @@ public sealed class TagWriteCommandTests : IDisposable
     {
         var oldVibe = VibeTagEncoder.Encode(energy: 6, camelot: "8A");
         var first   = VibeTagEncoder.BuildComment(oldVibe, "user text");
-        // → "JP|E6|K8A | user text"
+        // -> "JP|E6|K8A | user text"
 
         var newVibe = VibeTagEncoder.Encode(energy: 7, camelot: "8A", bpm: 128.0);
         var second  = VibeTagEncoder.BuildComment(newVibe, first);
-        // → "JP|E7|K8A|bpm128 | user text"
+        // -> "JP|E7|K8A|bpm128 | user text"
 
         Assert.Equal("JP|E7|K8A|bpm128 | user text", second);
         Assert.DoesNotContain("E6", second);
@@ -254,9 +254,9 @@ public sealed class TagWriteCommandTests : IDisposable
         Assert.Equal("", VibeTagEncoder.StripJpPrefix(null));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // WriteTags → ReadTags round-trip for Grouping + Comment
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // WriteTags -> ReadTags round-trip for Grouping + Comment
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task WriteGroupingAndComment_RoundTrip()
@@ -370,14 +370,14 @@ public sealed class TagWriteCommandTests : IDisposable
         Assert.Equal("JP|E7|K8A", readBack.Grouping);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     private static ITrackEngine BuildEngine()
     {
         // Platform-agnostic engine with stub BPM detector and stub audio decoder.
-        // Mirrors the pattern in TrackEngineTests — no BASS required.
+        // Mirrors the pattern in TrackEngineTests - no BASS required.
         const int energySr = 11025;
         const int keySr    = 44100;
 
@@ -419,9 +419,9 @@ public sealed class TagWriteCommandTests : IDisposable
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // N15 Promote: JUSTPLAY blob round-trip — decision = Applied
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // N15 Promote: JUSTPLAY blob round-trip - decision = Applied
+    // -------------------------------------------------------------------------
 
     /// <summary>
     /// Writing a <see cref="TagWrite"/> with a <see cref="TrackAnalysisState"/> whose
@@ -440,7 +440,7 @@ public sealed class TagWriteCommandTests : IDisposable
         var reader = new TagLibMetadataReader();
 
         var detectedKey    = new MusicalKey(9, KeyMode.Minor); // A minor = 8A
-        // Use 128.7 to avoid .NET banker's rounding (128.5 → 128, not 129).
+        // Use 128.7 to avoid .NET banker's rounding (128.5 -> 128, not 129).
         var detectedBpm    = 128.7;
         var detectedEnergy = 7;
 
@@ -473,11 +473,11 @@ public sealed class TagWriteCommandTests : IDisposable
         // Read back and assert.
         var meta = reader.Read(_tempFile);
 
-        // Standard tag TKEY must equal the detected key as CAMELOT (A minor → "8A") —
-        // the §4 tag contract; the musical form ("Am") was the pre-contract behaviour.
+        // Standard tag TKEY must equal the detected key as CAMELOT (A minor -> "8A") -
+        // the Sec.4 tag contract; the musical form ("Am") was the pre-contract behaviour.
         Assert.Equal("8A", meta.TaggedKey);
 
-        // Standard TBPM must be the rounded value (128.5 → 129; stored as uint, read back as double).
+        // Standard TBPM must be the rounded value (128.5 -> 129; stored as uint, read back as double).
         Assert.Equal(129.0, meta.TaggedBpm);
 
         // Standard ENERGY must be written.
@@ -499,7 +499,7 @@ public sealed class TagWriteCommandTests : IDisposable
 
     /// <summary>
     /// A file already having a blob with Applied decisions must remain unchanged
-    /// (PromoteCommand.IsFullyApplied returns true → no write).
+    /// (PromoteCommand.IsFullyApplied returns true -> no write).
     /// </summary>
     [Fact]
     public void PromoteRoundTrip_AlreadyApplied_SkippedByIsFullyApplied()
@@ -572,12 +572,12 @@ public sealed class TagWriteCommandTests : IDisposable
         Assert.Equal(FieldDecision.Applied, after.StoredAnalysis?.KeyDecision);
         Assert.Equal(FieldDecision.Applied, after.StoredAnalysis?.BpmDecision);
         Assert.Equal(FieldDecision.Applied, after.StoredAnalysis?.EnergyDecision);
-        // Camelot per the §4 tag contract (A minor → "8A"), not the musical "Am".
+        // Camelot per the Sec.4 tag contract (A minor -> "8A"), not the musical "Am".
         Assert.Equal("8A", after.TaggedKey);
     }
 }
 
-// ── Test stubs (mirrors TrackEngineTests, file-scoped so no name conflicts) ──
+// -- Test stubs (mirrors TrackEngineTests, file-scoped so no name conflicts) --
 
 file sealed class StubBpm : JustPlay.Core.Abstractions.IBpmDetector
 {

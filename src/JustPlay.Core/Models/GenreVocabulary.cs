@@ -8,18 +8,18 @@ namespace JustPlay.Core.Models;
 /// The fallback genre list the tag editor suggests from when the library index has nothing to offer
 /// (a fresh install, or a genre nobody in the library uses yet).
 ///
-/// <para>Two halves, on purpose. The <b>ID3v1 set</b> is the interop baseline — those 80 names are
+/// <para>Two halves, on purpose. The <b>ID3v1 set</b> is the interop baseline - those 80 names are
 /// what every other tagger, car stereo and old DJ deck knows, so typing one of them is the safest
 /// thing you can write into a file. The <b>dance/DJ supplement</b> is the vocabulary an ID3v1 list
 /// from 1998 simply does not have: it predates almost everything played in a club today.</para>
 ///
-/// <para>⛔ This is a suggestion list, never a restriction. A genre that is not in here is not
-/// wrong — the editor must always accept free text. The list exists to stop the same style being
+/// <para>(!!) This is a suggestion list, never a restriction. A genre that is not in here is not
+/// wrong - the editor must always accept free text. The list exists to stop the same style being
 /// spelled four ways across a library, not to police what a style is.</para>
 /// </summary>
 public static class GenreVocabulary
 {
-    /// <summary>The ID3v1 genre table (indices 0-79) — the names other software recognises.</summary>
+    /// <summary>The ID3v1 genre table (indices 0-79) - the names other software recognises.</summary>
     public static readonly IReadOnlyList<string> Id3v1 =
     [
         "Blues", "Classic Rock", "Country", "Dance", "Disco", "Funk", "Grunge", "Hip-Hop",
@@ -36,7 +36,7 @@ public static class GenreVocabulary
     ];
 
     /// <summary>
-    /// The styles a 1998 list cannot know. Kept deliberately at the level DJs actually file by —
+    /// The styles a 1998 list cannot know. Kept deliberately at the level DJs actually file by -
     /// "Hard Techno" and "Bass House" are useful, one-off micro-genres are not: a suggestion list
     /// only helps if the same track lands under the same name next time.
     /// </summary>
@@ -64,7 +64,7 @@ public static class GenreVocabulary
         "Chillout", "Lo-Fi Hip Hop", "Hardwave", "Phonk", "Eurobeat", "Hands Up",
     ];
 
-    /// <summary>Both halves, de-duplicated and sorted — what an editor offers with no library to
+    /// <summary>Both halves, de-duplicated and sorted - what an editor offers with no library to
     /// learn from. Case-insensitive de-dup, because "Hip-Hop" and "Hip Hop" both being offered
     /// would defeat the point of suggesting anything.</summary>
     public static readonly IReadOnlyList<string> Default =
@@ -75,7 +75,7 @@ public static class GenreVocabulary
 
     /// <summary>
     /// Merge what the library actually contains with the fallback list. The library's own genres
-    /// come FIRST and win any case collision — the spelling already in her files is the right one,
+    /// come FIRST and win any case collision - the spelling already in her files is the right one,
     /// whatever this list thinks.
     /// </summary>
     public static IReadOnlyList<string> Merge(IEnumerable<string>? fromLibrary)

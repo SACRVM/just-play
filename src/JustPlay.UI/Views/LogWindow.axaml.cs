@@ -9,10 +9,10 @@ using JustPlay.UI.Logging;
 namespace JustPlay.UI.Views;
 
 /// <summary>
-/// The SHARED event-log window for the J.U.S.T. suite — a frameless rounded themed card (same shell as the
+/// The SHARED event-log window for the J.U.S.T. suite - a frameless rounded themed card (same shell as the
 /// shared AboutWindow). Opened from each app's chrome log button; its DataContext is a <see cref="LogViewModel"/>
 /// owned by the app's main view-model. The opener is responsible for <c>WindowPlacement.Track</c> with an
-/// app-specific key (this window can't hard-code one — both apps reuse it).
+/// app-specific key (this window can't hard-code one - both apps reuse it).
 /// </summary>
 public partial class LogWindow : Window
 {
@@ -30,7 +30,7 @@ public partial class LogWindow : Window
     private void OnClearClick(object? sender, RoutedEventArgs e) => (DataContext as LogViewModel)?.Clear();
 
     // Copy the WHOLE log to the clipboard. (Per-line copy = select text in the box + Ctrl+C.)
-    // Avalonia 12 dropped IClipboard.SetTextAsync → wrap the text in a DataTransfer (same pattern as
+    // Avalonia 12 dropped IClipboard.SetTextAsync -> wrap the text in a DataTransfer (same pattern as
     // OopsDialog: DataTransferItem.CreateText + IClipboard.SetDataAsync).
     private async void OnCopyAll(object? sender, RoutedEventArgs e)
     {

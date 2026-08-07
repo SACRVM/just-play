@@ -7,7 +7,7 @@ namespace JustPlay.Stream.ViewModels;
 
 /// <summary>
 /// Maps the OnAir bool to the ON-AIR band colour: green when live, muted purple-grey when offline.
-/// Used by the status dot / ON-AIR band so the "are we streaming?" cue is unmistakable (§3a hard req).
+/// Used by the status dot / ON-AIR band so the "are we streaming?" cue is unmistakable (Sec.3a hard req).
 /// </summary>
 public sealed class OnAirToBrushConverter : IValueConverter
 {

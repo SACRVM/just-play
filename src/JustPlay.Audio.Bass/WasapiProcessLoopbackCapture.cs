@@ -14,7 +14,7 @@ namespace JustPlay.Audio.Bass;
 /// Windows per-process audio capture via the WASAPI <b>Application Loopback</b> API (Win10 2004 /
 /// build 19041+): <c>ActivateAudioInterfaceAsync</c> with
 /// <c>AUDIOCLIENT_ACTIVATIONTYPE_PROCESS_LOOPBACK</c>. Captures ONE process's render stream
-/// invisibly — the target app renders to its own device normally, unaware — with zero system-sound
+/// invisibly - the target app renders to its own device normally, unaware - with zero system-sound
 /// leak, no virtual cable, no reconfiguration. This is the driverless Phase-0 "capture a specific
 /// APP" source for JUST STREAM (see the just-route vision doc).
 ///
@@ -22,7 +22,7 @@ namespace JustPlay.Audio.Bass;
 /// <see cref="BassInputCaptureEngine"/> pushes it into the same mixer/DSP/limiter/encoder chain a
 /// device source uses.</para>
 ///
-/// <para>⚠ Interop is classic <c>[ComImport]</c> (functional at runtime; NOT NativeAOT/trim-clean —
+/// <para>(!) Interop is classic <c>[ComImport]</c> (functional at runtime; NOT NativeAOT/trim-clean -
 /// the eventual product would move this to source-generated CsWin32, per the just-check research). All
 /// native calls are guarded: a failure surfaces a clear exception from <see cref="Start"/> and never
 /// crashes the app.</para>
@@ -31,12 +31,12 @@ namespace JustPlay.Audio.Bass;
 /// downmixes everything (Cue leaks in), so for those the caller requests &gt; 2 channels and we capture
 /// the native layout and broadcast ONLY the Master pair (<see cref="AppCaptureFormat"/>). Validated
 /// 2026-07-02 on a Reloop Mixtour + Traktor: a 4-channel capture delivered Master (1/2) and Cue (3/4)
-/// as SEPARATE channels (correlation ≈ 0.18), so the Cue is dropped rather than mixed in.</para>
+/// as SEPARATE channels (correlation ~ 0.18), so the Cue is dropped rather than mixed in.</para>
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
 {
-    // ── Public API ───────────────────────────────────────────────────────
+    // -- Public API -------------------------------------------------------
     public event Action<float[], int>? FramesAvailable;
 
     public bool IsSupported => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041);
@@ -58,10 +58,10 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
             try
             {
                 bool hasWindow = false;
-                try { hasWindow = p.MainWindowHandle != IntPtr.Zero; } catch { /* access denied → treat as no window */ }
+                try { hasWindow = p.MainWindowHandle != IntPtr.Zero; } catch { /* access denied -> treat as no window */ }
                 procs.Add(new RunningProcess(p.Id, p.ProcessName, hasWindow));
             }
-            catch { /* process vanished / denied — skip */ }
+            catch { /* process vanished / denied - skip */ }
             finally { p.Dispose(); }
         }
         return CaptureAppFilter.ToCaptureApps(procs);
@@ -98,7 +98,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
 
     public void Dispose() => Stop();
 
-    // ── Capture thread ───────────────────────────────────────────────────
+    // -- Capture thread ---------------------------------------------------
 
     private void CaptureLoop(uint processId, int sampleRate)
     {
@@ -123,7 +123,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
             var stereo = new float[sampleRate * 2];              // extracted Master pair
             while (!_stop)
             {
-                if (WaitForSingleObject(eventHandle, 200) != 0) continue; // timeout → re-check _stop
+                if (WaitForSingleObject(eventHandle, 200) != 0) continue; // timeout -> re-check _stop
                 DrainPackets(capture, ref raw, ref stereo);
             }
         }
@@ -154,7 +154,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
                 Marshal.Copy(data, raw, 0, floats);
                 if (_captureChannels == 2)
                 {
-                    FramesAvailable?.Invoke(raw, floats); // already stereo — deliver as-is
+                    FramesAvailable?.Invoke(raw, floats); // already stereo - deliver as-is
                 }
                 else
                 {
@@ -214,8 +214,8 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
 
             // Float32 at the requested rate; shared-mode, loopback + event-driven, auto-convert. Stereo
             // uses a plain WAVEFORMATEX (the proven path); >2 channels needs WAVEFORMATEXTENSIBLE with a
-            // channel mask so the source's channels arrive SEPARATED (validated: Traktor 4ch → Master
-            // 1/2 and Cue 3/4 distinct, correlation ≈ 0.18) and DrainPackets can isolate the Master pair.
+            // channel mask so the source's channels arrive SEPARATED (validated: Traktor 4ch -> Master
+            // 1/2 and Cue 3/4 distinct, correlation ~ 0.18) and DrainPackets can isolate the Master pair.
             const uint flags = AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK
                              | AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
             fmtPtr = BuildFormat(_captureChannels, sampleRate);
@@ -247,7 +247,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
     /// <summary>
     /// Allocate an unmanaged float capture format for <see cref="IAudioClient.Initialize"/>: a plain
     /// WAVEFORMATEX for stereo, or a WAVEFORMATEXTENSIBLE (with channel mask + IEEE-float sub-format)
-    /// for &gt; 2 channels — which multichannel WASAPI requires. Caller frees the returned pointer.
+    /// for &gt; 2 channels - which multichannel WASAPI requires. Caller frees the returned pointer.
     /// </summary>
     private static IntPtr BuildFormat(int channels, int sampleRate)
     {
@@ -297,7 +297,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
         _ => 0x3,   // FL FR
     };
 
-    // ── Native constants ─────────────────────────────────────────────────
+    // -- Native constants -------------------------------------------------
     private const string VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK = "VAD\\Process_Loopback";
     private const int AUDCLNT_SHAREMODE_SHARED = 0;
     private const uint AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000;
@@ -313,7 +313,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
     private static Guid IID_IAudioCaptureClient = new("C8ADBD64-E71E-48A0-A4DE-185C395CD317");
     private static Guid KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = new("00000003-0000-0010-8000-00aa00389b71");
 
-    // ── Interop structs ──────────────────────────────────────────────────
+    // -- Interop structs --------------------------------------------------
     [StructLayout(LayoutKind.Sequential)]
     private struct AudioClientProcessLoopbackParams { public uint TargetProcessId; public int ProcessLoopbackMode; }
 
@@ -344,7 +344,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
         public ushort wValidBitsPerSample; public uint dwChannelMask; public Guid subFormat;
     }
 
-    // ── Interop functions ────────────────────────────────────────────────
+    // -- Interop functions ------------------------------------------------
     [DllImport("Mmdevapi.dll", ExactSpelling = true, PreserveSig = false)]
     private static extern void ActivateAudioInterfaceAsync(
         [MarshalAs(UnmanagedType.LPWStr)] string deviceInterfacePath,
@@ -360,7 +360,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr handle);
 
-    // ── COM interfaces (classic ComImport) ───────────────────────────────
+    // -- COM interfaces (classic ComImport) -------------------------------
     [ComImport, Guid("72A22D78-CDE4-431D-B8CC-843A71199B6D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IActivateAudioInterfaceAsyncOperation
     {
@@ -379,7 +379,7 @@ public sealed class WasapiProcessLoopbackCapture : IProcessAudioCapture
         public void ActivateCompleted(IActivateAudioInterfaceAsyncOperation activateOperation) => Completed.Set();
     }
 
-    // IAudioClient — all 12 methods declared in vtable order; only Initialize/Start/Stop/
+    // IAudioClient - all 12 methods declared in vtable order; only Initialize/Start/Stop/
     // SetEventHandle/GetService are used, the rest occupy their slots.
     [ComImport, Guid("1CB9AD4C-DBFA-4C32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IAudioClient

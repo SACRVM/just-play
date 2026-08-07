@@ -4,7 +4,7 @@
              Height="90" ClipToBounds="False">
     <!--
       Four sine-wave polylines stacked across the top, matching the design's Waveform.jsx.
-      Static for now — will dance to BPM/energy in a later turn (the design's
+      Static for now - will dance to BPM/energy in a later turn (the design's
       beat-driven scaleY algorithm needs the audio-engine analysis loop wired up).
     -->
     <!-- Strokes pulled from the live theme palette so Sunset/Midnight/Neon recolour

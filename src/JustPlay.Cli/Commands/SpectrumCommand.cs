@@ -5,7 +5,7 @@ namespace JustPlay.Cli.Commands;
 /// <summary>
 /// <c>justplay spectrum &lt;audiofile&gt; [options]</c>
 ///
-/// <para>Offline DSP tuning tool — Phase 1 of the spectral diagram feature.
+/// <para>Offline DSP tuning tool - Phase 1 of the spectral diagram feature.
 /// Decodes the track, computes its long-term-average spectrum (LTAS) before (DRY) and after
 /// (WET) running the JustPlay bus chain, compares both against a pink-noise reference target
 /// curve, and saves a before/after comparison plot as a PNG file.</para>
@@ -20,13 +20,13 @@ namespace JustPlay.Cli.Commands;
 ///
 /// <para>When DSP flags are omitted the chain defaults to fully neutral / bypass, so the DRY
 /// and WET curves are identical unless at least one DSP parameter is passed.
-/// // TODO: unify limiter MODE→param mapping with MainWindowViewModel mapping.</para>
+/// // TODO: unify limiter MODE->param mapping with MainWindowViewModel mapping.</para>
 /// </summary>
 internal static class SpectrumCommand
 {
-    // ── Mode → parameter mappings ─────────────────────────────────────────────
+    // -- Mode -> parameter mappings ---------------------------------------------
     // Mirrors the mapping in MainWindowViewModel (hard-coded here for CLI independence).
-    // TODO: unify with VM mapping — both should read from a shared constants class.
+    // TODO: unify with VM mapping - both should read from a shared constants class.
 
     private static (bool en, double drive, double ceiling) LimiterParams(string mode) => mode.ToLowerInvariant() switch
     {
@@ -36,7 +36,7 @@ internal static class SpectrumCommand
         _       => (false, 0.0, -1.0), // "off" or unknown
     };
 
-    // ── Entry point ───────────────────────────────────────────────────────────
+    // -- Entry point -----------------------------------------------------------
 
     public static int Run(string filePath, string? outPath, SpectrumOptions opts)
     {
@@ -54,10 +54,10 @@ internal static class SpectrumCommand
         Console.WriteLine($"[spectrum] Input  : {filePath}");
         Console.WriteLine($"[spectrum] Output : {outPath}");
 
-        // ── Compose engine (BASS needed for decode) ──────────────────────────
+        // -- Compose engine (BASS needed for decode) --------------------------
         using var composer = EngineComposer.Build();
 
-        // ── 1. Decode mono at 44100 Hz ───────────────────────────────────────
+        // -- 1. Decode mono at 44100 Hz ---------------------------------------
         Console.Write("[spectrum] Decoding...");
         float[] mono;
         try
@@ -72,13 +72,13 @@ internal static class SpectrumCommand
         }
         Console.WriteLine($" {mono.Length / 44100.0:F1} s  ({mono.Length:N0} samples)");
 
-        // ── 2. Compute DRY LTAS ───────────────────────────────────────────────
+        // -- 2. Compute DRY LTAS -----------------------------------------------
         Console.Write("[spectrum] DRY spectrum...");
         var profiler = new SpectralProfile();
         var dry      = profiler.Compute(mono, 44100);
         Console.WriteLine(" done");
 
-        // ── 3. Build interleaved-stereo buffer and run the bus chain ──────────
+        // -- 3. Build interleaved-stereo buffer and run the bus chain ----------
         Console.Write("[spectrum] Processing WET...");
 
         var (limEn, limDrive, limCeil) = LimiterParams(opts.LimiterMode);
@@ -94,7 +94,7 @@ internal static class SpectrumCommand
             limiterCeilingDbTp:  limCeil,
             sampleRate:          44100);
 
-        // Expand mono → interleaved stereo (L = R = mono sample)
+        // Expand mono -> interleaved stereo (L = R = mono sample)
         int     frames = mono.Length;
         float[] stereo = new float[frames * 2];
         for (int i = 0; i < frames; i++)
@@ -114,15 +114,15 @@ internal static class SpectrumCommand
 
         Console.WriteLine(" done");
 
-        // ── 4. Compute WET LTAS ───────────────────────────────────────────────
+        // -- 4. Compute WET LTAS -----------------------------------------------
         Console.Write("[spectrum] WET spectrum...");
         var wetSpec = profiler.Compute(wet, 44100);
         Console.WriteLine(" done");
 
-        // ── 5. Normalize for tonal-balance comparison ─────────────────────────
-        // Anchor: subtract the mean dB of DRY in 200 Hz–2 kHz from both curves so
+        // -- 5. Normalize for tonal-balance comparison -------------------------
+        // Anchor: subtract the mean dB of DRY in 200 Hz-2 kHz from both curves so
         // the limiter's absolute loudness lift doesn't dominate the visual.
-        // The target curve is independently anchored to its own 200 Hz–2 kHz mean.
+        // The target curve is independently anchored to its own 200 Hz-2 kHz mean.
         double dryAnchor    = BandMean(dry,     200.0, 2000.0);
         double wetAnchorRaw  = BandMean(wetSpec, 200.0, 2000.0);
         double targetAnchor = TargetMeanInRange(200.0, 2000.0);
@@ -138,16 +138,16 @@ internal static class SpectrumCommand
         var targetCurve = BuildTargetBands();
         var targetNorm  = Shift(targetCurve, -targetAnchor);
 
-        // ── 6. Per-zone deltas (WET − DRY, normalized) ───────────────────────
+        // -- 6. Per-zone deltas (WET - DRY, normalized) -----------------------
         double[] zoneDeltas = ComputeZoneDeltas(dryNorm, wetNorm);
         string[] zoneNames  =
         [
-            "Sub   (20–60 Hz)",  "Bass  (60–250 Hz)",
-            "Mud   (250–500 Hz)","Mid   (500–2 kHz)",
-            "Fatigue (2–5 kHz)", "Air   (8–16 kHz)",
+            "Sub   (20-60 Hz)",  "Bass  (60-250 Hz)",
+            "Mud   (250-500 Hz)","Mid   (500-2 kHz)",
+            "Fatigue (2-5 kHz)", "Air   (8-16 kHz)",
         ];
 
-        // ── 7. Render and save PNG ────────────────────────────────────────────
+        // -- 7. Render and save PNG --------------------------------------------
         Console.Write("[spectrum] Rendering PNG...");
         var png = Render(Path.GetFileName(filePath), dryNorm, wetNorm, targetNorm);
         try
@@ -163,11 +163,11 @@ internal static class SpectrumCommand
         }
         Console.WriteLine(" done");
 
-        // ── 8. Summary ────────────────────────────────────────────────────────
+        // -- 8. Summary --------------------------------------------------------
         // DRY vs TARGET: how far the raw track's tonal balance sits from the golden curve
-        // (the actionable number — where the track is hot vs where it has air). Computed on the
+        // (the actionable number - where the track is hot vs where it has air). Computed on the
         // shape-normalized curves so it's a fair shape comparison regardless of level.
-        double[] targetDev = ComputeZoneDeltas(targetNorm, dryNorm); // dry − target
+        double[] targetDev = ComputeZoneDeltas(targetNorm, dryNorm); // dry - target
 
         Console.WriteLine();
         Console.WriteLine($"  PNG: {outPath}");
@@ -181,22 +181,22 @@ internal static class SpectrumCommand
             Console.WriteLine($"    {zoneNames[z],-24}  {Sgn(targetDev[z])} dB");
         Console.WriteLine();
         Console.WriteLine(shapeMode
-            ? "  WET − DRY  (what the chain changed, level-matched; +ve = relatively brighter):"
-            : "  WET − DRY  (+ve = WET is louder/brighter there):");
+            ? "  WET - DRY  (what the chain changed, level-matched; +ve = relatively brighter):"
+            : "  WET - DRY  (+ve = WET is louder/brighter there):");
         for (int z = 0; z < zoneNames.Length; z++)
             Console.WriteLine($"    {zoneNames[z],-24}  {Sgn(zoneDeltas[z])} dB");
 
         return 0;
     }
 
-    // ── Analysis helpers ──────────────────────────────────────────────────────
+    // -- Analysis helpers ------------------------------------------------------
 
     /// <summary>Signed, 1-decimal dB string with a clean +/-/zero (avoids the "-+0.0" artifact of a
     /// two-section custom numeric format on values that round to zero).</summary>
     private static string Sgn(double v)
     {
         double r = Math.Round(v, 1);
-        if (r == 0.0) r = 0.0; // normalise -0.0 → 0.0
+        if (r == 0.0) r = 0.0; // normalise -0.0 -> 0.0
         return r > 0 ? $"+{r:0.0}" : r < 0 ? $"{r:0.0}" : "  0.0";
     }
 
@@ -258,7 +258,7 @@ internal static class SpectrumCommand
         return deltas;
     }
 
-    // ── Renderer ──────────────────────────────────────────────────────────────
+    // -- Renderer --------------------------------------------------------------
 
     private const int CanvasW  = 1100;
     private const int CanvasH  = 600;
@@ -267,7 +267,7 @@ internal static class SpectrumCommand
     private const int MarginT  = 45;   // space for title
     private const int MarginB  = 52;   // space for freq labels + Hz label
     private const double DbMin = -36.0;
-    private const double DbMax =  36.0;  // was +18 — dark-techno sub sits far above the mid anchor (same field report as SpectrumView)
+    private const double DbMax =  36.0;  // was +18 - dark-techno sub sits far above the mid anchor (same field report as SpectrumView)
     private const double FMin  =  20.0;
     private const double FMax  = 20000.0;
 
@@ -286,16 +286,16 @@ internal static class SpectrumCommand
         var p = new PngWriter(CanvasW, CanvasH);
         p.Clear(0x16161AFF); // very dark background
 
-        // ── Zone shading ──────────────────────────────────────────────────────
-        // Mud zone 250–500 Hz (warm amber tint)
+        // -- Zone shading ------------------------------------------------------
+        // Mud zone 250-500 Hz (warm amber tint)
         ShadeZone(p, pX, pY, pW, pH, 250.0,  500.0,  0xC87C0018);
-        // Fatigue zone 2–5 kHz (red tint)
+        // Fatigue zone 2-5 kHz (red tint)
         ShadeZone(p, pX, pY, pW, pH, 2000.0, 5000.0, 0xC8282018);
 
-        // ── Tolerance band around target (subtle grey fill) ───────────────────
+        // -- Tolerance band around target (subtle grey fill) -------------------
         DrawToleranceBand(p, target, pX, pY, pW, pH);
 
-        // ── Vertical grid lines + frequency labels ────────────────────────────
+        // -- Vertical grid lines + frequency labels ----------------------------
         (double f, string label)[] freqGrid =
         [
             (20, "20"), (50, "50"), (100, "100"), (200, "200"), (500, "500"),
@@ -312,7 +312,7 @@ internal static class SpectrumCommand
         string hzLabel = "Hz";
         p.DrawText(pX + pW / 2 - PngWriter.TextWidth(hzLabel) / 2, pY2 + 20, hzLabel, 0x606070FF);
 
-        // ── Horizontal grid lines + dB labels ─────────────────────────────────
+        // -- Horizontal grid lines + dB labels ---------------------------------
         for (double db = DbMin; db <= DbMax + 0.5; db += 6.0)
         {
             int gy = DbToY(db, pY, pH);
@@ -321,13 +321,13 @@ internal static class SpectrumCommand
             int dtw = PngWriter.TextWidth(dlabel);
             p.DrawText(pX - dtw - 5, gy - PngWriter.TextHeight() / 2, dlabel, 0x8888A0FF);
         }
-        // "dB" axis unit label (rotated text not supported → place to the left of plot top)
+        // "dB" axis unit label (rotated text not supported -> place to the left of plot top)
         p.DrawText(4, pY + pH / 2 - PngWriter.TextHeight() / 2, "dB", 0x606070FF);
 
-        // ── Plot border ───────────────────────────────────────────────────────
+        // -- Plot border -------------------------------------------------------
         p.DrawRect(pX, pY, pW, pH, 0x3A3A48FF);
 
-        // ── Zone labels inside the plot (bottom strip) ────────────────────────
+        // -- Zone labels inside the plot (bottom strip) ------------------------
         int labelY = pY2 - PngWriter.TextHeight() - 3;
         DrawZoneLabel(p, "SUB",  pX, labelY, pW, 20.0,   60.0,   0x585868FF);
         DrawZoneLabel(p, "BASS", pX, labelY, pW, 60.0,   250.0,  0x585868FF);
@@ -336,22 +336,22 @@ internal static class SpectrumCommand
         DrawZoneLabel(p, "FAT",  pX, labelY, pW, 2000.0, 5000.0, 0xC06060FF);
         DrawZoneLabel(p, "AIR",  pX, labelY, pW, 8000.0, 16000.0,0x585868FF);
 
-        // ── TARGET curve (dashed, mid-grey) ──────────────────────────────────
+        // -- TARGET curve (dashed, mid-grey) ----------------------------------
         DrawCurve(p, target, pX, pY, pW, pH, 0x787888FF, dashed: true,  thick: false);
 
-        // ── DRY curve (muted light grey) ──────────────────────────────────────
+        // -- DRY curve (muted light grey) --------------------------------------
         DrawCurve(p, dry,    pX, pY, pW, pH, 0xB8B8C4FF, dashed: false, thick: true);
 
-        // ── WET curve (vivid cyan accent) ─────────────────────────────────────
+        // -- WET curve (vivid cyan accent) -------------------------------------
         DrawCurve(p, wet,    pX, pY, pW, pH, 0x18E8C0FF, dashed: false, thick: true);
 
-        // ── Legend ────────────────────────────────────────────────────────────
+        // -- Legend ------------------------------------------------------------
         int lgX = pX2 - 118, lgY = pY + 10;
         DrawLegend(p, lgX, lgY,      0x787888FF, "TARGET", dashed: true);
         DrawLegend(p, lgX, lgY + 14, 0xB8B8C4FF, "DRY",    dashed: false);
         DrawLegend(p, lgX, lgY + 28, 0x18E8C0FF, "WET",    dashed: false);
 
-        // ── Title ─────────────────────────────────────────────────────────────
+        // -- Title -------------------------------------------------------------
         string t = title;
         if (t.Length > 60) t = "..." + t[^57..];
         int ttw = PngWriter.TextWidth(t);
@@ -372,7 +372,7 @@ internal static class SpectrumCommand
     private static void DrawToleranceBand(PngWriter p,
         (double FreqHz, double Db)[] target, int pX, int pY, int pW, int pH)
     {
-        // Shade ±ToleranceDb around target as a very subtle fill.
+        // Shade +/-ToleranceDb around target as a very subtle fill.
         // For each consecutive pair of band centres, fill a vertical strip.
         for (int i = 0; i < target.Length - 1; i++)
         {
@@ -441,16 +441,16 @@ internal static class SpectrumCommand
         p.DrawText(x + 24, y, label, rgba);
     }
 
-    // ── Coordinate mapping ────────────────────────────────────────────────────
+    // -- Coordinate mapping ----------------------------------------------------
 
-    // Log-scale frequency → X pixel inside the plot.
+    // Log-scale frequency -> X pixel inside the plot.
     private static int FToX(double f, int pX, int pW)
     {
         double t = Math.Log10(Math.Max(f, FMin) / FMin) / Math.Log10(FMax / FMin);
         return pX + (int)(Math.Clamp(t, 0.0, 1.0) * pW + 0.5);
     }
 
-    // dB value → Y pixel inside the plot (higher dB = lower Y).
+    // dB value -> Y pixel inside the plot (higher dB = lower Y).
     private static int DbToY(double db, int pY, int pH)
     {
         double t = (DbMax - db) / (DbMax - DbMin);
@@ -470,10 +470,10 @@ internal sealed class SpectrumOptions
 
     /// <summary>
     /// Normalization mode for the plot:
-    ///   "shape" (default) — each curve is anchored to its OWN 200 Hz–2 kHz mean, so only the tonal
+    ///   "shape" (default) - each curve is anchored to its OWN 200 Hz-2 kHz mean, so only the tonal
     ///     BALANCE (shape vs. the target curve) is shown; the chain's overall loudness lift is removed
     ///     and reported separately.
-    ///   "level" — DRY and WET share DRY's anchor, so the limiter's makeup gain shows as a vertical lift.
+    ///   "level" - DRY and WET share DRY's anchor, so the limiter's makeup gain shows as a vertical lift.
     /// </summary>
     public string Mode { get; init; } = "shape";
 }

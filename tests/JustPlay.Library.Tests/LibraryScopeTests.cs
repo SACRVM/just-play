@@ -38,7 +38,7 @@ public sealed class LibraryScopeTests : IDisposable
         Bpm = bpm,
     };
 
-    // ── Recursive scope ───────────────────────────────────────────────────────
+    // -- Recursive scope -------------------------------------------------------
 
     [Fact]
     public void PathPrefix_takes_everything_below_a_folder()
@@ -74,7 +74,7 @@ public sealed class LibraryScopeTests : IDisposable
     {
         _db.Upsert(Track(@"\\nas\music\GENRES\a.mp3"));
 
-        // The finder's root comes from settings, the paths come from enumeration — their spelling
+        // The finder's root comes from settings, the paths come from enumeration - their spelling
         // must not have to match.
         Assert.Single(_db.Query(new LibraryQuery { PathPrefix = @"\\NAS\Music\genres" }));
     }
@@ -140,7 +140,7 @@ public sealed class LibraryScopeTests : IDisposable
         Assert.EndsWith(@"Techno\fast.mp3", hits[0].FilePath);
     }
 
-    // ── Row → app models, without opening the file ────────────────────────────
+    // -- Row -> app models, without opening the file ----------------------------
 
     [Fact]
     public void An_entry_rebuilds_into_the_analysis_the_app_shows()
@@ -171,7 +171,7 @@ public sealed class LibraryScopeTests : IDisposable
     [Fact]
     public void A_partial_rhythm_block_yields_no_rhythm_rather_than_zeroes()
     {
-        // BeatType present but the scalars missing (an older entry) — inventing 0.0 for the
+        // BeatType present but the scalars missing (an older entry) - inventing 0.0 for the
         // missing ones would put a fake "perfectly straight" track into the beat filters.
         var entry = Track(@"C:\music\a.mp3") with { BeatType = "breaks" };
 

@@ -95,7 +95,7 @@ public class DspPresetTests
     [Fact]
     public void OldSettingsJson_WithoutSoundPresets_LoadsEmptyList_NoException()
     {
-        // A settings.json written before U5 has no SoundPresets field — must default to an empty
+        // A settings.json written before U5 has no SoundPresets field - must default to an empty
         // list (not null), with no exception. Built-in presets are unaffected (they live in code).
         const string oldJson = """
             {

@@ -8,15 +8,15 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="SetSqueezer"/> (Phase 2 of the harmonic-sort north star).
 ///
 /// The fixtures are built so the "right" answer is obvious from the compatibility scores:
-/// a tight cohesive cluster (same Camelot neighbourhood, ~128 BPM, energy 7 → pairwise
-/// compat ~0.9) vs clear outliers (clashing key + un-beatmatchable 320 BPM → compat &lt; 0.1).
+/// a tight cohesive cluster (same Camelot neighbourhood, ~128 BPM, energy 7 -> pairwise
+/// compat ~0.9) vs clear outliers (clashing key + un-beatmatchable 320 BPM -> compat &lt; 0.1).
 ///
 /// Fingerprint = null throughout, so the Beat axis is excluded and the compat renormalises over
-/// Tempo/Harmonic/Energy — exactly how Squeeze runs over the sidecar index (no fingerprint stored).
+/// Tempo/Harmonic/Energy - exactly how Squeeze runs over the sidecar index (no fingerprint stored).
 /// </summary>
 public class SetSqueezerTests
 {
-    // ── Key factories (Camelot in comments) ──────────────────────────────────────
+    // -- Key factories (Camelot in comments) --------------------------------------
     private static MusicalKey CMajor => new(0, KeyMode.Major);   // 8B
     private static MusicalKey AMinor => new(9, KeyMode.Minor);   // 8A  relative of C major
     private static MusicalKey GMajor => new(7, KeyMode.Major);   // 9B  adjacent to C major
@@ -67,7 +67,7 @@ public class SetSqueezerTests
         Assert.True(r.MinCohesion > 0.6, $"weakest cluster pair should clear threshold, got {r.MinCohesion:0.000}");
         Assert.Equal(0, r.UnanalyzedDropped);
 
-        // Kept ∪ Dropped covers the whole pool exactly once (never leave a track behind).
+        // Kept  union  Dropped covers the whole pool exactly once (never leave a track behind).
         AssertPartition(pool.Length, r);
     }
 
@@ -78,7 +78,7 @@ public class SetSqueezerTests
     [Fact]
     public void Squeeze_NotEnoughCoherent_FlagsHonestly()
     {
-        // 3 cluster + 2 outliers; ask for 5 (the whole pool) → outliers must be forced in.
+        // 3 cluster + 2 outliers; ask for 5 (the whole pool) -> outliers must be forced in.
         var pool = new TrackFeatures?[]
         {
             Cluster(CMajor),   // 0
@@ -132,7 +132,7 @@ public class SetSqueezerTests
     }
 
     // =========================================================================
-    // 4. Threshold path — a strict threshold shrinks the coherent set
+    // 4. Threshold path - a strict threshold shrinks the coherent set
     // =========================================================================
 
     [Fact]
@@ -143,9 +143,9 @@ public class SetSqueezerTests
         var pool = new TrackFeatures?[]
         {
             Cluster(CMajor),   // 0
-            Cluster(CMajor),   // 1  identical → compat 1.0 with 0
-            Cluster(AMinor),   // 2  relative → ~0.90 harmonic
-            Cluster(GMajor),   // 3  adjacent cross → lower
+            Cluster(CMajor),   // 1  identical -> compat 1.0 with 0
+            Cluster(AMinor),   // 2  relative -> ~0.90 harmonic
+            Cluster(GMajor),   // 3  adjacent cross -> lower
         };
 
         var lenient = SetSqueezer.Squeeze(pool, keep: 4, coherenceThreshold: 0.5);
@@ -161,7 +161,7 @@ public class SetSqueezerTests
     }
 
     // =========================================================================
-    // 5. keep larger than the pool — keeps all, flags not-enough
+    // 5. keep larger than the pool - keeps all, flags not-enough
     // =========================================================================
 
     [Fact]
@@ -220,7 +220,7 @@ public class SetSqueezerTests
     }
 
     // =========================================================================
-    // 7. Edge cases — empty pool, single track
+    // 7. Edge cases - empty pool, single track
     // =========================================================================
 
     [Fact]
@@ -247,9 +247,9 @@ public class SetSqueezerTests
         Assert.True(r.EnoughCoherent);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────────
+    // -- Helpers -------------------------------------------------------------------
 
-    /// <summary>Kept ∪ Dropped must equal {0..count-1} exactly once each — never leave a track behind.</summary>
+    /// <summary>Kept  union  Dropped must equal {0..count-1} exactly once each - never leave a track behind.</summary>
     private static void AssertPartition(int count, SqueezeResult r)
     {
         var all = r.KeptIndices.Concat(r.DroppedIndices).OrderBy(x => x).ToArray();

@@ -21,7 +21,7 @@ public class StreamServerProfileTests
         PropertyNameCaseInsensitive = true,
     };
 
-    // ── StreamServerProfile default values ───────────────────────────────────────────
+    // -- StreamServerProfile default values -------------------------------------------
 
     [Fact]
     public void DefaultValues_AreAsSpecified()
@@ -44,7 +44,7 @@ public class StreamServerProfileTests
         Assert.False(profile.IsPublic);
     }
 
-    // ── Source-gen context round-trip: single profile ────────────────────────────────
+    // -- Source-gen context round-trip: single profile --------------------------------
 
     [Fact]
     public void SingleProfile_RoundTrips_ViaSourceGenContext()
@@ -89,7 +89,7 @@ public class StreamServerProfileTests
         Assert.True(restored.IsPublic);
     }
 
-    // ── Source-gen context round-trip: multiple profiles (List) ──────────────────────
+    // -- Source-gen context round-trip: multiple profiles (List) ----------------------
 
     [Fact]
     public void MultipleProfiles_RoundTrip_ViaSourceGenContext()
@@ -162,7 +162,7 @@ public class StreamServerProfileTests
         Assert.Equal(IcecastProtocol.Source, restored[2].Protocol);
     }
 
-    // ── UserSettings round-trip: streaming fields survive ────────────────────────────
+    // -- UserSettings round-trip: streaming fields survive ----------------------------
 
     [Fact]
     public void UserSettings_WithStreamServers_RoundTrips()
@@ -201,12 +201,12 @@ public class StreamServerProfileTests
         Assert.Equal("srv-1", restored.SelectedStreamServerId);
     }
 
-    // ── Backward compat: old settings JSON without streaming fields ───────────────────
+    // -- Backward compat: old settings JSON without streaming fields -------------------
 
     [Fact]
     public void OldSettingsJson_WithoutStreamingFields_LoadsWithDefaults_NoException()
     {
-        // Simulate a settings.json written by a build that predates S1 — no StreamServers,
+        // Simulate a settings.json written by a build that predates S1 - no StreamServers,
         // no SelectedStreamServerId. Deserializing it must not throw and must yield safe defaults.
         const string oldJson = """
             {

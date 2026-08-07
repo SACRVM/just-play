@@ -6,11 +6,11 @@ namespace JustPlay.Core.Tests;
 /// <summary>
 /// Pins the two invariants <see cref="TagWritePolicy"/> and <see cref="TagWritePlan"/> depend on
 /// for the rest of the milestone to build on safely:
-///   1. the default policy allows EVERY family — a user who never opens the (future) policy
+///   1. the default policy allows EVERY family - a user who never opens the (future) policy
 ///      screen sees zero behaviour change, because today's writer has no gate at all;
 ///   2. <see cref="TagWritePlan.HasChanges"/> / <see cref="TagWritePlan.HasOverwrites"/> reduce
 ///      a field list to exactly the summary a preview UI needs.
-/// No TagLib# involved — these are pure Core-model tests; see
+/// No TagLib# involved - these are pure Core-model tests; see
 /// <c>JustPlay.Metadata.Tests.TagLibWritePreviewTests</c> for the real-file integration tests.
 /// </summary>
 public class TagWritePolicyTests
@@ -75,7 +75,7 @@ public class TagWritePolicyTests
 }
 
 /// <summary>Tests for the <see cref="TagWritePlan"/> summary properties in isolation from any
-/// real file — the plan is just a list, so these build it by hand.</summary>
+/// real file - the plan is just a list, so these build it by hand.</summary>
 public class TagWritePlanTests
 {
     private static TagFieldPlan Field(TagWriteAction action) => new()

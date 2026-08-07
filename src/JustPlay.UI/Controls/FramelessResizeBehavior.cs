@@ -8,15 +8,15 @@ namespace JustPlay.UI.Controls;
 /// <summary>
 /// Manual edge/corner resize for the suite's borderless card windows. A window with
 /// <c>WindowDecorations="None"</c> gets no OS resize frame (WS_THICKFRAME is only set when
-/// decorations are on — verified in Avalonia's Win32 WindowImpl), and any OS chrome would
+/// decorations are on - verified in Avalonia's Win32 WindowImpl), and any OS chrome would
 /// break the transparent floating-card look, so the drag maths lives here.
 ///
 /// <para>Usage: give the window a grid of thin transparent grip <see cref="Border"/>s in the
 /// shadow margin (outside the visible card), each with <c>Tag</c> set to a compass name
 /// containing "North"/"South"/"East"/"West" (e.g. "NorthWest"), then call
-/// <see cref="Attach"/> once with that grid. Grip visibility (maximized, mini mode …)
-/// stays the window's concern. Extracted from MainWindow so the PRE CUE FINDER — and any
-/// future JUST window — resizes identically without copying the pointer maths.</para>
+/// <see cref="Attach"/> once with that grid. Grip visibility (maximized, mini mode ...)
+/// stays the window's concern. Extracted from MainWindow so the PRE CUE FINDER - and any
+/// future JUST window - resizes identically without copying the pointer maths.</para>
 /// </summary>
 public static class FramelessResizeBehavior
 {

@@ -5,22 +5,22 @@ namespace JustPlay.Cli.Commands;
 /// <summary>
 /// <c>justplay analyze &lt;root&gt; --index &lt;path&gt; [--threads N] [--limit N] [--db &lt;path&gt;|--no-db] [--force]</c>
 ///
-/// PHASE 1 — the heavy resumable analysis pass. For each audio file under <c>root</c>:
+/// PHASE 1 - the heavy resumable analysis pass. For each audio file under <c>root</c>:
 ///   1. Cheap key (size + mtime, straight from the directory listing): unchanged and already
-///      analysed → skip without opening the file.
-///   2. Read tag metadata. A JUSTPLAY blob at the CURRENT detection version is imported as-is —
+///      analysed -> skip without opening the file.
+///   2. Read tag metadata. A JUSTPLAY blob at the CURRENT detection version is imported as-is -
 ///      that analysis has already been paid for, on this machine or the other one.
-///   3. Otherwise run the full DSP pipeline (BPM → key → energy → loudness → beat fingerprint
-///      → RhythmPattern) and hash the file (for dedup).
+///   3. Otherwise run the full DSP pipeline (BPM -> key -> energy -> loudness -> beat fingerprint
+///      -> RhythmPattern) and hash the file (for dedup).
 ///   4. Write the entry to the sidecar index AND to this machine's library database.
 ///
 /// <para><b>What changed in 0.6 and why.</b> This command used to SHA-256 every file first, with
-/// the comment "cheap — no decode needed". Measured 2026-07-30 against <c>\\nas\music\GENRES</c>,
+/// the comment "cheap - no decode needed". Measured 2026-07-30 against <c>\\nas\music\GENRES</c>,
 /// it is not cheap over SMB: hashing reads every byte, i.e. the whole library through the network
 /// on every run, while the directory entry that answers "did this change?" costs 0.23 ms. Files
 /// are now hashed only when they are actually analysed.</para>
 ///
-/// <para><b>READ-ONLY on the audio library</b> — no tags are written here (that is <c>promote</c>).
+/// <para><b>READ-ONLY on the audio library</b> - no tags are written here (that is <c>promote</c>).
 /// Outputs are the index file and the local database.</para>
 /// </summary>
 internal static class AnalyzeCommand
@@ -45,7 +45,7 @@ internal static class AnalyzeCommand
             return 1;
         }
 
-        // ── The local library database (this machine's index) ────────────────
+        // -- The local library database (this machine's index) ----------------
         LibraryDb? db = null;
         var dbLocation = "(none)";
         if (!noDb)
@@ -56,14 +56,14 @@ internal static class AnalyzeCommand
             try
             {
                 db = LibraryDb.Open(dbLocation);
-                // Only the DEFAULT location means "this root's index" — an explicit --db-path is a
+                // Only the DEFAULT location means "this root's index" - an explicit --db-path is a
                 // one-off file and must not claim the root for the whole suite.
                 if (dbPath is null) LibraryIndexRegistry.Register(root);
             }
             catch (Exception ex)
             {
                 // A locked or unwritable database must not cost her the analysis run.
-                Console.Error.WriteLine($"[analyze] WARN: cannot open library db ({ex.Message}) — index only.");
+                Console.Error.WriteLine($"[analyze] WARN: cannot open library db ({ex.Message}) - index only.");
                 dbLocation = $"(failed: {dbLocation})";
             }
         }
@@ -83,7 +83,7 @@ internal static class AnalyzeCommand
         var index = TrackIndex.Load(indexPath);
         Console.WriteLine($"[analyze] Existing entries: {index.Entries.Count:N0}");
 
-        // One enumeration, carrying size + mtime — a follow-up FileInfo per file would be a
+        // One enumeration, carrying size + mtime - a follow-up FileInfo per file would be a
         // second round-trip each over SMB.
         var allFiles = AudioFiles.EnumerateWithKeys(root)
             .OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase)
@@ -95,7 +95,7 @@ internal static class AnalyzeCommand
 
         var dbState = db?.LoadSyncState();
 
-        // ── Compose the analysis stack once ─────────────────────────────────
+        // -- Compose the analysis stack once ---------------------------------
         using var composer = EngineComposer.Build();
 
         var startTime = DateTime.UtcNow;
@@ -118,7 +118,7 @@ internal static class AnalyzeCommand
             var filePath = file.Path;
             try
             {
-                // ── 1. Cheap-key resume: no file is opened to answer this ────
+                // -- 1. Cheap-key resume: no file is opened to answer this ----
                 if (!force && IsAlreadyDone(file, index, dbState, lockObj))
                 {
                     lock (lockObj)
@@ -129,7 +129,7 @@ internal static class AnalyzeCommand
                     return;
                 }
 
-                // ── 2. Tags (needed either way) ──────────────────────────────
+                // -- 2. Tags (needed either way) ------------------------------
                 TrackMetadata? meta = null;
                 try
                 {
@@ -138,10 +138,10 @@ internal static class AnalyzeCommand
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"[analyze] WARN: tag read failed for {Path.GetFileName(filePath)}: {ex.Message}");
-                    // Continue — DSP can still run without tags.
+                    // Continue - DSP can still run without tags.
                 }
 
-                // ── 3. Already measured at the current version? Import it. ───
+                // -- 3. Already measured at the current version? Import it. ---
                 TrackIndexEntry? entry = null;
                 var status = "  ok ";
 
@@ -158,7 +158,7 @@ internal static class AnalyzeCommand
                     }
                 }
 
-                // ── 4. Otherwise: hash + full DSP ───────────────────────────
+                // -- 4. Otherwise: hash + full DSP ---------------------------
                 if (entry is null)
                 {
                     string hash;
@@ -196,7 +196,7 @@ internal static class AnalyzeCommand
                         detectionVersion: TrackIndex.CurrentDetectionVersion, error: error);
                 }
 
-                // ── 5. Persist (serialised) ─────────────────────────────────
+                // -- 5. Persist (serialised) ---------------------------------
                 lock (lockObj)
                 {
                     index.Entries[filePath] = entry;
@@ -237,7 +237,7 @@ internal static class AnalyzeCommand
     }
 
     /// <summary>
-    /// True if an existing entry — in the sidecar index or in this machine's database — still
+    /// True if an existing entry - in the sidecar index or in this machine's database - still
     /// matches the file's cheap key AND holds a finished analysis. Opens nothing.
     ///
     /// <para>Entries written before 0.6 have no recorded mtime, so they never match here and fall

@@ -8,9 +8,9 @@ namespace JustPlay.Analysis;
 ///
 /// <para><b>Why sum (not average) within each band:</b> summing the time-averaged bin powers over
 /// the bins that fall in a 1/6-octave band reproduces the standard interpretation used by RTA meters
-/// and mastering tools — each band represents the total power in that frequency slice.  Under this
+/// and mastering tools - each band represents the total power in that frequency slice.  Under this
 /// convention white noise (flat PSD) rises at approximately +3 dB/octave in a log-spaced band display
-/// (wider bands at higher frequencies capture more bins ∝ f, so more power), while pink noise (PSD ∝
+/// (wider bands at higher frequencies capture more bins prop-to f, so more power), while pink noise (PSD prop-to
 /// 1/f) remains flat per band because the 1/f decay exactly cancels the growing bin count.</para>
 ///
 /// <para>Used by the <c>spectrum</c> CLI command to compare the tonal balance of a track before
@@ -31,15 +31,15 @@ public sealed class SpectralProfile
     /// <summary>
     /// Compute the long-term-average spectrum of the supplied mono samples.
     /// Returns one entry per display band: (center frequency in Hz, average power in dB).
-    /// Bands above Nyquist, or bands with no FFT bins, are set to <c>−120 dB</c>.
+    /// Bands above Nyquist, or bands with no FFT bins, are set to <c>-120 dB</c>.
     /// </summary>
     public (double FreqHz, double Db)[] Compute(float[] mono, int sampleRate)
     {
         ArgumentNullException.ThrowIfNull(mono);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sampleRate);
 
-        // ── Precompute 1/6-octave band edges ─────────────────────────────────
-        // Band n: lower = 20 · 2^(n/6),  upper = 20 · 2^((n+1)/6),  centre = 20 · 2^((n+0.5)/6).
+        // -- Precompute 1/6-octave band edges ---------------------------------
+        // Band n: lower = 20 - 2^(n/6),  upper = 20 - 2^((n+1)/6),  centre = 20 - 2^((n+0.5)/6).
         double[] bandLo  = new double[BandCount];
         double[] bandHi  = new double[BandCount];
         double[] bandCtr = new double[BandCount];
@@ -50,17 +50,17 @@ public sealed class SpectralProfile
             bandCtr[n] = 20.0 * Math.Pow(2.0, (n + 0.5)  / 6.0);
         }
 
-        // ── Hann window (precomputed) ─────────────────────────────────────────
+        // -- Hann window (precomputed) -----------------------------------------
         double[] hann = new double[FrameSize];
         for (int i = 0; i < FrameSize; i++)
             hann[i] = 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * i / (FrameSize - 1)));
 
-        // ── FFT working buffers ───────────────────────────────────────────────
+        // -- FFT working buffers -----------------------------------------------
         float[] re = new float[FrameSize];
         float[] im = new float[FrameSize];
 
-        // ── Accumulate power per bin across frames (Welch's method) ──────────
-        int      binCount  = FrameSize / 2 + 1; // DC … Nyquist
+        // -- Accumulate power per bin across frames (Welch's method) ----------
+        int      binCount  = FrameSize / 2 + 1; // DC ... Nyquist
         double[] binPower  = new double[binCount];
         int      framesCnt = 0;
 
@@ -96,7 +96,7 @@ public sealed class SpectralProfile
         double binHz   = (double)sampleRate / FrameSize;
         double nyquist = sampleRate / 2.0;
 
-        // ── Aggregate bins → log-spaced bands (by SUM) ───────────────────────
+        // -- Aggregate bins -> log-spaced bands (by SUM) -----------------------
         for (int n = 0; n < BandCount; n++)
         {
             if (bandCtr[n] > nyquist)

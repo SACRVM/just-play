@@ -1,6 +1,6 @@
 namespace JustPlay.Library;
 
-/// <summary>What <see cref="AnalysisQueue.TryLease"/> decided, and — when it declined — why.</summary>
+/// <summary>What <see cref="AnalysisQueue.TryLease"/> decided, and - when it declined - why.</summary>
 public enum AnalysisLease
 {
     /// <summary>A path was handed out and is now in flight. The caller MUST finish the lease with
@@ -15,7 +15,7 @@ public enum AnalysisLease
     /// <summary>Work is waiting but the user paused the batch. Nothing was removed from the queue.</summary>
     Paused,
 
-    /// <summary>Work is waiting but the caller's gate is closed — a track is playing or JUST STREAM
+    /// <summary>Work is waiting but the caller's gate is closed - a track is playing or JUST STREAM
     /// is on air. Nothing was removed from the queue; it is POSTPONED, never dropped.</summary>
     Yielding,
 }
@@ -29,7 +29,7 @@ public enum AnalysisPhase
     /// <summary>Running (or about to lease the next file).</summary>
     Analysing,
 
-    /// <summary>Explicitly paused by the user. Files already in flight are still finishing —
+    /// <summary>Explicitly paused by the user. Files already in flight are still finishing -
     /// see <see cref="AnalysisBatchProgress.InFlight"/>.</summary>
     Paused,
 
@@ -40,7 +40,7 @@ public enum AnalysisPhase
     Done,
 }
 
-/// <summary>One track the batch could not analyse. Every failure is named — a track is never
+/// <summary>One track the batch could not analyse. Every failure is named - a track is never
 /// silently dropped (standing invariant, memory <c>never-leave-songs-behind</c>).</summary>
 /// <param name="Path">The file that failed.</param>
 /// <param name="Message">The exception message, already flattened to a string so the report can
@@ -49,8 +49,8 @@ public sealed record AnalysisFailure(string Path, string Message);
 
 /// <summary>
 /// A snapshot of a running batch, shaped for the shared floating <c>BusyOverlay</c>: a phase plus
-/// counts, exactly like <see cref="SyncProgress"/> is for the scan. ⛔ Never render this as inline
-/// progress that shifts the layout — the overlay floats and is anti-flicker on purpose
+/// counts, exactly like <see cref="SyncProgress"/> is for the scan. (!!) Never render this as inline
+/// progress that shifts the layout - the overlay floats and is anti-flicker on purpose
 /// (memory <c>progress-overlay-shared</c>).
 /// </summary>
 /// <param name="Phase">Coarse state for the phase line.</param>
@@ -61,16 +61,16 @@ public sealed record AnalysisFailure(string Path, string Message);
 /// <param name="Succeeded">Files the DSP delegate completed without throwing.</param>
 /// <param name="Failed">Files the DSP delegate threw on. The batch kept going.</param>
 /// <param name="Skipped">Files that no longer needed analysis by the time their turn came (someone
-/// else — the observer, the CLI, the other machine's tag write — got there first).</param>
+/// else - the observer, the CLI, the other machine's tag write - got there first).</param>
 /// <param name="InFlight">Files being analysed right now. Non-zero while <see cref="AnalysisPhase.Paused"/>
 /// or <see cref="AnalysisPhase.Yielding"/> means "the tail is still finishing".</param>
 /// <param name="CurrentPath">The most recently STARTED file. With several workers there are several
 /// in flight; this is the newest one, which is what a single-line overlay can honestly show.</param>
-/// <param name="Elapsed">WORKING time only — the wall clock while at least one file was in flight.
+/// <param name="Elapsed">WORKING time only - the wall clock while at least one file was in flight.
 /// Pauses and gate-closed stretches do not count, so a batch paused for a two-hour set does not come
 /// back claiming it took two hours.</param>
 /// <param name="EstimatedRemaining">Null until enough files have actually run to mean anything. Based
-/// on <paramref name="Succeeded"/> + <paramref name="Failed"/> only — a skipped file costs no DSP, so
+/// on <paramref name="Succeeded"/> + <paramref name="Failed"/> only - a skipped file costs no DSP, so
 /// counting it would make the estimate wildly optimistic.</param>
 public readonly record struct AnalysisBatchProgress(
     AnalysisPhase Phase,
@@ -92,20 +92,20 @@ public readonly record struct AnalysisBatchProgress(
 }
 
 /// <summary>
-/// The pure decision core behind <see cref="AnalysisBatchRunner"/> — no threads, no timers, no
-/// filesystem, no database, no audio (milestone 0.6, P2 — "batch scan / analyse inside JUST PLAY").
-/// Everything here is deterministic given an injected clock, which is what makes the awkward cases —
-/// pause mid-file, the gig-safe gate flipping, cancellation, resume — testable without a single
+/// The pure decision core behind <see cref="AnalysisBatchRunner"/> - no threads, no timers, no
+/// filesystem, no database, no audio (milestone 0.6, P2 - "batch scan / analyse inside JUST PLAY").
+/// Everything here is deterministic given an injected clock, which is what makes the awkward cases -
+/// pause mid-file, the gig-safe gate flipping, cancellation, resume - testable without a single
 /// sleep. Same idiom as <see cref="WatchQueue"/> (P4), <see cref="JustPlay.Core.Playback.CueArbiter"/>
 /// and <see cref="JustPlay.Core.Playback.PendingTagWriteQueue"/>.
 ///
 /// <para><b>The gap it closes.</b> <see cref="LibrarySync.Reconcile"/> already returns
-/// <see cref="SyncReport.QueuedForAnalysis"/> — every indexed file with no analysis. Measured on
+/// <see cref="SyncReport.QueuedForAnalysis"/> - every indexed file with no analysis. Measured on
 /// Chloe's real index 2026-07-31: 18,009 rows, 14,994 analysed, <b>3,015 needing analysis</b>, 0
 /// failed. Today the app throws that list away. This is the queue that consumes it.</para>
 ///
 /// <para><b>Everything is a decision, nothing is an action.</b> <see cref="TryLease"/> is the single
-/// point where "may another file start right now?" is answered — pause, the gig-safe gate and
+/// point where "may another file start right now?" is answered - pause, the gig-safe gate and
 /// emptiness are all resolved there, in one place, in one order, so there is exactly one thing to
 /// test and exactly one thing that can be wrong.</para>
 ///
@@ -118,7 +118,7 @@ public sealed class AnalysisQueue
     /// <summary>
     /// How many files must have actually run before <see cref="AnalysisBatchProgress.EstimatedRemaining"/>
     /// is offered at all. One or two samples of a several-second decode produce an estimate that is
-    /// worse than none — a wrong ETA is not a small error, it is a number she would plan around.
+    /// worse than none - a wrong ETA is not a small error, it is a number she would plan around.
     /// </summary>
     private const int MinSamplesForEstimate = 3;
 
@@ -126,7 +126,7 @@ public sealed class AnalysisQueue
     private readonly Lock _gate = new();
 
     // Order matters (the caller queued them in sync-report order), and Release has to push back to
-    // the FRONT — hence a linked list rather than a Queue<T>. The set is membership only.
+    // the FRONT - hence a linked list rather than a Queue<T>. The set is membership only.
     private readonly LinkedList<string> _pending = new();
     private readonly HashSet<string> _queued   = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _inFlight = new(StringComparer.OrdinalIgnoreCase);
@@ -142,7 +142,7 @@ public sealed class AnalysisQueue
     private string? _lastLeased;
 
     // "Working time": accumulated only while at least one file is in flight, so pauses and
-    // gate-closed stretches are excluded for free — and, because it is wall clock across N workers,
+    // gate-closed stretches are excluded for free - and, because it is wall clock across N workers,
     // it already accounts for concurrency without this class knowing what the concurrency IS.
     private TimeSpan _activeElapsed;
     private DateTimeOffset? _activeSince;
@@ -169,7 +169,7 @@ public sealed class AnalysisQueue
     /// <summary>Every track this batch could not analyse, in the order they failed.</summary>
     public IReadOnlyList<AnalysisFailure> Failures { get { lock (_gate) return _failures.ToArray(); } }
 
-    // ── Filling the queue ────────────────────────────────────────────────────
+    // -- Filling the queue ----------------------------------------------------
 
     /// <summary>
     /// Adds one path unless it is already pending or in flight. Deliberately does NOT remember paths
@@ -200,11 +200,11 @@ public sealed class AnalysisQueue
         return added;
     }
 
-    // ── Pause / resume ───────────────────────────────────────────────────────
+    // -- Pause / resume -------------------------------------------------------
 
     /// <summary>
-    /// Stops new files from being leased. ⚠ Nothing queued is discarded and nothing in flight is
-    /// interrupted — "pause must not lose the queue". The tail of at most (worker count) files
+    /// Stops new files from being leased. (!) Nothing queued is discarded and nothing in flight is
+    /// interrupted - "pause must not lose the queue". The tail of at most (worker count) files
     /// finishes; see <see cref="AnalysisBatchRunner"/>'s class doc for why finishing beats aborting.
     /// </summary>
     public void Pause() { lock (_gate) _paused = true; }
@@ -212,19 +212,19 @@ public sealed class AnalysisQueue
     /// <summary>Lets leasing continue where it left off. Idempotent.</summary>
     public void Resume() { lock (_gate) _paused = false; }
 
-    // ── The one decision ─────────────────────────────────────────────────────
+    // -- The one decision -----------------------------------------------------
 
     /// <summary>
     /// The single "may another file start right now?" decision. Order is deliberate:
-    /// <b>empty → paused → gate → lease</b>.
+    /// <b>empty -> paused -> gate -> lease</b>.
     ///
     /// <para>Emptiness is checked FIRST so a drained batch reports <see cref="AnalysisLease.Empty"/>
-    /// even while paused or gated — otherwise a worker would sit in a poll loop forever on a queue
+    /// even while paused or gated - otherwise a worker would sit in a poll loop forever on a queue
     /// with nothing in it, and the run would never complete.</para>
     ///
     /// <para>The gate is passed IN rather than held as a <c>Func&lt;bool&gt;</c> so this class stays
-    /// pure and the whole matrix (paused × gated × empty) is one table-driven test. The library layer
-    /// must never know what playback IS — same rule as <see cref="LibraryWatcher"/>'s
+    /// pure and the whole matrix (paused x gated x empty) is one table-driven test. The library layer
+    /// must never know what playback IS - same rule as <see cref="LibraryWatcher"/>'s
     /// <c>mayWorkNow</c>.</para>
     /// </summary>
     /// <param name="mayWorkNow">False = a track is playing or the stream is on air. Postpones, never drops.</param>
@@ -249,7 +249,7 @@ public sealed class AnalysisQueue
         }
     }
 
-    // ── Closing a lease ──────────────────────────────────────────────────────
+    // -- Closing a lease ------------------------------------------------------
 
     /// <summary>The DSP delegate returned without throwing.</summary>
     public void NoteSucceeded(string path)
@@ -262,7 +262,7 @@ public sealed class AnalysisQueue
     }
 
     /// <summary>
-    /// The DSP delegate threw. Recorded by name and counted; the batch KEEPS GOING — one unreadable
+    /// The DSP delegate threw. Recorded by name and counted; the batch KEEPS GOING - one unreadable
     /// file must not cost the other 3,014. The run is not retried automatically (a decode that fails
     /// fails again, and retrying burns the same NAS read twice); the caller can feed
     /// <see cref="Failures"/> back into a fresh run.
@@ -278,7 +278,7 @@ public sealed class AnalysisQueue
     }
 
     /// <summary>
-    /// The file no longer needed analysis when its turn came — somebody else got there first. Counted
+    /// The file no longer needed analysis when its turn came - somebody else got there first. Counted
     /// separately from success on purpose: a skip cost no DSP, so it must not be allowed to flatter
     /// the throughput estimate, and it must not read as "we analysed 3,015 tracks" when we did not.
     /// </summary>
@@ -292,7 +292,7 @@ public sealed class AnalysisQueue
     }
 
     /// <summary>
-    /// Hands an in-flight lease back to the FRONT of the queue without counting it — the run was
+    /// Hands an in-flight lease back to the FRONT of the queue without counting it - the run was
     /// cancelled mid-file. The same file is therefore the next one tried when the batch resumes, and
     /// the counters stay honest (it neither succeeded nor failed; it never finished).
     /// </summary>
@@ -305,12 +305,12 @@ public sealed class AnalysisQueue
         }
     }
 
-    // ── Progress ─────────────────────────────────────────────────────────────
+    // -- Progress -------------------------------------------------------------
 
     /// <summary>
     /// The current state, shaped for the shared floating <c>BusyOverlay</c>. Takes the gate for the
     /// same reason <see cref="TryLease"/> does: the phase line has to be able to say
-    /// <see cref="AnalysisPhase.Yielding"/> ("a track is playing") rather than a bare stall — a
+    /// <see cref="AnalysisPhase.Yielding"/> ("a track is playing") rather than a bare stall - a
     /// progress bar that stops with no reason on it is one she stops trusting.
     /// </summary>
     public AnalysisBatchProgress Snapshot(bool mayWorkNow)
@@ -347,10 +347,10 @@ public sealed class AnalysisQueue
         }
     }
 
-    /// <summary>Working time so far — see <see cref="AnalysisBatchProgress.Elapsed"/>.</summary>
+    /// <summary>Working time so far - see <see cref="AnalysisBatchProgress.Elapsed"/>.</summary>
     public TimeSpan Elapsed { get { lock (_gate) return ElapsedLocked(); } }
 
-    // ── Internals (all called under _gate) ───────────────────────────────────
+    // -- Internals (all called under _gate) -----------------------------------
 
     private void EnterFlight(string path)
     {
@@ -358,7 +358,7 @@ public sealed class AnalysisQueue
         _inFlight.Add(path);
     }
 
-    /// <returns>False when the path was not actually in flight — a double-complete, which must never
+    /// <returns>False when the path was not actually in flight - a double-complete, which must never
     /// move a counter twice.</returns>
     private bool LeaveFlight(string path)
     {

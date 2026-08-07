@@ -6,7 +6,7 @@ namespace JustPlay.Core.Models;
 
 /// <summary>
 /// (De)serialises <see cref="TrackAnalysisState"/> to/from the compact JSON blob
-/// stored in the file's JUSTPLAY tag. Source-generated (trim/AOT-safe — the repo
+/// stored in the file's JUSTPLAY tag. Source-generated (trim/AOT-safe - the repo
 /// stays reflection-free). Keys are short to keep the tag small; the musical key is
 /// stored losslessly as pitch-class + mode rather than a Camelot string so no
 /// reverse parser is needed.
@@ -14,7 +14,7 @@ namespace JustPlay.Core.Models;
 /// <para><b>Fingerprint encoding (v4+):</b></para>
 /// The beat fingerprint (64 ST floats + 24 CT floats + 1 DA float) is stored as two
 /// base64 strings ("fpst", "fpct") plus a single float ("fpda").  Each float array
-/// is encoded as a little-endian raw binary byte array → base64, matching System.Buffers
+/// is encoded as a little-endian raw binary byte array -> base64, matching System.Buffers
 /// conventions and keeping the tag compact (~120 chars for ST, ~44 for CT vs ~400+ for
 /// JSON float arrays with decimal notation).
 /// </summary>
@@ -30,7 +30,7 @@ public static class AnalysisStateCodec
         var dto = new AnalysisStateDto
         {
             V = state.Version,
-            // Analysed-at (added post-L6): Unix seconds, UTC — compact, unambiguous, no timezone
+            // Analysed-at (added post-L6): Unix seconds, UTC - compact, unambiguous, no timezone
             // parsing. Omitted entirely (stays null) when the caller doesn't know it, so an old
             // reader/writer round-trips this exactly like any other absent optional field.
             Aat = state.AnalysedAtUtc is { } analysedAt
@@ -44,12 +44,12 @@ public static class AnalysisStateCodec
             ActBpm = Code(state.BpmDecision),
             ActKey = Code(state.KeyDecision),
             ActEnergy = Code(state.EnergyDecision),
-            // Original (pre-overwrite foreign values) — only emitted when present.
+            // Original (pre-overwrite foreign values) - only emitted when present.
             OrigBpm = o?.Bpm,
             OrigKeyPc = ok?.PitchClass,
             OrigKeyMode = ok is { } okey ? (okey.Mode == KeyMode.Major ? "maj" : "min") : null,
             OrigEnergy = o?.Energy,
-            // Beat fingerprint — base64-encoded little-endian float arrays (v4+).
+            // Beat fingerprint - base64-encoded little-endian float arrays (v4+).
             FpSt = fp is not null ? FloatsToBase64(fp.ScaleTransform)  : null,
             FpCt = fp is not null ? FloatsToBase64(fp.CyclicTempogram) : null,
             FpDa = fp?.Danceability,
@@ -65,7 +65,7 @@ public static class AnalysisStateCodec
             RpHtf  = rp?.HalfTimeFeel,
             RpBt   = rp?.BeatType,
             // Vibe quartet + fatigue flag (v7+ for punch/groove/harshness/flatness; v8+ for dark/hypnotic).
-            // "chr" (Character label) is no longer written — dropped in v8. Old blobs with "chr" are
+            // "chr" (Character label) is no longer written - dropped in v8. Old blobs with "chr" are
             // simply ignored on read (JSON unknown-field tolerance).
             RawNrg  = state.Detected.RawEnergyScore,
             SpFlat  = state.Detected.SpectralFlatness,
@@ -104,7 +104,7 @@ public static class AnalysisStateCodec
                     ? null
                     : new AnalysisResult { Bpm = dto.OrigBpm, Key = origKey, Energy = dto.OrigEnergy };
 
-            // Beat fingerprint — decode from base64 if all three fields are present.
+            // Beat fingerprint - decode from base64 if all three fields are present.
             BeatFingerprint? fingerprint = null;
             if (dto.FpSt is { } fpStB64 && dto.FpCt is { } fpCtB64 && dto.FpDa is { } fpDa)
             {
@@ -114,7 +114,7 @@ public static class AnalysisStateCodec
                     fingerprint = new BeatFingerprint(st, ct, fpDa);
             }
 
-            // RhythmPattern — present only when ALL five scalars and the label are non-null (v6+).
+            // RhythmPattern - present only when ALL five scalars and the label are non-null (v6+).
             RhythmPattern? rhythm = null;
             if (dto.RpFof is { } fof && dto.RpObe is { } obe && dto.RpSwg is { } swg &&
                 dto.RpSyn is { } syn && dto.RpHtf is { } htf && dto.RpBt is { } bt)
@@ -148,7 +148,7 @@ public static class AnalysisStateCodec
                     Peak = dto.Pk,
                     Rhythm = rhythm,
                     // Vibe quartet + fatigue flag (v7+ scalars; v8+ adds Dark + Hypnotic).
-                    // "chr" was dropped in v8 — Character field no longer in AnalysisResult.
+                    // "chr" was dropped in v8 - Character field no longer in AnalysisResult.
                     RawEnergyScore   = dto.RawNrg,
                     SpectralFlatness = dto.SpFlat,
                     Harshness        = dto.Harsh,
@@ -168,17 +168,17 @@ public static class AnalysisStateCodec
         }
         catch (JsonException)
         {
-            return null; // foreign / malformed blob — treat as no state
+            return null; // foreign / malformed blob - treat as no state
         }
     }
 
     // -------------------------------------------------------------------------
-    // Float array ↔ base64 helpers
+    // Float array <-> base64 helpers
     // -------------------------------------------------------------------------
 
     /// <summary>
     /// Encodes a float array as a base64 string of its little-endian binary representation.
-    /// Compact: 89 floats (ST 64 + CT 24 + DA 1) = 356 bytes → 476 base64 chars vs ~600+
+    /// Compact: 89 floats (ST 64 + CT 24 + DA 1) = 356 bytes -> 476 base64 chars vs ~600+
     /// chars of JSON decimal notation with full precision.
     /// </summary>
     private static string FloatsToBase64(float[] floats)
@@ -230,7 +230,7 @@ internal sealed class AnalysisStateDto
 {
     [JsonPropertyName("v")]   public int V { get; set; }
     // Analysed-at (added post-L6, 2026-08). Unix seconds UTC; absent on every blob written before
-    // this field existed — those are indistinguishable from "we didn't ask", which is correct:
+    // this field existed - those are indistinguishable from "we didn't ask", which is correct:
     // there is no way to recover the true DSP date from a blob that never recorded it.
     [JsonPropertyName("aat")] public long? Aat { get; set; }
     [JsonPropertyName("bpm")] public double? Bpm { get; set; }

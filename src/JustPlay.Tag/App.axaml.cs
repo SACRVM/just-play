@@ -35,7 +35,7 @@ public partial class App : Application
             };
 
             // JUST suite UI philosophy: the brand glyph (the TAG mark) on the active theme gradient as the
-            // taskbar / Alt-Tab icon, via the SHARED renderer (JustPlay.UI) — re-rendered on theme switch.
+            // taskbar / Alt-Tab icon, via the SHARED renderer (JustPlay.UI) - re-rendered on theme switch.
             window.Icon = ThemedWindowIcon.Render(themeSvc.Current, BrandGlyphs.Tag);
             themeSvc.ThemeChanged += (_, theme) =>
                 Dispatcher.UIThread.Post(() => window.Icon = ThemedWindowIcon.Render(theme, BrandGlyphs.Tag));

@@ -12,7 +12,7 @@ namespace JustPlay.UI.Behaviors;
 /// Suite-wide smooth wheel scrolling: a mouse notch GLIDES the list instead of teleporting it.
 ///
 /// <para>Why (Chloe 2026-07-31): <i>"ich glaube das scrollen ist gar nicht zu langsam sondern schlicht
-/// zu abgehackt"</i>. She is right, and it is not a frame-rate problem — a wheel notch moves a
+/// zu abgehackt"</i>. She is right, and it is not a frame-rate problem - a wheel notch moves a
 /// <see cref="ScrollViewer"/> by a fixed chunk in ONE step, so at 30-px rows the list jumps three
 /// rows at a time. Every jump reads as a stutter no matter how many frames per second we draw
 /// around it. Frames were never the issue; the missing thing was motion BETWEEN the two positions.</para>
@@ -20,10 +20,10 @@ namespace JustPlay.UI.Behaviors;
 /// <para>How: swallow the wheel event, keep our own target offset, and ease the real offset toward it
 /// once per frame. Scrolling again mid-glide just moves the target, so continuous scrolling stays
 /// continuous instead of restarting. Exponential easing (a constant fraction of the remaining
-/// distance per frame) — it starts fast, settles softly, and has no fixed duration to get wrong.</para>
+/// distance per frame) - it starts fast, settles softly, and has no fixed duration to get wrong.</para>
 ///
 /// <para>Only the wheel is intercepted. Dragging the scrollbar, keyboard navigation, touch and
-/// programmatic scrolling (bring-into-view when the keyboard cursor moves) are untouched — those
+/// programmatic scrolling (bring-into-view when the keyboard cursor moves) are untouched - those
 /// already move continuously or must stay exact.</para>
 ///
 /// <para>Usage: <c>beh:SmoothScroll.Enabled="True"</c> on the ListBox / ScrollViewer.</para>
@@ -33,11 +33,11 @@ public static class SmoothScroll
     /// <summary>Fraction of the remaining distance covered per frame. Higher = snappier, lower = floatier.</summary>
     private const double Ease = 0.22;
 
-    /// <summary>Pixels per wheel notch. Roughly three 30-px rows — the same travel the default gives,
+    /// <summary>Pixels per wheel notch. Roughly three 30-px rows - the same travel the default gives,
     /// so the FEEL of a notch is unchanged; only the abruptness goes away.</summary>
     private const double PixelsPerNotch = 90;
 
-    /// <summary>Below this the glide is over — chasing sub-pixels would keep a timer alive forever.</summary>
+    /// <summary>Below this the glide is over - chasing sub-pixels would keep a timer alive forever.</summary>
     private const double Done = 0.5;
 
     public static readonly AttachedProperty<bool> EnabledProperty =
@@ -65,7 +65,7 @@ public static class SmoothScroll
         var scroll = control as ScrollViewer ?? control.FindDescendantOfType<ScrollViewer>();
         if (scroll is null) return;
 
-        // Horizontal wheels / shift-scroll keep the default behaviour — one axis is the whole point here.
+        // Horizontal wheels / shift-scroll keep the default behaviour - one axis is the whole point here.
         if (Math.Abs(e.Delta.Y) < 0.01) return;
 
         var max = Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height);

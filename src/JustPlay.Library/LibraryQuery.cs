@@ -1,7 +1,7 @@
 namespace JustPlay.Library;
 
 /// <summary>
-/// A filter over the library index — the set-building surface. Every field is optional; the ones
+/// A filter over the library index - the set-building surface. Every field is optional; the ones
 /// that are set are ANDed together.
 ///
 /// <para>This is what makes 0.6 worth a database: "everything between 126 and 130 BPM, in 8A or a
@@ -10,7 +10,7 @@ namespace JustPlay.Library;
 /// </summary>
 public sealed record LibraryQuery
 {
-    /// <summary>Free text — matched against title, artist and album (case-insensitive substring).</summary>
+    /// <summary>Free text - matched against title, artist and album (case-insensitive substring).</summary>
     public string? Text { get; init; }
 
     /// <summary>
@@ -38,10 +38,10 @@ public sealed record LibraryQuery
     /// <summary>Beat taxonomy label (4x4-driving, groovy, offbeat-bass, breaks, halftime).</summary>
     public string? BeatType { get; init; }
 
-    /// <summary>Minimum beat-grid confidence. ⚠ 0.45 = grid-soft, 0.25 = grid-fail.</summary>
+    /// <summary>Minimum beat-grid confidence. (!) 0.45 = grid-soft, 0.25 = grid-fail.</summary>
     public double? MinGridConfidence { get; init; }
 
-    /// <summary>Maximum harshness — the anti-fatigue filter.</summary>
+    /// <summary>Maximum harshness - the anti-fatigue filter.</summary>
     public double? MaxHarshness { get; init; }
 
     /// <summary>Include tracks the last sync could not find on disk. Default false.</summary>
@@ -59,7 +59,7 @@ public sealed record LibraryQuery
     public bool Descending { get; init; }
 }
 
-/// <summary>Sortable columns — mirrors the finder's toggleable columns.</summary>
+/// <summary>Sortable columns - mirrors the finder's toggleable columns.</summary>
 public enum LibrarySort
 {
     Path,

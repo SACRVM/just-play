@@ -6,9 +6,9 @@ using Xunit.Abstractions;
 namespace JustPlay.Analysis.Tests;
 
 /// <summary>
-/// ⭐ Chloe's challenge (2026-07-16): "mal gucken ob du über 6 hinauskommst" — run JUST BEAT's
+/// (*) Chloe's challenge (2026-07-16): "mal gucken ob du ueber 6 hinauskommst" - run JUST BEAT's
 /// mastered hard-techno loop through JUST PLAY's own energy analyser and see where it lands on the
-/// 1..10 scale (ambient→2, mid-dance→5-6, hard techno→9). Throwaway probe (not committed); reads a
+/// 1..10 scale (ambient->2, mid-dance->5-6, hard techno->9). Throwaway probe (not committed); reads a
 /// WAV JustEdit already rendered, so it does NOT depend on the JustEdit build (safe while an agent
 /// is editing that repo). The detector runs at 11025 Hz, so we decimate the 44100 Hz render by 4.
 /// </summary>
@@ -19,14 +19,14 @@ public class BeatEnergyProbeTests
 
     [Theory]
     [InlineData(@"D:\repos\just-edit\demos\mastered.wav",              "HardTechno rack, ClubDefault master (drive 3)")]
-    [InlineData(@"D:\repos\just-edit\demos\unmastered.wav",            "HardTechno rack, RAW (−6 dBFS, no bus)")]
+    [InlineData(@"D:\repos\just-edit\demos\unmastered.wav",            "HardTechno rack, RAW (-6 dBFS, no bus)")]
     [InlineData(@"D:\repos\just-edit\demos\after-hardtechno-rack.wav", "HardTechno rack (before/after demo)")]
     public void Probe_Energy(string wav, string label)
     {
         if (!File.Exists(wav)) { _out.WriteLine($"SKIP (not found): {wav}"); return; }
 
         var (mono44, rate) = ReadWavMono(wav);
-        var mono = DecimateBy4(mono44);                 // 44100 → 11025 (box-averaged)
+        var mono = DecimateBy4(mono44);                 // 44100 -> 11025 (box-averaged)
         var audio = new DecodedAudio(mono, rate / 4);
 
         var det = new SpectralEnergyDetector();
@@ -38,15 +38,15 @@ public class BeatEnergyProbeTests
         if (feats is { } f)
         {
             _out.WriteLine($"  raw:  LUFS={f.RawLufs:F1}  Flux={f.RawFlux:F3}  Centroid={f.RawCentroid:F0} Hz  RmsSd={f.RawRmsSd:F3}");
-            _out.WriteLine($"  norm: loud={f.NLoud:F2} flux={f.NFlux:F2} bright={f.NBright:F2} rmssd={f.NRmsSd:F2}  → blended={SpectralEnergyDetector.BlendedScore(f):F3}");
+            _out.WriteLine($"  norm: loud={f.NLoud:F2} flux={f.NFlux:F2} bright={f.NBright:F2} rmssd={f.NRmsSd:F2}  -> blended={SpectralEnergyDetector.BlendedScore(f):F3}");
         }
         Assert.NotNull(energy);
     }
 
-    /// <summary>⭐ The point: the research's #1 slam lever is a clipper/saturator — it adds upper
+    /// <summary>(*) The point: the research's #1 slam lever is a clipper/saturator - it adds upper
     /// harmonics (brightness) AND raises RMS (loudness), the two terms holding our energy at 6. Apply
     /// a soft clip (tanh) at increasing drive to the ALREADY-mastered loop, renormalise to the same
-    /// peak (so we measure TONE, not just level), and watch the energy climb over 6. tanh at 44100 →
+    /// peak (so we measure TONE, not just level), and watch the energy climb over 6. tanh at 44100 ->
     /// box-decimate to 11025 partially anti-aliases (honest-ish; the real engine would oversample).</summary>
     [Fact]
     public void Probe_Saturation_Sweep_ClearsSix()
@@ -87,7 +87,7 @@ public class BeatEnergyProbeTests
         return y;
     }
 
-    /// <summary>Minimal RIFF/WAVE PCM16 reader → mono float[-1,1]. Enough for our own WavWriter output.</summary>
+    /// <summary>Minimal RIFF/WAVE PCM16 reader -> mono float[-1,1]. Enough for our own WavWriter output.</summary>
     private static (float[] Mono, int Rate) ReadWavMono(string path)
     {
         using var fs = File.OpenRead(path);

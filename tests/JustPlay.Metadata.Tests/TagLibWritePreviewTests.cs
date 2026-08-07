@@ -5,15 +5,15 @@ using JustPlay.Core.Models;
 namespace JustPlay.Metadata.Tests;
 
 /// <summary>
-/// Integration tests for <see cref="TagLibWritePreview"/> — the read-only dry-run companion to
+/// Integration tests for <see cref="TagLibWritePreview"/> - the read-only dry-run companion to
 /// <see cref="TagLibMetadataWriter"/>. Real (temp) files, same fixture technique as
 /// <see cref="TagContractComplianceTests"/> / <see cref="DjCommentRoundTripTests"/>: TagLib#
 /// synthesises a minimal valid file so no binary fixture lives in the repo.
 ///
 /// <para>
 /// Every test either (a) proves the plan matches what <see cref="TagLibMetadataWriter"/> would
-/// actually do (fresh file → Write, already-written-with-the-same-values → Unchanged, a
-/// different existing value → Overwrite, policy off → SkippedByPolicy), or (b) proves the one
+/// actually do (fresh file -> Write, already-written-with-the-same-values -> Unchanged, a
+/// different existing value -> Overwrite, policy off -> SkippedByPolicy), or (b) proves the one
 /// hard requirement: Preview never touches the file on disk.
 /// </para>
 /// </summary>
@@ -28,7 +28,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         foreach (var f in _tempFiles.Where(File.Exists)) File.Delete(f);
     }
 
-    // G minor: pitch class 7, minor → Camelot "6A".
+    // G minor: pitch class 7, minor -> Camelot "6A".
     private static readonly MusicalKey GMinor = new(7, KeyMode.Minor);
 
     private static TrackAnalysisState SampleState() => new()
@@ -50,7 +50,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Peak = 0.988553,
     };
 
-    // ── Write: everything is empty on a fresh file ─────────────────────────────
+    // -- Write: everything is empty on a fresh file -----------------------------
 
     [Fact]
     public void Preview_FreshFile_EveryRequestedFieldIsWrite()
@@ -78,7 +78,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.Equal(TagFrameFamily.Bpm, field.Family);
     }
 
-    // ── Unchanged: preview after writing the SAME candidate ────────────────────
+    // -- Unchanged: preview after writing the SAME candidate --------------------
 
     [Fact]
     public void Preview_AfterRealWrite_SameCandidate_IsUnchangedForEveryField()
@@ -94,7 +94,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.False(plan.HasOverwrites);
     }
 
-    // ── Overwrite: a different value already occupies the field ────────────────
+    // -- Overwrite: a different value already occupies the field ----------------
 
     [Fact]
     public void Preview_DifferentBpmAlreadyPresent_IsOverwrite()
@@ -131,7 +131,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
     public void Preview_DifferentKeyAlreadyPresent_IsOverwrite()
     {
         var path = CreateMp3();
-        SeedRawTag(path, tag => tag.InitialKey = "8A"); // A minor — a different key from GMinor.
+        SeedRawTag(path, tag => tag.InitialKey = "8A"); // A minor - a different key from GMinor.
 
         var plan = _preview.Preview(path, new TagWrite { Key = GMinor }, TagWritePolicy.AllowAll);
 
@@ -166,7 +166,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.Equal(TagWriteAction.Unchanged, field.Action);
     }
 
-    // ── SkippedByPolicy: the policy wins even over an otherwise-empty field ────
+    // -- SkippedByPolicy: the policy wins even over an otherwise-empty field ----
 
     [Fact]
     public void Preview_PolicyDisallowsFamily_IsSkippedByPolicy_EvenOnAnEmptyField()
@@ -195,7 +195,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.False(plan.HasOverwrites); // the field is reported as skipped, not double-counted
     }
 
-    // ── ReplayGain: one family, two rows ────────────────────────────────────────
+    // -- ReplayGain: one family, two rows ----------------------------------------
 
     [Fact]
     public void Preview_ReplayGain_ProducesTwoRowsUnderOneFamily()
@@ -211,7 +211,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.Contains(plan.Fields, f => f.FieldName == "ReplayGain (peak)");
     }
 
-    // ── The read-only guarantee ──────────────────────────────────────────────
+    // -- The read-only guarantee ----------------------------------------------
 
     [Fact]
     public void Preview_NeverModifiesFileOnDisk()
@@ -227,7 +227,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.Equal(before, after);
     }
 
-    // ── FLAC / Xiph path ─────────────────────────────────────────────────────
+    // -- FLAC / Xiph path -----------------------------------------------------
 
     [Fact]
     public void Preview_Flac_AfterRealWrite_SameCandidate_IsUnchanged()
@@ -253,7 +253,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
         Assert.All(plan.Fields, f => Assert.Equal(TagWriteAction.Write, f.Action));
     }
 
-    // ── fixture builders (same technique as TagContractComplianceTests) ────────
+    // -- fixture builders (same technique as TagContractComplianceTests) --------
 
     private void SeedRawTag(string path, Action<TagLib.Tag> mutate)
     {
@@ -264,7 +264,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
 
     private string CreateMp3()
     {
-        // Bare ID3v2.3 header + one MPEG1 Layer3 sync header — TagLib parses it as a taggable MP3.
+        // Bare ID3v2.3 header + one MPEG1 Layer3 sync header - TagLib parses it as a taggable MP3.
         var bare = new byte[14];
         bare[0] = (byte)'I'; bare[1] = (byte)'D'; bare[2] = (byte)'3';
         bare[3] = 3; // v2.3
@@ -274,7 +274,7 @@ public sealed class TagLibWritePreviewTests : IDisposable
 
     private string CreateFlac()
     {
-        // Minimal FLAC: "fLaC" + a last-block STREAMINFO (34 bytes) — enough for TagLib to open
+        // Minimal FLAC: "fLaC" + a last-block STREAMINFO (34 bytes) - enough for TagLib to open
         // the file and add a VORBIS_COMMENT block on save.
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);

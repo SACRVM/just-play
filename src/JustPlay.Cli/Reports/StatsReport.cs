@@ -24,7 +24,7 @@ public sealed record StatsReport
     /// <summary>Danceability histogram: bucketed by 0.5 increments.</summary>
     [JsonPropertyName("danceabilityHist")] public Dictionary<string, int> DanceabilityHist { get; init; } = [];
 
-    // ── Vibe quartet + fatigue flag (v8+) ────────────────────────────────────
+    // -- Vibe quartet + fatigue flag (v8+) ------------------------------------
     /// <summary>Histogram of harshness/noisy-flag scores (0.1 buckets, e.g. "0.0-0.1": 42).</summary>
     [JsonPropertyName("harshnessHist")]   public Dictionary<string, int>   HarshnessHist    { get; init; } = [];
     /// <summary>Histogram of punch (BassPunch) scores (0.1 buckets).</summary>
@@ -38,7 +38,7 @@ public sealed record StatsReport
     /// <summary>Histogram of rawEnergyScore values (0.1 buckets).</summary>
     [JsonPropertyName("rawEnergyHist")]   public Dictionary<string, int>   RawEnergyHist    { get; init; } = [];
 
-    // ── Grid-confidence (v9+) ─────────────────────────────────────────────────
+    // -- Grid-confidence (v9+) -------------------------------------------------
     /// <summary>Histogram of GridConfidence values (0.1 buckets). GridConfidence &lt; 0.45 = grid-soft.</summary>
     [JsonPropertyName("gridConfHist")]    public Dictionary<string, int>   GridConfHist     { get; init; } = [];
     /// <summary>Number of successfully analysed tracks with GridConfidence &lt; 0.45 (grid-soft warning threshold).</summary>

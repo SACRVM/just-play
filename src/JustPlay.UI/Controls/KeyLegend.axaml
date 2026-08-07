@@ -4,8 +4,8 @@
              x:Class="JustPlay.UI.Controls.KeyLegend">
 
     <!--
-      Shared J.U.S.T. keyboard-hint bar — the chip+label legend row used at the bottom of the
-      PRE CUE FINDER and JUST STREAM. ONE implementation, one look (Chloe 2026-07-06: "ein Guss —
+      Shared J.U.S.T. keyboard-hint bar - the chip+label legend row used at the bottom of the
+      PRE CUE FINDER and JUST STREAM. ONE implementation, one look (Chloe 2026-07-06: "ein Guss -
       reused funktionality"). The host passes its own Hints and owns visibility (e.g. a Settings
       toggle). Chip styling comes from the shared Border.kbd / TextBlock.kbdlabel classes in
       JustStyles; the WrapPanel lets a long legend flow onto a second line on a narrow window.

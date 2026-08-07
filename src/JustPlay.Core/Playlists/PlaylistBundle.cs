@@ -8,17 +8,17 @@ using System.Threading;
 namespace JustPlay.Core.Playlists;
 
 /// <summary>
-/// Bundles a queue into a portable set — either a single self-contained .zip or a plain folder — with
+/// Bundles a queue into a portable set - either a single self-contained .zip or a plain folder - with
 /// every audio file PLUS an .m3u8 that references them, so a set can be shared / uploaded / dropped on
 /// a USB stick and imported into any DJ tool in one move. Files are written FLAT and prefixed with
-/// their zero-padded set position ("01 - …", "002 - …"): that guarantees collision-free names (two
+/// their zero-padded set position ("01 - ...", "002 - ..."): that guarantees collision-free names (two
 /// "track.mp3" from different folders no longer clash and silently overwrite) AND makes the files sort
 /// in set order in any file browser, even when the importing tool ignores the playlist and just reads
-/// the folder. The padding width scales with the set size (≥100 tracks → three digits). The .m3u8 sits
+/// the folder. The padding width scales with the set size (>=100 tracks -> three digits). The .m3u8 sits
 /// alongside the audio and points at those names relatively, so the bundle round-trips through
 /// <see cref="M3uPlaylist.ReadPaths"/>.
 ///
-/// <para>Analysis (BPM/key/energy) rides along in the files' OWN tags — we copy the bytes verbatim, so
+/// <para>Analysis (BPM/key/energy) rides along in the files' OWN tags - we copy the bytes verbatim, so
 /// the recipient's tool reads our detection on import. Platform-agnostic: BCL only.</para>
 /// </summary>
 public static class PlaylistBundle
@@ -30,7 +30,7 @@ public static class PlaylistBundle
     /// single <paramref name="playlistName"/>.m3u8 at the root listing them in order. A missing or
     /// unreadable source file is skipped (never throws on one bad path). Reports progress as
     /// (done, total) after each file. Honours <paramref name="ct"/>: a cancel deletes the partial .zip
-    /// and throws <see cref="OperationCanceledException"/> — so an aborted export leaves nothing behind.
+    /// and throws <see cref="OperationCanceledException"/> - so an aborted export leaves nothing behind.
     /// Returns the number of audio files actually written.</summary>
     public static int WriteZip(string destZip, string playlistName, IReadOnlyList<Entry> entries,
         IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
@@ -48,7 +48,7 @@ public static class PlaylistBundle
             using (var fs = new FileStream(destZip, FileMode.Create, FileAccess.Write))
             using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
             {
-                // Add the audio first, collecting the ones that actually made it in — so a file that
+                // Add the audio first, collecting the ones that actually made it in - so a file that
                 // fails to open (locked, vanished mid-export) is left out of the playlist too.
                 var written = new List<(Entry e, string name)>();
                 foreach (var (e, name) in planned)
@@ -63,7 +63,7 @@ public static class PlaylistBundle
                         written.Add((e, name));
                     }
                     catch (OperationCanceledException) { throw; }
-                    catch { /* skip — one unreadable track must not abort the whole export */ }
+                    catch { /* skip - one unreadable track must not abort the whole export */ }
                     progress?.Report((written.Count, total));
                 }
 
@@ -80,7 +80,7 @@ public static class PlaylistBundle
                 }
             }
 
-            if (result == 0) TryDeleteFile(destZip); // nothing usable — don't leave an empty archive
+            if (result == 0) TryDeleteFile(destZip); // nothing usable - don't leave an empty archive
             return result;
         }
         catch (OperationCanceledException)
@@ -92,7 +92,7 @@ public static class PlaylistBundle
 
     /// <summary>Copy every existing source file (flat, set-position-prefixed) into <paramref name="destFolder"/>
     /// and write a <paramref name="playlistName"/>.m3u8 next to them listing the set in order. The folder
-    /// is created if needed. Same portable layout as <see cref="WriteZip"/>, just unpacked — ideal for a
+    /// is created if needed. Same portable layout as <see cref="WriteZip"/>, just unpacked - ideal for a
     /// USB stick. A missing / unreadable source file is skipped. Returns the number of files copied.</summary>
     public static int WriteToFolder(string destFolder, string playlistName, IReadOnlyList<Entry> entries,
         IProgress<(int done, int total)>? progress = null, CancellationToken ct = default)
@@ -102,7 +102,7 @@ public static class PlaylistBundle
         var total = planned.Count;
         progress?.Report((0, total));
 
-        // Only delete the folder on cancel/empty if WE created it — never nuke a pre-existing one.
+        // Only delete the folder on cancel/empty if WE created it - never nuke a pre-existing one.
         var createdFolder = !Directory.Exists(destFolder);
         try
         {
@@ -120,7 +120,7 @@ public static class PlaylistBundle
                     written.Add((e, name));
                 }
                 catch (OperationCanceledException) { throw; }
-                catch { /* skip — one unreadable track must not abort the whole export */ }
+                catch { /* skip - one unreadable track must not abort the whole export */ }
                 progress?.Report((written.Count, total));
             }
 
@@ -140,12 +140,12 @@ public static class PlaylistBundle
         }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // -- helpers --------------------------------------------------------------
 
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>Resolve the existing source files in order and assign collision-free, set-ordered in-bundle
-    /// names. Padding width scales with the count (min two digits, three at ≥100, four at ≥1000, …).</summary>
+    /// names. Padding width scales with the count (min two digits, three at >=100, four at >=1000, ...).</summary>
     private static List<(Entry e, string name)> PlanNames(IReadOnlyList<Entry> entries)
     {
         var present = new List<Entry>();

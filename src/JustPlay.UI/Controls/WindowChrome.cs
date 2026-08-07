@@ -9,7 +9,7 @@ namespace JustPlay.UI.Controls;
 /// <summary>
 /// Shared helpers for the frameless-window chrome (every JUST suite app). A window is
 /// dragged from empty chrome surfaces but must NOT start a drag when the press lands on
-/// an interactive control (a button or a slider) — this is the common predicate.
+/// an interactive control (a button or a slider) - this is the common predicate.
 /// </summary>
 public static class WindowChrome
 {
@@ -18,11 +18,11 @@ public static class WindowChrome
     /// DOUBLE press maximizes or restores it, and a press that landed on a control does neither.
     ///
     /// <para>Double-click-to-maximize is what every title bar does, and this suite simply never had it
-    /// — all five windows went straight to <c>BeginMoveDrag</c> (Chloe 2026-08-05). It is written here
+    /// - all five windows went straight to <c>BeginMoveDrag</c> (Chloe 2026-08-05). It is written here
     /// rather than five times, because five copies is how three of them would end up with it.</para>
     ///
     /// <para>A window that is not an <see cref="IFramelessWindow"/> (a fixed-size dialog) simply does
-    /// not react to the double press — there is nothing sensible for it to maximize into.</para>
+    /// not react to the double press - there is nothing sensible for it to maximize into.</para>
     /// </summary>
     public static void HandlePress(Window? window, PointerPressedEventArgs e)
     {

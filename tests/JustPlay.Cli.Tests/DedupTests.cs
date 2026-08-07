@@ -8,7 +8,7 @@ namespace JustPlay.Cli.Tests;
 
 /// <summary>
 /// Unit tests for the dedup logic and the sidecar index round-trip.
-/// These are purely managed tests — no BASS, no audio decoding.
+/// These are purely managed tests - no BASS, no audio decoding.
 /// </summary>
 public sealed class DedupTests : IDisposable
 {
@@ -25,18 +25,18 @@ public sealed class DedupTests : IDisposable
         try { Directory.Delete(_tmpDir, recursive: true); } catch { /* best-effort */ }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Exact-dupe detection
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     [Fact]
     public void ExactDupes_TwoIdenticalFiles_FormsOneGroup()
     {
-        // Arrange — two files with identical content
+        // Arrange - two files with identical content
         var content = new byte[] { 0x01, 0x02, 0x03, 0x04, 0xAA, 0xBB };
         var a = WriteFile("a.mp3", content);
         var b = WriteFile("b.mp3", content);
-        var c = WriteFile("c.mp3", [0xFF, 0xFE]); // different — should not appear
+        var c = WriteFile("c.mp3", [0xFF, 0xFE]); // different - should not appear
 
         // Act
         var groups = DedupCommand.FindExactDupes([a, b, c]);
@@ -46,7 +46,7 @@ public sealed class DedupTests : IDisposable
         Assert.Equal(2, groups[0].FilePaths.Count);
         Assert.Contains(a, groups[0].FilePaths);
         Assert.Contains(b, groups[0].FilePaths);
-        // Wasted bytes = 1 copy × file size
+        // Wasted bytes = 1 copy x file size
         Assert.Equal(content.Length, groups[0].WastedBytes);
     }
 
@@ -80,7 +80,7 @@ public sealed class DedupTests : IDisposable
     [Fact]
     public void ExactDupes_SameSizeDifferentContent_NoGroup()
     {
-        // Same size but different bytes → SHA-256 differs → not a dupe
+        // Same size but different bytes -> SHA-256 differs -> not a dupe
         var a = WriteFile("s1.mp3", [0x01, 0x02, 0x03]);
         var b = WriteFile("s2.mp3", [0x04, 0x05, 0x06]);
 
@@ -106,9 +106,9 @@ public sealed class DedupTests : IDisposable
         Assert.Empty(groups);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Near-dupe detection (tag-based, no audio decode)
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Near-dedup reads real tags via TagLib#. We create minimal MP3s with matching
     // artist+title to exercise the grouping logic without needing BASS.
 
@@ -157,13 +157,13 @@ public sealed class DedupTests : IDisposable
 
         var groups = DedupCommand.FindNearDupes([a, b]);
 
-        // Both have empty tags → near-dedup skips them (no useful key)
+        // Both have empty tags -> near-dedup skips them (no useful key)
         Assert.Empty(groups);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Sidecar index round-trip
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     [Fact]
     public void TrackIndex_SaveAndLoad_RoundTrips()
@@ -260,7 +260,7 @@ public sealed class DedupTests : IDisposable
             Success          = true,
         };
 
-        // Old detection version → must re-analyse
+        // Old detection version -> must re-analyse
         Assert.False(idx.IsUpToDate(@"C:\test.mp3", "deadbeef"));
     }
 
@@ -284,9 +284,9 @@ public sealed class DedupTests : IDisposable
         Assert.False(File.Exists(tmpPath), ".tmp file should be removed after save.");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // AudioFiles helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     [Fact]
     public void Sha256_SameContent_ProducesSameHash()
@@ -321,9 +321,9 @@ public sealed class DedupTests : IDisposable
         Assert.DoesNotContain(txt, found);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     private string WriteFile(string name, byte[] content)
     {

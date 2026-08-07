@@ -1,45 +1,45 @@
 namespace JustPlay.Analysis;
 
 /// <summary>
-/// Gentle "auto-master" spectral TILT — continuously measures a track's long-term tonal balance
+/// Gentle "auto-master" spectral TILT - continuously measures a track's long-term tonal balance
 /// and nudges it toward the <see cref="SpectralTarget"/> golden-curve balance without touching dynamics
 /// or transient character.
 ///
 /// <para><b>How it works:</b>
 /// Two Butterworth measurement filters (LP at <see cref="LowBandHz"/> Hz and HP at
 /// <see cref="HighBandHz"/> Hz) feed a slow stereo-linked RMS smoother
-/// (τ = <see cref="EnvelopeTauMs"/> ms). The long-term power ratio drives a complementary
+/// (tau = <see cref="EnvelopeTauMs"/> ms). The long-term power ratio drives a complementary
 /// low-shelf + high-shelf pair that TILTS the output in the opposite direction:</para>
 /// <list type="bullet">
 ///   <item>Duller than the golden curve: lows gently cut, highs gently raised.</item>
 ///   <item>Brighter/harsher than the golden curve: highs gently cut, lows gently raised.</item>
 /// </list>
 ///
-/// <para><b>Design constants (tune by ear — all in one place):</b>
+/// <para><b>Design constants (tune by ear - all in one place):</b>
 /// <list type="table">
-///   <item><term>Low measurement band</term><description>LP at 250 Hz (Butterworth Q=1/√2)</description></item>
-///   <item><term>High measurement band</term><description>HP at 3 kHz (Butterworth Q=1/√2)</description></item>
+///   <item><term>Low measurement band</term><description>LP at 250 Hz (Butterworth Q=1/sqrt2)</description></item>
+///   <item><term>High measurement band</term><description>HP at 3 kHz (Butterworth Q=1/sqrt2)</description></item>
 ///   <item><term>Target ratio</term><description>DERIVED from the <see cref="SpectralTarget"/> golden
-///     curve (see <c>ComputeTargetRatioDb</c>) — NOT 0 dB. A pink-sloped master is naturally bass-heavy
+///     curve (see <c>ComputeTargetRatioDb</c>) - NOT 0 dB. A pink-sloped master is naturally bass-heavy
 ///     through these wideband filters, so a 0 dB (equal-power) setpoint would fight that and brighten
 ///     already-bright tracks. Tying the setpoint to the same target the spectral diagram uses keeps them
 ///     consistent.</description></item>
-///   <item><term>RMS envelope τ</term><description>300 ms — adapts to the TRACK's tonal balance,
+///   <item><term>RMS envelope tau</term><description>300 ms - adapts to the TRACK's tonal balance,
 ///     not to transients or kick drums.</description></item>
-///   <item><term>Gain-smoother τ</term><description>200 ms — prevents zipper noise when biquad
+///   <item><term>Gain-smoother tau</term><description>200 ms - prevents zipper noise when biquad
 ///     coefficients are refreshed every <see cref="UpdatePeriod"/> samples.</description></item>
-///   <item><term>Coefficient update period</term><description>256 samples ≈ 5.8 ms @ 44100 Hz.
+///   <item><term>Coefficient update period</term><description>256 samples ~ 5.8 ms @ 44100 Hz.
 ///     The gain smoother ensures the coefficients evolve slowly between updates.</description></item>
 ///   <item><term>Low shelf corner</term><description>300 Hz (RBJ shelf slope S = 1)</description></item>
 ///   <item><term>High shelf corner</term><description>3 kHz (RBJ shelf slope S = 1)</description></item>
-///   <item><term>Per-shelf gain</term><description>±MaxTiltDb/2 — each shelf moves by HALF the
+///   <item><term>Per-shelf gain</term><description>+/-MaxTiltDb/2 - each shelf moves by HALF the
 ///     total tilt so the combined swing equals MaxTiltDb. Very conservative by design.</description></item>
 /// </list>
 /// </para>
 ///
 /// <para><b>Safety (user is harshness-sensitive):</b> Strength is clamped to [0, 1]. At Strength = 0
-/// the method returns immediately — output is bit-transparent, no processing at all. The total tilt
-/// (high shelf − low shelf) is always clamped to ±<see cref="MaxTiltDb"/> dB, and power floors
+/// the method returns immediately - output is bit-transparent, no processing at all. The total tilt
+/// (high shelf - low shelf) is always clamped to +/-<see cref="MaxTiltDb"/> dB, and power floors
 /// prevent log(0) or divide-by-zero on silence.</para>
 ///
 /// <para>Platform-agnostic, reflection-free, allocation-free on the audio path, trim/AOT-safe.</para>
@@ -50,7 +50,7 @@ public sealed class AdaptiveTilt
     public double Strength   { get; }   // clamped to [0, 1]
     public double MaxTiltDb  { get; }
 
-    // ── Design constants — change these to tune by ear ───────────────────────
+    // -- Design constants - change these to tune by ear -----------------------
     private const double LowBandHz     = 250.0;    // measurement LP corner
     private const double HighBandHz    = 3000.0;   // measurement HP corner
     private const double LowShelfHz    = 300.0;    // correction low-shelf corner
@@ -62,34 +62,34 @@ public sealed class AdaptiveTilt
 
     private readonly float  _strength;
     private readonly float  _maxTiltDb;
-    private readonly double _envCoeff;   // exp(-1 / (τ_env * fs))
-    private readonly double _gainCoeff;  // exp(-1 / (τ_gain * fs))
+    private readonly double _envCoeff;   // exp(-1 / (tau_env * fs))
+    private readonly double _gainCoeff;  // exp(-1 / (tau_gain * fs))
 
     // The high/low band power ratio (dB) a track sitting exactly on the SpectralTarget golden curve
-    // produces through the LP/HP measurement filters. AutoTilt aims for THIS ratio — NOT 0 dB.
+    // produces through the LP/HP measurement filters. AutoTilt aims for THIS ratio - NOT 0 dB.
     // See ComputeTargetRatioDb for why 0 dB was wrong (it fought the natural bass-heaviness of a
-    // correctly pink-sloped master and brightened already-bright tracks — verified on Hardstyle 2026-06-16).
+    // correctly pink-sloped master and brightened already-bright tracks - verified on Hardstyle 2026-06-16).
     private readonly double _targetRatioDb;
 
-    // ── Measurement filters: LP (low band) and HP (high band) ────────────────
+    // -- Measurement filters: LP (low band) and HP (high band) ----------------
     // Shared immutable coefficients; independent per-channel state.
     private readonly MeasCoeffs _measLP;
     private readonly MeasCoeffs _measHP;
     private MeasState _measLPL, _measLPR;
     private MeasState _measHPL, _measHPR;
 
-    // ── Stereo-linked running power (max of |L|,|R| per band, squared, smoothed) ──
+    // -- Stereo-linked running power (max of |L|,|R| per band, squared, smoothed) --
     private double _lowPower;
     private double _highPower;
 
-    // ── Smoothed tilt level (dB): the TOTAL tilt; high shelf = +half, low = −half ──
+    // -- Smoothed tilt level (dB): the TOTAL tilt; high shelf = +half, low = -half --
     private double _smoothTiltDb;
 
-    // ── Correction shelves: same coefficients, independent delay state per channel ──
+    // -- Correction shelves: same coefficients, independent delay state per channel --
     private ShelfBiquad _lowShelfL,  _lowShelfR;
     private ShelfBiquad _highShelfL, _highShelfR;
 
-    // ── Block counter for low-rate coefficient updates ────────────────────────
+    // -- Block counter for low-rate coefficient updates ------------------------
     private int _sampleCount;
 
     public AdaptiveTilt(int sampleRate = 44100, double strength = 0.0, double maxTiltDb = 3.0)
@@ -103,10 +103,10 @@ public sealed class AdaptiveTilt
 
         _strength  = (float)Strength;
         _maxTiltDb = (float)maxTiltDb;
-        // _envCoeff is applied every SAMPLE inside the loop → per-sample formula.
+        // _envCoeff is applied every SAMPLE inside the loop -> per-sample formula.
         _envCoeff  = Math.Exp(-1.0 / (EnvelopeTauMs * sampleRate / 1000.0));
-        // _gainCoeff is applied once per UpdatePeriod SAMPLES in UpdateCoeffs → block-rate formula.
-        // Using the per-sample formula here would stretch the effective τ by 256×.
+        // _gainCoeff is applied once per UpdatePeriod SAMPLES in UpdateCoeffs -> block-rate formula.
+        // Using the per-sample formula here would stretch the effective tau by 256x.
         _gainCoeff = Math.Exp(-(double)UpdatePeriod / (GainTauMs * sampleRate / 1000.0));
 
         _measLP = MeasCoeffs.LowPass(sampleRate,  LowBandHz);
@@ -136,11 +136,11 @@ public sealed class AdaptiveTilt
         ApplyShelfGain(0.0);
     }
 
-    /// <summary>Process one block of interleaved-stereo float samples (L,R,L,R,…) in place.
+    /// <summary>Process one block of interleaved-stereo float samples (L,R,L,R,...) in place.
     /// At Strength == 0 returns immediately (bit-transparent, no work done).</summary>
     public void ProcessInterleavedStereo(Span<float> buf)
     {
-        if (_strength == 0f) return;   // ← bit-transparent short-circuit
+        if (_strength == 0f) return;   // <- bit-transparent short-circuit
 
         int frames = buf.Length / 2;
         for (var i = 0; i < frames; i++)
@@ -149,7 +149,7 @@ public sealed class AdaptiveTilt
             float l = buf[idx];
             float r = buf[idx + 1];
 
-            // ── Measurement: run LP/HP to isolate the two bands ──────────────
+            // -- Measurement: run LP/HP to isolate the two bands --------------
             float bandLowL  = _measLP.Process(ref _measLPL, l);
             float bandLowR  = _measLP.Process(ref _measLPR, r);
             float bandHighL = _measHP.Process(ref _measHPL, l);
@@ -163,20 +163,20 @@ public sealed class AdaptiveTilt
             _lowPower  = _envCoeff * _lowPower  + (1.0 - _envCoeff) * (lowSmp  * lowSmp);
             _highPower = _envCoeff * _highPower + (1.0 - _envCoeff) * (highSmp * highSmp);
 
-            // ── Low-rate coefficient refresh ─────────────────────────────────
+            // -- Low-rate coefficient refresh ---------------------------------
             if (++_sampleCount >= UpdatePeriod)
             {
                 _sampleCount = 0;
                 UpdateCoeffs();
             }
 
-            // ── Apply correction shelves (in series: low shelf → high shelf) ──
+            // -- Apply correction shelves (in series: low shelf -> high shelf) --
             buf[idx]     = _highShelfL.Process(_lowShelfL.Process(l));
             buf[idx + 1] = _highShelfR.Process(_lowShelfR.Process(r));
         }
     }
 
-    // ── Target ratio derived from the golden curve ───────────────────────────
+    // -- Target ratio derived from the golden curve ---------------------------
 
     /// <summary>
     /// The high/low band power ratio (dB) that a track sitting exactly on the <see cref="SpectralTarget"/>
@@ -186,7 +186,7 @@ public sealed class AdaptiveTilt
     /// <para>Why not 0 dB: the measurement bands are WIDEBAND (LP captures every octave below its corner,
     /// HP every octave above), and a correctly pink-sloped master integrates to a clearly bass-heavy
     /// wideband ratio. Aiming for 0 dB (equal power) therefore treats normal bass-heaviness as an error
-    /// and lifts the highs — which on bass-forward genres (Hardstyle/Hardcore) pushes an already-bright
+    /// and lifts the highs - which on bass-forward genres (Hardstyle/Hardcore) pushes an already-bright
     /// track even further over the curve. Deriving the setpoint from the same target the rest of the
     /// tooling uses keeps AutoTilt and the spectral diagram consistent by construction.</para>
     /// </summary>
@@ -196,10 +196,10 @@ public sealed class AdaptiveTilt
         const int n = 400;
         for (var i = 0; i < n; i++)
         {
-            // Log-spaced sweep 20 Hz … 20 kHz (equal weight per log step).
+            // Log-spaced sweep 20 Hz ... 20 kHz (equal weight per log step).
             double f = 20.0 * Math.Pow(20000.0 / 20.0, (i + 0.5) / n);
             double targetLin = Math.Pow(10.0, SpectralTarget.DbAt(f) / 10.0);   // target power
-            // 2nd-order Butterworth squared magnitudes: |LP|² = 1/(1+(f/fc)⁴), |HP|² = (f/fc)⁴/(1+(f/fc)⁴).
+            // 2nd-order Butterworth squared magnitudes: |LP|^2 = 1/(1+(f/fc)^4), |HP|^2 = (f/fc)^4/(1+(f/fc)^4).
             double rl = f / lpHz, rh = f / hpHz;
             double rl4 = rl * rl * rl * rl, rh4 = rh * rh * rh * rh;
             lowP  += targetLin * (1.0 / (1.0 + rl4));
@@ -208,7 +208,7 @@ public sealed class AdaptiveTilt
         return 10.0 * Math.Log10(Math.Max(highP, 1e-12) / Math.Max(lowP, 1e-12));
     }
 
-    // ── Coefficient update (called every UpdatePeriod samples) ───────────────
+    // -- Coefficient update (called every UpdatePeriod samples) ---------------
 
     private void UpdateCoeffs()
     {
@@ -216,12 +216,12 @@ public sealed class AdaptiveTilt
         double lowRms  = Math.Sqrt(Math.Max(_lowPower,  PowerFloor));
         double highRms = Math.Sqrt(Math.Max(_highPower, PowerFloor));
 
-        // Measured high/low band power ratio in dB (20·log10 of an RMS ratio == 10·log10 of a power ratio).
+        // Measured high/low band power ratio in dB (20-log10 of an RMS ratio == 10-log10 of a power ratio).
         double imbalanceDb = 20.0 * Math.Log10(highRms / lowRms);
 
         // Error = distance from the GOLDEN-CURVE ratio (not 0 dB). If the track is brighter than the
-        // golden curve (imbalance > target) the error goes negative → highs cut / lows raised. If duller
-        // → highs raised. A track already matching the curve produces ~zero error → no tilt.
+        // golden curve (imbalance > target) the error goes negative -> highs cut / lows raised. If duller
+        // -> highs raised. A track already matching the curve produces ~zero error -> no tilt.
         double errorDb  = _targetRatioDb - imbalanceDb;
         double targetDb = Math.Clamp(errorDb * _strength, -_maxTiltDb, _maxTiltDb);
 
@@ -232,7 +232,7 @@ public sealed class AdaptiveTilt
     }
 
     /// <summary>Recompute and push new shelf coefficients.
-    /// High shelf = +tiltDb/2; low shelf = −tiltDb/2. They move in OPPOSITE directions
+    /// High shelf = +tiltDb/2; low shelf = -tiltDb/2. They move in OPPOSITE directions
     /// so the total spectral swing equals <paramref name="tiltDb"/>.</summary>
     private void ApplyShelfGain(double tiltDb)
     {
@@ -281,7 +281,7 @@ public sealed class AdaptiveTilt
                 (float)(a1 / a0), (float)(a2 / a0));
     }
 
-    // ── Per-channel shelf biquad: updateable coefficients, preserved delay state ──
+    // -- Per-channel shelf biquad: updateable coefficients, preserved delay state --
 
     private struct ShelfBiquad
     {
@@ -303,12 +303,12 @@ public sealed class AdaptiveTilt
         public void Reset() { _x1 = _x2 = _y1 = _y2 = 0f; }
     }
 
-    // ── Butterworth LP/HP measurement filter (Q = 1/√2) ─────────────────────
+    // -- Butterworth LP/HP measurement filter (Q = 1/sqrt2) ---------------------
 
     /// <summary>Per-channel Direct-Form-I biquad delay state.</summary>
     private struct MeasState { public float X1, X2, Y1, Y2; }
 
-    /// <summary>Immutable Butterworth biquad coefficients (Audio EQ Cookbook §6.2).</summary>
+    /// <summary>Immutable Butterworth biquad coefficients (Audio EQ Cookbook Sec.6.2).</summary>
     private readonly struct MeasCoeffs
     {
         private readonly float _b0, _b1, _b2, _a1, _a2;

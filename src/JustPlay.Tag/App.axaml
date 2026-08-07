@@ -5,7 +5,7 @@
              RequestedThemeVariant="Dark">
 
     <!--
-      JUST TAG design system — built on the SHARED J.U.S.T. palette + styles from JustPlay.UI
+      JUST TAG design system - built on the SHARED J.U.S.T. palette + styles from JustPlay.UI
       (merged below), so it's one family with JUST PLAY / STREAM and switches themes LIVE
       (AvaloniaThemeService, registered in Program.cs). Only TAG-specific control styles live here.
     -->
@@ -30,8 +30,8 @@
             <SolidColorBrush x:Key="PillBrush" Color="{DynamicResource AccentB}" Opacity="0.20"/>
 
             <!-- The CAUTION tokens moved into the shared palette (JustPlay.UI/Theming/JustPalette.axaml)
-                 on 2026-08-05, exactly as their original note asked: a second surface — the analysis
-                 traffic light in the file table — needed them, so they stopped being JUST TAG's. -->
+                 on 2026-08-05, exactly as their original note asked: a second surface - the analysis
+                 traffic light in the file table - needed them, so they stopped being JUST TAG's. -->
         </ResourceDictionary>
     </Application.Resources>
 
@@ -40,7 +40,7 @@
         <!-- Shared J.U.S.T. chrome/tab/cursor/text styles (JustPlay.UI). TAG-specific styles layer after. -->
         <theming:JustStyles/>
 
-        <!-- ═══ Type roles ═══ -->
+        <!-- === Type roles === -->
         <Style Selector="TextBlock.brand">
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -59,9 +59,9 @@
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
         </Style>
 
-        <!-- ═══ Caution note — the frosted-card vocabulary (radius 9, hairline edge) in the warm
+        <!-- === Caution note - the frosted-card vocabulary (radius 9, hairline edge) in the warm
              caution tone. Used where a legitimate choice has a consequence worth naming: the ID3
-             version conversion (Settings) and the per-file conversion notice (editor). ═══ -->
+             version conversion (Settings) and the per-file conversion notice (editor). === -->
         <Style Selector="Border.caution">
             <Setter Property="Background" Value="{DynamicResource CautionSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource CautionEdgeBrush}"/>
@@ -87,9 +87,9 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
 
-        <!-- ═══ Small inline pill (DEFAULT badge on the shipped write format). The label styling is
-             set INLINE at the use site, not via a descendant selector — a selector that silently
-             fails to match is exactly the class of bug nobody sees until it ships. ═══ -->
+        <!-- === Small inline pill (DEFAULT badge on the shipped write format). The label styling is
+             set INLINE at the use site, not via a descendant selector - a selector that silently
+             fails to match is exactly the class of bug nobody sees until it ships. === -->
         <Style Selector="Border.pill">
             <Setter Property="Background" Value="{DynamicResource PillBrush}"/>
             <Setter Property="CornerRadius" Value="5"/>
@@ -103,7 +103,7 @@
             <Setter Property="Foreground" Value="{DynamicResource AccentBBrush}"/>
         </Style>
 
-        <!-- ═══ Editable field — themed TextBox (frosted, accent focus; OS red killed) ═══ -->
+        <!-- === Editable field - themed TextBox (frosted, accent focus; OS red killed) === -->
         <Style Selector="TextBox.field">
             <Setter Property="Background" Value="#14FFFFFF"/>
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -122,7 +122,7 @@
             <Setter Property="Background" Value="#14FFFFFF"/>
         </Style>
 
-        <!-- ═══ Primary CTA (Save) — themed gradient pill + glow + hover lift (suite primary) ═══ -->
+        <!-- === Primary CTA (Save) - themed gradient pill + glow + hover lift (suite primary) === -->
         <Style Selector="Button.primary">
             <Setter Property="Background" Value="{StaticResource AccentGradient}"/>
             <Setter Property="Foreground" Value="White"/>
@@ -164,7 +164,7 @@
             <Setter Property="Opacity" Value="0.45"/>
         </Style>
 
-        <!-- ═══ Ghost / secondary button (Open, Change cover, …) ═══ -->
+        <!-- === Ghost / secondary button (Open, Change cover, ...) === -->
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="#0FFFFFFF"/>
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -183,7 +183,7 @@
             <Setter Property="Background" Value="#26FFFFFF"/>
         </Style>
 
-        <!-- Brand-mark button — fully transparent in every state (no hover chrome), per the JUST suite
+        <!-- Brand-mark button - fully transparent in every state (no hover chrome), per the JUST suite
              philosophy (the About opens from the brand mark, top-left). -->
         <Style Selector="Button.brandbtn">
             <Setter Property="Background" Value="Transparent"/>

@@ -7,11 +7,11 @@ public enum KeyMode
 }
 
 /// <summary>
-/// A musical key (one of 24: 12 pitch classes × major/minor).
+/// A musical key (one of 24: 12 pitch classes x major/minor).
 /// Carries both the conventional name (e.g. "A minor") and the
 /// Camelot wheel code (e.g. "8A") that DJs use for harmonic mixing.
 /// </summary>
-/// <param name="PitchClass">0 = C, 1 = C#, … 11 = B.</param>
+/// <param name="PitchClass">0 = C, 1 = C#, ... 11 = B.</param>
 public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
 {
     private static readonly string[] PitchNames =
@@ -36,7 +36,7 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
         }
     }
 
-    /// <summary>Camelot wheel number (1..12) for this key — the hour position, mode-independent.</summary>
+    /// <summary>Camelot wheel number (1..12) for this key - the hour position, mode-independent.</summary>
     public int CamelotNumber
     {
         get
@@ -49,8 +49,8 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
     /// <summary>
     /// True when <paramref name="other"/> is a "safe" harmonic mix with this key under the
     /// Camelot wheel rules DJs use: the same key, its relative major/minor (same number, other
-    /// letter), or an adjacent hour on the wheel in the same mode (±1, wrapping 12↔1). This is
-    /// the standard energy-preserving compatibility set — it does NOT include the larger
+    /// letter), or an adjacent hour on the wheel in the same mode (+/-1, wrapping 12<->1). This is
+    /// the standard energy-preserving compatibility set - it does NOT include the larger
     /// "energy boost"/diagonal moves, deliberately, so callers get a conservative yes/no.
     /// </summary>
     public bool IsHarmonicallyCompatibleWith(MusicalKey other)
@@ -59,16 +59,16 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
         if (Mode == other.Mode)
         {
             var d = System.Math.Abs(n1 - n2);
-            return System.Math.Min(d, 12 - d) <= 1;   // same or ±1 hour, wrapping the wheel
+            return System.Math.Min(d, 12 - d) <= 1;   // same or +/-1 hour, wrapping the wheel
         }
-        return n1 == n2;                        // relative major/minor (e.g. 8A ↔ 8B)
+        return n1 == n2;                        // relative major/minor (e.g. 8A <-> 8B)
     }
 
     public override string ToString() => $"{Name} ({Camelot})";
 
     /// <summary>
-    /// Parse a key string written by another tool — Camelot ("8A", "12B") or musical
-    /// ("Am", "F#m", "Bbm", "C", "A minor", "Abmaj") — into a <see cref="MusicalKey"/>,
+    /// Parse a key string written by another tool - Camelot ("8A", "12B") or musical
+    /// ("Am", "F#m", "Bbm", "C", "A minor", "Abmaj") - into a <see cref="MusicalKey"/>,
     /// or null if it can't be understood. Used to interpret the "claimed" key in a
     /// file's tags (e.g. what Mixed In Key / Rekordbox wrote).
     /// </summary>
@@ -102,8 +102,8 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
         if (pc < 0) return null;
 
         var i = 1;
-        if (i < s.Length && s[i] is '#' or '♯') { pc = (pc + 1) % 12; i++; }
-        else if (i < s.Length && s[i] is 'b' or '♭') { pc = (pc + 11) % 12; i++; }
+        if (i < s.Length && s[i] is '#' or '#') { pc = (pc + 1) % 12; i++; }
+        else if (i < s.Length && s[i] is 'b' or 'b') { pc = (pc + 11) % 12; i++; }
 
         var rest = s[i..].Trim().ToLowerInvariant();
         var mode = rest.Length == 0 || rest.StartsWith("maj") ? KeyMode.Major

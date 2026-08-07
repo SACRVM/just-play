@@ -6,11 +6,11 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="SpectralTarget"/>.
 ///
 /// Coverage:
-///   ST1 — DbAt is monotonically non-increasing above 1 kHz.
-///   ST2 — DbAt is flat (constant) below 120 Hz.
-///   ST3 — All outputs are finite across 20 Hz – 20 kHz.
-///   ST4 — Anchor at 1 kHz = 0 dB.
-///   ST5 — Tolerance band helpers are offset by ±ToleranceDb.
+///   ST1 - DbAt is monotonically non-increasing above 1 kHz.
+///   ST2 - DbAt is flat (constant) below 120 Hz.
+///   ST3 - All outputs are finite across 20 Hz - 20 kHz.
+///   ST4 - Anchor at 1 kHz = 0 dB.
+///   ST5 - Tolerance band helpers are offset by +/-ToleranceDb.
 /// </summary>
 public class SpectralTargetTests
 {
@@ -23,7 +23,7 @@ public class SpectralTargetTests
         {
             double db = SpectralTarget.DbAt(f);
             Assert.True(db <= prev + 0.001,
-                $"DbAt({f}) = {db:F2} should be ≤ DbAt({f/1.1:F0}) = {prev:F2} dB");
+                $"DbAt({f}) = {db:F2} should be <= DbAt({f/1.1:F0}) = {prev:F2} dB");
             prev = db;
         }
     }

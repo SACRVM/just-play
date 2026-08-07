@@ -2,7 +2,7 @@ namespace JustPlay.Core.Models;
 
 /// <summary>
 /// Settings for the PRE CUE FINDER window. Deliberately a SEPARATE record (and a
-/// separate file on disk, <c>finder.settings.json</c>) from <see cref="UserSettings"/> —
+/// separate file on disk, <c>finder.settings.json</c>) from <see cref="UserSettings"/> -
 /// the finder is an add-on and must not water down the main settings. The one shared
 /// value, the cue headphone device, intentionally stays in
 /// <see cref="UserSettings.HeadphoneDeviceName"/> so the finder and the pre-cue tab can
@@ -12,12 +12,12 @@ public sealed record FinderSettings
 {
     /// <summary>
     /// Root folder the finder browses (e.g. <c>\\nas\music\GENRES</c>).
-    /// Null until the user picks one — the finder then shows its setup hint
+    /// Null until the user picks one - the finder then shows its setup hint
     /// instead of a listing.
     /// </summary>
     public string? LibraryRoot { get; init; }
 
-    /// <summary>Seek jump for ←/→ in seconds. One of <see cref="AllowedSeekSteps"/>.</summary>
+    /// <summary>Seek jump for <-/-> in seconds. One of <see cref="AllowedSeekSteps"/>.</summary>
     public int SeekStepSeconds { get; init; } = 30;
 
     /// <summary>The only steps the UI offers (60 was explicitly rejected as too coarse).</summary>
@@ -26,14 +26,14 @@ public sealed record FinderSettings
     /// <summary>
     /// When true, moving the selection (arrow / click) auto-plays the song on the cue device
     /// after the ~1 s debounce; when false (the DEFAULT), browsing is silent and Enter plays the
-    /// selected song. Chloe 2026-07-06: "Return ist der default zum Abspielen … in den Settings
-    /// gibt's aber ein auto play song Schalter — damit macht man alle glücklich."
+    /// selected song. Chloe 2026-07-06: "Return ist der default zum Abspielen ... in den Settings
+    /// gibt's aber ein auto play song Schalter - damit macht man alle gluecklich."
     /// </summary>
     public bool AutoPlayOnSelect { get; init; } = false;
 
     /// <summary>
-    /// ⛔ The opt-in for indexing (0.6). Off by default and it must stay that way: with it off the
-    /// finder behaves exactly as it did in 0.5 — every listing read from disk — and no index file
+    /// (!!) The opt-in for indexing (0.6). Off by default and it must stay that way: with it off the
+    /// finder behaves exactly as it did in 0.5 - every listing read from disk - and no index file
     /// is ever created on this machine.
     ///
     /// <para>On, it means: keep a local index and USE it wherever it is faster. It does not scan by
@@ -45,7 +45,7 @@ public sealed record FinderSettings
     /// Search depth: false = the selected folder only, true = it and everything below it.
     /// Persisted because it is a habit, not a per-visit decision (Chloe 2026-07-30).
     ///
-    /// <para>Searching below the current folder is only possible when the rows come from the index —
+    /// <para>Searching below the current folder is only possible when the rows come from the index -
     /// walking a subtree from disk would mean a tag read per file (~57 ms each, measured over SMB).
     /// So this is disabled, with the reason shown, whenever <see cref="UseLibraryIndex"/> is off or
     /// the index has not been built yet.</para>

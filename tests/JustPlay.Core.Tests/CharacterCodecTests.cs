@@ -96,7 +96,7 @@ public class CharacterCodecTests
     [Fact]
     public void V7Blob_WithCharField_ParsesCleanly_DarkAndHypnoticAreNull()
     {
-        // Hand-crafted v7 blob — has "chr" (now dropped), no dark/hypnot keys.
+        // Hand-crafted v7 blob - has "chr" (now dropped), no dark/hypnot keys.
         const string v7Blob = "{\"v\":7,\"bpm\":128.0,\"kpc\":0,\"kmd\":\"maj\",\"nrg\":7," +
                               "\"lufs\":-9.5,\"rg\":8.5,\"pk\":0.988," +
                               "\"rp_fof\":0.90,\"rp_obe\":0.20,\"rp_swg\":0.10," +
@@ -107,7 +107,7 @@ public class CharacterCodecTests
         var restored = AnalysisStateCodec.TryParse(v7Blob);
 
         Assert.NotNull(restored);
-        // Dark and Hypnotic must be null — they weren't in the v7 blob.
+        // Dark and Hypnotic must be null - they weren't in the v7 blob.
         Assert.Null(restored!.Detected.Dark);
         Assert.Null(restored.Detected.Hypnotic);
         // Other fields must be intact.
@@ -117,11 +117,11 @@ public class CharacterCodecTests
         Assert.Equal(0.71, restored.Detected.BassPunch!.Value, precision: 5);
         Assert.NotNull(restored.Detected.Rhythm);
         Assert.Equal("4x4-driving", restored.Detected.Rhythm!.BeatType);
-        // "chr" was silently ignored — no Character property on AnalysisResult.
+        // "chr" was silently ignored - no Character property on AnalysisResult.
     }
 
     // =========================================================================
-    // 4. v6 blob (no character keys at all) parses cleanly — all vibe fields null
+    // 4. v6 blob (no character keys at all) parses cleanly - all vibe fields null
     // =========================================================================
 
     [Fact]
@@ -192,7 +192,7 @@ public class CharacterCodecTests
     }
 
     // =========================================================================
-    // 7. Blob overhead is reasonable — vibe quartet adds at most ~200 chars
+    // 7. Blob overhead is reasonable - vibe quartet adds at most ~200 chars
     // =========================================================================
 
     [Fact]
@@ -204,9 +204,9 @@ public class CharacterCodecTests
         var blobWithout = AnalysisStateCodec.Serialize(withoutVibe);
         var delta       = blobWith.Length - blobWithout.Length;
 
-        // 7 fields × ~20 chars avg ≈ 140; allow 260 to be generous.
+        // 7 fields x ~20 chars avg ~ 140; allow 260 to be generous.
         Assert.True(delta <= 260,
-            $"Vibe quartet added {delta} chars to blob (expected ≤ 260). " +
+            $"Vibe quartet added {delta} chars to blob (expected <= 260). " +
             $"With: {blobWith.Length}, without: {blobWithout.Length}.");
     }
 
@@ -254,7 +254,7 @@ public class CharacterCodecTests
     [Fact]
     public void V8Blob_WithoutGridConfidenceFields_ParsesAsNull()
     {
-        // Hand-crafted v8 blob — no acf_sh or gc keys.
+        // Hand-crafted v8 blob - no acf_sh or gc keys.
         const string v8Blob = "{\"v\":8,\"bpm\":128.0,\"kpc\":0,\"kmd\":\"maj\",\"nrg\":7," +
                               "\"lufs\":-9.5,\"rg\":8.5,\"pk\":0.988," +
                               "\"rp_fof\":0.90,\"rp_obe\":0.20,\"rp_swg\":0.10," +

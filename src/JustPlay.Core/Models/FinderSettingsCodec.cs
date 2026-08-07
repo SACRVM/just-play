@@ -5,7 +5,7 @@ namespace JustPlay.Core.Models;
 
 /// <summary>
 /// (De)serialises <see cref="FinderSettings"/> for <c>finder.settings.json</c>.
-/// Source-generated (trim/AOT-safe — the repo stays reflection-free; do NOT copy the
+/// Source-generated (trim/AOT-safe - the repo stays reflection-free; do NOT copy the
 /// reflection-based serialisation from <c>JsonSettingsService</c> here). Parsing is
 /// forgiving like the main settings file: absent/corrupt input falls back to
 /// <see cref="FinderSettings.Defaults"/> because losing a preference beats crashing

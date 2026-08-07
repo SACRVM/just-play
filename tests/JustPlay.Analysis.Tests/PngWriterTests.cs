@@ -6,13 +6,13 @@ namespace JustPlay.Analysis.Tests;
 /// Unit tests for <see cref="PngWriter"/>.
 ///
 /// Coverage:
-///   PW1 — Encoded bytes begin with the PNG signature (89 50 4E 47 0D 0A 1A 0A).
-///   PW2 — Encoded output contains the IHDR, IDAT, and IEND chunk type markers.
-///   PW3 — A small non-trivial image encodes to a non-empty buffer whose length is
-///          deterministic (same canvas, same operations → same byte sequence).
-///   PW4 — Clear(), SetPixel(), and DrawText() produce non-trivially different pixel data
+///   PW1 - Encoded bytes begin with the PNG signature (89 50 4E 47 0D 0A 1A 0A).
+///   PW2 - Encoded output contains the IHDR, IDAT, and IEND chunk type markers.
+///   PW3 - A small non-trivial image encodes to a non-empty buffer whose length is
+///          deterministic (same canvas, same operations -> same byte sequence).
+///   PW4 - Clear(), SetPixel(), and DrawText() produce non-trivially different pixel data
 ///          (sanity check that drawing operations actually modify the buffer).
-///   PW5 — Save() writes a valid file that starts with the PNG signature.
+///   PW5 - Save() writes a valid file that starts with the PNG signature.
 /// </summary>
 public class PngWriterTests
 {
@@ -21,7 +21,7 @@ public class PngWriterTests
     private static readonly byte[] IdatMarker   = [0x49, 0x44, 0x41, 0x54]; // "IDAT"
     private static readonly byte[] IendMarker   = [0x49, 0x45, 0x4E, 0x44]; // "IEND"
 
-    // ── PW1: PNG signature ────────────────────────────────────────────────────
+    // -- PW1: PNG signature ----------------------------------------------------
 
     [Fact]
     public void EncodePng_StartsWithPngSignature()
@@ -35,7 +35,7 @@ public class PngWriterTests
             Assert.Equal(PngSignature[i], png[i]);
     }
 
-    // ── PW2: Contains IHDR, IDAT, IEND ───────────────────────────────────────
+    // -- PW2: Contains IHDR, IDAT, IEND ---------------------------------------
 
     [Fact]
     public void EncodePng_ContainsRequiredChunkTypes()
@@ -49,7 +49,7 @@ public class PngWriterTests
         Assert.True(ContainsSequence(png, IendMarker), "PNG must contain IEND chunk type.");
     }
 
-    // ── PW3: Deterministic non-trivial output ─────────────────────────────────
+    // -- PW3: Deterministic non-trivial output ---------------------------------
 
     [Fact]
     public void EncodePng_IsDeterministic()
@@ -63,7 +63,7 @@ public class PngWriterTests
         Assert.True(png1.Length > 100, "Encoded PNG should be non-trivially large.");
     }
 
-    // ── PW4: Drawing operations modify the buffer ─────────────────────────────
+    // -- PW4: Drawing operations modify the buffer -----------------------------
 
     [Fact]
     public void DrawOperations_ModifyCanvas()
@@ -82,7 +82,7 @@ public class PngWriterTests
         Assert.NotEqual(black, drawn);
     }
 
-    // ── PW5: Save() writes a valid PNG file ───────────────────────────────────
+    // -- PW5: Save() writes a valid PNG file -----------------------------------
 
     [Fact]
     public void Save_WritesValidPngFile()
@@ -108,7 +108,7 @@ public class PngWriterTests
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // -- Helpers ---------------------------------------------------------------
 
     private static byte[] BuildTestPng()
     {

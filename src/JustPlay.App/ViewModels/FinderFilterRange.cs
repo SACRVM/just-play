@@ -37,22 +37,22 @@ public sealed partial class FinderFilterRange : ObservableObject
     [ObservableProperty] private double _lower;
     [ObservableProperty] private double _upper;
 
-    /// <summary>Normalised (0..1) per-bucket track count across the domain — the faint distribution the
+    /// <summary>Normalised (0..1) per-bucket track count across the domain - the faint distribution the
     /// slider draws behind its track, so you can drag the handles around where the music actually clusters.</summary>
     [ObservableProperty] private IReadOnlyList<double>? _histogram;
 
-    /// <summary>The field has a usable spread in the current view (else the row is hidden — a single-valued
+    /// <summary>The field has a usable spread in the current view (else the row is hidden - a single-valued
     /// or empty column is nothing to filter).</summary>
     public bool HasSpread => DomainMax - DomainMin > 1e-9;
 
-    /// <summary>A handle has moved off the edge → this range actually constrains the result.</summary>
+    /// <summary>A handle has moved off the edge -> this range actually constrains the result.</summary>
     public bool IsActive => HasSpread && (Lower > DomainMin + 1e-9 || Upper < DomainMax - 1e-9);
 
     public string LowerText => _format(Lower);
     public string UpperText => _format(Upper);
-    public string RangeText => $"{LowerText} – {UpperText}";
+    public string RangeText => $"{LowerText} - {UpperText}";
 
-    /// <summary>The field's value for <paramref name="t"/> (null = not analyzed) — used to auto-scale the
+    /// <summary>The field's value for <paramref name="t"/> (null = not analyzed) - used to auto-scale the
     /// domain across the current view.</summary>
     public double? ValueOf(TrackViewModel t) => _selector(t);
 
@@ -104,7 +104,7 @@ public sealed partial class FinderFilterRange : ObservableObject
     }
 
     /// <summary>Does <paramref name="t"/> pass this range? An inactive range passes everything; an active
-    /// one excludes un-analyzed rows (null value) — you asked for a band, they have no value in it.</summary>
+    /// one excludes un-analyzed rows (null value) - you asked for a band, they have no value in it.</summary>
     public bool Passes(TrackViewModel t)
     {
         if (!IsActive) return true;

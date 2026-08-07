@@ -3,18 +3,18 @@ using System;
 namespace JustPlay.UI.ViewModels;
 
 /// <summary>
-/// How a track table sorts — ONE comparator for every list in the suite (the JUST PLAY queue, the
+/// How a track table sorts - ONE comparator for every list in the suite (the JUST PLAY queue, the
 /// PRE CUE FINDER, JUST TAG). The column ids are <see cref="TrackColumns"/>'s constants, so a column
 /// that exists can be sorted by, everywhere, without a third copy of this switch.
 ///
 /// <para>It was two copies (MainWindowViewModel.ApplySort and PreCueFinderViewModel.SortList) that had
-/// already drifted — the queue read the genre off <c>Model.Metadata</c> while the finder read
+/// already drifted - the queue read the genre off <c>Model.Metadata</c> while the finder read
 /// <c>GenreText</c>. Same result today; the kind of difference that stops being the same result the
 /// moment one of them gains a fallback. Merged here 2026-08-05.</para>
 ///
 /// <para>Text compares naturally ("track2" &lt; "track10"), numbers as nullable numbers so an
 /// un-analysed row sorts as "no value" rather than as zero. The caller owns the direction and the
-/// "unsorted → restore load order" case: this only answers "which of these two comes first".</para>
+/// "unsorted -> restore load order" case: this only answers "which of these two comes first".</para>
 /// </summary>
 public static class TrackSort
 {

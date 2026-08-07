@@ -13,18 +13,18 @@ namespace JustPlay.Core.Abstractions;
 /// configured <see cref="Volume"/> level. The cue/master BLEND knob is a later feature.</para>
 ///
 /// <para><b>v2 (Pre-Cue v2, Phase A):</b> single-song slot, autoplay on <see cref="Load"/>. The
-/// ±30s jump / Add-to-queue / Kick controls live in <c>MainWindowViewModel</c> on top of
-/// <see cref="Position"/>/<see cref="Load"/>/<see cref="Unload"/> — see
-/// <c>JustPlay.Core.Playback.PreCueTransport</c> for the shared, unit-tested ±30s clamp and device
-/// auto-rebind logic. <see cref="Pause"/> was removed in v2 ("es muss schnell gehen" — the TAB has
-/// no pause) and returned for the PRE CUE FINDER (N26 P1.1): there play/pause is a browsing MODE —
+/// +/-30s jump / Add-to-queue / Kick controls live in <c>MainWindowViewModel</c> on top of
+/// <see cref="Position"/>/<see cref="Load"/>/<see cref="Unload"/> - see
+/// <c>JustPlay.Core.Playback.PreCueTransport</c> for the shared, unit-tested +/-30s clamp and device
+/// auto-rebind logic. <see cref="Pause"/> was removed in v2 ("es muss schnell gehen" - the TAB has
+/// no pause) and returned for the PRE CUE FINDER (N26 P1.1): there play/pause is a browsing MODE -
 /// paused browsing is silent, so racing through a list never blasts a sound-sensitive ear.</para>
 ///
-/// <para>When <see cref="OutputDevice"/> is −1 (the default) the engine accepts calls but
-/// produces no audio — Load/Play are silent no-ops until a device is configured.</para>
+/// <para>When <see cref="OutputDevice"/> is -1 (the default) the engine accepts calls but
+/// produces no audio - Load/Play are silent no-ops until a device is configured.</para>
 ///
 /// <para>The implementation (BassPreListenEngine) maintains a separate BASS mixer on the headphone
-/// device with NO BASSenc, NO limiter/EQ/DSP — it is a bare audition player. The structural
+/// device with NO BASSenc, NO limiter/EQ/DSP - it is a bare audition player. The structural
 /// separation (distinct BASS mixer on a distinct BASS device) guarantees the cue path cannot
 /// reach the main engine's output or its encoder DSP.</para>
 /// </summary>
@@ -47,7 +47,7 @@ public interface IPreListenEngine : IDisposable
 
     /// <summary>
     /// BASS device index for headphone output.  Set this before calling <see cref="Load"/>.
-    /// −1 = not configured / disabled (no audio produced).
+    /// -1 = not configured / disabled (no audio produced).
     ///
     /// <para>Setting a new value will:</para>
     /// <list type="bullet">
@@ -65,19 +65,19 @@ public interface IPreListenEngine : IDisposable
     event EventHandler<PlaybackState>? StateChanged;
 
     /// <summary>Raised on BASS's internal thread when the loaded track reaches its natural end.
-    /// v1 behaviour: just stop — no auto-advance. Marshal to UI before touching UI state.</summary>
+    /// v1 behaviour: just stop - no auto-advance. Marshal to UI before touching UI state.</summary>
     event EventHandler? PlaybackEnded;
 
     /// <summary>
     /// Load a file into the cue player and make it ready to play. A previously loaded track is
-    /// released. Silently ignores the call when <see cref="OutputDevice"/> is −1.
+    /// released. Silently ignores the call when <see cref="OutputDevice"/> is -1.
     /// </summary>
     void Load(string filePath);
 
     /// <summary>Start or resume cue playback.</summary>
     void Play();
 
-    /// <summary>Pause cue playback, keeping the position — <see cref="Play"/> resumes.</summary>
+    /// <summary>Pause cue playback, keeping the position - <see cref="Play"/> resumes.</summary>
     void Pause();
 
     /// <summary>Stop cue playback and rewind to the beginning.</summary>
@@ -92,7 +92,7 @@ public interface IPreListenEngine : IDisposable
 
     /// <summary>
     /// Returns all currently enabled audio output devices. Same enumeration as
-    /// <see cref="IAudioEngine.GetOutputDevices"/> — reuses <see cref="AudioOutputDevice"/>.
+    /// <see cref="IAudioEngine.GetOutputDevices"/> - reuses <see cref="AudioOutputDevice"/>.
     /// The list is fresh on each call; do not cache across user interactions.
     /// </summary>
     IReadOnlyList<AudioOutputDevice> GetOutputDevices();

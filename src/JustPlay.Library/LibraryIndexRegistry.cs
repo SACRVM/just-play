@@ -8,23 +8,23 @@ using System.Text.Json.Serialization;
 namespace JustPlay.Library;
 
 /// <summary>
-/// Which folders on THIS MACHINE have a library index — the one question every JUST app has to be able
+/// Which folders on THIS MACHINE have a library index - the one question every JUST app has to be able
 /// to answer the same way.
 ///
 /// <para><b>Why it lives here and not in an app's settings.</b> The root used to be a JUST PLAY finder
 /// preference (<c>finder.settings.json</c>), which was fine while JUST PLAY was the only app with an
 /// index. It is not a preference: it is a fact about this machine, and the index file's own location is
 /// already derived from it (<see cref="LibraryDb.DefaultPathFor"/>). Having JUST TAG read another app's
-/// settings file would be a per-app workaround for a shared fact — the exact divergence the suite rule
+/// settings file would be a per-app workaround for a shared fact - the exact divergence the suite rule
 /// forbids. So the fact moves down into the library layer and every app asks the same function.</para>
 ///
 /// <para><b>The rule for a folder that is not under any registered root:</b> it is UNINDEXED, and the
-/// caller must treat it exactly as it would with no index at all — read from disk. That is not a
+/// caller must treat it exactly as it would with no index at all - read from disk. That is not a
 /// degradation, it is the whole point of JUST TAG: it is the tool you point at a download that no index
 /// has ever seen (Chloe 2026-08-05).</para>
 ///
 /// <para>Registration happens where a root is actually INDEXED (JUST PLAY's index service, the CLI's
-/// analyze command), never on a mere read — so simply browsing can not conjure an index into existence.
+/// analyze command), never on a mere read - so simply browsing can not conjure an index into existence.
 /// A missing, empty or corrupt registry file reads as "nothing is indexed", never as an error: this
 /// answers a question about speed, and nothing here may cost anyone their files.</para>
 /// </summary>
@@ -52,7 +52,7 @@ public static class LibraryIndexRegistry
 
     /// <summary>
     /// Record that <paramref name="root"/> is indexed on this machine. Idempotent, case-insensitive, and
-    /// silent on failure — a read-only profile must not turn "I scanned my library" into an error.
+    /// silent on failure - a read-only profile must not turn "I scanned my library" into an error.
     /// </summary>
     public static void Register(string? root)
     {
@@ -81,12 +81,12 @@ public static class LibraryIndexRegistry
 
     /// <summary>
     /// The registered root that contains <paramref name="folder"/>, or null when none does. The LONGEST
-    /// match wins, so a nested root (…\music and …\music\GENRES) resolves to the more specific index
+    /// match wins, so a nested root (...\music and ...\music\GENRES) resolves to the more specific index
     /// rather than to whichever happened to be registered first.
     /// </summary>
     public static string? RootFor(string? folder) => RootFor(Roots(), folder);
 
-    /// <summary>The same match against a GIVEN set of roots — the pure half, so the containment rules
+    /// <summary>The same match against a GIVEN set of roots - the pure half, so the containment rules
     /// (separator boundary, longest match) are testable without a machine-global file.</summary>
     public static string? RootFor(IEnumerable<string> roots, string? folder)
     {
@@ -104,7 +104,7 @@ public static class LibraryIndexRegistry
     /// The index covering <paramref name="folder"/>, or null when the folder is outside every registered
     /// root or that root's database file does not exist (yet).
     ///
-    /// <para>⚠ It NEVER creates one. <see cref="LibraryDb.Open"/> is <c>ReadWriteCreate</c>, so calling it
+    /// <para>(!) It NEVER creates one. <see cref="LibraryDb.Open"/> is <c>ReadWriteCreate</c>, so calling it
     /// for an unindexed root would leave an empty database behind that then reads as "indexed" forever.
     /// The caller owns the returned instance and must dispose it.</para>
     /// </summary>
@@ -121,13 +121,13 @@ public static class LibraryIndexRegistry
         }
         catch (Exception)
         {
-            // Busy, locked, or on a share that just went away — the caller falls back to reading files,
+            // Busy, locked, or on a share that just went away - the caller falls back to reading files,
             // which is always correct, only slower.
             return null;
         }
     }
 
-    // ── Storage ─────────────────────────────────────────────────────────────────────────────────
+    // -- Storage ---------------------------------------------------------------------------------
 
     private static List<string> Load()
     {
@@ -140,7 +140,7 @@ public static class LibraryIndexRegistry
         }
         catch (Exception)
         {
-            return [];   // unreadable / half-written / hand-edited → "nothing is indexed"
+            return [];   // unreadable / half-written / hand-edited -> "nothing is indexed"
         }
     }
 
@@ -176,7 +176,7 @@ public static class LibraryIndexRegistry
         string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Is <paramref name="folder"/> the root itself or below it? Compares on a separator
-    /// boundary, so <c>…\music2</c> is not treated as being inside <c>…\music</c>.</summary>
+    /// boundary, so <c>...\music2</c> is not treated as being inside <c>...\music</c>.</summary>
     private static bool Contains(string root, string folder) =>
         PathsEqual(root, folder) ||
         folder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
@@ -189,7 +189,7 @@ public sealed class LibraryRegistryFile
     [JsonPropertyName("roots")] public string[] Roots { get; set; } = [];
 }
 
-/// <summary>Source-generated JSON — trim/AOT-safe, per the repo's reflection-free goal.</summary>
+/// <summary>Source-generated JSON - trim/AOT-safe, per the repo's reflection-free goal.</summary>
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(LibraryRegistryFile))]
 internal sealed partial class LibraryRegistryJsonContext : JsonSerializerContext;

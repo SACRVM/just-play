@@ -5,7 +5,7 @@ using Avalonia.Controls;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// Shared J.U.S.T. keyboard-hint bar — the chip+label legend row (Space · Tab · … or C · R) shown at
+/// Shared J.U.S.T. keyboard-hint bar - the chip+label legend row (Space - Tab - ... or C - R) shown at
 /// the bottom of the PRE CUE FINDER and JUST STREAM. One implementation, one look; each host binds its
 /// own <see cref="Hints"/> and controls visibility (e.g. a Settings toggle). Chip styling lives in the
 /// shared Border.kbd / TextBlock.kbdlabel classes (JustStyles).

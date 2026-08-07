@@ -18,7 +18,7 @@ public class PlaylistBundleTests
         var destParent = Directory.CreateTempSubdirectory("jp-bundle-dest").FullName;
         try
         {
-            // Two files with the SAME filename in different folders — would collide without numbering.
+            // Two files with the SAME filename in different folders - would collide without numbering.
             var a = Path.Combine(srcA, "track.mp3"); File.WriteAllText(a, "AAA");
             var b = Path.Combine(srcB, "track.mp3"); File.WriteAllText(b, "BBB");
 
@@ -30,7 +30,7 @@ public class PlaylistBundleTests
             ]);
 
             Assert.Equal(2, n);
-            // Numbered, collision-free, set order preserved — and the bytes are the right file's.
+            // Numbered, collision-free, set order preserved - and the bytes are the right file's.
             Assert.Equal("AAA", File.ReadAllText(Path.Combine(dest, "01 - track.mp3")));
             Assert.Equal("BBB", File.ReadAllText(Path.Combine(dest, "02 - track.mp3")));
 

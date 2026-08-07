@@ -22,7 +22,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace JustPlay.Stream.Views;
 
 /// <summary>
-/// JUST STREAM main window — frameless floating-card shell shared with JUST PLAY via the
+/// JUST STREAM main window - frameless floating-card shell shared with JUST PLAY via the
 /// JustPlay.UI library (caption buttons = the shared <see cref="WindowControls"/>; drag
 /// predicate = the shared <see cref="WindowChrome"/>; custom maximize via
 /// <see cref="IFramelessWindow"/>). See CLAUDE.md "JUST suite UI philosophy".
@@ -34,7 +34,7 @@ public partial class MainWindow : Window, IFramelessWindow
     private SpectrumWindow? _spectrum;
 
     // Compact view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
-    private const double MiniWidth = 750;   // Chloe: 450 too small, 700 still too narrow overall → 750 (2026-07-05)
+    private const double MiniWidth = 750;   // Chloe: 450 too small, 700 still too narrow overall -> 750 (2026-07-05)
     private const double MiniHeight = 350;  // compact, explicit. Budgets the bottom KeyLegend hint bar
                                             // (added 2026-07-06, after 320 was tuned) so it can't clip the
                                             // output meters. Any slack lands as a gap ABOVE the hint bar, not a clip.
@@ -51,10 +51,10 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         InitializeComponent();
 
-        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips
+        // TransparencyLevelHint comes from the XAML ONLY - re-setting it here trips
         // Avalonia's macOS opaque-fallback (black surround); see JustPlay MainWindow ctor.
 
-        // macOS: caption buttons sit LEFT, so the settings gear owns the top-right corner —
+        // macOS: caption buttons sit LEFT, so the settings gear owns the top-right corner -
         // round its hover to the card radius (Button.cap.corner in JustStyles).
         if (System.OperatingSystem.IsMacOS())
             SettingsBtn.Classes.Add("corner");
@@ -62,7 +62,7 @@ public partial class MainWindow : Window, IFramelessWindow
         _meterL = this.FindControl<LevelMeter>("MeterL");
         _meterR = this.FindControl<LevelMeter>("MeterR");
 
-        // In-app keyboard hotkeys (Chloe/Torres 2026-07-06: keyboard-only broadcaster — you're already
+        // In-app keyboard hotkeys (Chloe/Torres 2026-07-06: keyboard-only broadcaster - you're already
         // IN JUST STREAM to go on air, so this saves the reach for the mouse). TUNNEL so a focused
         // button/slider doesn't eat the key; the handler guards against the profile ComboBox's
         // type-ahead. C = on air / off air, R = record / stop (shown in the bottom hint bar).
@@ -113,19 +113,19 @@ public partial class MainWindow : Window, IFramelessWindow
         {
             vm.PropertyChanged += OnViewModelPropertyChanged;
             // Pump meters/lamp/time from the RENDER frame (vsync-synced) instead of a free-running timer
-            // — the timer beat against vsync and juddered the meter on the narrower mini bar.
+            // - the timer beat against vsync and juddered the meter on the narrower mini bar.
             _pumpRunning = true;
             RequestAnimationFrame(OnRenderFrame);
         }
         // Stay sized-to-content (SizeToContent=Height, from XAML) in the full view so the window
-        // AUTO-GROWS/shrinks to fit its content — e.g. when the App-source controls appear (taller)
+        // AUTO-GROWS/shrinks to fit its content - e.g. when the App-source controls appear (taller)
         // or a Device source is chosen (shorter). STREAM's manual resize grips + custom maximize are
         // disabled (CanResize=False), so nothing needs a frozen height; freezing it was exactly what
         // clipped the taller App-mode layout. Mini switches to Manual for its explicit compact size.
     }
 
     // Frame-synced meter pump: re-arms each frame, so updates land exactly on render frames (no
-    // timer-vs-vsync judder). dt drives the ballistics → identical feel at 60 / 120 / 144 Hz.
+    // timer-vs-vsync judder). dt drives the ballistics -> identical feel at 60 / 120 / 144 Hz.
     private void OnRenderFrame(TimeSpan now)
     {
         if (!_pumpRunning) return;
@@ -149,7 +149,7 @@ public partial class MainWindow : Window, IFramelessWindow
         base.OnClosed(e);
     }
 
-    // ── Mini-player view (mirrors JUST PLAY's ApplyViewMode) ─────────────────
+    // -- Mini-player view (mirrors JUST PLAY's ApplyViewMode) -----------------
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(StreamViewModel.IsMini) && sender is StreamViewModel vm)
@@ -162,11 +162,11 @@ public partial class MainWindow : Window, IFramelessWindow
         if (mini)
         {
             _fullPosition = Position;
-            // Mini is the SAME window, ONLY smaller + fewer rows shown. NO behaviour differs — no
+            // Mini is the SAME window, ONLY smaller + fewer rows shown. NO behaviour differs - no
             // topmost, no transparency change. (Chloe: "der einzige Unterschied ist kleiner + es fehlen Dinge".)
             // Switch OFF auto-fit so the explicit compact height sticks (SizeToContent would re-grow it).
             SizeToContent = SizeToContent.Manual;
-            // CRITICAL: the XAML mins (MinWidth=920, MinHeight=420) would CLAMP the mini size back up —
+            // CRITICAL: the XAML mins (MinWidth=920, MinHeight=420) would CLAMP the mini size back up -
             // that's why the mini window looked unchanged. Lower the mins BEFORE setting the size.
             MinWidth = MiniWidth;
             MinHeight = MiniHeight;
@@ -180,26 +180,26 @@ public partial class MainWindow : Window, IFramelessWindow
             MinHeight = 420;
             Width = 980;
             // Back to auto-fit: the window sizes its height to the full-view content again (and keeps
-            // tracking it — so an App-source switch grows/shrinks the window on its own).
+            // tracking it - so an App-source switch grows/shrinks the window on its own).
             SizeToContent = SizeToContent.Height;
             Position = _fullPosition;
         }
         UpdateChromeForState();
     }
 
-    // Drag the window from the chrome bar (but not from interactive controls) — shared predicate.
+    // Drag the window from the chrome bar (but not from interactive controls) - shared predicate.
     private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
-        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        // Drag from empty chrome, DOUBLE-click to maximize/restore - one shared gesture.
         WindowChrome.HandlePress(this, e);
 
-    // ── Custom maximize (borderless window has no OS maximize) ───────────────
+    // -- Custom maximize (borderless window has no OS maximize) ---------------
 
     /// <summary>True while the custom work-area maximize is active (for WindowPlacement).</summary>
     public bool IsMaximized => _maximize.IsMaximized;
 
     public void ToggleMaximize() => _maximize.Toggle();
 
-    // ── Custom edge/corner resize (manual; the borderless window has no OS resize frame) ──
+    // -- Custom edge/corner resize (manual; the borderless window has no OS resize frame) --
     private bool _resizing, _wEdge, _eEdge, _nEdge, _sEdge;
     private PixelPoint _pointerStart, _posStart;
     private double _wStartPx, _hStartPx;
@@ -249,8 +249,8 @@ public partial class MainWindow : Window, IFramelessWindow
         e.Handled = true;
     }
 
-    // ── About ───────────────────────────────────────────────────────────────
-    // Brand mark (top-left) → the SHARED themed About dialog (JustPlay.UI), parameterized with
+    // -- About ---------------------------------------------------------------
+    // Brand mark (top-left) -> the SHARED themed About dialog (JustPlay.UI), parameterized with
     // JUST STREAM's name / tagline / version / Funkturm glyph so it's identical to JUST PLAY's.
     private void OnAbout(object? sender, RoutedEventArgs e)
     {
@@ -265,7 +265,7 @@ public partial class MainWindow : Window, IFramelessWindow
         about.ShowDialog(this);
     }
 
-    // ── Settings ────────────────────────────────────────────────────────────
+    // -- Settings ------------------------------------------------------------
     private void OpenSettings(object? sender, RoutedEventArgs e)
     {
         if (_settings is { } w)
@@ -282,10 +282,10 @@ public partial class MainWindow : Window, IFramelessWindow
         _settings.Show(this);
     }
 
-    // ── Spectrum analyzer ───────────────────────────────────────────────────────
+    // -- Spectrum analyzer -------------------------------------------------------
     // Opens the SHARED spectrum window (JustPlay.UI) over the broadcast bus. The capture engine is
     // an ISpectrumSource (DRY/WET taps + limiter GR), so it plugs in exactly like JUST PLAY's engine.
-    // OUT meter suppressed — STREAM already has its own output meter on the main bar. Single-instance.
+    // OUT meter suppressed - STREAM already has its own output meter on the main bar. Single-instance.
     private void OnSpectrum(object? sender, RoutedEventArgs e)
     {
         if (_spectrum is { } w)
@@ -302,7 +302,7 @@ public partial class MainWindow : Window, IFramelessWindow
         _spectrum.Show(this);
     }
 
-    // ── Event log ─────────────────────────────────────────────────────────────
+    // -- Event log -------------------------------------------------------------
     // The log lives in its own frameless window now (not the main console). Opening it clears the
     // unread marker on the chrome log button.
     private void OnOpenLog(object? sender, RoutedEventArgs e)
@@ -325,7 +325,7 @@ public partial class MainWindow : Window, IFramelessWindow
         vm?.EventLog.MarkRead();
     }
 
-    // ── REC right-click → "Open recordings folder" ──────────────────────────────
+    // -- REC right-click -> "Open recordings folder" ------------------------------
     // Creates the folder if it doesn't exist yet (it's created lazily on first record start,
     // but if you're asking to SEE it, making it is clearly the intent) and opens it in the
     // OS file manager. UseShellExecute so Windows resolves the folder to an Explorer window.
@@ -345,7 +345,7 @@ public partial class MainWindow : Window, IFramelessWindow
         }
     }
 
-    // ── Preset right-click menu (Replace / Rename / Delete) ─────────────────────
+    // -- Preset right-click menu (Replace / Rename / Delete) ---------------------
     // Click handlers, NOT Command bindings: a ContextMenu is a popup OUTSIDE the control's visual tree,
     // so RelativeSource/PlacementTarget command bindings resolve null and the items render disabled.
     // The handler reads the clicked preset from the MenuItem DataContext (falls back to the chip via

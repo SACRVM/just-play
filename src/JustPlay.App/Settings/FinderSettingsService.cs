@@ -10,7 +10,7 @@ namespace JustPlay.App.Settings;
 /// PRE CUE FINDER settings persistence in <c>finder.settings.json</c>, next to the
 /// main <c>settings.json</c> (<c>%LOCALAPPDATA%\JustPlay\</c> on Windows). Same
 /// atomic-write / forgiving-load behaviour as <see cref="JsonSettingsService"/>, but
-/// the JSON goes through the source-generated <see cref="FinderSettingsCodec"/> —
+/// the JSON goes through the source-generated <see cref="FinderSettingsCodec"/> -
 /// no reflection serialisation (trim/AOT-safe).
 /// </summary>
 public sealed class FinderSettingsService : IFinderSettingsService

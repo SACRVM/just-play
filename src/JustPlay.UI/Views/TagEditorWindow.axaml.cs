@@ -12,7 +12,7 @@ using JustPlay.UI.ViewModels;
 namespace JustPlay.UI.Views;
 
 /// <summary>
-/// The floating, always-on-top tag editor — shared by JUST PLAY and the PRE CUE FINDER, and the
+/// The floating, always-on-top tag editor - shared by JUST PLAY and the PRE CUE FINDER, and the
 /// same <see cref="TagEditorPanel"/> body JUST TAG will dock as its sidebar.
 ///
 /// <para><b>It follows the SELECTION, not playback.</b> The host calls
@@ -21,7 +21,7 @@ namespace JustPlay.UI.Views;
 /// typing, triggered by an event the user did not cause.</para>
 ///
 /// <para>When there are unsaved edits and the user answers <see cref="SaveChoice.Cancel"/>, the
-/// editor KEEPS its current file — the list selection has already moved, and that is fine: the file
+/// editor KEEPS its current file - the list selection has already moved, and that is fine: the file
 /// being edited is named in the panel's FILE NAME box, so the two being temporarily out of step is
 /// visible rather than silent. Yanking the list's selection back would be worse.</para>
 /// </summary>
@@ -38,7 +38,7 @@ public partial class TagEditorWindow : Window
     {
         InitializeComponent();
 
-        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips Avalonia's
+        // TransparencyLevelHint comes from the XAML ONLY - re-setting it here trips Avalonia's
         // macOS opaque fallback (black surround). Measured 2026-07-31: Win32 fixes a window's
         // transparency at CREATION, so a later assignment does nothing anyway.
 
@@ -47,7 +47,7 @@ public partial class TagEditorWindow : Window
 
         DataContext = Editor;
         FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!);
-        // ".v2" retires the sizes remembered while the height was hard-coded — those were never a
+        // ".v2" retires the sizes remembered while the height was hard-coded - those were never a
         // choice, they were a wrong default that got persisted, and keeping them would mean the
         // measure-once below never runs on the machines that need it most. From here on, a size in
         // this store IS a choice and is left alone.
@@ -77,7 +77,7 @@ public partial class TagEditorWindow : Window
     /// <summary>
     /// Make the window exactly as tall as the panel wants, once, the first time a file is in it.
     /// <para>The alternative is a hard-coded <c>Height</c>, and that number goes stale the moment a
-    /// field is added — it did, twice in one afternoon (2026-08-05). Letting the layout answer the
+    /// field is added - it did, twice in one afternoon (2026-08-05). Letting the layout answer the
     /// question means it cannot be wrong again.</para>
     /// <para>It runs only when there is NO remembered size: once you have resized the editor
     /// yourself, that is the answer, and re-measuring would throw your choice away on every open.
@@ -98,7 +98,7 @@ public partial class TagEditorWindow : Window
     }
 
     /// <summary>
-    /// Open the editor, or bring the existing one forward — a second instance would give one file
+    /// Open the editor, or bring the existing one forward - a second instance would give one file
     /// two independent sets of unsaved edits. Hosts keep the returned window in a field and clear
     /// that field on <see cref="Window.Closed"/>: a closed Avalonia window cannot be shown again.
     /// Call <see cref="SetTargetAsync"/> afterwards to point it at a file.
@@ -125,7 +125,7 @@ public partial class TagEditorWindow : Window
     }
 
     // TAGS | ANALYSIS. The switch lives in the CHROME here, because in this window the chrome IS the
-    // pane header — the panel stopped drawing its own tab bar so that a docked host (JUST TAG) does
+    // pane header - the panel stopped drawing its own tab bar so that a docked host (JUST TAG) does
     // not end up with two rows of tabs (Chloe 2026-08-05).
     private void OnShowTags(object? sender, RoutedEventArgs e) => Panel.ShowAnalysis = false;
 

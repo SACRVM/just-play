@@ -5,7 +5,7 @@ namespace JustPlay.Core.Models;
 /// Returned by <see cref="Abstractions.IAudioInputEngine.GetInputDevices"/>.
 ///
 /// This is the JUST STREAM counterpart of <see cref="AudioOutputDevice"/>: instead of
-/// where audio leaves the machine, it is where the stream's audio comes FROM — a sound
+/// where audio leaves the machine, it is where the stream's audio comes FROM - a sound
 /// card line-in, a virtual audio cable, or a Windows "Stereo Mix" / loopback device that
 /// captures whatever the DJ software is playing.
 ///

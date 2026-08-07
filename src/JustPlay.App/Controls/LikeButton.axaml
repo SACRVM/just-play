@@ -5,7 +5,7 @@
              x:DataType="vm:MainWindowViewModel">
 
     <!--
-      Shared "like" heart button — used by both views. Binds to the current track's
+      Shared "like" heart button - used by both views. Binds to the current track's
       IsFavorite (POPM tag) and fires ToggleFavoriteCommand to persist the change off
       the UI thread. The heart fills (accent colour) when liked, is outlined when not.
       Disabled when nothing is playing (Current is null).
@@ -15,14 +15,14 @@
             Command="{Binding Current.ToggleFavoriteCommand}"
             IsEnabled="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}">
         <Panel>
-            <!-- Outline heart — always rendered -->
+            <!-- Outline heart - always rendered -->
             <Path Width="16" Height="14" Stretch="None"
                   Fill="Transparent"
                   Stroke="{Binding $parent[Button].Foreground}"
                   StrokeThickness="1.5"
                   StrokeJoin="Round"
                   Data="M 8,13 C 5,10 1,7 1,4 C 1,1 4,0 6,2 L 8,4 L 10,2 C 12,0 15,1 15,4 C 15,7 11,10 8,13 Z"/>
-            <!-- Filled heart — visible only when IsFavorite (pink = AccentBBrush).
+            <!-- Filled heart - visible only when IsFavorite (pink = AccentBBrush).
                  FallbackValue=False: when Current is null (no track loaded) the binding path
                  can't resolve and IsVisible would otherwise fall back to its default (true),
                  showing a stray red heart at startup. Force False in that case. -->

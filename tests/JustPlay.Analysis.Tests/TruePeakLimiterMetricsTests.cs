@@ -27,13 +27,13 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
     }
 
     // -------------------------------------------------------------------------
-    // M1 — THD on a quiet sine (limiter should be transparent)
+    // M1 - THD on a quiet sine (limiter should be transparent)
     // -------------------------------------------------------------------------
 
     [Fact]
     public void M1_THD_QuietSine_Transparent()
     {
-        // Measure THD of a 997 Hz sine at 0.5 amplitude (−6 dBFS, under ceiling).
+        // Measure THD of a 997 Hz sine at 0.5 amplitude (-6 dBFS, under ceiling).
         // Method: compare input peak with output peak in steady state.
         // For a transparent path, the ratio should be ~1.0.
 
@@ -55,17 +55,17 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
         double gainRatio = outPeak / (double)inPeak;
         double gainDb    = 20.0 * Math.Log10(gainRatio);
 
-        output.WriteLine($"[M1] Quiet 997 Hz sine (0.5 amp, −6 dBFS):");
+        output.WriteLine($"[M1] Quiet 997 Hz sine (0.5 amp, -6 dBFS):");
         output.WriteLine($"     Steady-state peak in:  {inPeak:F5}");
         output.WriteLine($"     Steady-state peak out: {outPeak:F5}");
         output.WriteLine($"     Gain ratio:            {gainRatio:F5} ({gainDb:+0.00;-0.00} dB)");
         output.WriteLine($"     Deviation from unity: {Math.Abs(gainDb):F3} dB (expect < 0.1 dB for transparent pass)");
 
-        // Always passes — just a measurement.
+        // Always passes - just a measurement.
     }
 
     // -------------------------------------------------------------------------
-    // M2 — Gain reduction on a +6 dBFS hot sine
+    // M2 - Gain reduction on a +6 dBFS hot sine
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -95,7 +95,7 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
     }
 
     // -------------------------------------------------------------------------
-    // M3 — True-peak vs sample-peak discrepancy on near-Nyquist content
+    // M3 - True-peak vs sample-peak discrepancy on near-Nyquist content
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -119,13 +119,13 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
 
         output.WriteLine($"[M3] Near-Nyquist sine ({freq:F0} Hz, amp {amp}):");
         output.WriteLine($"     Sample peak:  {samplePeak:F5} ({spDb:+0.00;-0.00} dBFS)");
-        output.WriteLine($"     True peak 4×: {truePeak:F5} ({tpDb:+0.00;-0.00} dBTP)");
+        output.WriteLine($"     True peak 4x: {truePeak:F5} ({tpDb:+0.00;-0.00} dBTP)");
         output.WriteLine($"     Discrepancy:  {tpDb - spDb:+0.00;-0.00} dB");
-        output.WriteLine($"     → True peak exceeds sample peak by the above amount (inter-sample overshoot)");
+        output.WriteLine($"     -> True peak exceeds sample peak by the above amount (inter-sample overshoot)");
     }
 
     // -------------------------------------------------------------------------
-    // M4 — Transient preservation: single impulse followed by steady sine
+    // M4 - Transient preservation: single impulse followed by steady sine
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -168,7 +168,7 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
             if (a < holeMin) holeMin = a;
         }
 
-        output.WriteLine($"[M4] Transient preservation (impulse at 50 ms, {impulseAmp}× amplitude):");
+        output.WriteLine($"[M4] Transient preservation (impulse at 50 ms, {impulseAmp}x amplitude):");
         output.WriteLine($"     Limited impulse amplitude: {limitedImpulse:F5} ({impulseDbTp:+0.00;-0.00} dBTP)");
         output.WriteLine($"     Lookahead delay:           {lookaheadSamples} samples ({2.0:F1} ms)");
         output.WriteLine($"     Tail steady-state peak:    {tailPeak:F5} (expected ~{sineAmp:F3})");
@@ -177,7 +177,7 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
     }
 
     // -------------------------------------------------------------------------
-    // M5 — Gain-reduction behaviour over time (snapshot of envelope state)
+    // M5 - Gain-reduction behaviour over time (snapshot of envelope state)
     // -------------------------------------------------------------------------
 
     [Fact]
@@ -194,7 +194,7 @@ public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
         var limiter = new TruePeakLimiter(SampleRate, CeilingDbTp, lookaheadMs: 2.0, attackMs: 0.5, releaseMs: 100.0);
         limiter.ProcessInPlace(proc);
 
-        output.WriteLine($"[M5] Gain reduction envelope (hot sine +6 dBFS → ceiling {CeilingDbTp} dBTP):");
+        output.WriteLine($"[M5] Gain reduction envelope (hot sine +6 dBFS -> ceiling {CeilingDbTp} dBTP):");
         output.WriteLine($"     Time(ms) | OutputTP(dBTP) | GainRedux(dB)");
 
         for (var windowMs = 10; windowMs <= 490; windowMs += 20)

@@ -6,7 +6,7 @@ namespace JustPlay.Tag.ViewModels;
 
 /// <summary>
 /// True when the bound string equals the ConverterParameter (case-insensitive). Used to light the
-/// active theme swatch (CurrentTheme == "Aurora" …), mirroring JUST STREAM's converter.
+/// active theme swatch (CurrentTheme == "Aurora" ...), mirroring JUST STREAM's converter.
 /// </summary>
 public sealed class StringEqualsConverter : IValueConverter
 {

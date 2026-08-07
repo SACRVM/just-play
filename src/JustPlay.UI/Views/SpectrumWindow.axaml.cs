@@ -11,7 +11,7 @@ using JustPlay.UI.Controls;
 namespace JustPlay.UI.Views;
 
 /// <summary>
-/// SHARED live spectrum analyzer window — used by JUST PLAY today, reusable by JUST STREAM and (later)
+/// SHARED live spectrum analyzer window - used by JUST PLAY today, reusable by JUST STREAM and (later)
 /// JUST MASTER. A control panel showing tonal balance BEFORE the DSP bus (DRY) vs AFTER it (WET) against
 /// the golden target curve, the limiter gain-reduction meter, and an L/R output level meter. Non-modal.
 /// Driven by a vsync <c>RequestAnimationFrame</c> pump; polls the thread-safe <see cref="ISpectrumSource"/>
@@ -41,7 +41,7 @@ public partial class SpectrumWindow : Window
     {
         InitializeComponent();
 
-        // TransparencyLevelHint comes from the XAML ONLY — re-setting it here trips
+        // TransparencyLevelHint comes from the XAML ONLY - re-setting it here trips
         // Avalonia's macOS opaque-fallback (black surround); see JustPlay MainWindow ctor.
 
         _source = source;
@@ -51,7 +51,7 @@ public partial class SpectrumWindow : Window
         _meterL = this.FindControl<LevelMeter>("MeterL");
         _meterR = this.FindControl<LevelMeter>("MeterR");
 
-        // Host opted out of the OUT meter — collapse the whole column (its Auto width goes to 0).
+        // Host opted out of the OUT meter - collapse the whole column (its Auto width goes to 0).
         if (!showOutputLevels && this.FindControl<Control>("OutColumn") is { } outCol)
             outCol.IsVisible = false;
 
@@ -114,7 +114,7 @@ public partial class SpectrumWindow : Window
 
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
 
-    // Legend click → show/hide a curve + dim the clicked entry as the off-state cue.
+    // Legend click -> show/hide a curve + dim the clicked entry as the off-state cue.
     private void OnToggleDry(object? sender, RoutedEventArgs e)
     {
         if (_view is null) return;

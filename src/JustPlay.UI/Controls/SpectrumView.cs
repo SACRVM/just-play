@@ -10,9 +10,9 @@ namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// Live tonal-balance analyzer: draws the DRY (pre-bus) and WET (post-bus) spectra of the playing
-/// track against the golden pink-slope target curve, with the mud/fatigue zones shaded — the in-app
+/// track against the golden pink-slope target curve, with the mud/fatigue zones shaded - the in-app
 /// home of the offline <c>spectrum</c> CLI tool (v0.4). Fed each render frame by
-/// <see cref="SetData"/> with per-band POWER from <c>IAudioEngine.GetSpectrum</c> (60 × 1/6-octave
+/// <see cref="SetData"/> with per-band POWER from <c>IAudioEngine.GetSpectrum</c> (60 x 1/6-octave
 /// bands, matching <see cref="SpectralProfile"/>); converts to dB, level-anchors DRY+WET to the same
 /// reference so the bus's effect is visible, and anchors the target to its own mid-band.
 /// </summary>
@@ -21,9 +21,9 @@ public sealed class SpectrumView : Control
     private const int Bands = SpectralProfile.BandCount; // 60
 
     private const double FMin = 20.0, FMax = 20000.0;
-    // +36 dB top: dark techno / club-limited material pushes the sub WAY above the mid anchor — +24
+    // +36 dB top: dark techno / club-limited material pushes the sub WAY above the mid anchor - +24
     // pinned the curve to the ceiling permanently (first field report, JUST STREAM tester 2026-07-04).
-    // −36 floor covers rolled-off air. Grid labels land every 12 dB.
+    // -36 floor covers rolled-off air. Grid labels land every 12 dB.
     private const double DbMin = -36.0, DbMax = 36.0;
     private const double AnchorLo = 200.0, AnchorHi = 2000.0;
 
@@ -32,7 +32,7 @@ public sealed class SpectrumView : Control
     private readonly double[] _wet = new double[Bands];
     private bool _hasData;
 
-    // Curve visibility — toggled by clicking the DRY / WET legend entries.
+    // Curve visibility - toggled by clicking the DRY / WET legend entries.
     private bool _showDry = true, _showWet = true;
     public bool ShowDry { get => _showDry; set { _showDry = value; InvalidateVisual(); } }
     public bool ShowWet { get => _showWet; set { _showWet = value; InvalidateVisual(); } }
@@ -50,7 +50,7 @@ public sealed class SpectrumView : Control
     public void SetData(ReadOnlySpan<float> dry, ReadOnlySpan<float> wet)
     {
         // Temporal EMA toward the new frame. Lower = smoother (the live single-frame FFT is jittery). The
-        // smooth-spline curve below de-jags it visually; this damps the bounce. ~0.33 ≈ ~40 ms at 60 fps —
+        // smooth-spline curve below de-jags it visually; this damps the bounce. ~0.33 ~ ~40 ms at 60 fps -
         // clearly calmer than the snappy 0.6, still tracks the track.
         const double a = 0.33;
         for (int n = 0; n < Bands; n++)
@@ -69,7 +69,7 @@ public sealed class SpectrumView : Control
         var b = Bounds;
         if (b.Width <= 2 || b.Height <= 2) return;
 
-        // ── plot rect (margins for labels) ──
+        // -- plot rect (margins for labels) --
         // mT clears the 36px chrome bar above (the plot GRID + labels sit below it); over-ceiling
         // PEAKS spill above this line, over the SPECTRUM title, up to the window edge (Chloe 2026-07-05).
         double mL = 40, mR = 12, mT = 44, mB = 26;
@@ -82,11 +82,11 @@ public sealed class SpectrumView : Control
         var labelBrush = new SolidColorBrush(Color.FromArgb(0xAA, 0x88, 0x88, 0xA8));
         var face = new Typeface("Inter");
 
-        // ── zone shading (mud warm, fatigue red) ──
+        // -- zone shading (mud warm, fatigue red) --
         FillBand(ctx, pX, pY, pW, pH, SpectralTarget.MudLo, SpectralTarget.MudHi, Color.FromArgb(0x1C, 0xC8, 0x7C, 0x18));
         FillBand(ctx, pX, pY, pW, pH, SpectralTarget.FatigueLo, SpectralTarget.FatigueHi, Color.FromArgb(0x1C, 0xD0, 0x40, 0x30));
 
-        // ── vertical freq grid + labels ──
+        // -- vertical freq grid + labels --
         (double f, string s)[] fg =
         {
             (20, "20"), (50, "50"), (100, "100"), (200, "200"), (500, "500"),
@@ -100,7 +100,7 @@ public sealed class SpectrumView : Control
             ctx.DrawText(ft, new Point(gx - ft.Width / 2, pY2 + 4));
         }
 
-        // ── horizontal dB grid + labels (every 12 dB) ──
+        // -- horizontal dB grid + labels (every 12 dB) --
         for (double db = DbMin; db <= DbMax + 0.1; db += 12.0)
         {
             double gy = DbToY(db, pY, pH);
@@ -110,18 +110,18 @@ public sealed class SpectrumView : Control
             ctx.DrawText(ft, new Point(pX - ft.Width - 5, gy - ft.Height / 2));
         }
 
-        // ── plot border ──
+        // -- plot border --
         ctx.DrawRectangle(null, new Pen(new SolidColorBrush(Color.FromArgb(0x40, 0x3A, 0x3A, 0x48)), 1),
             new Rect(pX, pY, pW, pH));
 
-        // Axis caption: the scale is RELATIVE to each curve's own mid-band (200 Hz–2 kHz = 0 dB), a
-        // tonal-balance view — NOT absolute dBFS. Make that explicit so "+12" isn't read as output level.
+        // Axis caption: the scale is RELATIVE to each curve's own mid-band (200 Hz-2 kHz = 0 dB), a
+        // tonal-balance view - NOT absolute dBFS. Make that explicit so "+12" isn't read as output level.
         var capBrush = new SolidColorBrush(Color.FromArgb(0x99, 0x88, 0x88, 0xA8));
-        var cap = new FormattedText("dB · rel. mid (200 Hz–2 kHz)", CultureInfo.InvariantCulture,
+        var cap = new FormattedText("dB - rel. mid (200 Hz-2 kHz)", CultureInfo.InvariantCulture,
             FlowDirection.LeftToRight, face, 9.0, capBrush);
         ctx.DrawText(cap, new Point(pX + 5, pY + 3));
 
-        // ── target curve (own mid-band anchor) ──
+        // -- target curve (own mid-band anchor) --
         double tgtAnchor = TargetMidMean();
         var targetPen = new Pen(new SolidColorBrush(Color.FromArgb(0x99, 0x80, 0x80, 0x90)), 1.4)
         {
@@ -131,10 +131,10 @@ public sealed class SpectrumView : Control
 
         if (!_hasData) return;
 
-        // Anchor EACH curve to its OWN mid-band (200 Hz–2 kHz) mean — a tonal-balance ("shape") view,
+        // Anchor EACH curve to its OWN mid-band (200 Hz-2 kHz) mean - a tonal-balance ("shape") view,
         // like the spectrum CLI's default. This matters because DRY (our windowed FFT of the pre-bus
         // snapshot) and WET (BASS's post-bus FFT) come from DIFFERENT FFT pipelines with different
-        // absolute scaling: a SHARED anchor pushed WET to a meaningless vertical offset — often off the
+        // absolute scaling: a SHARED anchor pushed WET to a meaningless vertical offset - often off the
         // chart, so it was "only sometimes visible". Self-anchored, the two overlap when the bus is
         // neutral (WET sits ON the DRY line) and separate exactly where the bus reshapes the tone.
         var dryDb = ToDb(_dry);
@@ -143,10 +143,10 @@ public sealed class SpectrumView : Control
         double wetAnchor = MidMean(wetDb);
 
         // Let the over-ceiling peaks spill OVER the top plot border and rise ALL THE WAY to the
-        // window's top edge — painting straight over the SPECTRUM title — clipping ONLY there
-        // (Chloe 2026-07-05: "über den titel bis zum fensterrand malen ... sieht cool aus"). The clip
+        // window's top edge - painting straight over the SPECTRUM title - clipping ONLY there
+        // (Chloe 2026-07-05: "ueber den titel bis zum fensterrand malen ... sieht cool aus"). The clip
         // runs from y=0 (control top = card top) to the plot bottom, so peaks reach the edge and cut
-        // clean, while the freq/dB labels below stay protected. No opacity fade — a hard edge cut.
+        // clean, while the freq/dB labels below stay protected. No opacity fade - a hard edge cut.
         using (ctx.PushClip(new Rect(pX, 0, pW, pY2)))
         {
             if (_showDry && !double.IsNaN(dryAnchor))
@@ -167,7 +167,7 @@ public sealed class SpectrumView : Control
         }
     }
 
-    // ── helpers ──
+    // -- helpers --
 
     private static double[] ToDb(double[] power)
     {
@@ -205,14 +205,14 @@ public sealed class SpectrumView : Control
                 bool valid = db[n] > -100.0; // only the FFT floor breaks the line; over-ceiling peaks draw on
                 double v = db[n] - anchor;
                 if (valid) run.Add(new Point(FToX(Centre[n], pX, pW), DbToY(v, pY, pH)));
-                else { SmoothThrough(c, run); run.Clear(); } // gap (band at floor) → break the line
+                else { SmoothThrough(c, run); run.Clear(); } // gap (band at floor) -> break the line
             }
             SmoothThrough(c, run);
         }
         ctx.DrawGeometry(null, pen, geo);
     }
 
-    /// <summary>Draw a smooth Catmull-Rom curve through the points (emitted as cubic Béziers) so the
+    /// <summary>Draw a smooth Catmull-Rom curve through the points (emitted as cubic Beziers) so the
     /// 60-band live spectrum reads as a flowing line, not angular segments.</summary>
     private static void SmoothThrough(StreamGeometryContext c, List<Point> pts)
     {
@@ -263,8 +263,8 @@ public sealed class SpectrumView : Control
 
     private static double DbToY(double db, double pY, double pH)
     {
-        // NOT clamped — a band hotter than the ceiling maps ABOVE the plot border ("über den Tellerrand").
-        // The curve draw is clipped to a generous rect (Render) so it spills over the TOP edge — lively —
+        // NOT clamped - a band hotter than the ceiling maps ABOVE the plot border ("ueber den Tellerrand").
+        // The curve draw is clipped to a generous rect (Render) so it spills over the TOP edge - lively -
         // without painting over the axis labels or the chrome.
         double t = (DbMax - db) / (DbMax - DbMin);
         return pY + t * pH;

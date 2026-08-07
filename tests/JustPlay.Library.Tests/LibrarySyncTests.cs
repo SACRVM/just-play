@@ -7,7 +7,7 @@ namespace JustPlay.Library.Tests;
 
 /// <summary>
 /// The sync pass. The load-bearing assertion in here is the cheap one: an unchanged library must
-/// cause ZERO file opens — measured 2026-07-30, an open costs ~250× a directory entry.
+/// cause ZERO file opens - measured 2026-07-30, an open costs ~250x a directory entry.
 /// </summary>
 public sealed class LibrarySyncTests : IDisposable
 {
@@ -31,7 +31,7 @@ public sealed class LibrarySyncTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
     }
 
-    // ── Test doubles / helpers ────────────────────────────────────────────────
+    // -- Test doubles / helpers ------------------------------------------------
 
     private sealed class FakeReader : IMetadataReader
     {
@@ -58,7 +58,7 @@ public sealed class LibrarySyncTests : IDisposable
             Detected = new AnalysisResult
             {
                 Bpm = 145.0,
-                Key = new MusicalKey(9, KeyMode.Minor),   // A minor → 8A
+                Key = new MusicalKey(9, KeyMode.Minor),   // A minor -> 8A
                 Energy = 8,
                 GridConfidence = 0.81,
                 Harshness = 0.2,
@@ -84,7 +84,7 @@ public sealed class LibrarySyncTests : IDisposable
         return path;
     }
 
-    // ── The cheap-key promise ─────────────────────────────────────────────────
+    // -- The cheap-key promise -------------------------------------------------
 
     [Fact]
     public void An_unchanged_library_opens_nothing_on_the_second_pass()
@@ -99,7 +99,7 @@ public sealed class LibrarySyncTests : IDisposable
         _tags.Opened.Clear();
         var second = _sync.Reconcile(_root);
 
-        Assert.Empty(_tags.Opened);          // ← the whole point
+        Assert.Empty(_tags.Opened);          // <- the whole point
         Assert.Equal(2, second.Unchanged);
         Assert.Equal(0, second.Opened);
     }
@@ -120,7 +120,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal(0, report.Unchanged);
     }
 
-    // ── Import instead of DSP ─────────────────────────────────────────────────
+    // -- Import instead of DSP -------------------------------------------------
 
     [Fact]
     public void A_stored_blob_becomes_a_full_entry_without_any_analysis()
@@ -139,7 +139,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal("8A", entry.KeyCamelot);
         Assert.Equal(8, entry.Energy);
         Assert.Equal(0.81, entry.GridConfidence);
-        // The blob's own version becomes the entry's detection version — that field finally means
+        // The blob's own version becomes the entry's detection version - that field finally means
         // something (the CLI's legacy constant is 1 regardless of what actually ran).
         Assert.Equal(TrackAnalysisState.CurrentVersion, entry.DetectionVersion);
     }
@@ -200,7 +200,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.NotNull(_db.TryGet(ok));
     }
 
-    // ── Never leave a song behind ─────────────────────────────────────────────
+    // -- Never leave a song behind ---------------------------------------------
 
     [Fact]
     public void A_vanished_file_is_flagged_not_deleted()
@@ -233,7 +233,7 @@ public sealed class LibrarySyncTests : IDisposable
         File.Delete(path);
         Assert.Equal(1, _sync.Reconcile(_root).MarkedMissing);
 
-        // Same bytes, same timestamp — e.g. the share was simply offline for a while.
+        // Same bytes, same timestamp - e.g. the share was simply offline for a while.
         File.WriteAllBytes(path, bytes);
         File.SetLastWriteTimeUtc(path, modified);
         Assert.Equal(size, new FileInfo(path).Length);
@@ -246,7 +246,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Single(_db.Query(new LibraryQuery()));
     }
 
-    // ── What is not library content ───────────────────────────────────────────
+    // -- What is not library content -------------------------------------------
 
     [Fact]
     public void Recycle_bins_and_dot_folders_are_not_the_library()
@@ -262,7 +262,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal(1, report.ImportedFromTags);
     }
 
-    // ── The per-folder check behind a painted listing ─────────────────────────
+    // -- The per-folder check behind a painted listing -------------------------
 
     [Fact]
     public void An_unchanged_folder_costs_one_fingerprint_and_no_reads()
@@ -279,7 +279,7 @@ public sealed class LibrarySyncTests : IDisposable
         var second = _sync.VerifyFolder(folder);
 
         Assert.False(second.Changed);
-        Assert.Empty(_tags.Opened);                  // the fingerprint matched — nothing was opened
+        Assert.Empty(_tags.Opened);                  // the fingerprint matched - nothing was opened
     }
 
     [Fact]
@@ -318,8 +318,8 @@ public sealed class LibrarySyncTests : IDisposable
     [Fact]
     public void A_RETAGGED_file_moves_the_fingerprint_although_the_count_is_identical()
     {
-        // ⭐ The case the whole design turns on. A retag changes the FILE's mtime while the folder's
-        // own timestamp does not move — measured on the real library, GENRES\Bass_House held a file
+        // (*) The case the whole design turns on. A retag changes the FILE's mtime while the folder's
+        // own timestamp does not move - measured on the real library, GENRES\Bass_House held a file
         // modified 07-29 while the directory still read 07-17. Watching the newest FILE mtime (what
         // Chloe actually proposed) catches it; watching the folder would not.
         var folder = Path.Combine(_root, "GENRES");
@@ -327,7 +327,7 @@ public sealed class LibrarySyncTests : IDisposable
         _sync.VerifyFolder(folder);
         _tags.Opened.Clear();
 
-        // Same file, same folder, same count — only its contents and timestamp changed.
+        // Same file, same folder, same count - only its contents and timestamp changed.
         File.WriteAllText(path, "audio, retagged elsewhere");
         File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(5));
         _tags.ByPath[path] = _tags.ByPath[path] with { Title = "Corrected Title" };
@@ -365,8 +365,8 @@ public sealed class LibrarySyncTests : IDisposable
         // round to 2 s). A file edited within that window of the folder's previously-newest one
         // therefore does not move it, and the check early-outs.
         //
-        // Harmless in practice — a retag happens minutes or days after the folder last changed, and
-        // the first look at a folder always does the full pass — but it is a real property of the
+        // Harmless in practice - a retag happens minutes or days after the folder last changed, and
+        // the first look at a folder always does the full pass - but it is a real property of the
         // design, not an accident, so it is pinned here rather than discovered later.
         var folder = Path.Combine(_root, "GENRES");
         var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
@@ -385,7 +385,7 @@ public sealed class LibrarySyncTests : IDisposable
 
         Assert.False(result.Changed);
         Assert.Empty(_tags.Opened);
-        // …and an explicit Refresh (or any later change in the folder) still repairs it.
+        // ...and an explicit Refresh (or any later change in the folder) still repairs it.
         File.SetLastWriteTimeUtc(b, now.AddMinutes(5));
         Assert.True(_sync.VerifyFolder(folder).Changed);
     }
@@ -403,7 +403,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Null(_db.TryGet(Path.Combine(_root, "GENRES", "Sub", "below.mp3")));
     }
 
-    // ── Checking an explicit list of tracks (what Refresh on a playlist does) ─
+    // -- Checking an explicit list of tracks (what Refresh on a playlist does) -
 
     [Fact]
     public void VerifyTracks_leaves_a_matching_list_alone()
@@ -444,7 +444,7 @@ public sealed class LibrarySyncTests : IDisposable
         _sync.VerifyTracks([a]);
 
         File.Delete(a);
-        // A playlist may point anywhere — an unknown, unreachable path is not our business.
+        // A playlist may point anywhere - an unknown, unreachable path is not our business.
         var stranger = Path.Combine(_root, "not-a-real", "elsewhere.mp3");
 
         var result = _sync.VerifyTracks([a, stranger]);
@@ -454,7 +454,7 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Null(_db.TryGet(stranger));   // never indexed, nothing invented
     }
 
-    // ── Staleness is a separate question from the filesystem ──────────────────
+    // -- Staleness is a separate question from the filesystem ------------------
 
     [Fact]
     public void FindStale_surfaces_what_a_rule_rejects_without_touching_the_disk()

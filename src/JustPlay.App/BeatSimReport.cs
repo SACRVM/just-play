@@ -10,13 +10,13 @@ using Microsoft.Extensions.DependencyInjection;
 namespace JustPlay.App;
 
 /// <summary>
-/// Headless beat-similarity matrix harness — invoked via <c>--beat-sim &lt;folder&gt;</c>.
+/// Headless beat-similarity matrix harness - invoked via <c>--beat-sim &lt;folder&gt;</c>.
 ///
 /// <para>For each audio file in the folder:</para>
 /// <list type="number">
 ///   <item>Decodes mono at 11 025 Hz (same path as BPM corrector and energy detector).</item>
 ///   <item>Extracts a <see cref="BeatFingerprint"/> (Scale Transform + Cyclic Tempogram + DFA).</item>
-///   <item>Builds the N×N pairwise cosine similarity matrix (Scale Transform primary).</item>
+///   <item>Builds the NxN pairwise cosine similarity matrix (Scale Transform primary).</item>
 ///   <item>Prints: per-track nearest neighbours, highest-similarity pairs, lowest-similarity pairs.</item>
 /// </list>
 ///
@@ -25,8 +25,8 @@ namespace JustPlay.App;
 ///
 /// <para>This is the P1 data-collection tool for the mix-compatibility north star.
 /// The output (which pairs score high/low) feeds into daytime weight-tuning with Chloe's ear.
-/// Do NOT add weight blending here — that's out of scope for N8.
-/// [northstar-harmonic-sort.md §P1; rhythm-similarity.md §Concrete recommendation]</para>
+/// Do NOT add weight blending here - that's out of scope for N8.
+/// [northstar-harmonic-sort.md Sec.P1; rhythm-similarity.md Sec.Concrete recommendation]</para>
 /// </summary>
 internal static class BeatSimReport
 {
@@ -50,7 +50,7 @@ internal static class BeatSimReport
             return;
         }
 
-        // BASS no-sound init — required for the BassAudioDecoder.
+        // BASS no-sound init - required for the BassAudioDecoder.
         if (!ManagedBass.Bass.Init(0))
         {
             var err = ManagedBass.Bass.LastError;
@@ -91,7 +91,7 @@ internal static class BeatSimReport
         Console.WriteLine($"Files  : {files.Length}");
         Console.WriteLine($"Method : Scale Transform (Holzapfel & Stylianou TASLP 2011 /");
         Console.WriteLine($"         Panteli & Dixon ISMIR 2016) + Cyclic Tempogram");
-        Console.WriteLine($"         (Grosche, Müller & Kurth ICASSP 2010) +");
+        Console.WriteLine($"         (Grosche, Mueller & Kurth ICASSP 2010) +");
         Console.WriteLine($"         DFA Danceability (Streich & Herrera AES 2005).");
         Console.WriteLine($"         See rhythm-similarity.md for method rationale.");
         Console.WriteLine();
@@ -104,7 +104,7 @@ internal static class BeatSimReport
         for (var i = 0; i < files.Length; i++)
         {
             var name = Path.GetFileName(files[i]);
-            var shortName = name.Length > 50 ? name[..49] + "…" : name;
+            var shortName = name.Length > 50 ? name[..49] + "..." : name;
             Console.Write($"  [{i + 1,3}/{files.Length}] {shortName,-51}  ");
 
             BeatFingerprint? fp = null;
@@ -128,7 +128,7 @@ internal static class BeatSimReport
 
         Console.WriteLine();
 
-        // ---- 2. Build N×N similarity matrix ----
+        // ---- 2. Build NxN similarity matrix ----
         // Only compute the upper triangle; similarity is symmetric.
         var n = files.Length;
         var validIdx = Enumerable.Range(0, n)
@@ -141,7 +141,7 @@ internal static class BeatSimReport
             return;
         }
 
-        Console.WriteLine($"--- Pairwise cosine similarity matrix ({validIdx.Length}×{validIdx.Length}) ---");
+        Console.WriteLine($"--- Pairwise cosine similarity matrix ({validIdx.Length}x{validIdx.Length}) ---");
         Console.WriteLine("(Only upper triangle shown; ST = Scale Transform primary)");
         Console.WriteLine();
 
@@ -224,7 +224,7 @@ internal static class BeatSimReport
     }
 
     private static string Shorten(string s, int max) =>
-        s.Length > max ? s[..(max - 1)] + "…" : s;
+        s.Length > max ? s[..(max - 1)] + "..." : s;
 
     private static double StdDev(double[] xs)
     {

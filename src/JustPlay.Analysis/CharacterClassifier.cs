@@ -10,35 +10,35 @@ namespace JustPlay.Analysis;
 /// The previous discrete four-way label (punchy/groovy/noisy/dreamy) was replaced by four
 /// independent continuous axes that the DJ uses for mix-compatibility and set-building:
 /// <list type="bullet">
-///   <item><b>punch</b> = BassPunch (already built — see below).</item>
-///   <item><b>groove</b> = BassGroove (already built — see below).</item>
-///   <item><b>dark</b> = 1 − normalizedBrightness. Low HF/centroid → dark→1; bright → dark→0.</item>
-///   <item><b>hypnotic</b> = 1 − normalizedCentroidVariance. Minimal/looping → 1; evolving → 0.</item>
+///   <item><b>punch</b> = BassPunch (already built - see below).</item>
+///   <item><b>groove</b> = BassGroove (already built - see below).</item>
+///   <item><b>dark</b> = 1 - normalizedBrightness. Low HF/centroid -> dark->1; bright -> dark->0.</item>
+///   <item><b>hypnotic</b> = 1 - normalizedCentroidVariance. Minimal/looping -> 1; evolving -> 0.</item>
 /// </list>
-/// "noisy" (Harshness) is kept SEPARATE from the quartet — it is a quality/fatigue flag,
+/// "noisy" (Harshness) is kept SEPARATE from the quartet - it is a quality/fatigue flag,
 /// not a mix-character axis. "dreamy" was retired; low-energy tracks are now identified
 /// directly by <see cref="AnalysisResult.RawEnergyScore"/>.
 /// </para>
 ///
 /// <para><b>Features computed here (all from the same 512-sample FFT pass, no extra decode):</b></para>
 /// <list type="bullet">
-///   <item><b>SpectralFlatness</b> — geometric-mean / arithmetic-mean of the magnitude
+///   <item><b>SpectralFlatness</b> - geometric-mean / arithmetic-mean of the magnitude
 ///     spectrum per frame, averaged. 0 = tonal, 1 = noise-like/saturated.
 ///     The primary "noisy" signal.</item>
-///   <item><b>Harshness</b> (noisy fatigue flag) — blends flatness + crest factor + HF-energy ratio.
-///     Crest = peakDb − integratedLufs (BOTH already computed — reused here, no extra pass).</item>
-///   <item><b>Dark</b> — 1 − normalizedBrightness, where brightness = spectral centroid of each
+///   <item><b>Harshness</b> (noisy fatigue flag) - blends flatness + crest factor + HF-energy ratio.
+///     Crest = peakDb - integratedLufs (BOTH already computed - reused here, no extra pass).</item>
+///   <item><b>Dark</b> - 1 - normalizedBrightness, where brightness = spectral centroid of each
 ///     frame, averaged, normalised to [CentroidLo=300 Hz, CentroidHi=3000 Hz].
 ///     Reuses the per-frame centroid already computed in the flatness/HF pass.</item>
-///   <item><b>Hypnotic</b> — 1 − normalizedCentroidCV. The temporal coefficient of variation
+///   <item><b>Hypnotic</b> - 1 - normalizedCentroidCV. The temporal coefficient of variation
 ///     (CV = std_dev/mean) of per-frame spectral centroid, normalised by CentroidCvHi = 0.5.
-///     CV near 0 → same spectrum every frame → repetitive/looping → Hypnotic≈1.
-///     CV ≥ 0.5 → centroid varies widely relative to its mean → evolving → Hypnotic≈0.
-///     Reuses the centroid values already computed in the same pass — zero extra FFT cost.</item>
-///   <item><b>BassPunch</b> — transient sharpness / attack steepness of low-band onsets.
+///     CV near 0 -> same spectrum every frame -> repetitive/looping -> Hypnotic~1.
+///     CV >= 0.5 -> centroid varies widely relative to its mean -> evolving -> Hypnotic~0.
+///     Reuses the centroid values already computed in the same pass - zero extra FFT cost.</item>
+///   <item><b>BassPunch</b> - transient sharpness / attack steepness of low-band onsets.
 ///     Computed from the low-band onset envelope built here (separate low-band FFT pass,
 ///     reusing the same 11 kHz buffer).</item>
-///   <item><b>BassGroove</b> — swing / syncopation derived from existing
+///   <item><b>BassGroove</b> - swing / syncopation derived from existing
 ///     <see cref="RhythmPattern"/> fields so no second onset pass is needed.</item>
 /// </list>
 ///
@@ -49,7 +49,7 @@ namespace JustPlay.Analysis;
 /// </para>
 ///
 /// <para>Platform-agnostic: no Avalonia, no ManagedBass, reflection-free, trim-/AOT-safe.
-/// No new NuGet packages — reuses Fft.cs already in this project.</para>
+/// No new NuGet packages - reuses Fft.cs already in this project.</para>
 /// </summary>
 public static class CharacterClassifier
 {
@@ -76,18 +76,18 @@ public static class CharacterClassifier
     // Hypnotic: uses the COEFFICIENT OF VARIATION (CV = std_dev / mean_centroid) rather than
     // absolute std_dev. This self-normalises to the track's own tonal centre so a dark minimal
     // loop (mean centroid ~600 Hz, std_dev ~30 Hz, CV ~0.05) and a bright hypnotic loop (mean
-    // centroid ~2000 Hz, std_dev ~100 Hz, CV ~0.05) both score equally high — the timbral
+    // centroid ~2000 Hz, std_dev ~100 Hz, CV ~0.05) both score equally high - the timbral
     // stability is what matters, not the absolute spectral position.
     //
     // Bug fixed (2026-06-10): the old calibration used CentroidStdDevHi = 450 Hz, but real
-    // EDM tracks can easily have centroid std-dev of 800–2000 Hz across dynamic sections
-    // (breakdown → peak → breakdown), saturating the normaliser to 1 → Hypnotic = 0 for
+    // EDM tracks can easily have centroid std-dev of 800-2000 Hz across dynamic sections
+    // (breakdown -> peak -> breakdown), saturating the normaliser to 1 -> Hypnotic = 0 for
     // ALL tracks. The CV is invariant to the mean and scales naturally: a full 4-minute club
-    // track with 50% dynamic range sweeps from ~600 Hz to ~2400 Hz, giving CV ≈ 0.4–0.5.
+    // track with 50% dynamic range sweeps from ~600 Hz to ~2400 Hz, giving CV ~ 0.4-0.5.
     // A minimal looping track keeps CV < 0.05.
     //
     // CentroidCvHi = 0.5: CV at or above this maps to Hypnotic = 0 (fully evolving).
-        // ── Hypnotic = 1 − normalizedCentroidCV (coefficient of variation) ──────────────
+        // -- Hypnotic = 1 - normalizedCentroidCV (coefficient of variation) --------------
     private const double CentroidCvHi = 0.5;
 
     // =========================================================================
@@ -97,10 +97,10 @@ public static class CharacterClassifier
     private const int OnsetFrameSize = 512;
     private const int OnsetHopSize   = OnsetFrameSize / 4;  // 128 samples @ 11025 Hz
     // Low-band ceiling (same as RhythmPatternDetector.LowBandMaxBin).
-    // At 11025 Hz: bin spacing = 11025/512 ≈ 21.5 Hz → bin 11 ≈ 237 Hz (kick body).
+    // At 11025 Hz: bin spacing = 11025/512 ~ 21.5 Hz -> bin 11 ~ 237 Hz (kick body).
     private const int LowBandMaxBin = 11;
-    // HF band for harshness ratio: above 3500 Hz → bin 163+
-    // At 11025 Hz: 3500 Hz / (11025/512) ≈ bin 162
+    // HF band for harshness ratio: above 3500 Hz -> bin 163+
+    // At 11025 Hz: 3500 Hz / (11025/512) ~ bin 162
     private const int HfBandMinBin  = 163;
     // Minimum frames for analysis.
     private const int MinFrames     = 32;
@@ -113,14 +113,14 @@ public static class CharacterClassifier
     /// Compute all vibe-quartet scalars (punch, groove, dark, hypnotic) plus the noisy
     /// fatigue flag (harshness) and supporting spectral features (flatness).
     ///
-    /// <para><b>Dark computation:</b> 1 − normalizedBrightness where brightness = mean spectral
+    /// <para><b>Dark computation:</b> 1 - normalizedBrightness where brightness = mean spectral
     /// centroid normalised over [300 Hz, 3000 Hz]. Reuses centroids from the same flatness pass
-    /// — no extra FFT.</para>
+    /// - no extra FFT.</para>
     ///
-    /// <para><b>Hypnotic computation:</b> 1 − normalizedCentroidCV where CV = std_dev/mean_centroid.
+    /// <para><b>Hypnotic computation:</b> 1 - normalizedCentroidCV where CV = std_dev/mean_centroid.
     /// Using the coefficient of variation removes the absolute-Hz dependency: dark minimal loops
-    /// and bright minimal loops are equally hypnotic. CV near 0 → looping → Hypnotic≈1.
-    /// CV ≥ 0.5 → evolving → Hypnotic≈0. Reuses per-frame centroids from Dark → no extra FFT pass.</para>
+    /// and bright minimal loops are equally hypnotic. CV near 0 -> looping -> Hypnotic~1.
+    /// CV >= 0.5 -> evolving -> Hypnotic~0. Reuses per-frame centroids from Dark -> no extra FFT pass.</para>
     ///
     /// Returns null when audio is too short, or loudness/peak are missing.
     /// </summary>
@@ -145,35 +145,35 @@ public static class CharacterClassifier
         if (samples is null || samples.Length < OnsetFrameSize * 4 || sampleRate <= 0)
             return null;
 
-        // ── Spectral flatness, HF ratio, centroid (mean + std-dev) — one FFT pass ──
+        // -- Spectral flatness, HF ratio, centroid (mean + std-dev) - one FFT pass --
         var (flatness, hfRatio, meanCentroid, centroidStdDev) =
             ComputeSpectralFeaturesAndCentroid(samples, sampleRate, ct);
 
-        // ── Crest factor: peak_dBFS − integrated_LUFS ─────────────────────────
+        // -- Crest factor: peak_dBFS - integrated_LUFS -------------------------
         var peakDbFs = peak > 0.0 ? 20.0 * Math.Log10(peak) : -96.0;
         var rawCrest  = peakDbFs - integratedLufs;
         var nCrest    = Norm(rawCrest, CrestLo, CrestHi);
 
-        // ── Harshness (noisy fatigue flag) = flatness + (1-crest) + hfRatio ───
+        // -- Harshness (noisy fatigue flag) = flatness + (1-crest) + hfRatio ---
         var harshness = HarshWFlat * flatness + HarshWCrest * (1.0 - nCrest) + HarshWHf * hfRatio;
         harshness = Math.Clamp(harshness, 0.0, 1.0);
 
-        // ── Dark = 1 − normalizedBrightness ──────────────────────────────────
+        // -- Dark = 1 - normalizedBrightness ----------------------------------
         // meanCentroid is in Hz; normalise over [CentroidLo, CentroidHi].
-        // dark=1 → dark/dull (low centroid/HF); dark=0 → bright (high centroid/HF).
+        // dark=1 -> dark/dull (low centroid/HF); dark=0 -> bright (high centroid/HF).
         var nBright = Norm(meanCentroid, CentroidLo, CentroidHi);
         var dark = Math.Clamp(1.0 - nBright, 0.0, 1.0);
 
-        // ── Hypnotic = 1 − normalizedCentroidStdDev ──────────────────────────
+        // -- Hypnotic = 1 - normalizedCentroidStdDev --------------------------
         // centroidStdDev in Hz; compute CV = std_dev/mean and normalise by CentroidCvHi (0.5).
         // Coefficient of variation (CV = std_dev / mean_centroid): self-normalises to the
-        // track's own tonal centre. CV ≈ 0 → same spectrum every frame → looping/minimal.
-        // CV ≥ CentroidCvHi (0.5) → centroid varies widely relative to mean → evolving → Hypnotic≈0.
+        // track's own tonal centre. CV ~ 0 -> same spectrum every frame -> looping/minimal.
+        // CV >= CentroidCvHi (0.5) -> centroid varies widely relative to mean -> evolving -> Hypnotic~0.
         var cv = meanCentroid > 1.0 ? centroidStdDev / meanCentroid : 0.0;
         var nCv = Norm(cv, 0.0, CentroidCvHi);
         var hypnotic = Math.Clamp(1.0 - nCv, 0.0, 1.0);
 
-        // ── BassPunch: transient sharpness of low-band onsets ─────────────────
+        // -- BassPunch: transient sharpness of low-band onsets -----------------
         var bpm_ = bpm ?? 0.0;
         var beatPeriodFrames = bpm_ > 0.0
             ? sampleRate / (double)OnsetHopSize * (60.0 / bpm_)
@@ -187,10 +187,10 @@ public static class CharacterClassifier
                 bassPunch = ComputeBassPunch(lowEnv, beatPeriodFrames);
         }
 
-        // ── BassGroove: derived from existing RhythmPattern low-band fields ───
+        // -- BassGroove: derived from existing RhythmPattern low-band fields ---
         // BassGroove = how off-grid the LOW-BAND events are.
         // We use Syncopation (off-grid energy) and the Swing measure from the full-band
-        // RhythmPattern as a proxy — the low-band groove is not separately re-detected
+        // RhythmPattern as a proxy - the low-band groove is not separately re-detected
         // to avoid a second onset pass. If rhythm is null, default to 0.
         //
         // Note on ~14% kick-failure cases: when FourOnFloor is very low (beat grid was
@@ -228,22 +228,22 @@ public static class CharacterClassifier
 
     /// <summary>
     /// Composite beat-grid confidence score [0, 1] using the recipe from
-    /// <c>references/beatgrid-confidence.md §3.2</c>.
+    /// <c>references/beatgrid-confidence.md Sec.3.2</c>.
     ///
     /// <para>Formula:
     /// <code>
-    /// GridConfidence = 0.40 × FourOnFloor
-    ///                + 0.25 × AcfSharpness
-    ///                + 0.20 × (1 − HalfTimeFeel)
-    ///                + 0.15 × (1 − min(Syncopation × 2, 1))
+    /// GridConfidence = 0.40 x FourOnFloor
+    ///                + 0.25 x AcfSharpness
+    ///                + 0.20 x (1 - HalfTimeFeel)
+    ///                + 0.15 x (1 - min(Syncopation x 2, 1))
     /// </code>
     /// All inputs are in [0, 1]. Weights are first-guess; calibrate from real-gig outcomes
     /// once <c>justplay stats --index</c> shows the distribution on the full library.</para>
     ///
-    /// <para>Flag thresholds (for display / sequencer — computation only, no flag here):
-    /// ⚠ GRID_SOFT_WARN = 0.45; GRID_HARD_FAIL = 0.25.</para>
+    /// <para>Flag thresholds (for display / sequencer - computation only, no flag here):
+    /// (!) GRID_SOFT_WARN = 0.45; GRID_HARD_FAIL = 0.25.</para>
     /// </summary>
-    /// <param name="rhythm">The rhythm pattern for the track. Required — returns 0.0 when null.</param>
+    /// <param name="rhythm">The rhythm pattern for the track. Required - returns 0.0 when null.</param>
     /// <param name="acfSharpness">ACF peak sharpness ratio [0,1] from <c>TempoOctaveCorrector.CorrectWithSharpness</c>.</param>
     public static double ComputeGridConfidence(RhythmPattern? rhythm, double acfSharpness)
     {
@@ -251,7 +251,7 @@ public static class CharacterClassifier
 
         var gcFof  = rhythm.FourOnFloor;                                       // [0,1]
         var gcOct  = 1.0 - rhythm.HalfTimeFeel;                               // [0,1]
-        var gcSync = 1.0 - Math.Min(rhythm.Syncopation * 2.0, 1.0);           // [0,1] (0.5 syncopation → 0)
+        var gcSync = 1.0 - Math.Min(rhythm.Syncopation * 2.0, 1.0);           // [0,1] (0.5 syncopation -> 0)
         var gcAcf  = acfSharpness;                                             // [0,1] already normalised
 
         return Math.Clamp(
@@ -263,13 +263,13 @@ public static class CharacterClassifier
     // Feature computation
     // =========================================================================
 
-    // Harshness blend weights — the three spectral signals each contribute.
+    // Harshness blend weights - the three spectral signals each contribute.
     private const double HarshWFlat  = 0.45;  // spectral flatness  (noise-like content)
     private const double HarshWCrest = 0.30;  // (1 - normalised crest) = squashed loudness
     private const double HarshWHf    = 0.25;  // HF energy ratio          (harshness brightness)
 
     // Crest factor normalisation: raw LU range for the (1-nCrest) term.
-    // Typical EDM range: 3 LU (maximum squash) … 18 LU (ambient / wide dynamic range).
+    // Typical EDM range: 3 LU (maximum squash) ... 18 LU (ambient / wide dynamic range).
     private const double CrestLo = 3.0;
     private const double CrestHi = 18.0;
 
@@ -277,11 +277,11 @@ public static class CharacterClassifier
     /// Computes per-frame spectral flatness (Wiener entropy), the HF energy ratio,
     /// the mean spectral centroid in Hz, and the temporal std-dev of centroid in Hz.
     ///
-    /// One FFT pass over the samples — no extra decode. The centroid values are collected
+    /// One FFT pass over the samples - no extra decode. The centroid values are collected
     /// per-frame, then mean and std-dev are computed over all frames. Dark and Hypnotic
     /// are both derived from these centroid statistics after this call.
     ///
-    /// [CharacterClassifier: Dark = 1−nBright; Hypnotic = 1−nCentroidStdDev]
+    /// [CharacterClassifier: Dark = 1-nBright; Hypnotic = 1-nCentroidStdDev]
     /// </summary>
     private static (double Flatness, double HfRatio, double MeanCentroid, double CentroidStdDev)
         ComputeSpectralFeaturesAndCentroid(float[] samples, int sampleRate, CancellationToken ct)
@@ -379,7 +379,7 @@ public static class CharacterClassifier
     }
 
     /// <summary>
-    /// Builds the low-band onset (spectral flux) envelope from the samples —
+    /// Builds the low-band onset (spectral flux) envelope from the samples -
     /// same algorithm as <c>RhythmPatternDetector.BuildBandOnsets</c> but only
     /// the low band, returned as a flat array. No extra decode.
     /// </summary>
@@ -430,12 +430,12 @@ public static class CharacterClassifier
 
     /// <summary>
     /// BassPunch: measures how sharply the low-band onset envelope rises at each beat.
-    /// A punchy kick has a very fast attack — the onset value at the peak frame is
+    /// A punchy kick has a very fast attack - the onset value at the peak frame is
     /// much larger than the preceding frame. This is the local "crest" of the low-band
     /// onset envelope around each beat position.
     ///
     /// Algorithm:
-    ///   For each beat position, find the peak low-band onset within ±HalfWindowFrames.
+    ///   For each beat position, find the peak low-band onset within +/-HalfWindowFrames.
     ///   Measure the ratio of that peak to the preceding frame (attack steepness).
     ///   Average across beats. Normalise to [0, 1] via calibrated range.
     /// </summary>

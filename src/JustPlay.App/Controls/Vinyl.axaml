@@ -9,11 +9,11 @@
     <!-- ClipToBounds=False so the new ground-shadow ellipse (Margin bottom=-14) and the
          vinyl drop-shadow (BoxShadow Y=18, blur=30) can render past the 360-px height
          without being clipped by the UserControl's own bounds. The host containers in
-         MiniView (Viewbox) and MaxView (Panel) likewise don't clip — they rely on
+         MiniView (Viewbox) and MaxView (Panel) likewise don't clip - they rely on
          Avalonia's Panel default ClipToBounds=false. -->
     <Grid ClipToBounds="False">
         <!--
-          GROUND SHADOW — soft elliptical pool under the whole sleeve+vinyl, port of the
+          GROUND SHADOW - soft elliptical pool under the whole sleeve+vinyl, port of the
           design's `radial-gradient(...,.55) ellipse` + blur(12). Lifts the disc off the
           aurora background. Sits at the very back of the Grid so it renders first.
           Margin pushes it 14 px below the 360-tall sleeve, matching the design's
@@ -32,12 +32,12 @@
         </Ellipse>
 
         <!--
-          VINYL DROP-SHADOW EMITTER — transparent circular Border whose BoxShadow renders
+          VINYL DROP-SHADOW EMITTER - transparent circular Border whose BoxShadow renders
           the design's `drop-shadow(0 18px 30px rgba(0,0,0,.5))`. Kept on a SEPARATE,
           non-rotating element behind the spinning disc so the shadow doesn't sweep around
           with the rotation (a DropShadowEffect on VinylGroup itself would offset relative
-          to the rotated frame — at 90° the "downward" shadow would point sideways).
-          BoxShadow respects the Border's CornerRadius, so CornerRadius=180 on a 360×360
+          to the rotated frame - at 90deg the "downward" shadow would point sideways).
+          BoxShadow respects the Border's CornerRadius, so CornerRadius=180 on a 360x360
           Border gives a perfect circular shadow.
         -->
         <Border Width="360" Height="360" HorizontalAlignment="Right"
@@ -45,10 +45,10 @@
                 BoxShadow="0 18 30 0 #80000000"
                 IsHitTestVisible="False"/>
 
-        <!-- VINYL — sits BEHIND the sleeve, pushed right so ~30% pokes out. Spins.
+        <!-- VINYL - sits BEHIND the sleeve, pushed right so ~30% pokes out. Spins.
              RenderTransformOrigin is left at Avalonia's default (RelativePoint.Center),
              which makes the bare RotateTransform attached in code-behind rotate around
-             (180, 180) — the geometric centre of this 360×360 Grid — automatically. -->
+             (180, 180) - the geometric centre of this 360x360 Grid - automatically. -->
         <Grid x:Name="VinylGroup" Width="360" Height="360" HorizontalAlignment="Right">
 
             <Ellipse Width="360" Height="360">
@@ -99,32 +99,32 @@
             </Ellipse>
             <TextBlock Text="JUST PLAY" FontWeight="Bold" FontSize="9" Foreground="#E6FFFFFF"
                        HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,28"/>
-            <TextBlock Text="A · 33⅓" FontSize="7" Foreground="#73FFFFFF"
+            <TextBlock Text="A - 331/3" FontSize="7" Foreground="#73FFFFFF"
                        HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,28,0,0"/>
 
             <Ellipse Width="6" Height="6" Fill="Black"/>
         </Grid>
 
         <!--
-          SLEEVE — square cardboard sleeve in FRONT of the vinyl.
+          SLEEVE - square cardboard sleeve in FRONT of the vinyl.
 
-          TWO-LAYER PATTERN — required because Avalonia clips a Border's OWN BoxShadow
+          TWO-LAYER PATTERN - required because Avalonia clips a Border's OWN BoxShadow
           when that Border has ClipToBounds=True. The inner Border has to clip
           (otherwise the cover Image with Stretch=UniformToFill bleeds past the rounded
           corner), but a clipping Border drops its own outer drop-shadow on the floor.
           Same fix as Button.primary's Halo + MainBorder pair in App.axaml.
 
-          OUTER Border — transparent, NOT clipped. Carries the outer BoxShadow stack:
-            • Layer 1: deep slightly-offset black drop (the cardboard's gravity).
-            • Layer 2: 1-px white outer ring (catches edge light).
-            • Layer 3: soft purple aura — Aurora-theme extension, not in the design,
+          OUTER Border - transparent, NOT clipped. Carries the outer BoxShadow stack:
+            - Layer 1: deep slightly-offset black drop (the cardboard's gravity).
+            - Layer 2: 1-px white outer ring (catches edge light).
+            - Layer 3: soft purple aura - Aurora-theme extension, not in the design,
               picks up the BgGlow tint so the sleeve feels lit by the room.
         -->
         <Border Width="360" Height="360" HorizontalAlignment="Left"
                 CornerRadius="6" Background="Transparent"
                 BoxShadow="{DynamicResource SleeveOuter}">
             <!--
-              INNER Border — clips the cover image to the rounded corner, and carries
+              INNER Border - clips the cover image to the rounded corner, and carries
               ONLY the inset top-edge white highlight (port of the design's
               `inset 0 1px 0 rgba(255,255,255,.18)`). Inset shadows paint on the INSIDE
               of the rounded edge, so they belong with the clipped content, not with the
@@ -139,7 +139,7 @@
                   source of intermittent failures (compiled bindings can evaluate against
                   the inherited DataContext before our ctor's assignment takes effect, and
                   then never re-bind). $parent[controls:Vinyl] is element-relative and
-                  doesn't depend on DataContext at all — it just walks up to find Vinyl.
+                  doesn't depend on DataContext at all - it just walks up to find Vinyl.
                 -->
                 <Image Source="{Binding $parent[controls:Vinyl].Cover}" Stretch="UniformToFill"/>
 
@@ -150,7 +150,7 @@
                 <Panel IsVisible="{Binding $parent[controls:Vinyl].Cover, Converter={x:Static ObjectConverters.IsNull}}"
                        ClipToBounds="True">
 
-                    <!-- AccentB → AccentA cover base. 2 colours by design: the old middle stop was AccentC,
+                    <!-- AccentB -> AccentA cover base. 2 colours by design: the old middle stop was AccentC,
                          a background-bloom tone that is DARK on Midnight/Onyx and banded the diagonal
                          (Chloe 2026-06-30). Same band-free recipe as the app icon (ThemeBrushes.IconGradient). -->
                     <Border>
@@ -185,7 +185,7 @@
                     <!--
                       Concentric "sound-wave" rings in the bottom-right area.
                       Centered at (78%, 78%) of the 360-px sleeve = (281, 281).
-                      Radii from the design (38/28/20/14/9 in a 100-unit viewBox) scaled ×3.6.
+                      Radii from the design (38/28/20/14/9 in a 100-unit viewBox) scaled x3.6.
                     -->
                     <Canvas Width="360" Height="360">
                         <Ellipse Width="274" Height="274" Canvas.Left="144" Canvas.Top="144"
@@ -201,7 +201,7 @@
                     </Canvas>
 
                     <!--
-                      Generic empty-state copy — JustPlay is a stateless drop-and-play
+                      Generic empty-state copy - JustPlay is a stateless drop-and-play
                       player, so the placeholder mustn't masquerade as anyone's album.
                       Earlier version had "LOUD / RIHANNA / SIDE A / 2010" carried 1:1
                       from the design mockup (Claude's AlbumCover component in
@@ -218,7 +218,7 @@
                       Divider Y = PLAY-Top (156) + FontSize (78) + 24-px breathing room = 258.
                       LineHeight (74) < FontSize (78), so the glyph descenders reach ~y=234;
                       using +82 instead of +102 collapsed the gap to 4 px and the divider
-                      crushed against the "Y" — same regression we already fixed once when the
+                      crushed against the "Y" - same regression we already fixed once when the
                       mockup was still "LOUD" / "RIHANNA". For any multi-line headline above
                       this divider, always offset by FontSize, never by LineHeight.
                     -->

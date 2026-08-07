@@ -49,7 +49,7 @@ public sealed class LibraryDbTests : IDisposable
             GridConfidence   = grid,
         };
 
-    // ── Storage ───────────────────────────────────────────────────────────────
+    // -- Storage ---------------------------------------------------------------
 
     [Fact]
     public void Every_field_survives_a_round_trip()
@@ -106,7 +106,7 @@ public sealed class LibraryDbTests : IDisposable
         Assert.NotNull(reopened.TryGet(@"C:\music\a.mp3"));
     }
 
-    // ── Query: the set-building surface ───────────────────────────────────────
+    // -- Query: the set-building surface ---------------------------------------
 
     [Fact]
     public void Query_filters_a_mix_window_out_of_the_library()
@@ -174,7 +174,7 @@ public sealed class LibraryDbTests : IDisposable
         Assert.Equal(2, _db.Query(new LibraryQuery { SuccessOnly = false }).Count);
     }
 
-    // ── Never leave a song behind ─────────────────────────────────────────────
+    // -- Never leave a song behind ---------------------------------------------
 
     [Fact]
     public void A_missing_file_is_flagged_not_deleted()
@@ -200,7 +200,7 @@ public sealed class LibraryDbTests : IDisposable
         Assert.Single(_db.Query(new LibraryQuery()));
     }
 
-    // ── Interchange with the CLI ──────────────────────────────────────────────
+    // -- Interchange with the CLI ----------------------------------------------
 
     [Fact]
     public void Json_import_and_export_round_trip_through_the_CLI_format()
@@ -215,7 +215,7 @@ public sealed class LibraryDbTests : IDisposable
         Assert.Equal(145, fresh.TryGet(@"C:\m\b.mp3")!.Bpm);
     }
 
-    // ── Point lookups: what the finder asks when it lists ONE folder ──────────
+    // -- Point lookups: what the finder asks when it lists ONE folder ----------
 
     [Fact]
     public void LookupMany_returns_only_what_it_knows()
@@ -238,7 +238,7 @@ public sealed class LibraryDbTests : IDisposable
         Assert.Empty(_db.LookupMany([]));
     }
 
-    // ── Where the file lives ──────────────────────────────────────────────────
+    // -- Where the file lives --------------------------------------------------
 
     [Theory]
     [InlineData(@"\\nas\music", @"\\nas\music\")]

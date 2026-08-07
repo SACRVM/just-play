@@ -6,7 +6,7 @@
              Name="Just Play"
              RequestedThemeVariant="Dark">
 
-    <!-- macOS app menu — the bold "Just Play" menu in the mac menu bar (its title comes from
+    <!-- macOS app menu - the bold "Just Play" menu in the mac menu bar (its title comes from
          Name= above; without it Avalonia shows "Avalonia Application"). The About item opens
          the same shared About dialog as the brand mark in the chrome. Avalonia appends the
          standard Hide/Quit items itself; on Windows/Linux no native menu is exported. -->
@@ -18,7 +18,7 @@
 
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Shared J.U.S.T. theme palette — colours, derived brushes, text ramp, ToggleSwitch
+            <!-- Shared J.U.S.T. theme palette - colours, derived brushes, text ramp, ToggleSwitch
                  overrides, palette swatches. Single source of truth in JustPlay.UI (JustPalette);
                  only app-specific converters stay inline below. AvaloniaThemeService overwrites the
                  theme Colour keys at runtime to switch palettes live. -->
@@ -43,7 +43,7 @@
         <theming:JustStyles/>
 
         <!--
-          ComboBox for device selection — dark frosted look. Shared by TweaksPanel (output +
+          ComboBox for device selection - dark frosted look. Shared by TweaksPanel (output +
           pre-cue headphone pickers) and the PRE CUE FINDER settings flyout, so it lives here
           app-wide rather than local to either view. We override the key template parts so the
           default Fluent light popup doesn't bleed through (belt-and-braces, the documented quirk).
@@ -101,7 +101,7 @@
         </Style>
         <!--
           Update badge: the Discord-style "download to a bar" glyph that appears (IsVisible bound to
-          Update.IsAvailable) when a newer release lands. Green by design — universally reads as
+          Update.IsAvailable) when a newer release lands. Green by design - universally reads as
           "ready / go", and it's the one cap button that wants to draw the eye. The glyph Stroke
           binds to the button Foreground, so the green here colours it; hover brightens to a lighter
           green. A soft green glow makes it pop against the dark chrome without shouting.
@@ -113,10 +113,10 @@
             <Setter Property="Foreground" Value="#5BE88A"/>
         </Style>
         <!--
-          Column-view segment — the A | B | C pills that switch the visible column set.
+          Column-view segment - the A | B | C pills that switch the visible column set.
           Transparent + muted when inactive; the active segment fills with the theme accent.
           ContentPresenter backgrounds are set explicitly for every state (FluentTheme leaks
-          its own onto a custom button's ContentPresenter — the documented quirk).
+          its own onto a custom button's ContentPresenter - the documented quirk).
         -->
         <Style Selector="Button.lens-seg">
             <Setter Property="MinWidth" Value="34"/>
@@ -147,7 +147,7 @@
             <Setter Property="Background" Value="{DynamicResource AccentABrush}"/>
         </Style>
         <!-- The GAIN cell + the LIKE heart styles moved into JustPlay.UI/Theming/JustStyles.axaml
-             with the TrackRow control itself (2026-08-05) — they style the shared row, so they
+             with the TrackRow control itself (2026-08-05) - they style the shared row, so they
              belong with it, not with whichever app hosts it. -->
         <!--
           Title-bar brand button (opens About). Chrome-less: no background/border/padding in any
@@ -174,7 +174,7 @@
              used by the shared About and JUST PLAY's Transfer / InputDialog. -->
 
         <!--
-          Primary play button: vertical cyan→pink gradient, layered inset bevel + outer rings
+          Primary play button: vertical cyan->pink gradient, layered inset bevel + outer rings
           + pink glow, hover scales up. Faithful port of CtrlButton(primary=true) in player.jsx.
         -->
         <Style Selector="Button.primary">
@@ -195,7 +195,7 @@
             <Setter Property="Template">
                 <ControlTemplate>
                     <!--
-                      ClipToBounds=False so the Halo's BoxShadow can extend past the 70×70
+                      ClipToBounds=False so the Halo's BoxShadow can extend past the 70x70
                       button bounds. Parent chain (Button inline, transport Grid, Card) also
                       has ClipToBounds=False.
                     -->
@@ -203,11 +203,11 @@
                         <!--
                           Halo = transparent rounded Border with a big-blur pink BoxShadow.
                           This is the faithful port of the mockup CSS `box-shadow: 0 0 30px
-                          accentBxx` — BoxShadow inherits the Border's CornerRadius shape so
+                          accentBxx` - BoxShadow inherits the Border's CornerRadius shape so
                           a circular border gives a circular glow, no rectangular clipping.
 
                           BoxShadow syntax: "Xoffset Yoffset Blur Spread Color".
-                          Default (0,0,30,0,#99ff5fae) ≈ 60% alpha pink glow extending 30 px
+                          Default (0,0,30,0,#99ff5fae) ~ 60% alpha pink glow extending 30 px
                           out from the button edge. Hover bumps blur to 40 and alpha to 0xCC
                           (80%) so the glow visibly intensifies when the user is on the button.
                         -->
@@ -219,7 +219,7 @@
                         <Border Name="MainBorder"
                                 CornerRadius="{TemplateBinding CornerRadius}">
                             <Border.Background>
-                                <!-- Cyan→pink gradient sourced from the live theme palette
+                                <!-- Cyan->pink gradient sourced from the live theme palette
                                      so Sunset/Midnight/Neon recolour the play button too,
                                      not just the surrounding chrome. -->
                                 <LinearGradientBrush StartPoint="37%,0%" EndPoint="63%,100%">
@@ -251,7 +251,7 @@
           smooth fade between them.
 
           The BoxShadows objects PlayHaloIdle / PlayHaloHover are NOT declared here in XAML
-          — they are emitted by AvaloniaThemeService at apply-time, because BoxShadow's
+          - they are emitted by AvaloniaThemeService at apply-time, because BoxShadow's
           Color property can't take a DynamicResource through the XAML compiler (Avalonia
           12's AVLN2000 trips on the object-form parse), and the string-form "0 0 30 0
           #99ff5fae" can't compose alpha onto a theme-driven AccentB. Rebuilding the whole
@@ -275,7 +275,7 @@
           doesn't extend past the card's clip-bounds.
         -->
         <!--
-          Halo is now drawn by a separate Ellipse BEHIND the button (in MaxView) — see there.
+          Halo is now drawn by a separate Ellipse BEHIND the button (in MaxView) - see there.
           The BoxShadow here only has the 6 short-range layers (bevel + drop shadow + rings).
           The 50-px pink ring layer was being clipped to a rectangle by Avalonia's parent-bounds
           render constraint when on a Button.
@@ -401,11 +401,11 @@
         </Style>
 
         <!--
-          White transport icons sit on bright/coloured buttons — especially the
-          cyan→pink play button, where plain white washes out against the light cyan
+          White transport icons sit on bright/coloured buttons - especially the
+          cyan->pink play button, where plain white washes out against the light cyan
           end. Give the icon Paths the same soft drop shadow the global TextBlock
           style uses (Black, blur 2, 0/1, .45) so they read with contrast and match
-          the app's lifted feel. Scoped to Button.primary / Button.ctrl Paths only —
+          the app's lifted feel. Scoped to Button.primary / Button.ctrl Paths only -
           NOT the transparent iconbtn secondaries (no white-on-colour issue there).
         -->
         <Style Selector="Button.primary Path">
@@ -420,10 +420,10 @@
         </Style>
 
         <!--
-          Square 32×32 icon button for transport secondaries (shuffle / repeat /
+          Square 32x32 icon button for transport secondaries (shuffle / repeat /
           like). Shared by MaxView and MiniView (was duplicated in both, at 32 vs
-          30 px — unified here to 32). Consistent hit area; transparent until
-          hovered. .active recolours the glyph to the live accent — the icon Paths
+          30 px - unified here to 32). Consistent hit area; transparent until
+          hovered. .active recolours the glyph to the live accent - the icon Paths
           bind their Stroke to the button Foreground, so this alone tints them.
         -->
         <Style Selector="Button.iconbtn">
@@ -437,9 +437,9 @@
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <!-- Kill the default focus adorner (Avalonia draws a dashed rectangle on keyboard
-                 focus; FluentTheme's Button template has no focus visual of its own — verified
+                 focus; FluentTheme's Button template has no focus visual of its own - verified
                  against release/12.0.3 Button.xaml). Icon buttons don't need a focus ring, and
-                 the heart was grabbing initial focus → a stray "highlighted" look at startup. -->
+                 the heart was grabbing initial focus -> a stray "highlighted" look at startup. -->
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
         </Style>
         <Style Selector="Button.iconbtn:pointerover /template/ ContentPresenter">
@@ -457,7 +457,7 @@
         <!--
           Disabled (e.g. the like heart with no track loaded): FluentTheme paints a translucent-white
           ContentPresenter background that reads far too prominent for something you CAN'T click. Keep
-          it subtle — don't touch the background, just fade the whole glyph to 50%. Opacity on the
+          it subtle - don't touch the background, just fade the whole glyph to 50%. Opacity on the
           Button dims the icon Paths with it.
         -->
         <Style Selector="Button.iconbtn:disabled /template/ ContentPresenter">
@@ -468,7 +468,7 @@
         </Style>
 
         <!-- Small ghost icon/text button (chrome + panel secondaries, e.g. the
-             Tweaks-panel close ✕). Shared by both views. -->
+             Tweaks-panel close x). Shared by both views. -->
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>

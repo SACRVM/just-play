@@ -9,7 +9,7 @@ namespace JustPlay.App.Views;
 
 /// <summary>
 /// Themed progress dialog for a ZIP / folder export. Bound to <see cref="TransferViewModel"/>.
-/// Dismiss simply closes the window — the export is a detached Task that keeps running. Cancel trips
+/// Dismiss simply closes the window - the export is a detached Task that keeps running. Cancel trips
 /// the view-model's token (the Core writer aborts and deletes its partial output), then closes.
 /// </summary>
 public partial class TransferWindow : Window

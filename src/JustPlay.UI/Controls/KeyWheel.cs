@@ -11,19 +11,19 @@ using JustPlay.UI.Theming;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// Camelot key wheel — the DJ harmonic-mixing wheel as a clickable filter. 12 numbered wedges around the
+/// Camelot key wheel - the DJ harmonic-mixing wheel as a clickable filter. 12 numbered wedges around the
 /// circle (the circle of fifths), each split into an inner A ring (minor) and outer B ring (major); every
 /// number gets its own hue so harmonic neighbours (adjacent wedges + the A/B flip) read at a glance.
 /// Click a segment to toggle its Camelot code (e.g. "8A") in <see cref="SelectedKeys"/> via
 /// <see cref="ToggleKeyCommand"/>. <see cref="NeighborKeys"/> are shown faintly lit (the keys a harmonic
-/// filter would also let through). Reusable — built for the finder's FILTER tab, ready for JUST SPIN.
+/// filter would also let through). Reusable - built for the finder's FILTER tab, ready for JUST SPIN.
 /// </summary>
 public sealed class KeyWheel : Control
 {
     public static readonly StyledProperty<IReadOnlyList<string>?> SelectedKeysProperty =
         AvaloniaProperty.Register<KeyWheel, IReadOnlyList<string>?>(nameof(SelectedKeys));
 
-    /// <summary>Keys that aren't selected but WOULD pass the filter (harmonic neighbours of the selection) —
+    /// <summary>Keys that aren't selected but WOULD pass the filter (harmonic neighbours of the selection) -
     /// drawn with a soft glow so you can see the compatible set.</summary>
     public static readonly StyledProperty<IReadOnlyList<string>?> NeighborKeysProperty =
         AvaloniaProperty.Register<KeyWheel, IReadOnlyList<string>?>(nameof(NeighborKeys));
@@ -57,15 +57,15 @@ public sealed class KeyWheel : Control
     }
 
     // Ring radii as fractions of the outer radius. The A|B boundary gives the INNER A ring 60% of the
-    // usable band and B 40% — a plain 50/50 shortchanges the inner ring (less circumference at a smaller
-    // radius), and the A keys sit there (Chloe 2026-07-07). MidFrac = InnerFrac + 0.60·(1 − InnerFrac).
+    // usable band and B 40% - a plain 50/50 shortchanges the inner ring (less circumference at a smaller
+    // radius), and the A keys sit there (Chloe 2026-07-07). MidFrac = InnerFrac + 0.60-(1 - InnerFrac).
     private const double InnerFrac = 0.34;  // center hole
-    private const double MidFrac = 0.736;   // A|B boundary — A gets the bigger (inner) share
+    private const double MidFrac = 0.736;   // A|B boundary - A gets the bigger (inner) share
     private const double GapDeg = 1.6;      // wedge separation (angular)
-    private const double RingGapPx = 2.0;   // radial gap between the A and B rings — matches the wedge gaps
+    private const double RingGapPx = 2.0;   // radial gap between the A and B rings - matches the wedge gaps
                                             // so the grid reads uniformly (Chloe 2026-07-07); hit-test stays at MidFrac
 
-    // ── Click → toggle the segment's Camelot code ────────────────────────────
+    // -- Click -> toggle the segment's Camelot code ----------------------------
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
@@ -81,7 +81,7 @@ public sealed class KeyWheel : Control
         // Screen angle (clockwise, 0 = east); fold to "degrees from the top" so wedge 1 sits at 12 o'clock.
         var deg = Math.Atan2(dy, dx) * 180.0 / Math.PI;
         var fromTop = (deg + 90.0 + 360.0) % 360.0;
-        var n = (int)Math.Floor(((fromTop + 15.0) % 360.0) / 30.0) + 1; // wedges centred on multiples of 30°
+        var n = (int)Math.Floor(((fromTop + 15.0) % 360.0) / 30.0) + 1; // wedges centred on multiples of 30deg
         if (n > 12) n = 1;
         var ring = r < outerR * MidFrac ? "A" : "B";
         var code = $"{n}{ring}";
@@ -122,7 +122,7 @@ public sealed class KeyWheel : Control
             DrawSeg(ctx, center, innerR, midR - RingGapPx / 2, a0, a1, hue, $"{n}A", selected, neighbors, typeface, true);
         }
 
-        // Center hole — sits on the panel background, faint ring.
+        // Center hole - sits on the panel background, faint ring.
         ctx.DrawEllipse(new SolidColorBrush(Color.FromArgb(0xF0, 0x1a, 0x18, 0x28)),
             new Pen(new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)), 1),
             center, innerR, innerR);
@@ -148,7 +148,7 @@ public sealed class KeyWheel : Control
         ctx.DrawGeometry(fill, pen, Sector(c, ri, ro, a0, a1));
 
         // Label at the ring's mid radius, upright, with a dark shadow so white text stays legible on the
-        // bright hues (yellow/cyan/green) — drawn as a near-black copy offset behind the white (Chloe 2026-07-07).
+        // bright hues (yellow/cyan/green) - drawn as a near-black copy offset behind the white (Chloe 2026-07-07).
         var lr = (ri + ro) / 2;
         var ang = (a0 + a1) / 2 * Math.PI / 180.0;
         var lp = new Point(c.X + lr * Math.Cos(ang), c.Y + lr * Math.Sin(ang));
@@ -162,7 +162,7 @@ public sealed class KeyWheel : Control
     }
 
     /// <summary>Annular sector geometry between radii <paramref name="ri"/>..<paramref name="ro"/> from
-    /// <paramref name="a0"/>° to <paramref name="a1"/>° (screen degrees, clockwise).</summary>
+    /// <paramref name="a0"/>deg to <paramref name="a1"/>deg (screen degrees, clockwise).</summary>
     private static Geometry Sector(Point c, double ri, double ro, double a0, double a1)
     {
         Point P(double r, double aDeg)

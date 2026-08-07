@@ -9,7 +9,7 @@
     <UserControl.Styles>
 
         <!--
-          Button.ctrl / Button.primary sizes are NO LONGER overridden here — the shared
+          Button.ctrl / Button.primary sizes are NO LONGER overridden here - the shared
           TransportButtons control handles the compact (Mini-view) sizes via its Compact
           property. That avoids these styles bleeding into any future Button.ctrl/primary
           usage outside the transport cluster.
@@ -30,7 +30,7 @@
                         <ui:WindowControls IsVisible="{x:Static ui:Platform.IsMac}"/>
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                                     IsVisible="{x:Static ui:Platform.IsNotMac}">
-                            <!-- TRANSPARENT chip — just the enlarged white play glyph (Chloe 2026-06-30). -->
+                            <!-- TRANSPARENT chip - just the enlarged white play glyph (Chloe 2026-06-30). -->
                             <Border Width="18" Height="18" Background="Transparent">
                                 <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
                                     <Path.Effect>
@@ -59,7 +59,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-                        <!-- Update badge — hidden until a newer release lands (Update.IsAvailable). -->
+                        <!-- Update badge - hidden until a newer release lands (Update.IsAvailable). -->
                         <Button Classes="cap update" Click="OnUpdateBadge"
                                 IsVisible="{Binding Update.IsAvailable}"
                                 ToolTip.Tip="{Binding Update.Tooltip}">
@@ -68,7 +68,7 @@
                                   StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
                                   Data="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"/>
                         </Button>
-                        <!-- Expand back to Max — single big box, centered 14×14 -->
+                        <!-- Expand back to Max - single big box, centered 14x14 -->
                         <Button Name="ExpandBtn" Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand to full view">
                             <Path Stretch="None" Width="14" Height="14"
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.4"
@@ -77,13 +77,13 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- Windows caption buttons (right) — on macOS the same control renders the
+                    <!-- Windows caption buttons (right) - on macOS the same control renders the
                          traffic lights on the LEFT instead (see the brand StackPanel above). -->
                     <ui:WindowControls Grid.Column="3" IsVisible="{x:Static ui:Platform.IsNotMac}"/>
                 </Grid>
             </Border>
 
-            <!-- Waveform header (compact height) — Playing drives the FFT-based scaleY,
+            <!-- Waveform header (compact height) - Playing drives the FFT-based scaleY,
                  BpmHint/EnergyHint drive the beat-pulse opacity layer on top. -->
             <controls:WaveformHeader DockPanel.Dock="Top" Height="60" Margin="0,-2,0,-6"
                                      Opacity="0.85"
@@ -94,10 +94,10 @@
 
             <!-- Transport bottom -->
             <StackPanel DockPanel.Dock="Bottom" Spacing="6" Margin="24,4,24,16">
-                <!-- Seek bar — shared control (Controls/TransportProgressBar), Compact sizing. -->
+                <!-- Seek bar - shared control (Controls/TransportProgressBar), Compact sizing. -->
                 <controls:TransportProgressBar Compact="True"/>
                 <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center" Margin="0,4,0,0">
-                    <!-- Left: shuffle + repeat — shared control (Controls/ShuffleRepeatButtons). -->
+                    <!-- Left: shuffle + repeat - shared control (Controls/ShuffleRepeatButtons). -->
                     <controls:ShuffleRepeatButtons VerticalAlignment="Center"/>
                     <!-- Shared transport cluster, Compact=True for MiniView sizes (54-px play,
                          38-px ctrl). Identical skeu treatment as the MaxView buttons. -->
@@ -112,11 +112,11 @@
             <!-- Center: vinyl + title + meta -->
             <Grid RowDefinitions="*,Auto" Margin="0,4,0,4">
                 <!--
-                  ClipToBounds=False — Avalonia 12 overrides Viewbox's ClipToBounds default
+                  ClipToBounds=False - Avalonia 12 overrides Viewbox's ClipToBounds default
                   to TRUE (verified in Avalonia.Controls/Viewbox.cs:
                   `ClipToBoundsProperty.OverrideDefaultValue<Viewbox>(true)`). Without this
                   override the Vinyl control's ground shadow, vinyl drop-shadow, and sleeve
-                  drop-shadow — all of which extend past the 360-px control height — are
+                  drop-shadow - all of which extend past the 360-px control height - are
                   clipped flush to the visible disc and the lift-off effect disappears.
                   Unlike Grid/Panel/StackPanel which default to false, Viewbox really does
                   swallow outside-bounds rendering by default.
@@ -136,12 +136,12 @@
                                 IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}">
                         <TextBlock Text="{Binding Current.Artist}" FontWeight="SemiBold"
                                    FontSize="12" Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock Text="·" Foreground="#66FFFFFF" VerticalAlignment="Center"
+                        <TextBlock Text="-" Foreground="#66FFFFFF" VerticalAlignment="Center"
                                    IsVisible="{Binding Current.BpmText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         <TextBlock Text="{Binding Current.BpmText, StringFormat='{}{0} bpm'}"
                                    FontSize="11" Foreground="#A6FFFFFF" VerticalAlignment="Center"
                                    IsVisible="{Binding Current.BpmText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        <TextBlock Text="·" Foreground="#66FFFFFF" VerticalAlignment="Center"
+                        <TextBlock Text="-" Foreground="#66FFFFFF" VerticalAlignment="Center"
                                    IsVisible="{Binding Current.KeyText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         <!-- Same key badge as the pre-cue finder / max view: shared wheel palette. -->
                         <Border CornerRadius="9" Padding="6,2" BorderThickness="1"

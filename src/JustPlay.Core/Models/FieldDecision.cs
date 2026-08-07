@@ -7,12 +7,12 @@ namespace JustPlay.Core.Models;
 public enum FieldDecision
 {
     /// <summary>Detected value differs from the file's tag and the user hasn't
-    /// decided yet — shown bold in the queue.</summary>
+    /// decided yet - shown bold in the queue.</summary>
     Pending,
 
     /// <summary>User wrote our detected value into the standard tag (we own it).</summary>
     Applied,
 
-    /// <summary>User reviewed and kept the original/claimed tag value — stop flagging.</summary>
+    /// <summary>User reviewed and kept the original/claimed tag value - stop flagging.</summary>
     Kept,
 }

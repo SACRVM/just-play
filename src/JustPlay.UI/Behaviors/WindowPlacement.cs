@@ -10,13 +10,13 @@ using JustPlay.Core.Storage;
 
 namespace JustPlay.UI.Behaviors;
 
-/// <summary>Persisted window placement: position in physical PIXELS (X,Y), size in DIPs (W,H —
+/// <summary>Persisted window placement: position in physical PIXELS (X,Y), size in DIPs (W,H -
 /// screen-independent, so it restores correctly across monitors of different scaling).</summary>
 public sealed record WindowBounds(int X, int Y, double W, double H);
 
 /// <summary>
 /// Suite-wide "smart reopening" (Chloe 2026-07-06): every non-dialog JUST window remembers its
-/// position + size, and on reopen is validated against the CURRENT monitor set — if the saved spot is
+/// position + size, and on reopen is validated against the CURRENT monitor set - if the saved spot is
 /// off-screen or bigger than the target screen (monitor unplugged, resolution changed, laptop docked),
 /// it's shrunk / nudged back onto a visible work area. One shared store,
 /// <c>%LOCALAPPDATA%\JUST\window-layout.json</c>, keyed per window. About / Oops / Input / progress
@@ -34,9 +34,9 @@ public static class WindowPlacement
     /// <summary>
     /// Persist <paramref name="window"/>'s bounds under <paramref name="key"/> and restore them
     /// (smart-validated) on open. <paramref name="canPersist"/> lets a window skip SAVING while it's in
-    /// a non-restorable mode (e.g. JUST PLAY's fixed-size MINI mode) — return false to not record the
+    /// a non-restorable mode (e.g. JUST PLAY's fixed-size MINI mode) - return false to not record the
     /// current bounds. Call once, from the window constructor (after InitializeComponent), so the saved
-    /// bounds are applied before the window is shown — no reposition flicker.
+    /// bounds are applied before the window is shown - no reposition flicker.
     /// <para>Returns whether a saved size was restored. A window that sizes itself to its content on
     /// first run needs to know: doing that on top of a remembered size would throw the user's own
     /// choice away every time they open it.</para>
@@ -44,12 +44,12 @@ public static class WindowPlacement
     public static bool Track(Window window, string key, Func<bool>? canPersist = null)
     {
         Cache.TryGetValue(key, out var latest);
-        if (latest is not null) Apply(window, latest); // set before Show → window appears at the saved spot
+        if (latest is not null) Apply(window, latest); // set before Show -> window appears at the saved spot
         var restoredSize = latest is not null && window.CanResize;
 
         void Capture()
         {
-            // Only snapshot a genuinely "normal", restorable state — never a maximized/minimized frame
+            // Only snapshot a genuinely "normal", restorable state - never a maximized/minimized frame
             // or a mode the window says isn't persistable (mini). Guards a 0-size frame during teardown.
             if (window.WindowState != WindowState.Normal) return;
             if (window is IFramelessWindow { IsMaximized: true }) return;
@@ -79,8 +79,8 @@ public static class WindowPlacement
     private static void Apply(Window w, WindowBounds b)
     {
         w.WindowStartupLocation = WindowStartupLocation.Manual; // otherwise the platform re-centres
-        // Fixed-size windows: the DESIGN owns the size — restoring a stale saved size would
-        // squash a newer, taller layout (JUST BOOTLEG grew 640→860 and reopened crushed,
+        // Fixed-size windows: the DESIGN owns the size - restoring a stale saved size would
+        // squash a newer, taller layout (JUST BOOTLEG grew 640->860 and reopened crushed,
         // 2026-07-12). For them only the position is history; the size never is.
         if (w.CanResize)
         {
@@ -93,7 +93,7 @@ public static class WindowPlacement
     /// <summary>
     /// Clamp the window fully onto a visible work area of the CURRENT monitors: shrink it if it's bigger
     /// than the target screen, move it if it's (partly) off every screen. Safe with or without saved
-    /// bounds — a default-centred, already-visible window is left untouched.
+    /// bounds - a default-centred, already-visible window is left untouched.
     /// </summary>
     public static void EnsureVisible(Window w)
     {
@@ -106,7 +106,7 @@ public static class WindowPlacement
         var rect = new PixelRect(w.Position.X, w.Position.Y, wpx, hpx);
 
         // Pick the screen the window overlaps most; if it overlaps none (fully off-screen), fall back to
-        // the primary — either way we then clamp the window fully inside that screen's work area.
+        // the primary - either way we then clamp the window fully inside that screen's work area.
         var all = screens.All;
         int bestIdx = -1;
         long bestOverlap = -1;
@@ -129,7 +129,7 @@ public static class WindowPlacement
             w.Position = new PixelPoint(x, y);
     }
 
-    /// <summary>Overlap area (px²) of two pixel rects — 0 when they don't intersect.</summary>
+    /// <summary>Overlap area (px^2) of two pixel rects - 0 when they don't intersect.</summary>
     private static long Overlap(PixelRect a, PixelRect b)
     {
         int ix = Math.Max(a.X, b.X);

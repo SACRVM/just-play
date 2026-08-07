@@ -11,18 +11,18 @@ namespace JustPlay.Core.Playback;
 ///
 /// <para>
 /// <see cref="PlaybackController.WithFileReleased"/> (<c>_deferred</c>) already defers a write for
-/// the MAIN engine's <c>CurrentTrack</c> and flushes it on the next track change — but it only knows
+/// the MAIN engine's <c>CurrentTrack</c> and flushes it on the next track change - but it only knows
 /// about that ONE lock. Two other lock sources are real and verified (2026-07-07, repro "Let It Be
 /// (remix)"): (a) the PRE-CUE finder's own engine holding a <i>different</i> file, and (b) an
-/// EXTERNAL app — Chloe's actual trigger was Windows Media Player having the file open. Neither of
+/// EXTERNAL app - Chloe's actual trigger was Windows Media Player having the file open. Neither of
 /// those is "the main current track", so re-adding a failed write to <c>_deferred</c> would busy-loop
-/// forever (the track-change event that flushes it may never fire for an unrelated lock) — hence a
+/// forever (the track-change event that flushes it may never fire for an unrelated lock) - hence a
 /// dedicated queue, polled on a timer instead of an event, so it self-heals once the external handle
 /// releases without spinning the CPU.
 /// </para>
 ///
 /// <para>
-/// Pure logic, no Avalonia/BASS — the caller (<c>MainWindowViewModel</c>) supplies the actual write
+/// Pure logic, no Avalonia/BASS - the caller (<c>MainWindowViewModel</c>) supplies the actual write
 /// as an <see cref="Action"/> and drives <see cref="RetryAll"/> from a UI-thread timer (see
 /// CLAUDE.md's Threading section: DispatcherTimer is the right tool for this kind of polling). A
 /// clock can be injected for tests (<see cref="PendingTagWriteQueue(int, TimeSpan, Func{DateTime}?)"/>)
@@ -77,7 +77,7 @@ public sealed class PendingTagWriteQueue
     public bool IsPending(string path) { lock (_gate) return _pending.ContainsKey(path); }
 
     /// <summary>
-    /// Queue (or replace) the write for <paramref name="path"/>. Does NOT attempt it — call
+    /// Queue (or replace) the write for <paramref name="path"/>. Does NOT attempt it - call
     /// <see cref="EnqueueAndTryNow"/> when the first attempt should run immediately (the common case:
     /// most files aren't locked, so this keeps the zero-delay write behaviour JustPlay had before this
     /// queue existed), or let the next <see cref="RetryAll"/> tick pick it up.
@@ -98,8 +98,8 @@ public sealed class PendingTagWriteQueue
     /// retryable <see cref="IOException"/> (locked file) it stays queued for <see cref="RetryAll"/>;
     /// on success or a non-retryable failure it's removed immediately. This is the entry point for a
     /// FRESH write request (mirrors the old behaviour for the common unlocked-file case: it lands
-    /// with no delay). <paramref name="onDeferred"/>, if given, fires once — the moment this file
-    /// FIRST needs a retry — so the caller can surface "will retry" instead of leaving the user
+    /// with no delay). <paramref name="onDeferred"/>, if given, fires once - the moment this file
+    /// FIRST needs a retry - so the caller can surface "will retry" instead of leaving the user
     /// wondering why nothing happened for up to <see cref="DefaultMaxAge"/>.
     /// </summary>
     public void EnqueueAndTryNow(
@@ -112,7 +112,7 @@ public sealed class PendingTagWriteQueue
     /// <summary>
     /// Drive one retry pass over every currently-queued file (call this from a periodic timer, e.g.
     /// every ~15s). Each file is attempted at most once per call. Safe to call from a background
-    /// thread — each queued <c>Write</c> delegate is responsible for its own thread-marshalling (the
+    /// thread - each queued <c>Write</c> delegate is responsible for its own thread-marshalling (the
     /// same contract <c>MainWindowViewModel.DoWrite</c> already has for its file-IO actions).
     /// </summary>
     public void RetryAll(Action<string, Exception>? onGiveUp = null)
@@ -126,7 +126,7 @@ public sealed class PendingTagWriteQueue
     /// The single decision point shared by the immediate first attempt and every periodic retry:
     /// try the write; a retryable <see cref="IOException"/> re-queues it (unless the attempt/age
     /// budget is exhausted); any OTHER exception is treated as non-transient (it won't self-resolve
-    /// by waiting — e.g. a corrupt tag block) and gives up immediately rather than spinning on it.
+    /// by waiting - e.g. a corrupt tag block) and gives up immediately rather than spinning on it.
     /// <paramref name="onGiveUp"/> fires exactly once per file, the moment it's removed from the
     /// queue for good, so the caller can surface a visible, non-modal failure (see
     /// <c>MainWindowViewModel.EventLog</c>).
@@ -173,7 +173,7 @@ public sealed class PendingTagWriteQueue
             }
             else if (entry.Attempts == 1)
             {
-                onDeferred?.Invoke(path);   // first time this file needed a retry — tell the caller once
+                onDeferred?.Invoke(path);   // first time this file needed a retry - tell the caller once
             }
         }
         finally
