@@ -37,8 +37,11 @@
                     <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto">
+                            <!-- 16 = the card inset the body below carries, so the tag mark, the label
+                                 and the first field all start on one line. It was 14, which put the
+                                 chrome 2 px left of everything under it. -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
-                                        Margin="14,0,0,0" VerticalAlignment="Center">
+                                        Margin="16,0,0,0" VerticalAlignment="Center">
                                 <!-- macOS: traffic lights LEFT (dialog-style, no min/zoom). -->
                                 <controls:WindowControls ShowMinimize="False" ShowMaximize="False"
                                                          IsVisible="{x:Static controls:Platform.IsMac}"
@@ -61,6 +64,16 @@
                                          Fill="{DynamicResource AccentBBrush}"
                                          IsVisible="{Binding IsDirty}"
                                          ToolTip.Tip="Unsaved changes"/>
+                                <!-- The file FACTS (type / length / kbps). They used to be the first
+                                     row of the panel BODY; they are not something you edit, so they
+                                     belong to the chrome that says what you are looking at - and in
+                                     the docked host that is what puts them on the same line as the
+                                     neighbouring pane's header instead of one row below it. -->
+                                <TextBlock Text="{Binding FileInfo}" FontSize="10.5"
+                                           Foreground="{DynamicResource MutedBrush}"
+                                           VerticalAlignment="Center" Margin="4,0,0,0"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding FileInfo}"/>
                             </StackPanel>
 
                             <!-- TAGS | ANALYSIS - the panel's two halves, switched from the CHROME.
@@ -84,7 +97,10 @@
                         </Grid>
                     </Border>
 
-                    <controls:TagEditorPanel Name="Panel"/>
+                    <!-- The horizontal inset lives HERE, not in the panel: this host has a rounded
+                         card, so its body needs to stand off the edge. JUST TAG docks the same panel
+                         as a bare pane with no frame and gives it none. -->
+                    <controls:TagEditorPanel Name="Panel" Margin="16,0"/>
                 </DockPanel>
             </Panel>
         </Border>

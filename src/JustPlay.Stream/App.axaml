@@ -82,6 +82,24 @@
             <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace"/>
         </Style>
 
+        <!-- A READ-ONLY field standing in a row of editable ones (LISTENERS next to RATE, MOUNT under
+             CODEC/QUALITY). A bare TextBlock is ~17 px tall and sits at the TOP of its cell, while a
+             ComboBox is 34 and centres its text - so the value floated above the line every dropdown
+             beside it sat on, and the row read as ragged.
+
+             The numbers are not guessed: they are the ComboBox style's own (MinHeight 34, Padding
+             11,7, BorderThickness 1), so the text edge lands at 1 + 11 = 12 px and the baseline in
+             the middle of the same 34 px box. Centring happens through the Border rather than through
+             TextBlock padding, because a TextBlock does not centre its text inside extra height and
+             the result would drift with the font. -->
+        <Style Selector="Border.readfield">
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Padding" Value="12,0,0,0"/>
+        </Style>
+        <Style Selector="Border.readfield > TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
         <!-- Frosted card -->
         <Style Selector="Border.card">
             <Setter Property="Background" Value="{StaticResource CardGradient}"/>

@@ -197,7 +197,7 @@
                  The left cell is a MESSAGE line - what happened, not what is open. It stays empty
                  until there is something to say; the file's identity lives in the FILE NAME field
                  and in the host's own list. -->
-            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="16,10,16,14">
+            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto,Auto" Margin="0,10,0,14">
                 <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="tag-muted"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                            Margin="0,0,10,0"/>
@@ -210,18 +210,28 @@
 
             <Panel>
 
-            <!-- (!) Margin on the CONTENT, not Padding on the ScrollViewer: the ScrollViewer's own
-                 padding is not subtracted from the width it offers its child, so every field came
-                 out exactly Padding.Right too wide and the top row ran off the card
-                 (Chloe's screenshot, 2026-08-03). -->
+            <!-- (!) NO horizontal inset in here. This is a shared BODY, and how far it sits from an
+                 edge depends on what is around it: JUST TAG docks it as a bare PANE with no card and
+                 no frame, where a 16 px gutter is a margin against nothing and just narrows every
+                 field; the floating window has a rounded card, so THAT host adds the inset itself.
+                 A host-specific value inside a shared control is how the two drift.
+
+                 (!) The vertical margin stays on the CONTENT rather than becoming Padding on the
+                 ScrollViewer: a ScrollViewer does not subtract its own padding from the width it
+                 offers its child, so every field came out exactly Padding.Right too wide and the top
+                 row ran off the card (2026-08-03). -->
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           IsVisible="{Binding !$parent[controls:TagEditorPanel].ShowAnalysis}">
-                <StackPanel Spacing="12" Margin="16,4,16,4">
+                <StackPanel Spacing="12" Margin="0,4,0,4">
 
-                    <!-- File identity -->
-                    <TextBlock Text="{Binding FileInfo}" Classes="tag-muted" FontSize="10.5"
-                               TextTrimming="CharacterEllipsis"/>
+                    <!-- (!) The file-fact line (type / length / kbps) is NOT here any more. It is not
+                         something you edit, it is what you are looking AT - so it belongs in the
+                         host's pane header, on the same line as the neighbouring pane's header, the
+                         way the PLAYER header carries the track name and FILES carries its count.
+                         Sitting as the first CONTENT row it hung one line below every header beside
+                         it and made the two panes read as misaligned. Both hosts bind
+                         TagEditorViewModel.FileInfo in their own header. -->
 
                     <!-- Cover + the four name fields.
                          (!) The cover is NOT given a height: its row is `*`, so the picture takes
@@ -362,11 +372,14 @@
                             <TextBox Grid.Column="0" Classes="tag-field" Text="{Binding BaseName}"/>
                             <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="tag-ext"/>
                             <Button Grid.Column="2" Classes="tag-ghost" Padding="8,6" Margin="7,0,0,0"
-                                    ToolTip.Tip="Fill the name from the tags - nothing is renamed until you save">
-                                <Path Stretch="Uniform" Width="12" Height="12"
-                                      Stroke="#E6FFFFFF" StrokeThickness="2"
-                                      StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
-                                      Data="M6 9 l6 6 l6 -6"/>
+                                    ToolTip.Tip="Rename file from tag - nothing is renamed until you save">
+                                <!-- A PENCIL, not a chevron. A chevron says "pick one of these",
+                                     which describes the flyout but hides what it is FOR; this is the
+                                     one control in the panel that changes a file on disk rather than
+                                     a tag, and it should look like it. The safety half of the tooltip
+                                     stays: the rename happens on Save, never on the click. -->
+                                <controls:JustIcon Kind="Pencil" Width="13" Height="13"
+                                                   Foreground="#E6FFFFFF"/>
                                 <Button.Flyout>
                                     <MenuFlyout>
                                         <!-- The way BACK. A mask fills the box; without this the only
@@ -398,7 +411,7 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           IsVisible="{Binding $parent[controls:TagEditorPanel].ShowAnalysis}">
-                <StackPanel Spacing="12" Margin="16,4,16,4">
+                <StackPanel Spacing="12" Margin="0,4,0,4">
 
                     <StackPanel IsVisible="{Binding !HasAnalysis}" Spacing="6" Margin="0,8,0,0">
                         <TextBlock Text="Nothing measured yet" Classes="tag-label"/>

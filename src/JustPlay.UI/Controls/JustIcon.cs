@@ -47,6 +47,12 @@ public enum IconKind
 
     /// <summary>Caution - a soft/unreliable value, not an error.</summary>
     Warning,
+
+    /// <summary>Write/rename - an action that CHANGES the file, not one that reads it.</summary>
+    Pencil,
+
+    /// <summary>Drop target - "put something here" (the empty-queue hint).</summary>
+    ArrowDown,
 }
 
 /// <summary>
@@ -178,6 +184,18 @@ public class JustIcon : Control
             "M20.5 15 A9 9 0 1 1 18.4 5.6 L22.5 9.6 M22.5 3.6 V9.6 H16.5"), Stroke: 2),
 
         [IconKind.Check] = new(Geometry.Parse("M2.8 12.9 L9.1 19.2 L21.2 4.8"), Stroke: 2.4),
+
+        // Pencil: the body, then the ferrule line that stops it reading as a plain arrow. It marks
+        // the one control in the tag editor that CHANGES a file rather than a tag - a chevron there
+        // said "pick from a list" and hid what the list actually does.
+        [IconKind.Pencil] = new(Geometry.Parse(
+            "M16.8 3.2 A2.4 2.4 0 0 1 20.2 6.6 L8.2 18.6 L3.4 20.6 L5.4 15.8 Z M14.4 5.6 L17.8 9"),
+            Stroke: 2),
+
+        // Shaft + head, full 2.6...21.4 reach. The empty queue used to say this with a letter "v" at
+        // 56 px - a FONT glyph pretending to be an arrow, and one that read as a giant lowercase v.
+        [IconKind.ArrowDown] = new(Geometry.Parse(
+            "M12 2.6 V21.4 M4.6 14 L12 21.4 L19.4 14"), Stroke: 2),
 
         [IconKind.Play] = new(Geometry.Parse("M6.5 4 L19.5 12 L6.5 20 Z")),
 

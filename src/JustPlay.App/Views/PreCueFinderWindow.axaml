@@ -307,7 +307,7 @@
                                 VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                 <Border Width="20" Height="20" Background="Transparent">
-                                    <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="16" Height="16">
+                                    <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
                                         <Path.Effect>
                                             <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
                                         </Path.Effect>
@@ -377,7 +377,7 @@
                                 ToolTip.Tip="About JustPlay">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                 <Border Width="20" Height="20" Background="Transparent">
-                                    <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="16" Height="16">
+                                    <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
                                         <Path.Effect>
                                             <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
                                         </Path.Effect>
@@ -641,8 +641,13 @@
                                                 <ColumnDefinition Width="*" MinWidth="150"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <!-- NAME - the * column with MinWidth, clickable to sort. -->
+                                            <!-- NAME - the * column with MinWidth, clickable to sort.
+                                                 TrackNameMargin, the SAME resource the row's name cell
+                                                 uses: without it this label sat 4 px left of the titles
+                                                 under it. The queue header and JUST TAG's already carry
+                                                 it, so all three tables line up from one definition. -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                                                        Margin="{DynamicResource TrackNameMargin}"
                                                         Background="Transparent" Tag="title" Tapped="OnHeaderTapped" Cursor="Hand">
                                                 <TextBlock Classes="finderhead" Text="NAME"/>
                                                 <uic:JustIcon Classes="finderhead sortarrow" Kind="{Binding Columns.TitleSortGlyph}"/>

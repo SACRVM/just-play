@@ -371,6 +371,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(IsViewB));
         OnPropertyChanged(nameof(IsViewC));
         Columns.SetEnabled(ActiveSet);   // push the active lens into the shared column state (raises its ShowX)
+        Columns.Widths.Refit(Columns);   // who is asking for space changed; what is in the rows did not
     }
 
     /// <summary>Switch to a named column view. CommandParameter is "A", "B", or "C".</summary>
@@ -1612,6 +1613,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _ = Task.Run(() =>
         {
             tvm.Model.Metadata = _metadata.Read(tvm.Model.FilePath);
+            RemeasureColumnWidths();   // the row's title/genre only exist now
             Dispatcher.UIThread.Post(() => { tvm.Refresh(); OnPropertyChanged(nameof(TotalDurationText)); });
         });
     }
@@ -1881,6 +1883,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void RaiseTrackListChanged()
     {
         RecalcIndexes();
+        RemeasureColumnWidths();
         OnPropertyChanged(nameof(HasTracks));
         OnPropertyChanged(nameof(TrackCountText));
         OnPropertyChanged(nameof(TotalDurationText));
@@ -1905,6 +1908,36 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     {
         for (var i = 0; i < Tracks.Count; i++)
             Tracks[i].Index = i + 1;
+    }
+
+    /// <summary>0 = idle, 1 = a measure is already posted. See <see cref="RemeasureColumnWidths"/>.</summary>
+    private int _remeasurePending;
+
+    /// <summary>
+    /// Re-size the queue's flexible TEXT columns to what is actually in them - the shared
+    /// <see cref="TrackColumnWidths"/> every JUST table uses (P90 of the content, leftover space shared
+    /// proportionally).
+    ///
+    /// <para>The queue needs its own trigger because it is the one table that is never "listed" in one
+    /// go: the finder and JUST TAG measure a folder the moment they show it, while the queue grows a
+    /// track at a time and its tags arrive LATER, off the pool - at the moment a row is added its title
+    /// and genre are both still empty, so measuring there would measure nothing. Every event that can
+    /// change the content therefore asks, and the ask is COALESCED: the first one posts, the rest are
+    /// absorbed until it runs. Dropping 5,000 files measures a handful of times at idle instead of
+    /// 5,000 times inside the add loop.</para>
+    ///
+    /// <para>Callable from any thread - the tag reads that trigger it run on the pool.</para>
+    /// </summary>
+    private void RemeasureColumnWidths()
+    {
+        if (Interlocked.Exchange(ref _remeasurePending, 1) == 1) return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            Interlocked.Exchange(ref _remeasurePending, 0);
+            Columns.Widths.Measure(Tracks);
+            Columns.Widths.Refit(Columns);
+        }, DispatcherPriority.Background);
     }
 
     // ---- Tag persistence actions (consent-gated; invoked from the queue context menus) ----
@@ -2149,6 +2182,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (!string.Equals(tvm.Model.FilePath, from, StringComparison.OrdinalIgnoreCase)) continue;
             tvm.Model.Relocate(to);
+            RemeasureColumnWidths();   // the FILE NAME column just changed content
             Dispatcher.UIThread.Post(tvm.Refresh);
         }
         MarkPlaylistEdited();   // a saved playlist now names a file that no longer exists
@@ -2204,6 +2238,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             if (!string.Equals(tvm.Model.FilePath, path, StringComparison.OrdinalIgnoreCase)) continue;
             try { tvm.Model.Metadata = _metadata.Read(path); } catch { continue; }
+            RemeasureColumnWidths();   // an edit can lengthen or shorten a column's content
             Dispatcher.UIThread.Post(tvm.Refresh);
         }
     }
@@ -2689,6 +2724,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 var md = _metadata.Read(tvm.Model.FilePath);
                 tvm.Model.Metadata = md;
+                RemeasureColumnWidths();   // the row's title/genre only exist now
                 Dispatcher.UIThread.Post(() =>
                 {
                     tvm.Refresh();

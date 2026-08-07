@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,6 +34,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     private readonly IAudioInputEngine _engine;
     private readonly IBroadcastService _broadcast;
     private readonly IRecordingService _recording;
+    private readonly IStreamStatsProbe _stats;
     private readonly JsonStreamSettingsService _settings;
     private readonly Stopwatch _streamClock = new();
     private bool _recAutoStarted; // recording was started BY auto-record -> auto-stop on disconnect
@@ -241,7 +243,19 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _codecText = "MP3";
     [ObservableProperty] private string _bitrateText = "-";
     [ObservableProperty] private string _mountText = "-";
-    [ObservableProperty] private string _listenersText = "-"; // needs an Icecast stats poll (future)
+    /// <summary>
+    /// Listeners on the mount, straight from the server's public status page - "-" until the first
+    /// answer, and "-" again whenever the server stops answering.
+    ///
+    /// <para>The source connection carries none of this: it is a separate HTTP poll (see
+    /// <see cref="IcecastStatsProbe"/>), which is how every broadcaster does it. Verified 2026-08-07
+    /// against a standard Icecast 2.4.0-kh22: no credentials needed, so no admin password is stored.</para>
+    ///
+    /// <para>(!) Icecast counts CONNECTIONS, not people - a listener who drops and resumes is two.
+    /// It reads as a trend, not a headcount, which is why the peak is shown beside it rather than
+    /// dressed up as an audience figure.</para>
+    /// </summary>
+    [ObservableProperty] private string _listenersText = "-";
     [ObservableProperty] private string _streamTimeText = "00:00:00";
     [ObservableProperty] private string _nowPlayingText = "";
 
@@ -309,12 +323,14 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     public LogViewModel EventLog { get; }
 
     public StreamViewModel(IAudioInputEngine engine, IBroadcastService broadcast,
-        IRecordingService recording, JsonStreamSettingsService settings, ISessionLog sessionLog)
+        IRecordingService recording, JsonStreamSettingsService settings, ISessionLog sessionLog,
+        IStreamStatsProbe stats)
     {
         _engine = engine;
         _broadcast = broadcast;
         _recording = recording;
         _settings = settings;
+        _stats = stats;
 
         // The shared event log (JustPlay.UI) persists to the daily session file and wires its own
         // OnWriteFailed -> window-only reporting.
@@ -1038,6 +1054,71 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     /// RequestAnimationFrame loop (vsync-synced). A free-running DispatcherTimer beat against vsync and
     /// visibly juddered the meter on the narrower mini bar; frame-synced updates are smooth at any size.
     /// <paramref name="dt"/> = seconds since the previous frame, so the ballistics + hold are
+    // -- Listener stats (the server's public status page) ---------------------
+
+    /// <summary>On air: often enough to watch a post land. Off air: slow, because the only reason to
+    /// look then is to notice that someone ELSE's source is sitting on your mount.</summary>
+    private const double StatsPollOnAirSeconds = 15;
+    private const double StatsPollIdleSeconds = 60;
+
+    /// <summary>Seeded at the LONGER interval so the very first frame polls in BOTH states. Seeding it
+    /// at the on-air value looked right and was not: off air the threshold is 60, so the window opened
+    /// showing "-" for the first 45 seconds.</summary>
+    private double _statsAgeS = StatsPollIdleSeconds;
+    private bool _statsInFlight;
+
+    private void PumpListenerStats(double dt)
+    {
+        _statsAgeS += dt;
+        if (_statsInFlight) return;
+        if (_statsAgeS < (OnAir ? StatsPollOnAirSeconds : StatsPollIdleSeconds)) return;
+
+        _statsAgeS = 0;
+
+        if (SelectedProfile is not { } profile)
+        {
+            ListenersText = "-";
+            return;
+        }
+
+        // Fire and forget on purpose: a slow or dead server must not stall the render frame, and a
+        // missed poll costs nothing because the next one is seconds away. The in-flight guard stops
+        // a stalled request from stacking up behind itself.
+        _statsInFlight = true;
+        _ = ReadListenerStatsAsync(profile);
+    }
+
+    private async Task ReadListenerStatsAsync(StreamServerProfile profile)
+    {
+        StreamStats? stats = null;
+        try
+        {
+            stats = await _stats.TryReadAsync(profile).ConfigureAwait(true);
+        }
+        catch (Exception)
+        {
+            // TryReadAsync already swallows the expected failures; this is the belt for anything a
+            // handler further down might still throw. A stats poll may never take the app with it.
+        }
+        finally
+        {
+            _statsInFlight = false;
+        }
+
+        // "-" for "we do not know" - never a stale number, because a listener count that silently
+        // stopped updating is worse than an honest dash.
+        ListenersText = stats is null
+            ? "-"
+            : stats.PeakListeners > stats.Listeners
+                ? $"{stats.Listeners}  (peak {stats.PeakListeners})"
+                : stats.Listeners.ToString(CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Pump meters + GR lamp + stream time once per RENDER FRAME - driven by MainWindow's
+    /// RequestAnimationFrame loop (vsync-synced). A free-running DispatcherTimer beat against vsync and
+    /// visibly juddered the meter on the narrower mini bar; frame-synced updates are smooth at any size.
+    /// <paramref name="dt"/> = seconds since the previous frame, so the ballistics + hold are
     /// refresh-rate independent.
     /// </summary>
     public void PumpFrame(double dt)
@@ -1046,6 +1127,10 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         _engine.GetLevels(out var l, out var r);
         OutLevelLeft = l;
         OutLevelRight = r;
+
+        // Listener stats ride this clock rather than a timer of their own - the frame pump is already
+        // the view model's heartbeat, and one accumulator cannot drift out of step with it.
+        PumpListenerStats(dt);
 
         // Input-signal presence for the chrome spectrum glyph - lit while audio arrives, held across gaps
         // so it doesn't strobe between beats. Setter only raises PropertyChanged on an actual flip.

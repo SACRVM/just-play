@@ -232,6 +232,10 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         };
         Columns.SortRequested += () =>
         {
+            // A header CLICK is the one thing allowed to re-order a listing that is already on
+            // screen - because you asked for it, so it is not a surprise. It also unlocks sorting for
+            // a listing that opened unsorted (see ApplyListingSort).
+            _listingSorted = Columns.SortColumn is not null;
             _settings.Current.SortColumn = Columns.SortColumn;
             _settings.Current.SortDescending = Columns.SortDescending;
             _settings.Save();
@@ -529,14 +533,52 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         FileCount = filtering ? $"{shown.Count} of {_all.Count}" : _countText;
     }
 
-    /// <summary>Apply the active column sort, or put the folder's own order back. Sorting is LOCKED
-    /// until every row has been read (<see cref="AllHydrated"/>) - a sort over half-empty cells would
-    /// silently be a sort over the half we happened to have.</summary>
+    /// <summary>
+    /// Is THIS listing sorted by a column, or is it in its own order? Decided ONCE when the listing
+    /// opens and never revisited - see <see cref="ApplyListingSort"/>.
+    /// </summary>
+    private bool _listingSorted;
+
+    /// <summary>
+    /// Decide a freshly opened listing's order, once, BEFORE its rows are shown.
+    ///
+    /// <para>(!!) NOTHING may re-order a listing after it is on screen. It used to: sorting was locked
+    /// until every row had been read, so a folder appeared in disk order and then jumped into your
+    /// saved sort a second later, every single time. "Es ergibt null Sinn, dass du wo reingehst und
+    /// innerhalb 1 Sekunde aendert sich die Sortierung - sei dir vorher im Klaren darueber oder lass
+    /// es" (2026-08-07). So we are clear beforehand: if the data a sort needs is not there at the
+    /// moment the listing opens, the listing simply is not sorted, and it stays that way until you
+    /// ask for a sort yourself.</para>
+    ///
+    /// <para>A PLAYLIST is never auto-sorted at all - the sequence IS the work, and last week's "by
+    /// BPM" would destroy exactly the thing you built. (OpenPlaylist's own doc has promised this
+    /// since it was written; the code did not keep the promise.)</para>
+    ///
+    /// <para>When we cannot sort, the sort column is CLEARED rather than left pointing at a column
+    /// that is being ignored - so the header arrow always describes the list you are looking at. That
+    /// clearing costs nothing: only a header CLICK raises SortRequested, so the saved preference in
+    /// settings is untouched and comes back with the next folder that can honour it.</para>
+    /// </summary>
+    private void ApplyListingSort(bool isPlaylist)
+    {
+        var wanted = isPlaylist ? null : _settings.Current.SortColumn;
+
+        // Ready = the listing is complete (Listing done AND every row hydrated). Sorting on BPM or KEY
+        // over rows that have not been read yet would silently be a sort over the half we happened to
+        // have - which is why this is a decision point and not a "do it later".
+        _listingSorted = wanted is not null && Ready;
+
+        Columns.SortColumn = _listingSorted ? wanted : null;
+        Columns.SortDescending = _listingSorted && _settings.Current.SortDescending;
+    }
+
+    /// <summary>Apply this listing's sort, or leave it in its own order. Which of the two was settled
+    /// when the listing opened (<see cref="ApplyListingSort"/>) and does not change underneath you.</summary>
     private void Sort(List<FileRow> list)
     {
         if (list.Count < 2) return;
 
-        if (!Ready || Columns.SortColumn is null)
+        if (!_listingSorted || Columns.SortColumn is null)
         {
             list.Sort((a, b) => a.Order.CompareTo(b.Order));
             return;
@@ -923,7 +965,11 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     {
         AllHydrated = true;
         Searching = false;
-        ApplyFilter();   // a search typed while loading now sees every row, and sort unlocks
+
+        // Re-runs the FILTER only: a search typed while loading now sees every row. It deliberately
+        // does NOT re-sort - the order was settled when the listing opened and may not move under
+        // you a second later (see ApplyListingSort). Sorting is merely UNLOCKED now, for a click.
+        ApplyFilter();
 
         // The load is over, so whatever the on-demand columns still do not know is worth going after
         // now. Belt to HydrateVisible's braces: the visible rows are already filled by then, this is
@@ -1398,6 +1444,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                     };
                     Listing = false;
                     StartTagPass();
+                    ApplyListingSort(isPlaylist: false);
                     ApplyFilter();
                 });
             }
@@ -1473,7 +1520,10 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
             _countText = missing == 0
                 ? $"{tracks.Count} in this set"
                 : $"{tracks.Count} in this set - {missing} missing";
+            // After StartTagPass, because that is what settles AllHydrated - and whether the listing
+            // is complete right now is exactly what decides if it may be sorted at all.
             StartTagPass();
+            ApplyListingSort(isPlaylist: true);
             ApplyFilter();
             Crumbs = [.. BuildCrumbs(Path.GetDirectoryName(playlistPath) ?? playlistPath)
                             .Select(c => c with { IsLast = false }),
@@ -1551,6 +1601,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                     };
                     Listing = false;
                     StartTagPass();
+                    ApplyListingSort(isPlaylist: false);
                     ApplyFilter();
                     Crumbs = [.. BuildCrumbs(Path.GetDirectoryName(folderPath) ?? folderPath)
                                     .Select(c => c with { IsLast = false }),

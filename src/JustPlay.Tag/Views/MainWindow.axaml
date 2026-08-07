@@ -472,7 +472,13 @@
                                                   Command="{Binding Columns.ToggleColumnCommand}" CommandParameter="filename"/>
                                     </MenuFlyout>
                                 </Border.ContextFlyout>
-                                <Grid Margin="6,0,16,0" ClipToBounds="True">
+                                <!-- 4, not 6, and it is the SAME 4 the row below carries: 4 + the shared
+                                     TrackNameMargin's own 4 puts NAME at 8 px - the pane's alignment line,
+                                     the one FOLDER, PLAYER, FILTER and the tabs above all stand on. At 6
+                                     the whole table sat 2 px right of the FILES label over it. The inset
+                                     the DATA columns need on the right is a different question and keeps
+                                     its 16. -->
+                                <Grid Margin="4,0,16,0" ClipToBounds="True">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" MinWidth="150"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -528,7 +534,7 @@
                                                  because the pane is narrow and ARTIST is one right-click
                                                  away as its own sortable column. -->
                                             <uic:TrackRow DataContext="{Binding Track}"
-                                                          Margin="6,0,16,0" MinHeight="30"
+                                                          Margin="4,0,16,0" MinHeight="30"
                                                           Columns="{Binding $parent[ListBox].((vm:TaggerViewModel)DataContext).Columns}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -573,7 +579,8 @@
                                  the Finder's tabhead recipe. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding PanelActive}" Margin="0,0,0,3">
-                                <StackPanel Orientation="Horizontal" Spacing="14" Margin="8,0,0,0">
+                              <Grid ColumnDefinitions="Auto,*">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14" Margin="8,0,0,0">
                                     <!-- .live = the editor holds unsaved edits. Until now the only cue
                                          was Save/Revert going from grey to enabled, on a pane you may
                                          not even be looking at. -->
@@ -600,6 +607,18 @@
                                         <TextBlock Text="FILTER" Classes="panehead"/>
                                     </Button>
                                 </StackPanel>
+
+                                <!-- The file FACTS (type / length / kbps) ride the header, not the
+                                     body: they are what you are looking at, not something you edit,
+                                     and here they land on the same line as the FILES header beside
+                                     them instead of one row below it. Same idiom as the PLAYER
+                                     header's track name and the FILES header's count. -->
+                                <TextBlock Grid.Column="1" Text="{Binding Editor.FileInfo}"
+                                           FontSize="11" Foreground="{DynamicResource MutedBrush}"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" Margin="12,0,8,0"
+                                           ToolTip.Tip="{Binding Editor.FileInfo}"/>
+                              </Grid>
                             </Border>
 
                             <!-- == PLAYER (light) ==================================================
@@ -722,7 +741,12 @@
                                      nothing about tabs. EDITOR and ANALYSIS are the two halves of the
                                      SAME control, so the panel stays up for both and only the header
                                      decides which half it shows. -->
-                                <Panel IsVisible="{Binding ShowPanel}">
+                                <!-- 8, the pane's alignment line - the same one the EDITOR | ANALYSIS |
+                                     FILTER tabs above stand on, so the first field starts under the E of
+                                     EDITOR. Zero was as wrong as the 16 it replaced: the panel carries no
+                                     inset of its own (it is shared, and the floating window needs a
+                                     different one), so whatever the host asks for IS the alignment. -->
+                                <Panel IsVisible="{Binding ShowPanel}" Margin="8,0">
                                     <uic:TagEditorPanel Name="Editor" DataContext="{Binding Editor}"
                                                         ShowAnalysis="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowAnalysis}"/>
                                 </Panel>

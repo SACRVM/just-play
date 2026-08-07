@@ -1,10 +1,12 @@
 using System;
 using System.IO;
+using System.Net.Http;
 using Avalonia;
 using JustPlay.Audio.Bass;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Audio;
 using JustPlay.Core.Storage;
+using JustPlay.Core.Streaming;
 using JustPlay.Stream.Settings;
 using JustPlay.Stream.ViewModels;
 using JustPlay.UI.Theming;
@@ -70,6 +72,12 @@ internal sealed class Program
         // "Record your set": a SECOND, independent encoder on the same post-DSP mixer the
         // broadcast taps - its failure (disk full etc.) can never touch the stream.
         services.AddSingleton<IRecordingService, BassRecordingService>();
+
+        // Listener stats come off the server's PUBLIC status page, not off the source connection -
+        // an ordinary HTTP GET, so it needs no audio stack and no admin password. One shared
+        // HttpClient with a short timeout: a dead server must cost the poll, never the broadcast.
+        services.AddSingleton(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(6) });
+        services.AddSingleton<IStreamStatsProbe, IcecastStatsProbe>();
 
         services.AddSingleton<JsonStreamSettingsService>();
         // Persists the event log to a daily session file (7-day retention); pruning runs in its ctor.

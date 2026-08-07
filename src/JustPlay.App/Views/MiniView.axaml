@@ -32,7 +32,7 @@
                                     IsVisible="{x:Static ui:Platform.IsNotMac}">
                             <!-- TRANSPARENT chip - just the enlarged white play glyph (Chloe 2026-06-30). -->
                             <Border Width="18" Height="18" Background="Transparent">
-                                <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
+                                <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="12.5" Height="12.5">
                                     <Path.Effect>
                                         <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
                                     </Path.Effect>
@@ -48,7 +48,7 @@
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 IsVisible="{x:Static ui:Platform.IsMac}">
                         <Border Width="18" Height="18" Background="Transparent">
-                            <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
+                            <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="12.5" Height="12.5">
                                 <Path.Effect>
                                     <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
                                 </Path.Effect>
