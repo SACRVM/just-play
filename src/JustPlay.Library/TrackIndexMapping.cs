@@ -6,7 +6,7 @@ namespace JustPlay.Library;
 /// The ONE mapping between JustPlay's analysis models and an index entry.
 ///
 /// <para>It used to live inline in the CLI's <c>AnalyzeCommand</c>. It is here now because 0.6
-/// has a second producer of entries — <see cref="LibrarySync"/>, which builds them from the blob
+/// has a second producer of entries - <see cref="LibrarySync"/>, which builds them from the blob
 /// already stored in a file's tags. Two copies of this mapping would drift the moment a detector
 /// gains a field, and then the app and the CLI would disagree about the same track.</para>
 /// </summary>
@@ -48,6 +48,16 @@ public static class TrackIndexMapping
             DurationSec = meta?.Duration.TotalSeconds ?? 0,
             BitrateKbps = meta?.Bitrate,
 
+            // Everything else a track table shows, so it never has to open the file to paint a row.
+            // HasCover is derived from the artwork the reader already resolved through CoverProbe -
+            // the SAME decision the tick column and the editor make, so they cannot disagree.
+            AlbumArtist = meta?.AlbumArtist,
+            Comment     = meta?.Comment,
+            TrackNo     = meta?.TrackNumber,
+            HasCover    = meta is null ? null : meta.CoverArt is { Length: > 0 },
+            Id3Version  = meta?.Id3Version,
+            TagRev      = meta is null ? 0 : TrackIndexEntry.CurrentTagRev,
+
             Success      = analysis is not null && error is null,
             Error        = error,
             Bpm          = analysis?.Bpm,
@@ -81,18 +91,18 @@ public static class TrackIndexMapping
     }
 
     /// <summary>
-    /// Builds an entry from the analysis ALREADY STORED in the file's JUSTPLAY tag — the whole
+    /// Builds an entry from the analysis ALREADY STORED in the file's JUSTPLAY tag - the whole
     /// point of 0.6's two-machine model: machine B imports what machine A measured, with a tag
     /// read and zero DSP.
     ///
     /// <para>Returns null when the file carries no usable blob; the caller then queues the file
     /// for real analysis. The stored <see cref="TrackAnalysisState.Version"/> becomes the entry's
-    /// <see cref="TrackIndexEntry.DetectionVersion"/> — that field finally means something
-    /// (⚠ entries produced by the CLI carry the legacy constant 1 instead; see
+    /// <see cref="TrackIndexEntry.DetectionVersion"/> - that field finally means something
+    /// ((!) entries produced by the CLI carry the legacy constant 1 instead; see
     /// <see cref="TrackIndex.CurrentDetectionVersion"/>).</para>
     ///
     /// <para><b>Analysed-at (post-L6):</b> when the blob itself knows when the DSP ran
-    /// (<see cref="TrackAnalysisState.AnalysedAtUtc"/>), the entry records THAT — not the moment
+    /// (<see cref="TrackAnalysisState.AnalysedAtUtc"/>), the entry records THAT - not the moment
     /// of this import. Older blobs carry no such timestamp; passing
     /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> instead of leaving it null keeps this an
     /// explicit "unknown" (see that field's doc) rather than falling through to
@@ -112,7 +122,7 @@ public static class TrackIndexMapping
 
         return ToIndexEntry(
             filePath,
-            // ⛔ deliberately NOT hashed: measured 2026-07-30, opening a file over SMB costs
+            // (!!) deliberately NOT hashed: measured 2026-07-30, opening a file over SMB costs
             // ~57 ms against 0.23 ms for its directory entry. Hashing here would read the whole
             // library over the wire to learn nothing the cheap key does not already tell us.
             contentHash: "",
@@ -124,10 +134,10 @@ public static class TrackIndexMapping
             analysedAtUtc: state.AnalysedAtUtc ?? TrackIndexEntry.UnknownAnalysedAt);
     }
 
-    // ── The other direction: index entry → the app's models ───────────────────
+    // -- The other direction: index entry -> the app's models -------------------
 
     /// <summary>
-    /// Rebuilds a full <see cref="AnalysisResult"/> from an index entry — how a reader (the finder
+    /// Rebuilds a full <see cref="AnalysisResult"/> from an index entry - how a reader (the finder
     /// in LIBRARY scope, <c>promote</c>) turns a stored row back into the app's analysis model.
     ///
     /// <para><see cref="AnalysisResult.Fingerprint"/> stays null: the index keeps only the scalar
@@ -201,12 +211,22 @@ public static class TrackIndexMapping
         TaggedBpm    = e.Bpm is { } bpm ? (uint)Math.Round(bpm) : null,
         TaggedKey    = e.KeyCamelot,
         TaggedEnergy = e.Energy,
+
+        // The columns that used to cost a live tag read (album artist, comment) or a whole extra
+        // file open per visible row (the COV tick, the ID3 version) now come straight off the row.
+        AlbumArtist  = e.AlbumArtist,
+        Comment      = e.Comment,
+        TrackNumber  = e.TrackNo,
+        Id3Version   = e.Id3Version,
+        // (!) NOT the artwork itself - the index stores WHETHER there is one, never the bytes. A list
+        // shows a tick; only the editor decodes a picture, and it does that for ONE file.
+        CoverArt     = null,
     };
 
     /// <summary>
     /// A tag-only entry for a file we know about but have never analysed
     /// (<c>Success=false</c>, <c>Error=null</c>). It goes into the index on purpose: a track that
-    /// is on disk must be visible in the library even before its DSP has run — never silently
+    /// is on disk must be visible in the library even before its DSP has run - never silently
     /// leave a song behind.
     /// </summary>
     public static TrackIndexEntry NotAnalysed(

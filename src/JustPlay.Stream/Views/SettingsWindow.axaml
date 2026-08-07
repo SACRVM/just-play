@@ -6,7 +6,7 @@
         xmlns:uic="using:JustPlay.UI.Controls"
         x:Class="JustPlay.Stream.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="JUST STREAM — Settings"
+        Title="JUST STREAM - Settings"
         Width="784" Height="549"
         CanResize="False"
         Background="#00000000"
@@ -14,7 +14,7 @@
         WindowDecorations="None"
         WindowStartupLocation="CenterOwner">
 
-    <!-- Themed server-list rows — mirrors JUST PLAY's queue ListBoxItem (MaxView.axaml): flat
+    <!-- Themed server-list rows - mirrors JUST PLAY's queue ListBoxItem (MaxView.axaml): flat
          white hover, theme-driven accent swipe on selected (AccentCRow/AccentBRow recolour per
          theme), rounded. Replaces the bare Fluent default that clashed with the dark card. -->
     <Window.Styles>
@@ -51,20 +51,19 @@
         </Style>
     </Window.Styles>
 
-    <!-- Frameless rounded dialog — same shell as the main console + JUST PLAY (no classic title bar). -->
+    <!-- Frameless rounded dialog - same shell as the main console + JUST PLAY (no classic title bar). -->
     <Panel>
-        <Border CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                Background="#40000000"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="DialogCard" ClipToBounds="False"
+                Background="#40000000">
             <Panel>
-                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
+                <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the flat slab every JUST dialog
+                     carries, so a settings window reads as its own object rather than as a second
+                     main window. One definition for all nine dialogs and the tweaks sidebar. -->
+                <uic:SurfaceCard CornerRadius="14"/>
 
                 <DockPanel LastChildFill="True">
 
-                    <!-- ─── CHROME / TITLE BAR (frameless; brand left, close right) ── -->
+                    <!-- === CHROME / TITLE BAR (frameless; brand left, close right) == -->
                     <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -75,8 +74,8 @@
                                                     IsVisible="{x:Static uic:Platform.IsMac}"
                                                     Margin="0,0,4,0"/>
                                 <!-- Tool-window chrome convention (Chloe 2026-07-05): each secondary
-                                     window leads with ITS OWN glyph, plain white on transparent — like
-                                     SpectrumWindow (bars + "SPECTRUM") — NOT the app brand chip. Same
+                                     window leads with ITS OWN glyph, plain white on transparent - like
+                                     SpectrumWindow (bars + "SPECTRUM") - NOT the app brand chip. Same
                                      gear path as the main chrome's settings button. -->
                                 <Path Stretch="Uniform" Width="15" Height="15"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -98,7 +97,7 @@
                         </Grid>
                     </Border>
 
-                    <!-- ─── BODY ── -->
+                    <!-- === BODY == -->
                     <Grid Margin="18,4,18,16" RowDefinitions="Auto,*">
 
                         <!-- Shared underline tabs (App.axaml Button.tab / Border.tabline) -->
@@ -139,17 +138,25 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ═══ SERVER — de-boxed: list · vertical hairline · form ═══ -->
+                        <!-- === SERVER - de-boxed: list - vertical hairline - form === -->
                         <Grid Grid.Row="1"
                               IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Server}"
                               RowDefinitions="Auto,*" Margin="0,14,0,0">
                             <!-- On-air lock: editing connection details mid-broadcast is blocked. This NEUTRAL
-                                 banner (no red) stays readable — it sits OUTSIDE the disabled content grid below. -->
+                                 banner (no red) stays readable - it sits OUTSIDE the disabled content grid below. -->
                             <Border Grid.Row="0" IsVisible="{Binding Stream.IsConnected}" Margin="0,0,0,12"
                                     Background="#14FFFFFF" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1"
                                     CornerRadius="8" Padding="12,8">
-                                <TextBlock Text="🔒  On air — stop the stream to edit server settings."
-                                           FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                                <!-- Padlock as a shipped vector, not a lock character (CLAUDE.md rule 5) -
+                                     it also picks up MutedBrush now, which the emoji never did. -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <uic:JustIcon Kind="Lock" Width="13" Height="13" Margin="0,0,8,0"
+                                                  Foreground="{StaticResource MutedBrush}"
+                                                  VerticalAlignment="Center"/>
+                                    <TextBlock Text="On air - stop the stream to edit server settings."
+                                               FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
                             </Border>
                             <Grid Grid.Row="1" IsEnabled="{Binding CanEditServers}" ColumnDefinitions="210,1,*">
                             <DockPanel Grid.Column="0" Margin="0,0,16,0">
@@ -179,11 +186,11 @@
                                  fields, not over them, once the station-info rows make the form overflow. -->
                             <ScrollViewer Grid.Column="2" Margin="16,0,0,0" Padding="0,0,14,0"
                                           IsEnabled="{Binding Editing, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                <!-- x:CompileBindings=False: Editing.Port (int→TextBox.Text) + enum/int ComboBox needs coercion. -->
+                                <!-- x:CompileBindings=False: Editing.Port (int->TextBox.Text) + enum/int ComboBox needs coercion. -->
                                 <Grid x:CompileBindings="False" ColumnDefinitions="96,*"
                                       RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                                       VerticalAlignment="Top">
-                                    <!-- UpdateSourceTrigger=LostFocus: commit on blur, not per keystroke — so typing isn't
+                                    <!-- UpdateSourceTrigger=LostFocus: commit on blur, not per keystroke - so typing isn't
                                          interrupted by the collection-replace in OnEditingChanged (the focus-loss bug). -->
                                     <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="NAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
                                     <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding Editing.Name, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,8"/>
@@ -196,22 +203,22 @@
                                     <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="USERNAME" VerticalAlignment="Center" Margin="0,0,10,8"/>
                                     <TextBox  Grid.Row="4" Grid.Column="1" Text="{Binding Editing.Username, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="PASSWORD" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="5" Grid.Column="1" Text="{Binding Editing.Password, UpdateSourceTrigger=LostFocus}" PasswordChar="•" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="5" Grid.Column="1" Text="{Binding Editing.Password, UpdateSourceTrigger=LostFocus}" PasswordChar="-" Margin="0,0,0,8"/>
 
-                                    <!-- CODEC + BITRATE → main page (quality settings). PROTOCOL removed too:
+                                    <!-- CODEC + BITRATE -> main page (quality settings). PROTOCOL removed too:
                                          the connect is AUTO now (tries PUT, falls back to SOURCE). -->
 
                                     <TextBlock Grid.Row="6" Grid.Column="0" Classes="label" Text="TLS / SSL" VerticalAlignment="Center" Margin="0,0,10,8"/>
                                     <ToggleSwitch Grid.Row="6" Grid.Column="1" IsChecked="{Binding Editing.UseTls}" OnContent="" OffContent="" Margin="0,0,0,8"/>
 
-                                    <!-- Station info (ICY directory fields) — all optional, all the DJ's. We fill NOTHING
+                                    <!-- Station info (ICY directory fields) - all optional, all the DJ's. We fill NOTHING
                                          promotional ourselves; these are exactly the fields a spammy encoder would cram, so
                                          we hand them to the DJ. Website=ice-url, Genre=ice-genre, Description=ice-description,
                                          Public=ice-public (YP directory listing). See BassBroadcastService / StreamServerProfile. -->
                                     <TextBlock Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Classes="label" Opacity="0.65"
-                                               Text="STATION INFO — OPTIONAL, SHOWN IN PLAYERS &amp; DIRECTORY" Margin="0,6,0,10"/>
+                                               Text="STATION INFO - OPTIONAL, SHOWN IN PLAYERS &amp; DIRECTORY" Margin="0,6,0,10"/>
                                     <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="WEBSITE" VerticalAlignment="Center" Margin="0,0,10,8"/>
-                                    <TextBox  Grid.Row="8" Grid.Column="1" Text="{Binding Editing.Url, UpdateSourceTrigger=LostFocus}" PlaceholderText="https://…" Margin="0,0,0,8"/>
+                                    <TextBox  Grid.Row="8" Grid.Column="1" Text="{Binding Editing.Url, UpdateSourceTrigger=LostFocus}" PlaceholderText="https://..." Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="9" Grid.Column="0" Classes="label" Text="GENRE" VerticalAlignment="Center" Margin="0,0,10,8"/>
                                     <TextBox  Grid.Row="9" Grid.Column="1" Text="{Binding Editing.Genre, UpdateSourceTrigger=LostFocus}" PlaceholderText="Hard Dance" Margin="0,0,0,8"/>
                                     <TextBlock Grid.Row="10" Grid.Column="0" Classes="label" Text="DESCRIPTION" VerticalAlignment="Center" Margin="0,0,10,8"/>
@@ -224,13 +231,13 @@
                             </Grid>
                         </Grid>
 
-                        <!-- ═══ LOOK — theme palette picker (mirrors TweaksPanel's Look tab in JUST PLAY) ═══ -->
+                        <!-- === LOOK - theme palette picker (mirrors TweaksPanel's Look tab in JUST PLAY) === -->
                         <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"
                                     IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Look}"
                                     ClipToBounds="False">
                             <StackPanel Spacing="8" ClipToBounds="False">
                                 <TextBlock Classes="label" Text="THEME"/>
-                                <!-- Swatch row — same chip size/lift/glow as JUST PLAY (JustStyles: Border.swatch / Button.swatchbtn). -->
+                                <!-- Swatch row - same chip size/lift/glow as JUST PLAY (JustStyles: Border.swatch / Button.swatchbtn). -->
                                 <StackPanel Orientation="Horizontal" Spacing="10" ClipToBounds="False">
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
                                         <theming:ThemeSwatchChip ThemeName="Aurora"
@@ -264,7 +271,7 @@
 
                             <Border Classes="sep"/>
 
-                            <!-- Bottom keyboard-hint bar (the C/R legend) — on by default, off for pros. -->
+                            <!-- Bottom keyboard-hint bar (the C/R legend) - on by default, off for pros. -->
                             <StackPanel Spacing="6">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <ToggleSwitch IsChecked="{Binding Stream.ShowKeyHints}" OnContent="" OffContent=""/>
@@ -282,11 +289,11 @@
                                     <TextBlock Classes="label" Text="KEEP SCREEN AWAKE" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Classes="hint"
-                                           Text="While you are on air or recording, the screen never blanks and the screensaver stays off — DJ software only sees the controller, so the OS thinks you left. Off air, your normal energy settings apply."/>
+                                           Text="While you are on air or recording, the screen never blanks and the screensaver stays off - DJ software only sees the controller, so the OS thinks you left. Off air, your normal energy settings apply."/>
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- ═══ RECORDING — format / folder / auto-record ("record your set") ═══ -->
+                        <!-- === RECORDING - format / folder / auto-record ("record your set") === -->
                         <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"
                                     IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Recording}">
                             <StackPanel Spacing="8">
@@ -303,7 +310,7 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <TextBlock Classes="hint"
-                                           Text="Same as stream mirrors the live codec + bitrate — the honest self-check: the file sounds exactly like your broadcast, artifacts included. Pick MP3 320 or a lossless format for a keeper copy."/>
+                                           Text="Same as stream mirrors the live codec + bitrate - the honest self-check: the file sounds exactly like your broadcast, artifacts included. Pick MP3 320 or a lossless format for a keeper copy."/>
                             </StackPanel>
                             <Border Classes="sep"/>
                             <StackPanel Spacing="8">
@@ -313,7 +320,7 @@
                                     <TextBox Grid.Column="0"
                                              Text="{Binding Stream.RecordingFolder, UpdateSourceTrigger=LostFocus}"
                                              PlaceholderText="{Binding Stream.DefaultRecordingFolder}"/>
-                                    <Button Grid.Column="1" Classes="seg" Content="BROWSE…" Margin="8,0,0,0"
+                                    <Button Grid.Column="1" Classes="seg" Content="BROWSE..." Margin="8,0,0,0"
                                             Click="OnBrowseRecordingFolder" VerticalAlignment="Center"/>
                                 </Grid>
                             </StackPanel>
@@ -324,7 +331,7 @@
                                     <TextBlock Classes="label" Text="AUTO-TRIM SILENCE" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Classes="hint"
-                                           Text="You usually go on air first and start the music later — this keeps the dead air out of the file entirely. REC arms the recorder; the file starts on the first beat and ends on the last, with zero silence at either end. Short breaks (up to 30 s) stay in the mix untouched; anything longer is cut. A recording that never saw any audio is discarded."/>
+                                           Text="You usually go on air first and start the music later - this keeps the dead air out of the file entirely. REC arms the recorder; the file starts on the first beat and ends on the last, with zero silence at either end. Short breaks (up to 30 s) stay in the mix untouched; anything longer is cut. A recording that never saw any audio is discarded."/>
                             </StackPanel>
                             <Border Classes="sep"/>
                             <StackPanel Spacing="6">
@@ -333,11 +340,11 @@
                                     <TextBlock Classes="label" Text="AUTO-RECORD WHILE ON AIR" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Classes="hint"
-                                           Text="Starts the recorder with CONNECT and saves the file on DISCONNECT — nobody remembers to hit record at gig start. If the connection drops, the recording keeps running so the set is never lost."/>
+                                           Text="Starts the recorder with CONNECT and saves the file on DISCONNECT - nobody remembers to hit record at gig start. If the connection drops, the recording keeps running so the set is never lost."/>
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- ═══ ADVANCED — de-boxed, hairline-separated rows ═══ -->
+                        <!-- === ADVANCED - de-boxed, hairline-separated rows === -->
                         <StackPanel Grid.Row="1" Spacing="14" Margin="0,16,0,0" VerticalAlignment="Top"
                                     IsVisible="{Binding SettingsTab, Converter={x:Static vm:StringEqualsConverter.Instance}, ConverterParameter=Advanced}">
                             <StackPanel Spacing="6">
@@ -346,13 +353,13 @@
                                     <TextBlock Classes="label" Text="KEEP SCREEN AWAKE WHILE ON AIR" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Classes="hint"
-                                           Text="Your hands are on the controller, not the keyboard — the OS thinks you're idle and blanks the screen mid-set (Traktor won't stop it either). While you're on air or recording, JUST STREAM keeps the display awake; disconnect, and your normal screensaver policy is back."/>
+                                           Text="Your hands are on the controller, not the keyboard - the OS thinks you're idle and blanks the screen mid-set (Traktor won't stop it either). While you're on air or recording, JUST STREAM keeps the display awake; disconnect, and your normal screensaver policy is back."/>
                             </StackPanel>
                             <Border Classes="sep"/>
                             <StackPanel Spacing="3">
                                 <TextBlock Classes="label" Text="AUTO-RECONNECT"/>
                                 <TextBlock Classes="hint"
-                                           Text="Automatic. If the connection drops, JUST STREAM retries with exponential backoff (2 s → 30 s) until the stream is back — or you hit DISCONNECT. On-air time keeps counting and a running set recording is never interrupted."/>
+                                           Text="Automatic. If the connection drops, JUST STREAM retries with exponential backoff (2 s -> 30 s) until the stream is back - or you hit DISCONNECT. On-air time keeps counting and a running set recording is never interrupted."/>
                             </StackPanel>
                             <Border Classes="sep"/>
                             <!-- Background=Transparent makes the WHOLE row a right-click target (a
@@ -369,7 +376,7 @@
                                 <TextBlock Classes="mono" FontSize="12" Text="%LOCALAPPDATA%\JustStream"
                                            Foreground="{StaticResource MutedBrush}"/>
                                 <TextBlock Classes="hint" Margin="0,4,0,0"
-                                           Text="The event log is saved here as a daily file (session-YYYY-MM-DD.log) and kept for 7 days, so you can look back at a set — when the stream dropped and reconnected, what was recorded. settings.json and any crash logs live here too."/>
+                                           Text="The event log is saved here as a daily file (session-YYYY-MM-DD.log) and kept for 7 days, so you can look back at a set - when the stream dropped and reconnected, what was recorded. settings.json and any crash logs live here too."/>
                             </StackPanel>
                         </StackPanel>
                     </Grid>

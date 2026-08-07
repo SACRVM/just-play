@@ -17,7 +17,7 @@ public partial class App : Application
 {
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
-    // "About Just Play" in the macOS app menu — same shared About dialog as the brand mark
+    // "About Just Play" in the macOS app menu - same shared About dialog as the brand mark
     // in the chrome bar (MaxView.OnAboutClick), owned by the main window.
     private void OnAboutMenu(object? sender, System.EventArgs e)
     {
@@ -36,15 +36,20 @@ public partial class App : Application
     {
         // Apply the persisted theme BEFORE the main window opens so the user
         // never sees a one-frame Aurora flash before their picked theme lands.
-        // Application.Current.Resources is fully populated at this point — the
+        // Application.Current.Resources is fully populated at this point - the
         // theme service can safely overwrite the colour keys.
         var settings = Program.Services.GetRequiredService<ISettingsService>();
         var themeSvc = Program.Services.GetRequiredService<IThemeService>();
         themeSvc.Apply(Themes.ByNameOrDefault(settings.Current.Theme));
 
+        // The shared row-drag behavior lives in JustPlay.UI (JUST TAG drags files out too), but the
+        // crash reporter does not - it owns the Oops dialog, which is this app's. So the app hands it
+        // its reporter; an app that has none simply swallows a failed drag, which is the right default.
+        JustPlay.UI.Behaviors.RowDragBehavior.OnError = (ex, context) => ErrorReporter.Report(ex, context);
+
         // Tell the index service which root this machine uses, at STARTUP rather than when the PRE CUE
         // FINDER first opens. Two reasons: HasIndex/Count answer correctly before the finder exists, and
-        // UseRoot is what announces an existing index to the suite (LibraryIndexRegistry) — so JUST TAG
+        // UseRoot is what announces an existing index to the suite (LibraryIndexRegistry) - so JUST TAG
         // can find it without JUST PLAY's finder having been opened in this session. It only ever reads;
         // a root that was never scanned has no database file and is not announced.
         Program.Services.GetRequiredService<ILibraryIndexService>()
@@ -66,13 +71,13 @@ public partial class App : Application
 
             desktop.MainWindow = window;
 
-            // Closing JUST PLAY's main window quits the whole app — and takes any independent top-level
+            // Closing JUST PLAY's main window quits the whole app - and takes any independent top-level
             // (the PRE CUE FINDER) down with it (Avalonia's shutdown closes every remaining window, so the
             // finder's OnClosed cleanup still runs + WindowPlacement persists its bounds). Without this the
             // default OnLastWindowClose would leave the app alive whenever the finder is open. Chloe 2026-07-07.
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-            // ── File-open intake (single-instance) ───────────────────────────
+            // -- File-open intake (single-instance) ---------------------------
             // Add any files we were launched with (double-click / file association), and listen
             // for files forwarded by LATER launches while we're already running. Everything is
             // marshalled to the UI thread; a forwarded open also surfaces the window.
@@ -90,7 +95,7 @@ public partial class App : Application
                     _ = vm.OpenIncomingAsync(paths, addOnly);
                 }));
 
-            // ── Auto-update (v0.2) ───────────────────────────────────────────
+            // -- Auto-update (v0.2) -------------------------------------------
             // Begin background release checks for THIS build's version. No-op when the user
             // opted out; surfaces the green title-bar badge when a newer release is found.
             var appVersion = typeof(App).Assembly.GetName().Version ?? new System.Version(0, 0, 0);

@@ -1,15 +1,17 @@
 using System;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 using JustPlay.Core.Theming;
+using JustPlay.Library;
 using JustPlay.Tag.Settings;
 
 namespace JustPlay.Tag.ViewModels;
 
 /// <summary>
-/// JUST TAG settings — theme picker + ID3 write mode. A separate window (like JUST STREAM's) because the
+/// JUST TAG settings - theme picker + ID3 write mode. A separate window (like JUST STREAM's) because the
 /// theme switcher couldn't size reliably at the editor's bottom edge (Chloe 2026-06-30). Singleton so it
 /// reflects + persists the one shared <see cref="IThemeService"/> / <see cref="TagSettingsService"/> state.
 /// </summary>
@@ -28,10 +30,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         _writeFormat = _settings.WriteFormat;
     }
 
-    /// <summary>Active theme name — drives the swatch "active" ring (via StringEqualsConverter).</summary>
+    /// <summary>Active theme name - drives the swatch "active" ring (via StringEqualsConverter).</summary>
     [ObservableProperty] private string _currentTheme;
 
-    /// <summary>Active ID3 write mode — drives the write-format option highlight (via EnumEqualsConverter).</summary>
+    /// <summary>Active ID3 write mode - drives the write-format option highlight (via EnumEqualsConverter).</summary>
     [ObservableProperty] private Id3WriteFormat _writeFormat;
 
     /// <summary>Apply a named theme live + persist (same pattern as JUST PLAY / STREAM SetThemeCommand).</summary>
@@ -44,6 +46,36 @@ public sealed partial class SettingsViewModel : ObservableObject
         CurrentTheme = theme.Name;
         _settings.Current.Theme = theme.Name;
         _settings.Save();
+    }
+
+    /// <summary>
+    /// How many files the file table reads at once - JUST PLAY's "Analysis threads" control, ported
+    /// rather than re-invented, so one knob does not grow two dialects across the suite. Reading a
+    /// tag waits on the NETWORK, not on a core, which is why raising it shortens a big folder almost
+    /// linearly. Clamped to the suite's one ceiling (AnalysisBatchOptions.MaxSupportedConcurrency).
+    ///
+    /// <para>This view model WRITES it; TaggerViewModel reads it back off the settings service when
+    /// it starts a pass, so a change takes effect on the next folder without any wiring between the
+    /// two.</para>
+    /// </summary>
+    public int Threads => Math.Clamp(_settings.Current.Threads, 1, AnalysisBatchOptions.MaxSupportedConcurrency);
+
+    /// <summary>String form, so the radio buttons drive their active state through the same
+    /// StringEqualsConverter the theme swatches use.</summary>
+    public string ThreadsText => Threads.ToString(CultureInfo.InvariantCulture);
+
+    [RelayCommand]
+    private void SetThreads(string? value)
+    {
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n)) return;
+
+        var clamped = Math.Clamp(n, 1, AnalysisBatchOptions.MaxSupportedConcurrency);
+        if (clamped == Threads) return;
+
+        _settings.Current.Threads = clamped;
+        _settings.Save();
+        OnPropertyChanged(nameof(Threads));
+        OnPropertyChanged(nameof(ThreadsText));
     }
 
     /// <summary>Switch the MP3 write mode live + persist; applies the TagLib# global immediately.</summary>

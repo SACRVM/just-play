@@ -5,14 +5,14 @@ namespace JustPlay.Tag.Settings;
 /// <summary>
 /// Persisted JUST TAG preferences (self-contained; serialized to
 /// <c>%LOCALAPPDATA%\JustTag\settings.json</c> by <see cref="TagSettingsService"/>). Kept tiny on
-/// purpose — JUST TAG holds no library/playlist state, just look + write behaviour.
+/// purpose - JUST TAG holds no library/playlist state, just look + write behaviour.
 /// </summary>
 public sealed class TagSettings
 {
     /// <summary>Active theme palette name (see <see cref="JustPlay.Core.Theming.Themes"/>). Default Aurora.</summary>
     public string Theme { get; set; } = "Aurora";
 
-    /// <summary>ID3v2 write mode — the <see cref="JustPlay.Core.Models.Id3WriteFormat"/> enum NAME.
+    /// <summary>ID3v2 write mode - the <see cref="JustPlay.Core.Models.Id3WriteFormat"/> enum NAME.
     /// Default = KeepFileVersion: converting is a thing you choose, not something Save does to you.</summary>
     public string WriteFormat { get; set; } = "KeepFileVersion";
 
@@ -30,9 +30,21 @@ public sealed class TagSettings
     public string? SortColumn { get; set; }
 
     public bool SortDescending { get; set; }
+
+    /// <summary>
+    /// How many files to read at once when filling the table. Same control, same range and the same
+    /// default as JUST PLAY's "Analysis threads" (<see cref="JustPlay.Core.Models.UserSettings.AnalysisThreads"/>) -
+    /// ported rather than re-invented, because a second dialect of the same knob is how two JUST
+    /// windows start behaving differently (Chloe 2026-08-07: "wozu hat man zig prozessorkerne?!").
+    ///
+    /// <para>Reading tags waits on the network, not on a core, so raising this shortens a big folder
+    /// almost linearly. Clamped to 1..16 on load - the same ceiling
+    /// <c>AnalysisBatchRunner.MaxSupportedConcurrency</c> enforces.</para>
+    /// </summary>
+    public int Threads { get; set; } = 4;
 }
 
-/// <summary>Source-generated JSON context — trim/AOT-safe (no reflection serialization), per the repo's
+/// <summary>Source-generated JSON context - trim/AOT-safe (no reflection serialization), per the repo's
 /// reflection-free goal.</summary>
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(TagSettings))]

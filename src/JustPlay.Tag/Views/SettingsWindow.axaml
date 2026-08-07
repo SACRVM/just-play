@@ -1,10 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:uic="using:JustPlay.UI.Controls"
         xmlns:vm="using:JustPlay.Tag.ViewModels"
         xmlns:theming="using:JustPlay.UI.Theming"
         x:Class="JustPlay.Tag.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
-        Title="JUST TAG — Settings"
+        Title="JUST TAG - Settings"
         Width="468" Height="696"
         CanResize="False"
         Background="#00000000"
@@ -42,21 +43,22 @@
         </Style>
     </Window.Styles>
 
-    <!-- Frameless rounded dialog — same shell as JUST PLAY / STREAM (no classic title bar). -->
+    <!-- Frameless rounded dialog - same shell as JUST PLAY / STREAM (no classic title bar). -->
     <Panel>
-        <Border CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                Background="#40000000"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="DialogCard" ClipToBounds="False"
+                Background="#40000000">
             <Panel>
-                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
-                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+            <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the ONE thing that makes a dialog
+                 read as its own object instead of a second main window (Chloe 2026-08-05/06). The
+                 distinction is FLAT vs GRADIENT: windows carry the ramp plus two accent blooms, a
+                 dialog carries a flat slab. Gradient and glass were both tried on this surface and
+                 both failed for measured reasons - see JustPalette.axaml (banding) and
+                 AboutWindow.axaml (window-level blur eats the shadow margin). -->
+            <uic:SurfaceCard CornerRadius="14"/>
 
                 <DockPanel LastChildFill="True">
 
-                    <!-- ─── CHROME / TITLE BAR (frameless; brand left, close right) ── -->
+                    <!-- === CHROME / TITLE BAR (frameless; brand left, close right) == -->
                     <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -64,7 +66,7 @@
                                         Margin="14,0,0,0" VerticalAlignment="Center">
                                 <Border Width="18" Height="18" CornerRadius="5"
                                         Background="{StaticResource AccentGradient}">
-                                    <!-- Lucide "sliders-horizontal" — reads as settings/adjust. -->
+                                    <!-- Lucide "sliders-horizontal" - reads as settings/adjust. -->
                                     <Path Stretch="Uniform" Width="11" Height="11"
                                           HorizontalAlignment="Center" VerticalAlignment="Center"
                                           Stroke="White" StrokeThickness="1.8"
@@ -78,19 +80,19 @@
                             </StackPanel>
 
                             <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close">
-                                <TextBlock Text="✕" FontSize="13"/>
+                                <uic:JustIcon Kind="Close" Width="12" Height="12"/>
                             </Button>
                         </Grid>
                     </Border>
 
-                    <!-- ─── BODY (no ScrollViewer — content fits the fixed window; a ScrollViewer's content
-                         clip would crop the swatch glow, the recurring clipping bug) ── -->
+                    <!-- === BODY (no ScrollViewer - content fits the fixed window; a ScrollViewer's content
+                         clip would crop the swatch glow, the recurring clipping bug) == -->
                     <StackPanel Margin="22,8,22,18" Spacing="20" ClipToBounds="False">
 
-                            <!-- ═══ THEME ═══ -->
+                            <!-- === THEME === -->
                             <StackPanel Spacing="10" ClipToBounds="False">
                                 <TextBlock Classes="label" Text="THEME"/>
-                                <!-- Diagonal swatch chips (shared ThemeSwatchChip) — each previews its own theme;
+                                <!-- Diagonal swatch chips (shared ThemeSwatchChip) - each previews its own theme;
                                      the active one keeps its accent ring + glow. -->
                                 <StackPanel Orientation="Horizontal" Spacing="12" ClipToBounds="False">
                                     <Button Classes="swatchbtn" Command="{Binding SetThemeCommand}" CommandParameter="Aurora">
@@ -125,15 +127,15 @@
 
                             <Border Height="1" Background="{StaticResource HairlineBrush}"/>
 
-                            <!-- ═══ WRITE FORMAT (MP3) ═══
+                            <!-- === WRITE FORMAT (MP3) ===
                                  This setting is the ONLY way into an ID3 version change in the whole suite:
                                  the CLI and JUST PLAY never call ConfigureId3WriteFormat, so they run with
                                  ForceDefaultVersion = false and preserve whatever version a file has. The
                                  default option below does exactly the same; the three CONVERT options force
-                                 it, in BOTH directions — hence the caution card under them. -->
+                                 it, in BOTH directions - hence the caution card under them. -->
                             <StackPanel Spacing="10">
                                 <StackPanel Spacing="3">
-                                    <TextBlock Classes="label" Text="WRITE FORMAT  ·  MP3 / ID3v2"/>
+                                    <TextBlock Classes="label" Text="WRITE FORMAT  -  MP3 / ID3v2"/>
                                     <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
                                                Text="What saving does to an MP3's ID3 version. FLAC, MP4 and Ogg ignore this."/>
                                 </StackPanel>
@@ -166,10 +168,10 @@
                                         <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
                                                 BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="2" Spacing="1">
-                                            <TextBlock Text="Convert to ID3v2.3 · UTF-16" FontSize="13"
+                                            <TextBlock Text="Convert to ID3v2.3 - UTF-16" FontSize="13"
                                                        FontWeight="SemiBold" Foreground="#ECFFFFFF"/>
                                             <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
-                                                       Text="Reads everywhere — Windows, car &amp; DJ gear. mp3tag's default."/>
+                                                       Text="Reads everywhere - Windows, car &amp; DJ gear. mp3tag's default."/>
                                         </StackPanel>
                                     </Grid>
                                 </Button>
@@ -180,10 +182,10 @@
                                         <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
                                                 BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="2" Spacing="1">
-                                            <TextBlock Text="Convert to ID3v2.3 · ISO-8859-1" FontSize="13"
+                                            <TextBlock Text="Convert to ID3v2.3 - ISO-8859-1" FontSize="13"
                                                        FontWeight="SemiBold" Foreground="#ECFFFFFF"/>
                                             <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
-                                                       Text="Same version, plain text — for old gear that chokes on UTF-16."/>
+                                                       Text="Same version, plain text - for old gear that chokes on UTF-16."/>
                                         </StackPanel>
                                     </Grid>
                                 </Button>
@@ -194,7 +196,7 @@
                                         <Border Classes="optdot" Grid.Column="0" Width="16" Height="16" CornerRadius="8"
                                                 BorderThickness="2" BorderBrush="#59FFFFFF" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="2" Spacing="1">
-                                            <TextBlock Text="Convert to ID3v2.4 · UTF-8" FontSize="13"
+                                            <TextBlock Text="Convert to ID3v2.4 - UTF-8" FontSize="13"
                                                        FontWeight="SemiBold" Foreground="#ECFFFFFF"/>
                                             <TextBlock Classes="value" FontSize="11" TextWrapping="Wrap"
                                                        Text="Modern and compact. Only for software known to read v2.4."/>
@@ -206,7 +208,7 @@
                                      re-serialises the tag and re-encodes GEOB descriptors. Payloads survive
                                      byte-for-byte; the LABEL Serato/MIK search by does not. Re-verified against
                                      the shipped writer: F_mik_armstrong.mp3 (v2.4) saved in the DEFAULT mode
-                                     came back v2.3 with GEOB:CuePoints relabelled Latin-1 → UTF-16+BOM. -->
+                                     came back v2.3 with GEOB:CuePoints relabelled Latin-1 -> UTF-16+BOM. -->
                                 <Border Classes="caution">
                                     <Grid ColumnDefinitions="Auto,11,*">
                                         <!-- Lucide "triangle-alert". -->

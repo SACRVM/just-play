@@ -9,13 +9,13 @@ namespace JustPlay.UI.Behaviors;
 ///
 /// <para><b>Why it is custom at all.</b> Every JUST window is a borderless, transparent card
 /// (<c>WindowDecorations="None"</c>) with a drop shadow blooming into a transparent margin. Windows'
-/// own <c>WindowState.Maximized</c> on such a window keeps that margin and the rounded corners — so
+/// own <c>WindowState.Maximized</c> on such a window keeps that margin and the rounded corners - so
 /// "maximized" left a transparent frame around the screen and the card still had corners cut off it.
 /// Full screen means FILLING THE SCREEN (Chloe 2026-08-05). So we size the window to the screen's work
 /// area ourselves (respecting the taskbar) and square the card off through the <c>maximized</c> class.</para>
 ///
-/// <para><b>Why it is shared.</b> This logic existed three times — JUST PLAY's main window, the PRE CUE
-/// FINDER and JUST STREAM — as three copies of the same 25 lines, and JUST TAG had the <c>.maximized</c>
+/// <para><b>Why it is shared.</b> This logic existed three times - JUST PLAY's main window, the PRE CUE
+/// FINDER and JUST STREAM - as three copies of the same 25 lines, and JUST TAG had the <c>.maximized</c>
 /// STYLE but nothing that ever set the class, so its maximize did exactly the wrong thing. One copy per
 /// app is how a suite rule becomes three-quarters true. Attach this instead.</para>
 /// </summary>
@@ -35,7 +35,7 @@ public sealed class FramelessMaximize
 
     /// <summary>
     /// Wire a frameless window up. The card and the resize grips are found BY NAME, because every JUST
-    /// window is built from the same chrome recipe and names them the same — a window that does not
+    /// window is built from the same chrome recipe and names them the same - a window that does not
     /// have them simply gets the sizing without the squaring off, never an exception.
     /// </summary>
     public static FramelessMaximize Attach(Window window, string cardName = "RootCard",
@@ -43,7 +43,7 @@ public sealed class FramelessMaximize
     {
         var behavior = new FramelessMaximize(window, cardName, gripsName);
 
-        // WINDOWS can maximize us too — Win+↑, a snap, the taskbar, a double-click on the chrome —
+        // WINDOWS can maximize us too - Win+^, a snap, the taskbar, a double-click on the chrome -
         // and none of that goes through our button. Without this watcher the card kept its margin and
         // its corners on every one of those routes. (JUST PLAY's XAML has claimed a "WindowState
         // watcher" in a comment since it was written; there wasn't one. Chloe 2026-08-05.)
@@ -61,6 +61,26 @@ public sealed class FramelessMaximize
     /// <summary>True while the custom maximize is active. <see cref="WindowPlacement"/> reads it so the
     /// screen-filling bounds are never persisted as the window's normal size.</summary>
     public bool IsMaximized { get; private set; }
+
+    /// <summary>
+    /// The same flag, ATTACHED TO THE WINDOW, so anything in the window's tree can bind to it.
+    ///
+    /// <para>Why it exists: the shared caption button drew a plain square in every state, so a
+    /// maximized JUST window still offered "maximize" - Windows draws two overlapping rectangles
+    /// (restore) there, and we did not (Chloe 2026-08-06: "ist die app im fullscreen mode ist das
+    /// icon falsch ... wir machen das falsch"). The state lived here and was told to nobody.</para>
+    ///
+    /// <para>Attached rather than an interface member on purpose: our maximize is custom, so
+    /// <c>Window.WindowState</c> never changes and there is nothing else to observe - and this way
+    /// all four frameless windows get it without a single line of per-window plumbing.</para>
+    /// </summary>
+    public static readonly AttachedProperty<bool> IsMaximizedProperty =
+        AvaloniaProperty.RegisterAttached<FramelessMaximize, Window, bool>("IsMaximized");
+
+    public static bool GetIsMaximized(Window window) => window.GetValue(IsMaximizedProperty);
+
+    public static void SetIsMaximized(Window window, bool value) =>
+        window.SetValue(IsMaximizedProperty, value);
 
     /// <summary>
     /// An extra condition for showing the resize grips, for a window that hides them for its own
@@ -99,10 +119,14 @@ public sealed class FramelessMaximize
         Apply();
     }
 
-    /// <summary>Re-apply the chrome for the current state — call it when something ELSE changed that
+    /// <summary>Re-apply the chrome for the current state - call it when something ELSE changed that
     /// affects the grips (JUST PLAY leaving mini mode).</summary>
     public void Apply()
     {
+        // Publish the state on the window first, so the caption button's restore mark and the card's
+        // squared-off corners always change in the same frame.
+        SetIsMaximized(_window, IsMaximized);
+
         // No margin, no corner radius, no shadow: the card IS the screen.
         _window.FindControl<Border>(_cardName)?.Classes.Set("maximized", IsMaximized);
 

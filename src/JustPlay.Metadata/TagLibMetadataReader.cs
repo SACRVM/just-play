@@ -46,12 +46,16 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 TaggedEnergy = taggedEnergy,
                 StoredAnalysis = AnalysisStateCodec.TryParse(TagCustomFields.Get(file, "JUSTPLAY")),
                 CoverArt = FirstPicture(tag),
+                // Costs one 4-byte read of the file head, and only during a SYNC - so that the ID3
+                // column can be painted straight out of the index instead of probing every visible
+                // row at display time (Chloe 2026-08-07).
+                Id3Version = Id3VersionProbe.Read(filePath) is { } major ? $"2.{major}" : null,
                 IsFavorite = ReadPopm(file),
             };
         }
         catch
         {
-            // Corrupt/unsupported tags must never stop playback — return the bare minimum.
+            // Corrupt/unsupported tags must never stop playback - return the bare minimum.
             return new TrackMetadata { FallbackName = fallback };
         }
     }
@@ -78,7 +82,7 @@ public sealed class TagLibMetadataReader : IMetadataReader
         }
         catch
         {
-            // Corrupt/unsupported file — return empty snapshot rather than surfacing an exception.
+            // Corrupt/unsupported file - return empty snapshot rather than surfacing an exception.
             return new EditableTags();
         }
     }
@@ -86,8 +90,8 @@ public sealed class TagLibMetadataReader : IMetadataReader
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    /// <summary>The cover bytes, if the tag carries real artwork. Which picture that IS — past
-    /// Serato's and MIK's GEOB blobs in the same array — is decided ONCE, in
+    /// <summary>The cover bytes, if the tag carries real artwork. Which picture that IS - past
+    /// Serato's and MIK's GEOB blobs in the same array - is decided ONCE, in
     /// <see cref="CoverProbe.Best"/>, because the "does it have a cover" probe has to agree with this
     /// or the tick column and the editor would disagree about the same file.</summary>
     private static byte[]? FirstPicture(TagLib.Tag tag)
@@ -101,7 +105,7 @@ public sealed class TagLibMetadataReader : IMetadataReader
     /// Returns true when rating &gt; 0 (any non-zero value means "liked").
     /// Falls back gracefully to false for non-ID3 formats or missing frames.
     /// Also handles Xiph RATING comment fields (FLAC/OGG) where a value of
-    /// "5" (1–5 stars) or "255" (0–255 raw) is treated as "liked".
+    /// "5" (1-5 stars) or "255" (0-255 raw) is treated as "liked".
     /// </summary>
     /// <remarks>
     /// Internal (not private): <see cref="TagLibWritePreview"/> reuses this exact logic to read
@@ -110,7 +114,7 @@ public sealed class TagLibMetadataReader : IMetadataReader
     /// </remarks>
     internal static bool ReadPopm(TagLib.File file)
     {
-        // ID3v2: POPM frame — the standard path for MP3.
+        // ID3v2: POPM frame - the standard path for MP3.
         if (file.GetTag(TagLib.TagTypes.Id3v2, false) is TagLib.Id3v2.Tag id3)
         {
             var frame = TagLib.Id3v2.PopularimeterFrame.Get(id3, PopmUser, false);
@@ -130,6 +134,6 @@ public sealed class TagLibMetadataReader : IMetadataReader
         return false;
     }
 
-    /// <summary>POPM user identifier — an ASCII string stored in the ID3 frame to namespace the rating.</summary>
+    /// <summary>POPM user identifier - an ASCII string stored in the ID3 frame to namespace the rating.</summary>
     internal const string PopmUser = "JustPlay";
 }

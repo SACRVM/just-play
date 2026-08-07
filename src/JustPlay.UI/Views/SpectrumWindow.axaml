@@ -27,17 +27,15 @@
         </Style>
     </Window.Styles>
 
-    <!-- Frameless rounded card — same suite shell as the player / settings windows. -->
+    <!-- Frameless rounded card - same suite shell as the player / settings windows. -->
     <Panel>
-        <Border CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                Background="#40000000"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="DialogCard" ClipToBounds="False"
+                Background="#40000000">
             <Panel>
-                <Rectangle Fill="{StaticResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{StaticResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
-                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+                <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the flat slab every JUST dialog
+                     and tool window carries, so it reads as its own object rather than as a second
+                     main window. One definition for every one of them. -->
+                <controls:SurfaceCard CornerRadius="14"/>
 
                 <!-- LAYERED (Chloe 2026-07-05): the spectrum fills the whole card and its peaks paint
                      UP over the SPECTRUM title to the window edge, clipping only there. The chrome sits
@@ -46,7 +44,7 @@
                      spectrum/meters grid (on top). -->
                 <Panel>
 
-                    <!-- ─── CHROME / TITLE BAR (under the curves now) ── -->
+                    <!-- === CHROME / TITLE BAR (under the curves now) == -->
                     <Border VerticalAlignment="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -62,7 +60,7 @@
                                            Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
                             </StackPanel>
 
-                            <!-- Legend: TARGET (dashed) · DRY (pre-bus) · WET (post-bus, theme accent). -->
+                            <!-- Legend: TARGET (dashed) - DRY (pre-bus) - WET (post-bus, theme accent). -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14"
                                         HorizontalAlignment="Right" Margin="0,0,12,0" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
@@ -90,12 +88,12 @@
 
                             <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
                                     IsVisible="{x:Static controls:Platform.IsNotMac}">
-                                <TextBlock Text="✕" FontSize="13"/>
+                                <controls:JustIcon Kind="Close" Width="12" Height="12"/>
                             </Button>
                         </Grid>
                     </Border>
 
-                    <!-- ─── LIVE SPECTRUM + LIMITER GAIN-REDUCTION METER ──
+                    <!-- === LIVE SPECTRUM + LIMITER GAIN-REDUCTION METER ==
                          Fills the card top-to-bottom (over the chrome). IsHitTestVisible=False on the
                          plot lets clicks fall through to the chrome underneath. The meters keep a top
                          margin so their LIMITER/OUT labels clear the 36px chrome. -->
@@ -107,7 +105,7 @@
                                        HorizontalAlignment="Center" Margin="0,2,0,6"/>
                             <controls:GainReductionMeter Grid.Row="1" Name="GrMeter"/>
                         </Grid>
-                        <!-- OUT column — host can hide it (e.g. JUST STREAM already has its own L/R meter). -->
+                        <!-- OUT column - host can hide it (e.g. JUST STREAM already has its own L/R meter). -->
                         <Grid Grid.Column="2" Name="OutColumn" Width="58" Margin="10,40,0,0" RowDefinitions="Auto,*,Auto">
                             <TextBlock Grid.Row="0" Text="OUT" FontSize="9" FontWeight="Bold"
                                        LetterSpacing="1.5" Foreground="#73FFFFFF"

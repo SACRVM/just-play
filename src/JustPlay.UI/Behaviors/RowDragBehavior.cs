@@ -11,20 +11,20 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
-namespace JustPlay.App.Controls;
+namespace JustPlay.UI.Behaviors;
 
 /// <summary>
 /// The ONE row-drag gesture for track lists, with two modes per list:
 ///
-/// <para><b>Drag-out only</b> (<see cref="Attach(ListBox, Func{object?, string?})"/> — the finder's
+/// <para><b>Drag-out only</b> (<see cref="Attach(ListBox, Func{object?, string?})"/> - the finder's
 /// file list + folder tree): press a row, drag past a small threshold, and Windows' real OLE
-/// drag-drop takes over — dropping on Explorer/Traktor/an editor/an AI-agent chat window (anywhere
+/// drag-drop takes over - dropping on Explorer/Traktor/an editor/an AI-agent chat window (anywhere
 /// that accepts CF_HDROP) hands over the actual file or folder path. Chloe 2026-07-08: "wichtig wenn
 /// man mal einen KI-Agenten auf ein file aufmerksam machen will."</para>
 ///
 /// <para><b>Combined reorder + drag-out</b> (<see cref="Attach(ListBox, Func{object?, string?}, RowReorder)"/>
-/// — the queue): dragging INSIDE the list reorders rows (accent insertion line, edge autoscroll,
-/// multi-select moves the whole selection) — the set-building gesture, like every DJ software.
+/// - the queue): dragging INSIDE the list reorders rows (accent insertion line, edge autoscroll,
+/// multi-select moves the whole selection) - the set-building gesture, like every DJ software.
 /// Dragging OUT of the list SIDEWAYS converts the gesture into the OS file drag above. Vertical
 /// overshoot clamps the insertion point to the first/last row instead (so sorting to the very
 /// top/bottom can't accidentally become a file drag). Chloe 2026-07-11: "wie willst du ein set
@@ -32,29 +32,29 @@ namespace JustPlay.App.Controls;
 /// </summary>
 /// <remarks>
 /// <para>
-/// OS-drag mechanics SOURCE-VERIFIED against Avalonia 12.0.3 (branch release/12.0.3) — night task
+/// OS-drag mechanics SOURCE-VERIFIED against Avalonia 12.0.3 (branch release/12.0.3) - night task
 /// N24. Avalonia 12 replaced the old Avalonia-11 <c>IDataObject</c>/<c>DataFormats</c>/
 /// <c>DragDrop.DoDragDrop</c> API (that old <c>DataFormats</c> class is now an empty,
-/// <c>[Obsolete(error: true)]</c> shim — see <c>src/Avalonia.Base/Input/DataFormats.cs</c>) with a
+/// <c>[Obsolete(error: true)]</c> shim - see <c>src/Avalonia.Base/Input/DataFormats.cs</c>) with a
 /// new <c>IDataTransfer</c> API:
 /// </para>
 /// <list type="bullet">
 /// <item><c>DragDrop.DoDragDropAsync(PointerPressedEventArgs, IDataTransfer, DragDropEffects)</c>
-/// — async, returns <c>Task&lt;DragDropEffects&gt;</c> — <c>src/Avalonia.Base/Input/DragDrop.cs</c>.</item>
+/// - async, returns <c>Task&lt;DragDropEffects&gt;</c> - <c>src/Avalonia.Base/Input/DragDrop.cs</c>.</item>
 /// <item><c>DataFormat.File</c> is a <c>DataFormat&lt;IStorageItem&gt;</c>; build the payload with
-/// <c>new DataTransfer()</c> + <c>DataTransferItem.CreateFile(IStorageItem)</c> per file —
+/// <c>new DataTransfer()</c> + <c>DataTransferItem.CreateFile(IStorageItem)</c> per file -
 /// <c>src/Avalonia.Base/Input/{DataTransfer,DataTransferItem,DataFormat}.cs</c>. The transfer must
-/// NOT be disposed by the caller (the drag source disposes it when the drag completes) —
+/// NOT be disposed by the caller (the drag source disposes it when the drag completes) -
 /// <c>IDataTransfer.cs</c> remarks. Multiple <see cref="DataFormat.File"/> items in one transfer are
 /// explicitly supported on Windows (the "single item" platform limitation only applies to non-File
-/// formats) — same file, <see cref="IDataTransfer.Items"/> remarks.</item>
+/// formats) - same file, <see cref="IDataTransfer.Items"/> remarks.</item>
 /// <item>The Win32 backend (<c>src/Windows/Avalonia.Win32/DragSource.cs</c>) calls the REAL native
 /// OLE <c>DoDragDrop</c> (via <c>UnmanagedMethods.DoDragDrop</c>), wrapping the transfer in
 /// <c>DataTransferToOleDataObjectWrapper</c>. <c>ClipboardFormatRegistry</c>'s static constructor
 /// maps <c>DataFormat.File</c> directly to <c>CF_HDROP</c>, and
 /// <c>OleDataObjectHelper.WriteFileNamesToHGlobal</c> builds a genuine Win32 <c>DROPFILES</c> block
 /// from each file's local path (<c>IStorageItem.TryGetLocalPath()</c>). This is a real OS file
-/// drag — Explorer, Traktor, or any other CF_HDROP-aware app receives an actual file copy, not a
+/// drag - Explorer, Traktor, or any other CF_HDROP-aware app receives an actual file copy, not a
 /// JustPlay-only simulation.</item>
 /// </list>
 /// <para>
@@ -62,11 +62,11 @@ namespace JustPlay.App.Controls;
 /// <c>SelectingItemsControl.UpdateSelectionFromEvent</c>, which sets <c>e.Handled = true</c> for a
 /// plain left click (<c>ListBoxItem.cs</c> / <c>SelectingItemsControl.cs</c>). A bubble-routed
 /// Pointer{Pressed,Moved,Released} handler added to the ListBox itself therefore never fires unless
-/// registered with <c>handledEventsToo: true</c> — the exact same pitfall this codebase already
+/// registered with <c>handledEventsToo: true</c> - the exact same pitfall this codebase already
 /// documents for Enter/Space on KeyDown in <c>MaxView.axaml.cs</c>.
 /// </para>
 /// <para>
-/// Reorder capture: on entering reorder mode the pointer is explicitly captured to the LIST —
+/// Reorder capture: on entering reorder mode the pointer is explicitly captured to the LIST -
 /// without it, moves stop arriving the moment the pointer leaves the list bounds, so neither the
 /// sideways hand-off nor a release-outside would ever be seen. Stealing capture from the pressed
 /// ListBoxItem is safe: its selection work happened on the press.
@@ -74,6 +74,14 @@ namespace JustPlay.App.Controls;
 /// </remarks>
 public static class RowDragBehavior
 {
+    /// <summary>
+    /// Where a failed drag is reported. Each app wires its own at startup (JUST PLAY:
+    /// <c>ErrorReporter.Report</c>) - the crash reporter lives in the app, not down here, because it
+    /// owns the Oops dialog. Null means "swallow it": a drag that cannot start must never take the
+    /// window down, which is the whole reason the catch exists.
+    /// </summary>
+    public static Action<Exception, string>? OnError { get; set; }
+
     // Small movement slop so a plain click/double-click never accidentally starts a drag.
     private const double DragThresholdPx = 4;
 
@@ -143,7 +151,7 @@ public static class RowDragBehavior
     {
         state.Reset(reorder); // also clears a stale indicator from any abnormally-ended gesture
         if (!e.GetCurrentPoint(list).Properties.IsLeftButtonPressed) return;
-        // Ctrl/Shift-press is selection building (extend/toggle) — never start a drag gesture from it.
+        // Ctrl/Shift-press is selection building (extend/toggle) - never start a drag gesture from it.
         if (e.KeyModifiers is KeyModifiers.Control or KeyModifiers.Shift) return;
 
         var dc = (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext;
@@ -172,24 +180,24 @@ public static class RowDragBehavior
 
             if (reorder is null)
             {
-                // Drag-out-only list: threshold crossed → straight into the OS drag.
+                // Drag-out-only list: threshold crossed -> straight into the OS drag.
                 StartOsDrag(list, state, pathOf, reorder);
                 return;
             }
 
-            // Combined list: threshold crossed → reorder mode. Capture to the LIST so moves keep
+            // Combined list: threshold crossed -> reorder mode. Capture to the LIST so moves keep
             // arriving outside its bounds (see class remarks). Reordering a column-sorted list is
             // deliberately allowed: the commit adopts the sorted order as the new hand order and
-            // clears the sort (Chloe 2026-07-11 — implicit beats a dead gesture).
+            // clears the sort (Chloe 2026-07-11 - implicit beats a dead gesture).
             state.Reordering = true;
             e.Pointer.Capture(list);
             StartAutoscroll(list, state, reorder);
         }
 
-        // ── Reordering ────────────────────────────────────────────────────────
+        // -- Reordering --------------------------------------------------------
         if (pos.X < -SidewaysExitSlopPx || pos.X > list.Bounds.Width + SidewaysExitSlopPx)
         {
-            // Left the list sideways → this became a file drag to another app.
+            // Left the list sideways -> this became a file drag to another app.
             StartOsDrag(list, state, pathOf, reorder);
             return;
         }
@@ -209,7 +217,7 @@ public static class RowDragBehavior
         state.Reset(reorder);
     }
 
-    // ── Insertion point + indicator ──────────────────────────────────────────
+    // -- Insertion point + indicator ------------------------------------------
 
     private static void UpdateIndicator(ListBox list, State state, RowReorder reorder)
     {
@@ -230,7 +238,7 @@ public static class RowDragBehavior
     /// <summary>Insertion index for a pointer at <paramref name="pointerY"/> (list coordinates):
     /// before the first realized row whose vertical midpoint lies below the pointer; after the last
     /// row otherwise. Vertical overshoot clamps to 0 / ItemCount by construction. Only realized
-    /// (visible) containers are considered — the pointer is inside the viewport, so the row under it
+    /// (visible) containers are considered - the pointer is inside the viewport, so the row under it
     /// is always realized; autoscroll brings the rest.</summary>
     private static int ComputeInsertIndex(ListBox list, double pointerY, out double lineY)
     {
@@ -258,7 +266,7 @@ public static class RowDragBehavior
         return afterAll;
     }
 
-    // ── Edge autoscroll ──────────────────────────────────────────────────────
+    // -- Edge autoscroll ------------------------------------------------------
 
     private static void StartAutoscroll(ListBox list, State state, RowReorder reorder)
     {
@@ -279,14 +287,14 @@ public static class RowDragBehavior
             if (Math.Abs(newY - sv.Offset.Y) < 0.1) return;
             sv.Offset = sv.Offset.WithY(newY);
 
-            // Rows shifted under the (stationary) pointer — recompute the insertion line.
+            // Rows shifted under the (stationary) pointer - recompute the insertion line.
             UpdateIndicator(list, state, reorder);
         };
         state.ScrollTimer = timer;
         timer.Start();
     }
 
-    // ── The OS file drag (shared by both modes) ──────────────────────────────
+    // -- The OS file drag (shared by both modes) ------------------------------
 
     private static void StartOsDrag(ListBox list, State state, Func<object?, string?> pathOf, RowReorder? reorder)
     {
@@ -337,9 +345,9 @@ public static class RowDragBehavior
             var dataTransfer = new DataTransfer();
             foreach (var path in paths)
             {
-                // Resolve to a folder OR a file storage item (both are IStorageItem → CF_HDROP). Skip
+                // Resolve to a folder OR a file storage item (both are IStorageItem -> CF_HDROP). Skip
                 // anything that can't be resolved (e.g. a NAS path that just went offline) instead of
-                // failing the whole drag — never block dragging the rest of the selection.
+                // failing the whole drag - never block dragging the rest of the selection.
                 IStorageItem? item = Directory.Exists(path)
                     ? await storageProvider.TryGetFolderFromPathAsync(path)
                     : await storageProvider.TryGetFileFromPathAsync(path);
@@ -347,21 +355,21 @@ public static class RowDragBehavior
                     dataTransfer.Add(DataTransferItem.CreateFile(item));
             }
 
-            if (dataTransfer.Items.Count == 0) return; // nothing resolvable — silently no-op the drag
+            if (dataTransfer.Items.Count == 0) return; // nothing resolvable - silently no-op the drag
 
-            // DataTransfer must NOT be disposed here — DragDrop.DoDragDropAsync's platform drag
+            // DataTransfer must NOT be disposed here - DragDrop.DoDragDropAsync's platform drag
             // source disposes it once the OS-level drag operation completes (IDataTransfer.cs remarks).
             await DragDrop.DoDragDropAsync(pressArgs, dataTransfer, DragDropEffects.Copy);
         }
         catch (Exception ex)
         {
-            JustPlay.App.ErrorReporter.Report(ex, "Row drag (reorder / file copy to external app)");
+            OnError?.Invoke(ex, "Row drag (reorder / file copy to external app)");
         }
     }
 }
 
 /// <summary>Reorder hookup for <see cref="RowDragBehavior"/>'s combined mode: the overlay
-/// insertion-line Border (layout-neutral, positioned via translate) and the commit callback —
+/// insertion-line Border (layout-neutral, positioned via translate) and the commit callback -
 /// <c>Move(items, insertIndex)</c> receives the dragged rows' DataContexts and the target index in
 /// the ItemsSource BEFORE removal (the view-model adjusts for items that sit above the target).</summary>
 public sealed class RowReorder

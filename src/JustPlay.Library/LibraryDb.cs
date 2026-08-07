@@ -19,29 +19,29 @@ namespace JustPlay.Library;
 /// syncs its own database from the tags in the files (the JUSTPLAY blob), which means no machine
 /// is blind and no DSP is ever run twice: whoever analyses a track first writes the result into
 /// the file, and the other machine imports it with a tag read. That also splits cleanly:
-/// <b>WAL solves two processes</b> (JUST PLAY + JUST TAG + the CLI on one machine — one writer at
+/// <b>WAL solves two processes</b> (JUST PLAY + JUST TAG + the CLI on one machine - one writer at
 /// a time, readers never blocked), <b>the files solve two machines</b>.</para>
 ///
 /// <para>Threading: one connection, guarded. Writes are short and the DSP dwarfs them; a query
 /// over the whole library is sub-millisecond. If read contention ever shows up, open a second
-/// read-only connection — WAL readers never block the writer.</para>
+/// read-only connection - WAL readers never block the writer.</para>
 /// </summary>
 public sealed class LibraryDb : IDisposable
 {
     /// <summary>Schema version stored in SQLite's <c>user_version</c>. Bump + migrate when columns change.</summary>
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     private readonly SqliteConnection _cx;
     private readonly Lock _gate = new();
 
     private LibraryDb(SqliteConnection cx) => _cx = cx;
 
-    // ── Location ─────────────────────────────────────────────────────────────
+    // -- Location -------------------------------------------------------------
 
     /// <summary>
     /// Where this machine keeps its index for <paramref name="libraryRoot"/>:
     /// <c>%LOCALAPPDATA%\JUST\library\music-ab12cd34.db</c> (and the platform equivalent on macOS).
-    /// Suite-wide folder — JUST PLAY, JUST TAG and the CLI on one machine open the same file.
+    /// Suite-wide folder - JUST PLAY, JUST TAG and the CLI on one machine open the same file.
     /// The name carries a readable prefix plus a hash of the root, so two roots never collide.
     /// </summary>
     public static string DefaultPathFor(string libraryRoot)
@@ -53,8 +53,8 @@ public sealed class LibraryDb : IDisposable
         var hash = Convert.ToHexStringLower(
             SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))[..8];
 
-        // NOT Path.GetFileName: for a UNC share root like \\nas\music — exactly the shape of
-        // Chloe's library root — that returns "" (the share IS the root), and every library
+        // NOT Path.GetFileName: for a UNC share root like \\nas\music - exactly the shape of
+        // Chloe's library root - that returns "" (the share IS the root), and every library
         // would end up called "library-<hash>". Take the last non-empty segment instead.
         var lastSegment = normalized
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
@@ -67,7 +67,7 @@ public sealed class LibraryDb : IDisposable
         return JustDataPaths.Combine("JUST", "library", $"{label}-{hash}.db");
     }
 
-    // ── Open / schema ────────────────────────────────────────────────────────
+    // -- Open / schema --------------------------------------------------------
 
     /// <summary>Opens (creating if needed) the index for <paramref name="libraryRoot"/>.</summary>
     public static LibraryDb OpenForRoot(string libraryRoot) => Open(DefaultPathFor(libraryRoot));
@@ -83,7 +83,7 @@ public sealed class LibraryDb : IDisposable
         {
             DataSource = dbPath,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            // Shared across JUST PLAY / JUST TAG / CLI on this machine — cross-process locking
+            // Shared across JUST PLAY / JUST TAG / CLI on this machine - cross-process locking
             // is SQLite's job, and with WAL that is exactly what it is good at.
             Cache = SqliteCacheMode.Default,
         }.ToString());
@@ -92,7 +92,7 @@ public sealed class LibraryDb : IDisposable
 
         // WAL: one writer, readers never blocked. Only legal because the file is LOCAL.
         Execute(cx, "PRAGMA journal_mode=WAL;");
-        // A second process holding the write lock is normal, not an error — wait it out.
+        // A second process holding the write lock is normal, not an error - wait it out.
         Execute(cx, "PRAGMA busy_timeout=5000;");
         // NORMAL is the documented safe pairing with WAL: durable across app crashes, and only
         // at risk of losing the last transactions if the OS itself dies.
@@ -120,6 +120,24 @@ public sealed class LibraryDb : IDisposable
             Execute(_cx, FolderSchema);
         }
 
+        // v3 (2026-08-07): the columns a track table shows but the index never stored, so that no
+        // list has to read a tag off the NAS to paint itself. Existing rows keep their data and get
+        // NULLs here; their tag_rev stays 0, which is what makes the next sync re-read them ONCE
+        // (TrackIndexEntry.TagRev). Additive ALTERs - nothing is rewritten, nothing is lost, and an
+        // index from an older build is upgraded in place rather than discarded.
+        if (version is > 0 and < 3)
+        {
+            foreach (var column in new[]
+                     {
+                         "album_artist TEXT", "comment TEXT", "track_no INTEGER",
+                         "has_cover INTEGER", "id3_version TEXT",
+                         "tag_rev INTEGER NOT NULL DEFAULT 0",
+                     })
+            {
+                Execute(_cx, $"ALTER TABLE tracks ADD COLUMN {column};");
+            }
+        }
+
         Execute(_cx, $"PRAGMA user_version={SchemaVersion};");
     }
 
@@ -136,6 +154,12 @@ public sealed class LibraryDb : IDisposable
 
             title TEXT, artist TEXT, album TEXT, genre TEXT, year INTEGER,
             duration_sec REAL, bitrate_kbps INTEGER,
+
+            -- v3 (0.6.1): the rest of what a track table SHOWS, so no list has to touch the disk to
+            -- paint a row. tag_rev records WHICH extraction shape filled these - see
+            -- TrackIndexEntry.TagRev; it is what makes a future column reach existing rows at all.
+            album_artist TEXT, comment TEXT, track_no INTEGER,
+            has_cover INTEGER, id3_version TEXT, tag_rev INTEGER NOT NULL DEFAULT 0,
 
             success INTEGER NOT NULL, error TEXT,
             bpm REAL, key_name TEXT, key_camelot TEXT, key_confidence REAL,
@@ -171,13 +195,14 @@ public sealed class LibraryDb : IDisposable
         );
         """;
 
-    // ── Write ────────────────────────────────────────────────────────────────
+    // -- Write ----------------------------------------------------------------
 
     private const string UpsertSql = """
         INSERT INTO tracks (
             path, content_hash, analysed_at, detection_version, file_size, modified_utc,
             seen_at, missing,
             title, artist, album, genre, year, duration_sec, bitrate_kbps,
+            album_artist, comment, track_no, has_cover, id3_version, tag_rev,
             success, error, bpm, key_name, key_camelot, key_confidence, energy,
             loudness_lufs, replay_gain_db, peak, danceability,
             beat_type, four_on_floor, offbeat_energy, swing, syncopation, half_time_feel,
@@ -187,6 +212,7 @@ public sealed class LibraryDb : IDisposable
             $path, $content_hash, $analysed_at, $detection_version, $file_size, $modified_utc,
             $seen_at, 0,
             $title, $artist, $album, $genre, $year, $duration_sec, $bitrate_kbps,
+            $album_artist, $comment, $track_no, $has_cover, $id3_version, $tag_rev,
             $success, $error, $bpm, $key_name, $key_camelot, $key_confidence, $energy,
             $loudness_lufs, $replay_gain_db, $peak, $danceability,
             $beat_type, $four_on_floor, $offbeat_energy, $swing, $syncopation, $half_time_feel,
@@ -200,6 +226,9 @@ public sealed class LibraryDb : IDisposable
             title=excluded.title, artist=excluded.artist, album=excluded.album,
             genre=excluded.genre, year=excluded.year, duration_sec=excluded.duration_sec,
             bitrate_kbps=excluded.bitrate_kbps,
+            album_artist=excluded.album_artist, comment=excluded.comment,
+            track_no=excluded.track_no, has_cover=excluded.has_cover,
+            id3_version=excluded.id3_version, tag_rev=excluded.tag_rev,
             success=excluded.success, error=excluded.error, bpm=excluded.bpm,
             key_name=excluded.key_name, key_camelot=excluded.key_camelot,
             key_confidence=excluded.key_confidence, energy=excluded.energy,
@@ -214,11 +243,11 @@ public sealed class LibraryDb : IDisposable
             acf_sharpness=excluded.acf_sharpness, grid_confidence=excluded.grid_confidence;
         """;
 
-    /// <summary>Inserts or updates one track. Clears the <c>missing</c> flag — we just saw it.</summary>
+    /// <summary>Inserts or updates one track. Clears the <c>missing</c> flag - we just saw it.</summary>
     public void Upsert(TrackIndexEntry entry) => UpsertMany([entry]);
 
     /// <summary>
-    /// Inserts or updates many tracks in ONE transaction. A scan calls this in batches — a
+    /// Inserts or updates many tracks in ONE transaction. A scan calls this in batches - a
     /// transaction per track would fsync per track and turn a scan into a crawl.
     /// </summary>
     public void UpsertMany(IEnumerable<TrackIndexEntry> entries)
@@ -263,6 +292,13 @@ public sealed class LibraryDb : IDisposable
         P("$duration_sec", e.DurationSec);
         P("$bitrate_kbps", e.BitrateKbps);
 
+        P("$album_artist", e.AlbumArtist);
+        P("$comment", e.Comment);
+        P("$track_no", e.TrackNo);
+        P("$has_cover", e.HasCover is { } hc ? (hc ? 1 : 0) : (object?)null);
+        P("$id3_version", e.Id3Version);
+        P("$tag_rev", e.TagRev);
+
         P("$success", e.Success ? 1 : 0);
         P("$error", e.Error);
         P("$bpm", e.Bpm);
@@ -296,7 +332,7 @@ public sealed class LibraryDb : IDisposable
 
     /// <summary>
     /// Flags tracks the sync could not find on disk. They stay in the index and stay queryable
-    /// via <see cref="LibraryQuery.IncludeMissing"/> — a track is never silently dropped just
+    /// via <see cref="LibraryQuery.IncludeMissing"/> - a track is never silently dropped just
     /// because a share was offline or a folder got renamed.
     /// </summary>
     public int MarkMissing(IEnumerable<string> paths)
@@ -321,7 +357,7 @@ public sealed class LibraryDb : IDisposable
         }
     }
 
-    /// <summary>Clears the missing flag for a file that turned up again (cheap — no re-read).</summary>
+    /// <summary>Clears the missing flag for a file that turned up again (cheap - no re-read).</summary>
     public bool ClearMissing(string path)
     {
         lock (_gate)
@@ -343,7 +379,8 @@ public sealed class LibraryDb : IDisposable
         lock (_gate)
         {
             using var cmd = _cx.CreateCommand();
-            cmd.CommandText = "SELECT path, file_size, modified_utc, missing, success FROM tracks;";
+            cmd.CommandText =
+                "SELECT path, file_size, modified_utc, missing, success, tag_rev FROM tracks;";
 
             var map = new Dictionary<string, SyncKey>(StringComparer.OrdinalIgnoreCase);
             using var r = cmd.ExecuteReader();
@@ -353,7 +390,8 @@ public sealed class LibraryDb : IDisposable
                     r.GetInt64(1),
                     r.IsDBNull(2) ? null : r.GetString(2),
                     r.GetInt32(3) != 0,
-                    r.GetInt32(4) != 0);
+                    r.GetInt32(4) != 0,
+                    r.IsDBNull(5) ? 0 : r.GetInt32(5));
             }
             return map;
         }
@@ -371,7 +409,7 @@ public sealed class LibraryDb : IDisposable
         }
     }
 
-    // ── Read ─────────────────────────────────────────────────────────────────
+    // -- Read -----------------------------------------------------------------
 
     private const string SelectColumns = """
         SELECT path, content_hash, analysed_at, detection_version, file_size, modified_utc,
@@ -380,7 +418,10 @@ public sealed class LibraryDb : IDisposable
                loudness_lufs, replay_gain_db, peak, danceability,
                beat_type, four_on_floor, offbeat_energy, swing, syncopation, half_time_feel,
                raw_energy_score, spectral_flatness, harshness, bass_punch, bass_groove, dark, hypnotic,
-               acf_sharpness, grid_confidence
+               acf_sharpness, grid_confidence,
+               -- (!) v3 columns are APPENDED, never inserted mid-list: Read() maps by ORDINAL, so
+               -- putting them next to the other tag fields would silently shift 26 later columns.
+               album_artist, comment, track_no, has_cover, id3_version, tag_rev
         FROM tracks
         """;
 
@@ -424,7 +465,7 @@ public sealed class LibraryDb : IDisposable
         return found;
     }
 
-    // ── Folder fingerprints ──────────────────────────────────────────────────
+    // -- Folder fingerprints --------------------------------------------------
 
     /// <summary>What the last check found in <paramref name="folder"/>, or null if it never looked.</summary>
     public FolderFingerprint? FolderState(string folder)
@@ -502,7 +543,7 @@ public sealed class LibraryDb : IDisposable
     }
 
     /// <summary>
-    /// Every distinct genre the index holds, most-used first — the vocabulary THIS library actually
+    /// Every distinct genre the index holds, most-used first - the vocabulary THIS library actually
     /// uses, which is what a genre suggestion should offer before any canned list. Blank genres are
     /// skipped; ordering by count means the styles she files under daily come up first.
     /// </summary>
@@ -549,7 +590,7 @@ public sealed class LibraryDb : IDisposable
             if (!string.IsNullOrWhiteSpace(q.PathPrefix))
             {
                 // Deliberately NOT LIKE: on Windows the escape character would be '\', which is
-                // also the path separator — the two cannot coexist in one pattern. An exact
+                // also the path separator - the two cannot coexist in one pattern. An exact
                 // prefix comparison costs a scan instead of an index seek, which at library scale
                 // is still far below the cost of the tag reads this whole design exists to avoid.
                 var prefix = q.PathPrefix.TrimEnd(
@@ -685,10 +726,19 @@ public sealed class LibraryDb : IDisposable
 
             AcfSharpness   = D(37),
             GridConfidence = D(38),
+
+            // v3 - appended, see the note in SelectColumns. A row written before the migration has
+            // NULL here and tag_rev 0, which is exactly how the next sync knows to re-read it.
+            AlbumArtist = S(39),
+            Comment     = S(40),
+            TrackNo     = r.IsDBNull(41) ? null : (uint)r.GetInt64(41),
+            HasCover    = r.IsDBNull(42) ? null : r.GetInt32(42) != 0,
+            Id3Version  = S(43),
+            TagRev      = r.IsDBNull(44) ? 0 : r.GetInt32(44),
         };
     }
 
-    // ── Interchange with the CLI's index JSON ────────────────────────────────
+    // -- Interchange with the CLI's index JSON --------------------------------
 
     /// <summary>
     /// Imports a <see cref="TrackIndex"/> JSON file (the CLI's <c>--index</c> format).
@@ -704,8 +754,8 @@ public sealed class LibraryDb : IDisposable
     }
 
     /// <summary>
-    /// Exports the index to the CLI's JSON format — a portable snapshot, written wherever the
-    /// caller asks for it (⛔ never automatically next to her music).
+    /// Exports the index to the CLI's JSON format - a portable snapshot, written wherever the
+    /// caller asks for it ((!!) never automatically next to her music).
     /// </summary>
     public int ExportJson(string indexPath, LibraryQuery? filter = null)
     {
@@ -716,7 +766,7 @@ public sealed class LibraryDb : IDisposable
         return entries.Count;
     }
 
-    // ── Plumbing ─────────────────────────────────────────────────────────────
+    // -- Plumbing -------------------------------------------------------------
 
     /// <summary>
     /// Escapes the LIKE wildcards in user-typed text so a search for "Hard_Techno" does not also

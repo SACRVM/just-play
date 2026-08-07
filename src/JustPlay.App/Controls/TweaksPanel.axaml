@@ -9,11 +9,11 @@
              x:DataType="vm:MainWindowViewModel">
 
     <!--
-      Slide-in Tweaks panel — extracted from MaxView so it lives as one self-
+      Slide-in Tweaks panel - extracted from MaxView so it lives as one self-
       contained control (its styles travel with it). Inherits the view's
       MainWindowViewModel DataContext. Visibility / right-dock alignment are set
       by the consumer (see MaxView: IsVisible={Binding IsTweaksOpen}). Mirrors the
-      design's tweaks-panel.jsx: Theme palette · Stage toggles · Right-panel default.
+      design's tweaks-panel.jsx: Theme palette - Stage toggles - Right-panel default.
     -->
     <UserControl.Styles>
         <!-- ComboBox.device-picker moved to App.axaml (app-wide styles): the PRE CUE FINDER
@@ -58,11 +58,11 @@
             <Setter Property="BorderBrush" Value="Transparent"/>
         </Style>
         <!--
-          Hover/pressed must not let FluentTheme's own ContentPresenter tint paint over our fills —
+          Hover/pressed must not let FluentTheme's own ContentPresenter tint paint over our fills -
           tweak-radio had no :pointerover style, so Fluent's grey hover covered the active accent pill
           ("hover wins over active"). Set the CP background explicitly for every interactive state
           (belt-and-braces, see App.axaml). The .active variants come AFTER the plain ones so, when a
-          button is BOTH active and hovered/pressed, the accent wins (equal-specificity → last match).
+          button is BOTH active and hovered/pressed, the accent wins (equal-specificity -> last match).
         -->
         <Style Selector="Button.tweak-radio:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1AFFFFFF"/>
@@ -91,10 +91,10 @@
              (shared) so JUST STREAM's DSP sliders also get the themed look. -->
 
         <!-- Tabs reuse the SHARED underline-tab style (Button.tab / Border.tabline) now in App.axaml
-             — same look as the UP NEXT strip, no reinvented styles here. -->
+             - same look as the UP NEXT strip, no reinvented styles here. -->
 
         <!-- Labeled-control group: label hugs ITS control (Spacing 4); the outer panel spacing
-             separates groups → fixes "the heading hangs above its control, not below". -->
+             separates groups -> fixes "the heading hangs above its control, not below". -->
         <Style Selector="StackPanel.tweakgroup">
             <Setter Property="Spacing" Value="4"/>
         </Style>
@@ -113,7 +113,7 @@
         <Style Selector="ScrollBar:vertical /template/ Grid#Root">
             <Setter Property="Background" Value="Transparent"/>
         </Style>
-        <!-- The groove behind the thumb — keep it a barely-there hairline. -->
+        <!-- The groove behind the thumb - keep it a barely-there hairline. -->
         <Style Selector="ScrollBar:vertical /template/ Rectangle#TrackRect">
             <Setter Property="Fill" Value="#0AFFFFFF"/>
             <Setter Property="Stroke" Value="Transparent"/>
@@ -131,7 +131,7 @@
         <Style Selector="ScrollBar:vertical /template/ Thumb:pressed">
             <Setter Property="Background" Value="#80FFFFFF"/>
         </Style>
-        <!-- Drop the up/down arrow buttons — modern slim bars don't show them. -->
+        <!-- Drop the up/down arrow buttons - modern slim bars don't show them. -->
         <Style Selector="ScrollBar:vertical /template/ RepeatButton#PART_LineUpButton">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
@@ -141,10 +141,10 @@
     </UserControl.Styles>
 
     <!--
-      The SHARED surface (JustPlay.UI/Controls/SurfaceCard.cs). Same look this panel always had —
+      The SHARED surface (JustPlay.UI/Controls/SurfaceCard.cs). Same look this panel always had -
       the hard-coded Background="#F01a1828" simply moved into the shared control, so the dialogs
       can be put on the identical treatment and the two can never drift apart again.
-      The gradient version of this surface was built and REJECTED on sight (banding — see
+      The gradient version of this surface was built and REJECTED on sight (banding - see
       JustPalette.axaml); flat is the decision, not the leftover.
       Only the docking geometry stays here: rounded on the right, hairline on the left edge.
     -->
@@ -160,11 +160,16 @@
                 <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="TWEAKS" FontSize="12" FontWeight="Bold" LetterSpacing="3"
                                Foreground="White" VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="13"
-                            Command="{Binding ToggleTweaksCommand}"/>
+                    <!-- The SHARED panel-close x (JustStyles) - the same object JUST TAG's settings
+                         panel uses, so the two corners cannot drift apart again. -->
+                    <Button Grid.Column="1" Classes="panelclose"
+                            Command="{Binding ToggleTweaksCommand}"
+                            ToolTip.Tip="Close settings">
+                        <uic:JustIcon Kind="Close" Width="13" Height="13"/>
+                    </Button>
                 </Grid>
 
-                <!-- Tab strip — reuses the SHARED underline tabs (App.axaml), same look as UP NEXT.
+                <!-- Tab strip - reuses the SHARED underline tabs (App.axaml), same look as UP NEXT.
                      One group of controls per tab keeps the panel short and lets the Sound rack grow. -->
                 <Border BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
                     <StackPanel Orientation="Horizontal" Spacing="2">
@@ -203,7 +208,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ════════════ LOOK ════════════ -->
+                <!-- ============ LOOK ============ -->
                 <StackPanel Spacing="10" ClipToBounds="False"
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Look}">
                     <TextBlock Classes="tweak-section" Text="THEME"/>
@@ -254,20 +259,20 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- ════════════ SOUND ════════════ -->
+                <!-- ============ SOUND ============ -->
                 <StackPanel Spacing="14"
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Sound}">
-                    <!-- One-click bus presets — set the whole Sound chain at once. "Hard" = the validated
+                    <!-- One-click bus presets - set the whole Sound chain at once. "Hard" = the validated
                          correction for harsh hard techno / hardstyle (AutoTilt + high-shelf cut + soft
                          limiter, measured on Chloe's library). "Neutral" = all flat/off.
-                         Below the built-ins: the user's own saved presets (additive) + a "Save current…"
+                         Below the built-ins: the user's own saved presets (additive) + a "Save current..."
                          affordance. Saved presets capture the six Sound fields and re-apply with one click. -->
                     <StackPanel Classes="tweakgroup">
                         <TextBlock Classes="tweak-label" Text="Preset" VerticalAlignment="Center"
-                                   ToolTip.Tip="One-click bus setups. Hard = tame the harsh top of hardcore / hardstyle (AutoTilt + High −3 dB) AND push it LOUD (Limiter Loud) so it holds up in a club/stream. Neutral = everything flat/off. Right-click a saved preset to replace or delete it; + saves the current settings under a name."/>
+                                   ToolTip.Tip="One-click bus setups. Hard = tame the harsh top of hardcore / hardstyle (AutoTilt + High -3 dB) AND push it LOUD (Limiter Loud) so it holds up in a club/stream. Neutral = everything flat/off. Right-click a saved preset to replace or delete it; + saves the current settings under a name."/>
 
                         <!-- One row that flows together: every preset (the seeded built-ins Hard/Neutral
-                             AND the user's own — all ordinary, editable entries), then the "+" (save current
+                             AND the user's own - all ordinary, editable entries), then the "+" (save current
                              as a new named preset) directly after them. Single WrapPanel so "+" sits right
                              behind the last preset and wraps with them. -->
                         <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
@@ -289,12 +294,12 @@
                                             <Border.ContextMenu>
                                                 <!-- Click handlers (code-behind), NOT Command bindings: a ContextMenu lives
                                                      in a popup OUTSIDE the control's tree, so RelativeSource/PlacementTarget
-                                                     command bindings resolve null → the items render permanently DISABLED.
+                                                     command bindings resolve null -> the items render permanently DISABLED.
                                                      The handler reads the preset from the item DataContext and the VM from
                                                      the panel. Same proven pattern as MaxView's stream context menu. -->
                                                 <ContextMenu>
                                                     <MenuItem Header="Replace with current" Click="OnPresetReplace"/>
-                                                    <MenuItem Header="Rename…" Click="OnPresetRename"/>
+                                                    <MenuItem Header="Rename..." Click="OnPresetRename"/>
                                                     <MenuItem Header="Delete" Click="OnPresetDelete"/>
                                                 </ContextMenu>
                                             </Border.ContextMenu>
@@ -302,7 +307,7 @@
                                               Content is an explicit TextBlock, NOT a raw string binding: Button's
                                               Fluent template sets RecognizesAccessKey="True" on PART_ContentPresenter
                                               (Avalonia 12.0.3 Avalonia.Themes.Fluent/Controls/Button.xaml), same
-                                              access-key-mnemonic pitfall as the "…" playlist menu above — a preset
+                                              access-key-mnemonic pitfall as the "..." playlist menu above - a preset
                                               named "grid-solid_dark" would render as "grid-soliddark". A TextBlock
                                               is already a Control so ContentPresenter.CreateChild uses it as-is.
                                             -->
@@ -310,7 +315,7 @@
                                                     Foreground="#E6FFFFFF"
                                                     Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip.Tip="Apply this preset · right-click to replace / delete">
+                                                    ToolTip.Tip="Apply this preset - right-click to replace / delete">
                                                 <TextBlock Text="{Binding Name}"/>
                                             </Button>
                                         </Border>
@@ -328,7 +333,7 @@
                     <!-- Normalize -->
                     <StackPanel Classes="tweakgroup">
                         <Grid ColumnDefinitions="*,Auto"
-                              ToolTip.Tip="Even out playback level (ReplayGain — non-destructive, clip-safe). On = added tracks are analyzed automatically.">
+                              ToolTip.Tip="Even out playback level (ReplayGain - non-destructive, clip-safe). On = added tracks are analyzed automatically.">
                             <TextBlock Grid.Column="0" Classes="tweak-label" Text="Normalize loudness" VerticalAlignment="Center"/>
                             <ToggleSwitch Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0"
                                           IsChecked="{Binding PlaybackNormalization}"
@@ -339,15 +344,15 @@
                             <Button Classes="tweak-radio" Content="Quiet"
                                     Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Quiet}"
                                     Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Quiet"
-                                    ToolTip.Tip="−19 LUFS — most headroom"/>
+                                    ToolTip.Tip="-19 LUFS - most headroom"/>
                             <Button Classes="tweak-radio" Content="Normal"
                                     Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Normal}"
                                     Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Normal"
-                                    ToolTip.Tip="−14 LUFS — like Spotify/YouTube"/>
+                                    ToolTip.Tip="-14 LUFS - like Spotify/YouTube"/>
                             <Button Classes="tweak-radio" Content="Loud"
                                     Classes.active="{Binding NormalizationLevel, Converter={StaticResource StringEquals}, ConverterParameter=Loud}"
                                     Command="{Binding SetNormalizationLevelCommand}" CommandParameter="Loud"
-                                    ToolTip.Tip="−11 LUFS — close to modern masters"/>
+                                    ToolTip.Tip="-11 LUFS - close to modern masters"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -359,7 +364,7 @@
                             <Button Classes="tweak-radio" Content="Off"
                                     Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=0}"
                                     Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="0"
-                                    ToolTip.Tip="Hard track boundaries — no blend"/>
+                                    ToolTip.Tip="Hard track boundaries - no blend"/>
                             <Button Classes="tweak-radio" Content="2s"
                                     Classes.active="{Binding CrossfadeSecondsText, Converter={StaticResource StringEquals}, ConverterParameter=2}"
                                     Command="{Binding SetCrossfadeLengthCommand}" CommandParameter="2"
@@ -375,11 +380,11 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- EQ — vertical faders (DJ-mixer look) -->
+                    <!-- EQ - vertical faders (DJ-mixer look) -->
                     <StackPanel Classes="tweakgroup">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Classes="tweak-label" Text="EQ" VerticalAlignment="Center"
-                                       ToolTip.Tip="3-band DJ EQ / isolator. Fader centre = flat, down = cut→kill, up = +6 dB. Crossovers 200 Hz / 4 kHz. Shapes playback and the stream."/>
+                                       ToolTip.Tip="3-band DJ EQ / isolator. Fader centre = flat, down = cut->kill, up = +6 dB. Crossovers 200 Hz / 4 kHz. Shapes playback and the stream."/>
                             <Button Grid.Column="1" Classes="tweak-radio" Content="Flat"
                                     Command="{Binding ResetEqualizerCommand}"
                                     ToolTip.Tip="Reset all three bands to flat (bypass)"/>
@@ -408,7 +413,7 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- "Revive" rack — anti-flat enhancement for dull/lifeless tracks. Runs after the
+                    <!-- "Revive" rack - anti-flat enhancement for dull/lifeless tracks. Runs after the
                          EQ. Every slider is neutral by default (true bypass): 0 = off.
                          Mouse-wheel nudges (SliderWheel). -->
                     <StackPanel Classes="tweakgroup">
@@ -423,7 +428,7 @@
                         <!-- Transient punch. 0 = off, 1 = max attack lift. -->
                         <Grid ColumnDefinitions="58,*" Margin="0,6,0,0">
                             <TextBlock Classes="tweak-label" Text="PUNCH" FontSize="11" VerticalAlignment="Center"
-                                       ToolTip.Tip="Transient designer — boosts attacks (kick/snare snap) to bring punch back to brickwall masters, without making them louder."/>
+                                       ToolTip.Tip="Transient designer - boosts attacks (kick/snare snap) to bring punch back to brickwall masters, without making them louder."/>
                             <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding TransientPunch}"
                                     behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="0"/>
                         </Grid>
@@ -431,38 +436,38 @@
                         <!-- Adaptive spectral tilt (auto-master). 0 = off, 1 = full correction. -->
                         <Grid ColumnDefinitions="58,*">
                             <TextBlock Classes="tweak-label" Text="TILT" FontSize="11" VerticalAlignment="Center"
-                                       ToolTip.Tip="Gentle auto-master — slowly nudges each track's bass/treble balance toward an even target so dull or thin tracks sit better. Very subtle (a few dB max)."/>
+                                       ToolTip.Tip="Gentle auto-master - slowly nudges each track's bass/treble balance toward an even target so dull or thin tracks sit better. Very subtle (a few dB max)."/>
                             <Slider Grid.Column="1" Classes="fader" Minimum="0" Maximum="1" Value="{Binding AutoTiltStrength}"
                                     behaviors:SliderWheel.Enabled="True" behaviors:SliderReset.Default="0"/>
                         </Grid>
                     </StackPanel>
 
-                    <!-- Limiter / maximizer — LAST in the chain (final true-peak stage). -->
+                    <!-- Limiter / maximizer - LAST in the chain (final true-peak stage). -->
                     <StackPanel Classes="tweakgroup">
                         <TextBlock Classes="tweak-label" Text="Limiter / Maximizer"
-                                   ToolTip.Tip="True-peak limiter on the output. Off = bypass. Soft = safety only (−1 dBTP). Club = +3 dB drive. Loud = +6 dB drive AND a hotter −0.1 dBTP ceiling. Applies to playback and the stream."/>
+                                   ToolTip.Tip="True-peak limiter on the output. Off = bypass. Soft = safety only (-1 dBTP). Club = +3 dB drive. Loud = +6 dB drive AND a hotter -0.1 dBTP ceiling. Applies to playback and the stream."/>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Classes="tweak-radio" Content="Off"
                                     Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Off}"
                                     Command="{Binding SetLimiterModeCommand}" CommandParameter="Off"
-                                    ToolTip.Tip="Bypassed — raw output, no limiting"/>
+                                    ToolTip.Tip="Bypassed - raw output, no limiting"/>
                             <Button Classes="tweak-radio" Content="Soft"
                                     Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Soft}"
                                     Command="{Binding SetLimiterModeCommand}" CommandParameter="Soft"
-                                    ToolTip.Tip="−1 dBTP safety limiter, no drive — fully transparent"/>
+                                    ToolTip.Tip="-1 dBTP safety limiter, no drive - fully transparent"/>
                             <Button Classes="tweak-radio" Content="Club"
                                     Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Club}"
                                     Command="{Binding SetLimiterModeCommand}" CommandParameter="Club"
-                                    ToolTip.Tip="−1 dBTP + 3 dB maximizer drive — louder, still clean"/>
+                                    ToolTip.Tip="-1 dBTP + 3 dB maximizer drive - louder, still clean"/>
                             <Button Classes="tweak-radio" Content="Loud"
                                     Classes.active="{Binding LimiterMode, Converter={StaticResource StringEquals}, ConverterParameter=Loud}"
                                     Command="{Binding SetLimiterModeCommand}" CommandParameter="Loud"
-                                    ToolTip.Tip="−0.1 dBTP ceiling + 6 dB maximizer drive — max club loudness"/>
+                                    ToolTip.Tip="-0.1 dBTP ceiling + 6 dB maximizer drive - max club loudness"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
-                <!-- ════════════ LIBRARY ════════════ -->
+                <!-- ============ LIBRARY ============ -->
                 <StackPanel Spacing="10"
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Library}">
                     <TextBlock Classes="tweak-section" Text="ANALYSIS"/>
@@ -502,14 +507,16 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- ════════════ AUDIO ════════════ -->
+                <!-- ============ AUDIO ============ -->
                 <StackPanel Spacing="6"
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Audio}">
-                    <!-- Label row with the rescan ↻ behind the label, then a full-width picker below —
+                    <!-- Label row with the rescan refresh behind the label, then a full-width picker below -
                          identical to JUST STREAM (shared Button.seg). -->
                     <DockPanel>
-                        <Button DockPanel.Dock="Right" Classes="seg" Content="↻"
-                                Command="{Binding RefreshDevicesCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
+                        <Button DockPanel.Dock="Right" Classes="seg"
+                                Command="{Binding RefreshDevicesCommand}" ToolTip.Tip="Rescan devices" MinWidth="30">
+                            <uic:JustIcon Kind="Refresh" Width="12" Height="12"/>
+                        </Button>
                         <TextBlock Classes="tweak-section" Text="OUTPUT DEVICE" VerticalAlignment="Center"/>
                     </DockPanel>
                     <ComboBox Classes="device-picker"
@@ -532,7 +539,7 @@
                     <!-- PRE-CUE HEADPHONES device picker was removed here (Chloe 2026-07-07): the pre-cue
                          device + volume now live in the Pre-Cue Finder's own settings flyout, so a second
                          copy in the main Settings is redundant. The VM keeps HeadphoneDevices /
-                         SelectedHeadphoneDevice + the auto-rebind poll — the finder binds them there. -->
+                         SelectedHeadphoneDevice + the auto-rebind poll - the finder binds them there. -->
                 </StackPanel>
 
                 <!-- Bottom breathing room so the last control clears the transport bar the panel

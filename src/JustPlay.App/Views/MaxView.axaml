@@ -10,10 +10,10 @@
              x:DataType="vm:MainWindowViewModel">
 
     <UserControl.Resources>
-        <!-- Column picker — ONE menu, opened from BOTH the A|B|C bar right-click AND a right-click on the
+        <!-- Column picker - ONE menu, opened from BOTH the A|B|C bar right-click AND a right-click on the
              table header (same menu, different trigger). Toggling saves into the ACTIVE A/B/C view via
              ToggleColumnCommand. x:DataType is required here because a resource is outside the root's
-             compiled-binding scope. Order matches the row cells: genre..lufs · vibe · duration · like. -->
+             compiled-binding scope. Order matches the row cells: genre..lufs - vibe - duration - like. -->
         <MenuFlyout x:Key="ColumnPickerFlyout" x:DataType="vm:MainWindowViewModel">
             <MenuItem Header="GENRE" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowGenre, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="genre"/>
             <MenuItem Header="BPM" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowBpm, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="bpm"/>
@@ -30,15 +30,15 @@
             <Separator/>
             <MenuItem Header="Comment" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowComment, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="comment"/>
             <MenuItem Header="DURATION" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowDuration, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="duration"/>
-            <MenuItem Header="Like (♥)" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowLike, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
+            <MenuItem Header="Like" ToggleType="CheckBox" IsChecked="{Binding Columns.ShowLike, Mode=OneWay}" Command="{Binding ToggleColumnCommand}" CommandParameter="like"/>
         </MenuFlyout>
 
-        <!-- FluentTheme's MenuFlyoutPresenter never template-binds the control's Padding —
+        <!-- FluentTheme's MenuFlyoutPresenter never template-binds the control's Padding -
              the visible top/bottom inset is this ItemsPresenter margin resource (default
              0,4,0,4: vertical only; verified against Avalonia 12.0.3
              Themes.Fluent/Controls/MenuFlyoutPresenter.xaml). 0 = the first/last item's
              hover highlight sits flush against the flyout edge (Chloe 2026-07-12, decided
-             on JUST BOOTLEG's PROJECT menu — the suite's list menus stay identical). -->
+             on JUST BOOTLEG's PROJECT menu - the suite's list menus stay identical). -->
         <Thickness x:Key="MenuFlyoutScrollerMargin">0</Thickness>
     </UserControl.Resources>
 
@@ -51,7 +51,7 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <!--
-          Row hover / selected backgrounds — 1:1 port of the design's QueueRow brush
+          Row hover / selected backgrounds - 1:1 port of the design's QueueRow brush
           (.design/just-play-music-player/project/app.jsx, function QueueRow line ~154):
 
               active : linear-gradient(90deg, ${accentC}22, ${accentB}10 @60%, transparent)
@@ -64,7 +64,7 @@
           recolours the active-row swipe to its warm orange tones instead of leaving
           Aurora's purple-pink stuck on every theme.
 
-          IMPORTANT — % suffix on the points is mandatory: Avalonia 12 parses bare "1,0"
+          IMPORTANT - % suffix on the points is mandatory: Avalonia 12 parses bare "1,0"
           as ABSOLUTE PIXELS (RelativeUnit.Absolute), which collapses the gradient to a
           1-pixel-wide strip at the left edge of the row. "100%,50%" forces Relative mode
           so the gradient actually spans the whole row width.
@@ -105,7 +105,7 @@
              App.axaml (shared by both views). -->
 
         <!-- .colhead / .sortarrow moved to the SHARED sheet (JustPlay.UI/Theming/JustStyles.axaml),
-             2026-08-05. There were THREE copies — here, in the Finder and inside TrackDataHeader — and
+             2026-08-05. There were THREE copies - here, in the Finder and inside TrackDataHeader - and
              they had already drifted (this one lacked the flush-trailing fix and used a 1px arrow gap
              instead of 2). A local copy also OVERRODE the shared header strip nested inside this view,
              which is how the queue's own header and its data columns could disagree about the same
@@ -117,18 +117,18 @@
         <!-- The underline-tab styles (Button.tab / Border.tabline) moved to App.axaml so the Tweaks
              panel can reuse them. The UP NEXT strip below still uses them unchanged (now global). -->
 
-        <!-- (The headphone device ComboBox moved to TweaksPanel → AUDIO — device setup lives in
+        <!-- (The headphone device ComboBox moved to TweaksPanel -> AUDIO - device setup lives in
              Settings, not on the pre-cue tab. Chloe 2026-07-03. The duplicated precue-device-picker
              styles went with it; TweaksPanel's ComboBox.device-picker is the one source of truth.) -->
 
         <!--
-          PRE-CUE v2 transport pills — −30s / +30s / Add / Kick. A rounded Border
+          PRE-CUE v2 transport pills - -30s / +30s / Add / Kick. A rounded Border
           carries the background+border (proven pattern, copied from TweaksPanel.axaml's preset
           chips) around a Classes="ghost" Button (transparent, borderless) so there's no FluentTheme
           Background/BorderBrush-leaks-onto-ContentPresenter fight to have (see CLAUDE.md "FluentTheme
           leaks Background / BorderBrush..."). Add reads accent (constructive), Kick reads a muted red
-          (destructive-but-cheap — it only clears the audition slot, not a real delete). CanExecute
-          (HasPreCueCurrent) auto-disables/dims the buttons via the standard Button-Command wiring —
+          (destructive-but-cheap - it only clears the audition slot, not a real delete). CanExecute
+          (HasPreCueCurrent) auto-disables/dims the buttons via the standard Button-Command wiring -
           no explicit IsEnabled binding needed.
         -->
         <Style Selector="Border.precue-pill">
@@ -190,7 +190,7 @@
         </Style>
 
         <!-- Analysing spinner: a 3/4 arc rotating continuously, shown in the index column
-             while a row's BPM/key/energy analysis is in flight. Angle 0→360 via RotateTransform;
+             while a row's BPM/key/energy analysis is in flight. Angle 0->360 via RotateTransform;
              RenderTransformOrigin defaults to Center so it pivots on the arc's centre. -->
         <Style Selector="Path.spinner">
             <Style.Animations>
@@ -205,7 +205,7 @@
              Controls/TweaksPanel control. -->
 
         <!--
-          "…" list-menu flyout — dark skin for MenuFlyoutPresenter and its MenuItems.
+          "..." list-menu flyout - dark skin for MenuFlyoutPresenter and its MenuItems.
 
           Background #F01a1828: the app's deep-purple card dark at ~94% opacity, same
           shade as the window base (BgTo) so the flyout reads as a native part of the UI.
@@ -242,15 +242,15 @@
         <!--
           Reserve the check-mark gutter so toggling "Remove played tracks" never
           resizes the flyout. FluentTheme's MenuItem template sets PART_ToggleIconPresenter
-          (column 0, SharedSizeGroup="ToggleIcon") to IsVisible="False" INLINE — i.e. a
+          (column 0, SharedSizeGroup="ToggleIcon") to IsVisible="False" INLINE - i.e. a
           LocalValue, which a plain Style setter cannot beat (the precedence trap noted in
-          CLAUDE.md). Only pseudo-class (StyleTrigger) setters outrank it — which is exactly
+          CLAUDE.md). Only pseudo-class (StyleTrigger) setters outrank it - which is exactly
           how FluentTheme's own ":checked:toggle" rule makes the check appear. So we ride the
           ":toggle" pseudo-class (present whenever ToggleType != None) to force the presenter
           visible at all times, and MinWidth reserves width even when it's empty (unchecked =
           no content = 0 width otherwise). The SharedSizeGroup then propagates those 16px to
           every item's column 0, giving the whole flyout one stable left gutter. The check
-          simply fades in/out inside the reserved space — no reflow, ever. Verified against
+          simply fades in/out inside the reserved space - no reflow, ever. Verified against
           Avalonia 12.0.3 Themes.Fluent/Controls/MenuItem.xaml.
         -->
         <Style Selector="MenuFlyoutPresenter MenuItem:toggle /template/ ContentControl#PART_ToggleIconPresenter">
@@ -268,7 +268,7 @@
     <Panel>
         <DockPanel>
 
-            <!-- ─── CHROME / TITLE BAR (frameless; brand left, square caption buttons right) ── -->
+            <!-- === CHROME / TITLE BAR (frameless; brand left, square caption buttons right) == -->
             <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar" Background="Transparent">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto">
 
@@ -277,17 +277,17 @@
                          and the track breadcrumb takes the brand's old spot next to the lights. -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Stretch">
                     <ui:WindowControls IsVisible="{x:Static ui:Platform.IsMac}" Margin="14,0,0,0"/>
-                    <!-- Brand — click opens the About dialog (replaces the old Tweaks "About" row).
+                    <!-- Brand - click opens the About dialog (replaces the old Tweaks "About" row).
                          A Button so the frameless-window drag handler treats it as interactive. -->
                     <Button Classes="brand" Click="OnAboutClick" Margin="14,0,0,0"
                             IsVisible="{x:Static ui:Platform.IsNotMac}"
                             VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <!-- TRANSPARENT chip — just the enlarged white play glyph filling the area
+                            <!-- TRANSPARENT chip - just the enlarged white play glyph filling the area
                                  where the gradient chip was (Chloe 2026-06-30). -->
                             <Border Width="20" Height="20" Background="Transparent">
                                 <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="16" Height="16">
-                                    <!-- Contrast shadow: white ▶ on the bright accent chip, same soft
+                                    <!-- Contrast shadow: white > on the bright accent chip, same soft
                                          drop as the transport icons / global text. -->
                                     <Path.Effect>
                                         <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
@@ -307,17 +307,17 @@
                             <TextBlock Text="{Binding Current.Model.Metadata.Album, FallbackValue=''}"
                                        FontSize="11" FontWeight="Bold" LetterSpacing="2"
                                        Foreground="White" VerticalAlignment="Center"/>
-                            <TextBlock Text="·" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock Text="-" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding Current.Artist}" FontSize="11"
                                        Foreground="#B3FFFFFF" VerticalAlignment="Center"/>
-                            <TextBlock Text="·" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock Text="-" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding Current.Model.Metadata.Year, FallbackValue=''}"
                                        FontSize="11" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Panel>
                     </StackPanel>
 
-                    <!-- Center breadcrumb (Windows — on macOS the brand owns the centre, above) -->
+                    <!-- Center breadcrumb (Windows - on macOS the brand owns the centre, above) -->
                     <Panel Grid.Column="1" IsVisible="{x:Static ui:Platform.IsNotMac}">
                     <StackPanel Orientation="Horizontal" Spacing="10"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -325,22 +325,22 @@
                         <TextBlock Text="{Binding Current.Model.Metadata.Album, FallbackValue=''}"
                                    FontSize="11" FontWeight="Bold" LetterSpacing="2"
                                    Foreground="White" VerticalAlignment="Center"/>
-                        <TextBlock Text="·" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                        <TextBlock Text="-" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding Current.Artist}" FontSize="11"
                                    Foreground="#B3FFFFFF" VerticalAlignment="Center"/>
-                        <TextBlock Text="·" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
+                        <TextBlock Text="-" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding Current.Model.Metadata.Year, FallbackValue=''}"
                                    FontSize="11" Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                     </StackPanel>
                     </Panel>
 
-                    <!-- App icon buttons (square, same style as window controls — keeps the chrome consistent).
-                         Search was removed 2026-05-31 — JustPlay queues are short-by-design (drop-and-play, no
+                    <!-- App icon buttons (square, same style as window controls - keeps the chrome consistent).
+                         Search was removed 2026-05-31 - JustPlay queues are short-by-design (drop-and-play, no
                          library), so scrolling beats searching. -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Top">
-                        <!-- Mini player: Lucide "picture-in-picture-2" (ISC) — the standard mini-player
+                        <!-- Mini player: Lucide "picture-in-picture-2" (ISC) - the standard mini-player
                              glyph (screen + small screen in the corner). Verbatim path values, separators
-                             normalised. 24×24 viewBox, Uniform-scaled to match the radio/gear at 17. -->
+                             normalised. 24x24 viewBox, Uniform-scaled to match the radio/gear at 17. -->
                         <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Compact view">
                             <Path Stretch="Uniform" Width="17" Height="17"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -349,7 +349,7 @@
                                   Data="M21 9 V6 a2 2 0 0 0 -2 -2 H4 a2 2 0 0 0 -2 2 v10 c0 1.1 .9 2 2 2 h4
                                         M14 13 h6 a2 2 0 0 1 2 2 v3 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-3 a2 2 0 0 1 2 -2 Z"/>
                         </Button>
-                        <!-- Streaming / broadcast — left-click opens the Icecast streaming section;
+                        <!-- Streaming / broadcast - left-click opens the Icecast streaming section;
                              right-click is a quick connect/disconnect menu (built in code-behind).
                              The glyph lights up in the accent when on air (Classes.streaming). -->
                         <Button Classes="cap" Command="{Binding ToggleStreamingCommand}" ToolTip.Tip="Streaming"
@@ -359,7 +359,7 @@
                                      broadcast state + radio list. Empty here by design. -->
                                 <ContextMenu x:DataType="vm:MainWindowViewModel" Opening="OnStreamMenuOpening"/>
                             </Button.ContextMenu>
-                            <!-- Lucide "radio-tower" (ISC) — real icon data, verbatim path values
+                            <!-- Lucide "radio-tower" (ISC) - real icon data, verbatim path values
                                  (only separators normalised). https://lucide.dev/icons/radio-tower -->
                             <Path Stretch="Uniform" Width="17" Height="17"
                                   Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.8"
@@ -379,7 +379,7 @@
                                   StrokeJoin="Round" Fill="Transparent"
                                   Data="M 7,0 L 9,0 L 9.5,2 L 11.5,2.5 L 13,1.3 L 14.7,3 L 13.5,4.5 L 14,6.5 L 16,7 L 16,9 L 14,9.5 L 13.5,11.5 L 14.7,13 L 13,14.7 L 11.5,13.5 L 9.5,14 L 9,16 L 7,16 L 6.5,14 L 4.5,13.5 L 3,14.7 L 1.3,13 L 2.5,11.5 L 2,9.5 L 0,9 L 0,7 L 2,6.5 L 2.5,4.5 L 1.3,3 L 3,1.3 L 4.5,2.5 L 6.5,2 Z M 8,5.5 A 2.5,2.5 0 1 0 8,10.5 A 2.5,2.5 0 1 0 8,5.5 Z"/>
                         </Button>
-                        <!-- Event log: opens the shared LogWindow (JustPlay.UI); the dot marks unread entries —
+                        <!-- Event log: opens the shared LogWindow (JustPlay.UI); the dot marks unread entries -
                              file-lock / tag-write failures land there instead of a silent Console line. -->
                         <Panel>
                             <Button Name="LogBtn" Classes="cap" Click="OnOpenLog" ToolTip.Tip="Event log">
@@ -394,7 +394,7 @@
                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,3,0"
                                     IsHitTestVisible="False" IsVisible="{Binding EventLog.HasUnread}"/>
                         </Panel>
-                        <!-- Update badge — hidden until a newer release lands (Update.IsAvailable).
+                        <!-- Update badge - hidden until a newer release lands (Update.IsAvailable).
                              Green Discord-style "download to bar" glyph; click opens the update dialog.
                              Lucide "download" path (ISC), verbatim values. -->
                         <Button Name="UpdateBadge" Classes="cap update" Click="OnUpdateBadge"
@@ -407,11 +407,11 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- Windows caption buttons (right) — on macOS the same control renders the
+                    <!-- Windows caption buttons (right) - on macOS the same control renders the
                          traffic lights on the LEFT instead (see the brand StackPanel above). -->
                     <ui:WindowControls Grid.Column="3" IsVisible="{x:Static ui:Platform.IsNotMac}"/>
 
-                    <!-- macOS: brand mark CENTERED in the chrome bar (mac title-bar convention) —
+                    <!-- macOS: brand mark CENTERED in the chrome bar (mac title-bar convention) -
                          still the About button, centered on the WINDOW via the full column span. -->
                     <Button Grid.ColumnSpan="4" Classes="brand" Click="OnAboutClick"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -431,7 +431,7 @@
                 </Grid>
             </Border>
 
-            <!-- ─── WAVEFORM HEADER ────────────────────────────────────────── -->
+            <!-- === WAVEFORM HEADER ========================================== -->
             <!-- Playing drives the FFT-based scaleY; BpmHint/EnergyHint drive the
                  beat-pulse opacity layer on top; IsVisible from the Tweaks toggle. -->
             <controls:WaveformHeader DockPanel.Dock="Top" Height="90" Margin="0,-4,0,-10"
@@ -441,11 +441,11 @@
                                      EnergyHint="{Binding Current.Energy}"
                                      IsVisible="{Binding WaveformEnabled}"/>
 
-            <!-- ─── TRANSPORT (bottom) ─────────────────────────────────────── -->
+            <!-- === TRANSPORT (bottom) ======================================= -->
             <Border DockPanel.Dock="Bottom" Padding="32,8,32,16">
                 <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
 
-                    <!-- Left: shuffle + repeat (shared control) · separator · live spectrum-analyzer button.
+                    <!-- Left: shuffle + repeat (shared control) - separator - live spectrum-analyzer button.
                          The glyph is an animated curve that undulates while playing and rests still otherwise. -->
                     <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
                         <controls:ShuffleRepeatButtons VerticalAlignment="Center"/>
@@ -462,23 +462,23 @@
                     <!--
                       Play has a separate Ellipse BEHIND it as its halo (BoxShadow was rendering
                       as a rectangle because of how Avalonia clips it to layout bounds).
-                      The Ellipse is 200×200 (much bigger than the 70-px button), centred over it,
+                      The Ellipse is 200x200 (much bigger than the 70-px button), centred over it,
                       IsHitTestVisible=False so clicks pass through to the button.
                       ClipToBounds=False all the way up so the halo actually shows.
                     -->
                     <!--
                       Two-layer Grid: halo Ellipse below (centred), buttons StackPanel above.
-                      Both HorizontalAlignment=Center → the halo's centre automatically lines up
+                      Both HorizontalAlignment=Center -> the halo's centre automatically lines up
                       with the play button (the middle one in the StackPanel). The halo can be
-                      ANY size — it sits in the same layout box as the buttons, ClipToBounds=False.
+                      ANY size - it sits in the same layout box as the buttons, ClipToBounds=False.
                     -->
                     <!-- Transport cluster is a SHARED control (Controls/TransportButtons.axaml)
                          used by both MaxView and MiniView. All the polish (skeu Template, halo
                          BoxShadow, hover glow, RenderTransformOrigin pivot, centred scale) lives
-                         in App.axaml on Button.ctrl / Button.primary — both views inherit it. -->
+                         in App.axaml on Button.ctrl / Button.primary - both views inherit it. -->
                     <controls:TransportButtons Grid.Column="1"/>
 
-                    <!-- Right: volume / heart / more — uniform Spacing so the divider is centred
+                    <!-- Right: volume / heart / more - uniform Spacing so the divider is centred
                          between the slider and the heart (no per-element Margins to break symmetry). -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12"
                                 HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -491,12 +491,12 @@
                         <Border Width="1" Height="18" Background="#1FFFFFFF"/>
                         <controls:LikeButton/>
                         <!--
-                          "…" list-menu button: opens a dark-styled MenuFlyout on click.
+                          "..." list-menu button: opens a dark-styled MenuFlyout on click.
                           Three actions: Harmonic Sort (north-star sequencer), Clear list,
                           Write tags to all.
 
                           Placement=TopEdgeAlignedRight: flyout appears above the button
-                          (transport bar is docked at the bottom — opening upward avoids
+                          (transport bar is docked at the bottom - opening upward avoids
                           the flyout being clipped off-screen).
 
                           MenuFlyout styling: MenuFlyoutPresenter and MenuItem styles
@@ -507,18 +507,18 @@
                             <Button.Flyout>
                                 <MenuFlyout Placement="TopEdgeAlignedRight">
                                     <!--
-                                      Remove played tracks — consume-mode TOGGLE (not a command).
+                                      Remove played tracks - consume-mode TOGGLE (not a command).
                                       ToggleType=CheckBox + IsChecked binding gives the native checkmark
                                       (via the :checked pseudo-class); StaysOpenOnClick keeps the flyout
                                       open on click so you can toggle without it snapping shut. Momentary
-                                      state, not persisted (RemovePlayed) — off on every restart, like
+                                      state, not persisted (RemovePlayed) - off on every restart, like
                                       shuffle. Placed above the one-shot actions and separated, so the
                                       mode toggle reads distinctly from the commands below it.
                                     -->
                                     <!-- Mode=TwoWay is REQUIRED: MenuItem.IsChecked is registered
                                          without defaultBindingMode (OneWay), so without this the
                                          checkmark would toggle visually but never write RemovePlayed
-                                         back — the state would reset every time the flyout reopens and
+                                         back - the state would reset every time the flyout reopens and
                                          consume mode would never actually engage. Verified against
                                          Avalonia 12.0.3 Avalonia.Controls/MenuItem.cs. -->
                                     <MenuItem Header="Remove played tracks"
@@ -527,7 +527,7 @@
                                               StaysOpenOnClick="True"/>
                                     <Separator/>
                                     <!--
-                                      Harmonic Sort — north-star headline action.
+                                      Harmonic Sort - north-star headline action.
                                       Sequences the whole queue for the smoothest mix using
                                       pairwise Key+Tempo+Energy compatibility scores
                                       (HarmonicSequencer: greedy nearest-neighbour + 2-opt).
@@ -538,19 +538,19 @@
                                               Command="{Binding HarmonicSortCommand}"/>
                                     <Separator/>
                                     <!--
-                                      Remove duplicates — collapse repeated tracks (same Artist|Title,
+                                      Remove duplicates - collapse repeated tracks (same Artist|Title,
                                       case-insensitive) to one; the playing track is kept and distinct
                                       remixes (different titles) survive.
                                     -->
                                     <MenuItem Header="Remove duplicates"
                                               Command="{Binding RemoveDuplicatesCommand}"/>
                                     <!--
-                                      Clear list — empties the queue and stops playback.
+                                      Clear list - empties the queue and stops playback.
                                     -->
                                     <MenuItem Header="Clear list"
                                               Command="{Binding ClearListCommand}"/>
                                     <!--
-                                      Write tags to all — writes BPM/Key/Energy detected values
+                                      Write tags to all - writes BPM/Key/Energy detected values
                                       into file tags for every track in the queue (same consent
                                       path as the context-menu "Write meta tags", just scoped
                                       to the whole queue). Runs off the UI thread via Task.Run;
@@ -560,11 +560,11 @@
                                               Command="{Binding WriteAllTagsCommand}"/>
                                     <Separator/>
                                     <!--
-                                      Playlists (M3U8 — the universal interchange format).
+                                      Playlists (M3U8 - the universal interchange format).
                                       "Save" writes the current queue order back into the loaded
                                       playlist file (in place); only shown when a playlist is loaded.
-                                      "Save as…" exports to a new path (always available).
-                                      "Open playlist…" REPLACES the queue with the set.
+                                      "Save as..." exports to a new path (always available).
+                                      "Open playlist..." REPLACES the queue with the set.
                                       Click handlers for the dialog-backed items; Save uses a command.
                                     -->
                                     <!--
@@ -574,7 +574,7 @@
                                       bare string Header is built through FuncDataTemplate.Access (see
                                       ContentPresenter.CreateChild in Avalonia.Controls/Presenters/
                                       ContentPresenter.cs) which treats a single "_" as an access-key mnemonic
-                                      and drops it — playlist names like "Hard_Techno" rendered as "HardTechno"
+                                      and drops it - playlist names like "Hard_Techno" rendered as "HardTechno"
                                       with the next letter underlined. A TextBlock is already a Control, so
                                       ContentPresenter.CreateChild uses it as-is and never builds an AccessText.
                                       Display-only: the underlying LoadedPlaylistName / playlist file name is
@@ -586,14 +586,14 @@
                                         </MenuItem.Header>
                                     </MenuItem>
                                     <MenuItem Header="Save" Command="{Binding SavePlaylistCommand}" IsVisible="{Binding HasLoadedPlaylist}"/>
-                                    <MenuItem Header="Save as…" Click="OnExportPlaylist"/>
-                                    <MenuItem Header="Open playlist…" Click="OnOpenPlaylist"/>
-                                    <!-- Transfer ▸ : bundle the whole set (audio files numbered in set order
-                                         + the .m3u8) to share / upload / carry to other DJ tools — as a single
+                                    <MenuItem Header="Save as..." Click="OnExportPlaylist"/>
+                                    <MenuItem Header="Open playlist..." Click="OnOpenPlaylist"/>
+                                    <!-- Transfer > : bundle the whole set (audio files numbered in set order
+                                         + the .m3u8) to share / upload / carry to other DJ tools - as a single
                                          ZIP, or copied into a folder (e.g. straight onto a USB stick). -->
                                     <MenuItem Header="Transfer">
-                                        <MenuItem Header="As ZIP…" Click="OnExportZip"/>
-                                        <MenuItem Header="To folder…" Click="OnExportFolder"/>
+                                        <MenuItem Header="As ZIP..." Click="OnExportZip"/>
+                                        <MenuItem Header="To folder..." Click="OnExportFolder"/>
                                     </MenuItem>
                                 </MenuFlyout>
                             </Button.Flyout>
@@ -605,16 +605,16 @@
                 </Grid>
             </Border>
 
-            <!-- ─── PROGRESS BAR — shared control (Controls/TransportProgressBar) ─── -->
+            <!-- === PROGRESS BAR - shared control (Controls/TransportProgressBar) === -->
             <controls:TransportProgressBar DockPanel.Dock="Bottom" Margin="38,8,38,4"/>
 
-            <!-- ─── MAIN CONTENT: 2-column ─────────────────────────────────── -->
-            <!-- Left column is a FIXED 508 px (the vinyl is 468 px wide → ~20 px breathing room each
+            <!-- === MAIN CONTENT: 2-column =================================== -->
+            <!-- Left column is a FIXED 508 px (the vinyl is 468 px wide -> ~20 px breathing room each
                  side), so the cover stage never grows on resize; the queue table (right, *) absorbs
                  all the extra width. -->
             <Grid ColumnDefinitions="508,*" Margin="44,8,44,12">
 
-                <!-- LEFT: vinyl stage (fixed size — does not grow with the window) -->
+                <!-- LEFT: vinyl stage (fixed size - does not grow with the window) -->
                 <Panel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <controls:Vinyl Cover="{Binding Current.Cover}"
                                     Spinning="{Binding ShouldSpin}"/>
@@ -622,24 +622,24 @@
 
                 <!-- RIGHT: track meta + queue.
                      Grid.IsSharedSizeScope="True" here so the header Grid (col 2..8) and every
-                     row template Grid share the same SharedSizeGroup widths (cGenre…cDuration).
+                     row template Grid share the same SharedSizeGroup widths (cGenre...cDuration).
                      Both the header Border and the ListBox are descendants of this DockPanel. -->
                 <DockPanel Grid.Column="1" Margin="20,4,0,0" Grid.IsSharedSizeScope="True">
 
-                    <!-- Title + meta block. "NOW PLAYING · TRACK n" appears when a track is current. -->
+                    <!-- Title + meta block. "NOW PLAYING - TRACK n" appears when a track is current. -->
                     <StackPanel DockPanel.Dock="Top" Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="NOW PLAYING" Foreground="#80FFFFFF"
                                        FontSize="10" FontWeight="SemiBold" LetterSpacing="3"/>
-                            <TextBlock Text="·" Foreground="#59FFFFFF" FontSize="10" VerticalAlignment="Center"
+                            <TextBlock Text="-" Foreground="#59FFFFFF" FontSize="10" VerticalAlignment="Center"
                                        IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                             <TextBlock Text="{Binding Current.Index, StringFormat='TRACK {0}'}"
                                        Foreground="#80FFFFFF" FontSize="10" FontWeight="SemiBold" LetterSpacing="3"
                                        IsVisible="{Binding Current, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                            <!-- Set-wide tempo span (min–max BPM over the queue). Hidden while
-                                 analysing — the span flickers as rows resolve and the line runs long.
+                            <!-- Set-wide tempo span (min-max BPM over the queue). Hidden while
+                                 analysing - the span flickers as rows resolve and the line runs long.
                                  Visibility = track playing AND settled multi-track span (ShowBpmRange). -->
-                            <TextBlock Text="·" Foreground="#59FFFFFF" FontSize="10" VerticalAlignment="Center"
+                            <TextBlock Text="-" Foreground="#59FFFFFF" FontSize="10" VerticalAlignment="Center"
                                        IsVisible="{Binding ShowBpmRange}"/>
                             <TextBlock Text="{Binding BpmRangeText}"
                                        Foreground="#80FFFFFF" FontSize="10" FontWeight="SemiBold" LetterSpacing="3"
@@ -649,7 +649,7 @@
                                    FontSize="30" FontWeight="Bold"
                                    Foreground="{DynamicResource TitleGradient}"
                                    TextTrimming="CharacterEllipsis"/>
-                        <!-- Just artist + album text under the title — no duplicate cover thumb;
+                        <!-- Just artist + album text under the title - no duplicate cover thumb;
                              the sleeve carries the real cover (or its themed fallback).
                              ALWAYS laid out (no IsVisible collapse): the empty TextBlocks still
                              reserve their line height, so the header keeps its "playing" height
@@ -663,14 +663,14 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Tab strip: UP NEXT | PRE-CUE — the active underline (Border.tabline) is
+                    <!-- Tab strip: UP NEXT | PRE-CUE - the active underline (Border.tabline) is
                          bottom-aligned inside each tab's Panel so it sits on the strip's bottom
                          hairline. The active tab has Classes.active which the App.axaml tab style
                          uses to render the underline. PRE-CUE tab switches to the audition list. -->
                     <Border DockPanel.Dock="Top" Margin="0,18,0,8"
                             BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1">
                         <DockPanel>
-                            <!-- Column-view switch: A | B | C — three user-customisable column sets.
+                            <!-- Column-view switch: A | B | C - three user-customisable column sets.
                                  Right-click the container to toggle individual columns for the active view.
                                  Hidden until there are tracks AND the queue tab is active. -->
                             <Border DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,0,6"
@@ -682,7 +682,7 @@
                                     <Button Classes="lens-seg" Classes.active="{Binding IsViewA}"
                                             CornerRadius="6,0,0,6"
                                             Command="{Binding SetColumnViewCommand}" CommandParameter="A"
-                                            ToolTip.Tip="View A — Mix (Key · Energy · Genre)">
+                                            ToolTip.Tip="View A - Mix (Key - Energy - Genre)">
                                         <TextBlock Text="A">
                                             <TextBlock.Effect>
                                                 <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
@@ -692,7 +692,7 @@
                                     <Button Classes="lens-seg" Classes.active="{Binding IsViewB}"
                                             CornerRadius="0"
                                             Command="{Binding SetColumnViewCommand}" CommandParameter="B"
-                                            ToolTip.Tip="View B — Levels (Gain · LUFS)">
+                                            ToolTip.Tip="View B - Levels (Gain - LUFS)">
                                         <TextBlock Text="B">
                                             <TextBlock.Effect>
                                                 <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
@@ -702,7 +702,7 @@
                                     <Button Classes="lens-seg" Classes.active="{Binding IsViewC}"
                                             CornerRadius="0,6,6,0"
                                             Command="{Binding SetColumnViewCommand}" CommandParameter="C"
-                                            ToolTip.Tip="View C — Minimal (BPM · Duration)">
+                                            ToolTip.Tip="View C - Minimal (BPM - Duration)">
                                         <TextBlock Text="C">
                                             <TextBlock.Effect>
                                                 <DropShadowEffect Color="Black" BlurRadius="2" OffsetX="0" OffsetY="1" Opacity="0.45"/>
@@ -723,11 +723,11 @@
                                 </Button>
                                 <!-- PRE-CUE is a LAUNCHER, not a tab (Chloe 2026-07-05): a click opens the
                                      dedicated Pre-Cue Finder window instead of switching the right column.
-                                     Always visible now — the old experimental single-slot panel was retired.
+                                     Always visible now - the old experimental single-slot panel was retired.
                                      No active-underline (it never activates a panel); UP NEXT keeps the
                                      signature underline. -->
                                 <Button Classes="tab" Click="OnOpenFinderClicked"
-                                        ToolTip.Tip="Open the Pre-Cue Finder — browse &amp; audition your library on headphones">
+                                        ToolTip.Tip="Open the Pre-Cue Finder - browse &amp; audition your library on headphones">
                                     <Panel>
                                         <TextBlock Text="PRE-CUE" FontSize="12" FontWeight="Bold" LetterSpacing="2"
                                                    VerticalAlignment="Top"/>
@@ -746,14 +746,14 @@
                             Padding="0,0,0,6" Margin="0,2,0,0"
                             IsVisible="{Binding ShowQueueHeader}">
                         <!--
-                          DockPanel layout (NOT a Grid/SharedSizeGroup — that reserved width for
+                          DockPanel layout (NOT a Grid/SharedSizeGroup - that reserved width for
                           hidden columns and broke the * title). # docks left (28), the toggleable
                           data cells dock RIGHT as fixed-width cells (a collapsed cell takes ZERO
                           width in the StackPanel, so hiding a column truly reclaims its space), and
                           UP NEXT fills the middle. Row cells use the SAME fixed widths + right-dock,
                           so columns line up without any shared-size machinery.
 
-                          Right margin = 16, SAME as the row margin — Avalonia's auto-hide scrollbar
+                          Right margin = 16, SAME as the row margin - Avalonia's auto-hide scrollbar
                           OVERLAYS the content (reserves no layout width), so no extra gutter is
                           needed; a +6 "scrollbar" margin shifted the whole header 6px left of the
                           rows (visible as a column offset, worst at GENRE).
@@ -772,7 +772,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- UP NEXT / loaded-playlist name — the * column with MinWidth. -->
+                                <!-- UP NEXT / loaded-playlist name - the * column with MinWidth. -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
                                     <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="title"
                                                Tapped="OnHeaderTapped" Cursor="Hand"/>
@@ -783,13 +783,13 @@
                                          The STATE still exists (PlaylistDirty drives the Save command); it just no
                                          longer claims a square of screen it cannot pay for. -->
 
-                                    <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"/>
-                                    <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·" Margin="10,0,4,0" VerticalAlignment="Center"/>
+                                    <ui:JustIcon Classes="sortarrow" Kind="{Binding Columns.TitleSortGlyph}"/>
+                                    <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="-" Margin="10,0,4,0" VerticalAlignment="Center"/>
                                     <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
                                                Foreground="#73FFFFFF" Text="{Binding TrackCountText}"
                                                VerticalAlignment="Center"/>
                                     <!-- Live-analysis badge: only while DSP analysis is in flight (IsAnalyzing). -->
-                                    <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="·"
+                                    <TextBlock FontSize="10" Foreground="#40FFFFFF" Text="-"
                                                Margin="10,0,4,0" VerticalAlignment="Center"
                                                IsVisible="{Binding IsAnalyzing}"/>
                                     <TextBlock FontSize="10" FontWeight="SemiBold" LetterSpacing="2"
@@ -798,7 +798,7 @@
                                                IsVisible="{Binding IsAnalyzing}"/>
                                 </StackPanel>
 
-                                <!-- Toggleable data columns — the shared header strip (Controls/TrackDataHeader): the SAME
+                                <!-- Toggleable data columns - the shared header strip (Controls/TrackDataHeader): the SAME
                                      ColW* widths + sort glyphs + flush fix as the finder, defined once. The DURATION header
                                      carries the queue's set total (LetterSpacing 0 = tight digits, flush-right). -->
                                 <ui:TrackDataHeader Grid.Column="1" Columns="{Binding Columns}"
@@ -808,16 +808,16 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Queue list / PRE-CUE panel — the two tabs share this host. -->
+                    <!-- Queue list / PRE-CUE panel - the two tabs share this host. -->
                     <Panel Name="RightPanelHost">
                         <Panel Name="QueuePanel" IsVisible="{Binding IsQueueTab}">
-                            <!-- Drag-reorder insertion line (RowDragBehavior): a layout-neutral overlay —
+                            <!-- Drag-reorder insertion line (RowDragBehavior): a layout-neutral overlay -
                                  positioned purely via TranslateTransform.Y onto the row boundary under the
                                  pointer, so rows never shift while dragging. Side margins match TrackRowMargin.
                                  Declared FIRST so the list renders above it is irrelevant: the line only shows
                                  during a drag and is never hit-testable. -->
                             <!-- 1px hairline, flush with the row edges: side margins = TrackRowMargin (6/16)
-                                 (Chloe 2026-07-11: "dünner + linksbündig mit der Liste"). -->
+                                 (Chloe 2026-07-11: "duenner + linksbuendig mit der Liste"). -->
                             <Border Name="QueueDropIndicator" ZIndex="1"
                                     Height="1" Margin="6,0,16,0"
                                     VerticalAlignment="Top" HorizontalAlignment="Stretch"
@@ -830,7 +830,7 @@
                             <!--
                               Soft edge fade: the list content fades to transparent over a few px at
                               the TOP and BOTTOM (revealing the Aurora background) instead of a hard
-                              cut. The OpacityMask lives on this WRAPPER Border, NOT on the ListBox —
+                              cut. The OpacityMask lives on this WRAPPER Border, NOT on the ListBox -
                               masking the virtualising ListBox directly composites the whole list to
                               transparent in Avalonia 12.0.3; masking the wrapper's rendered output
                               sidesteps that. Offsets are relative, so the fade is ~a few px tall.
@@ -853,7 +853,7 @@
                                 <!--
                                   One shared context menu (DataContext = MainWindowViewModel via the
                                   ListBox). Per-field entries bind to ContextTarget (the single right-
-                                  clicked row, null under multi-select → they vanish); bulk entries act
+                                  clicked row, null under multi-select -> they vanish); bulk entries act
                                   on the whole selection and carry the "(N)" count. Selection is fixed up
                                   in OnListContextRequested before the menu opens. See the tag-persistence
                                   design in memory.
@@ -863,14 +863,14 @@
                                         <!-- "Pre-cue on headphones" removed from the queue's right-click
                                              (Chloe 2026-07-07): pre-cueing lives in the dedicated Pre-Cue
                                              Finder window now, not the main track list. -->
-                                        <!-- Analyze first: the primary action — produces the values everything
+                                        <!-- Analyze first: the primary action - produces the values everything
                                              else writes. "Analyze" until done, then "Re-analyze". -->
                                         <MenuItem Header="{Binding ReanalyzeHeader}" Command="{Binding ReanalyzeCommand}"
                                                   IsVisible="{Binding HasSelection}"/>
                                         <Separator IsVisible="{Binding HasSelection}"/>
-                                        <!-- Opens the SHARED floating editor (JustPlay.UI) — stays on top and
+                                        <!-- Opens the SHARED floating editor (JustPlay.UI) - stays on top and
                                              follows the queue cursor. Single row only; batch is JUST TAG's job. -->
-                                        <MenuItem Header="Edit tags…" Click="OnEditTags"
+                                        <MenuItem Header="Edit tags..." Click="OnEditTags"
                                                   IsVisible="{Binding ShowEditTags}"/>
                                         <Separator IsVisible="{Binding ShowEditTags}"/>
                                         <MenuItem Header="{Binding ContextTarget.WriteBpmMenu}" CommandParameter="Bpm"
@@ -911,10 +911,10 @@
                                     <DataTemplate x:DataType="uivm:TrackViewModel">
                                         <!-- DockPanel row (mirrors the header): # left, toggleable data cells
                                              right (fixed widths, collapsed = 0 width), title fills the middle.
-                                             Same widths + right-dock as the header → columns align without
+                                             Same widths + right-dock as the header -> columns align without
                                              SharedSizeGroup. Right margin 16 = gap to the scrollbar. -->
                                         <Panel Margin="{DynamicResource TrackRowMargin}" MinHeight="44">
-                                            <!-- Cyan→pink accent edge on the active row (overlay at the left edge). -->
+                                            <!-- Cyan->pink accent edge on the active row (overlay at the left edge). -->
                                             <Border Width="3" CornerRadius="1.5"
                                                     HorizontalAlignment="Left" Margin="-8,0,0,0"
                                                     IsVisible="{Binding IsCurrent}"
@@ -928,7 +928,7 @@
                                             </Border>
 
                                             <DockPanel>
-                                                <!-- Index — spinner / play-bars / number -->
+                                                <!-- Index - spinner / play-bars / number -->
                                                 <Grid DockPanel.Dock="Left" Width="{DynamicResource ColWIndex}" VerticalAlignment="Center" HorizontalAlignment="Center">
                                                     <TextBlock Text="{Binding Index}" FontSize="11" FontWeight="SemiBold"
                                                                Foreground="#73FFFFFF" VerticalAlignment="Center"
@@ -951,7 +951,7 @@
                                                      the middle, all toggleable data cells dock right at the SAME fixed widths
                                                      as the header, and the like heart is clickable. Column visibility + sort
                                                      read the queue's Columns; the index gutter (left, above) stays host-side.
-                                                     ONE row definition shared with the Pre-Cue Finder — no per-list drift. -->
+                                                     ONE row definition shared with the Pre-Cue Finder - no per-list drift. -->
                                                 <ui:TrackRow Columns="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).Columns}"/>
                                             </DockPanel>
                                         </Panel>
@@ -963,15 +963,15 @@
                             <!-- Empty drop hint -->
                             <StackPanel IsVisible="{Binding !HasTracks}" HorizontalAlignment="Center"
                                         VerticalAlignment="Center" Spacing="10">
-                                <TextBlock Text="⤓" FontSize="56" HorizontalAlignment="Center" Foreground="#33FFFFFF"/>
+                                <TextBlock Text="v" FontSize="56" HorizontalAlignment="Center" Foreground="#33FFFFFF"/>
                                 <TextBlock Text="Drop tracks anywhere" FontSize="15" FontWeight="SemiBold"
                                            HorizontalAlignment="Center" Foreground="#A6FFFFFF"/>
-                                <TextBlock Text="no library · no memory · just play" FontSize="11"
+                                <TextBlock Text="no library - no memory - just play" FontSize="11"
                                            HorizontalAlignment="Center" Foreground="#59FFFFFF" LetterSpacing="1"/>
                             </StackPanel>
                         </Panel>
 
-                        <!-- The old single-slot PRE-CUE panel (transport + Add/Kick/±30s + one cue slot)
+                        <!-- The old single-slot PRE-CUE panel (transport + Add/Kick/+/-30s + one cue slot)
                              was RETIRED here 2026-07-05: the PRE-CUE tab now opens the dedicated Pre-Cue
                              Finder window instead. The outer Panel above is left hosting just the queue list. -->
 
@@ -980,12 +980,12 @@
             </Grid>
         </DockPanel>
 
-        <!-- TWEAKS PANEL — shared control (Controls/TweaksPanel); slides in from the
+        <!-- TWEAKS PANEL - shared control (Controls/TweaksPanel); slides in from the
              right when ToggleTweaksCommand toggles IsTweaksOpen. -->
         <controls:TweaksPanel IsVisible="{Binding IsTweaksOpen}"
                               HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
 
-        <!-- STREAMING PANEL — shared control (Controls/StreamingPanel); slides in from the
+        <!-- STREAMING PANEL - shared control (Controls/StreamingPanel); slides in from the
              right when ToggleStreamingCommand toggles IsStreamingOpen.
              S1 scope: Icecast server profile manager. Real encoder wiring is S2. -->
         <controls:StreamingPanel IsVisible="{Binding IsStreamingOpen}"

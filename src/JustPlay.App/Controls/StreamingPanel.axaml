@@ -2,24 +2,25 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.App.ViewModels"
              xmlns:models="using:JustPlay.Core.Models"
+             xmlns:uic="using:JustPlay.UI.Controls"
              x:Class="JustPlay.App.Controls.StreamingPanel"
              x:DataType="vm:MainWindowViewModel">
 
     <!--
-      Slide-in Streaming panel — Icecast server profile manager (S1 UI).
+      Slide-in Streaming panel - Icecast server profile manager (S1 UI).
       Inherits the view's MainWindowViewModel DataContext. Visibility / right-dock
       alignment are set by the consumer (see MaxView: IsVisible={Binding IsStreamingOpen}).
 
       S1 scope: add / edit / delete / select server profiles, persisted.
-      The "Connect" button is a clearly-labelled stub — real networking is S2.
+      The "Connect" button is a clearly-labelled stub - real networking is S2.
 
       LAYOUT: a DockPanel pins the header (top) and the BROADCAST/Connect block
       (bottom) so they are ALWAYS visible; only the middle (SERVERS list + editor)
       scrolls. This is what stops the bottom from being clipped when the editor is
-      tall — a single ScrollViewer over everything pushed Connect off-screen.
+      tall - a single ScrollViewer over everything pushed Connect off-screen.
     -->
     <UserControl.Styles>
-        <!-- Section heading — mirrors TweaksPanel's tweak-section style -->
+        <!-- Section heading - mirrors TweaksPanel's tweak-section style -->
         <Style Selector="TextBlock.stream-section">
             <Setter Property="Foreground" Value="#73FFFFFF"/>
             <Setter Property="FontSize" Value="10"/>
@@ -27,7 +28,7 @@
             <Setter Property="LetterSpacing" Value="3"/>
             <Setter Property="Margin" Value="0,2,0,3"/>
         </Style>
-        <!-- Row label — mirrors TweaksPanel's tweak-label style -->
+        <!-- Row label - mirrors TweaksPanel's tweak-label style -->
         <Style Selector="TextBlock.stream-label">
             <Setter Property="Foreground" Value="#E6FFFFFF"/>
             <Setter Property="FontSize" Value="12"/>
@@ -93,7 +94,7 @@
             <Setter Property="Background" Value="#1AFFFFFF"/>
         </Style>
 
-        <!-- Format toggle buttons (MP3 / Opus) — same as tweak-radio in TweaksPanel -->
+        <!-- Format toggle buttons (MP3 / Opus) - same as tweak-radio in TweaksPanel -->
         <Style Selector="Button.fmt-radio">
             <Setter Property="Background" Value="#0FFFFFFF"/>
             <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -187,15 +188,17 @@
         <!-- DockPanel: header pinned top, BROADCAST pinned bottom, middle scrolls. -->
         <DockPanel LastChildFill="True">
 
-            <!-- ── Header (fixed, always visible) ──────────────────────────── -->
+            <!-- == Header (fixed, always visible) ============================ -->
             <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="22,18,22,8">
                 <TextBlock Text="STREAMING" FontSize="12" FontWeight="Bold" LetterSpacing="3"
                            Foreground="White" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Classes="ghost" Content="✕" FontSize="13"
-                        Command="{Binding ToggleStreamingCommand}"/>
+                <Button Grid.Column="1" Classes="ghost" FontSize="13"
+                        Command="{Binding ToggleStreamingCommand}">
+                    <uic:JustIcon Kind="Close" Width="12" Height="12"/>
+                </Button>
             </Grid>
 
-            <!-- ── Connect / status (fixed bottom, always visible — S2 live) ── -->
+            <!-- == Connect / status (fixed bottom, always visible - S2 live) == -->
             <StackPanel DockPanel.Dock="Bottom" Margin="22,8,22,18" Spacing="8">
                 <Border Height="1" Background="{StaticResource HairlineBrush}" Margin="0,2,0,4"/>
                 <TextBlock Classes="stream-section" Text="BROADCAST" Margin="0,0,0,2"/>
@@ -213,7 +216,7 @@
                 <!--
                   Status row: coloured dot + status text.
                   BroadcastDotColor is a hex string property on the VM (green/amber/red/grey).
-                  Compiled bindings need a string→IBrush conversion — use a simple
+                  Compiled bindings need a string->IBrush conversion - use a simple
                   SolidColorBrush with a x:Static colour. Because compiled bindings don't
                   support Binding to Fill with a string directly, we fall back to
                   x:CompileBindings="False" just for this small grid so the dot Fill can
@@ -230,21 +233,21 @@
                 </Grid>
             </StackPanel>
 
-            <!-- ── Middle: SERVERS list + selected-profile editor (scrolls) ── -->
+            <!-- == Middle: SERVERS list + selected-profile editor (scrolls) == -->
             <ScrollViewer Padding="22,0,22,4" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="9" ClipToBounds="False">
 
                     <!-- Server profile list -->
                     <TextBlock Classes="stream-section" Text="SERVERS"/>
 
-                    <!-- Empty-state hint — shown when the collection is empty. -->
+                    <!-- Empty-state hint - shown when the collection is empty. -->
                     <TextBlock Text="No servers yet. Add one below."
                                FontSize="11" Foreground="#4DFFFFFF"
                                IsVisible="{Binding HasNoStreamServers}"/>
 
                     <!--
                       Server list. Each row is a Button so the whole row is clickable
-                      (SelectStreamServer); the delete ✕ has its own command. The template
+                      (SelectStreamServer); the delete x has its own command. The template
                       uses x:CompileBindings="False" so the row-level commands can bind back
                       to the parent MainWindowViewModel via $parent[UserControl]; display
                       fields are plain properties on StreamServerProfile.
@@ -276,10 +279,12 @@
                                             </Border>
                                             <!-- Delete -->
                                             <Button Grid.Row="0" Grid.Column="2"
-                                                    Classes="ghost" Content="✕" FontSize="11"
+                                                    Classes="ghost" FontSize="11"
                                                     Padding="6" Margin="2,0,0,0"
                                                     Command="{Binding DataContext.RemoveStreamServerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                    CommandParameter="{Binding}"/>
+                                                    CommandParameter="{Binding}">
+                                                <uic:JustIcon Kind="Close" Width="10" Height="10"/>
+                                            </Button>
                                             <!-- Host:Port Mount -->
                                             <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
                                                        FontSize="10" Foreground="#66FFFFFF"
@@ -312,11 +317,11 @@
                                FontSize="11" Foreground="#4DFFFFFF" TextWrapping="Wrap"
                                IsVisible="{Binding SelectedStreamServer, Converter={x:Static ObjectConverters.IsNull}}"/>
 
-                    <!-- Editor — only visible when a profile is selected -->
+                    <!-- Editor - only visible when a profile is selected -->
                     <StackPanel Spacing="2"
                                 IsVisible="{Binding SelectedStreamServer, Converter={x:Static ObjectConverters.IsNotNull}}">
 
-                        <!-- Station-editor tabs — reuse the SHARED underline tabs (App.axaml), same look
+                        <!-- Station-editor tabs - reuse the SHARED underline tabs (App.axaml), same look
                              as the Tweaks panel. Splits the profile form into short groups so it never
                              needs to scroll (Server / Quality / Station). -->
                         <Border BorderBrush="{StaticResource HairlineBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,4">
@@ -348,7 +353,7 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- ═══════════ SERVER: connection ═══════════ -->
+                        <!-- =========== SERVER: connection =========== -->
                         <StackPanel Spacing="2"
                                     IsVisible="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Server}">
                             <TextBlock Classes="field-cap" Text="NAME"/>
@@ -385,11 +390,11 @@
                             <TextBlock Classes="field-cap" Text="PASSWORD"/>
                             <TextBox Classes="stream-field"
                                      Text="{Binding SelectedServerPassword}"
-                                     PasswordChar="●"
-                                     PlaceholderText="••••••••"/>
+                                     PasswordChar="o"
+                                     PlaceholderText="--------"/>
                         </StackPanel>
 
-                        <!-- ═══════════ QUALITY: codec + bitrate + security ═══════════ -->
+                        <!-- =========== QUALITY: codec + bitrate + security =========== -->
                         <StackPanel Spacing="2"
                                     IsVisible="{Binding StreamEditorTab, Converter={StaticResource StringEquals}, ConverterParameter=Quality}">
                             <TextBlock Classes="field-cap" Text="FORMAT"/>
@@ -437,7 +442,7 @@
                             </Grid>
                         </StackPanel>
 
-                        <!-- ═══════════ STATION: ICY directory info (optional, DJ-owned) ═══════════ -->
+                        <!-- =========== STATION: ICY directory info (optional, DJ-owned) =========== -->
                         <!-- Same four as JUST STREAM (ice-url / ice-genre / ice-description / ice-public);
                              the shared broadcast adapter already sends them. -->
                         <StackPanel Spacing="2"
@@ -445,7 +450,7 @@
                             <TextBlock Classes="field-cap" Text="WEBSITE"/>
                             <TextBox Classes="stream-field"
                                      Text="{Binding SelectedServerUrl}"
-                                     PlaceholderText="https://…"/>
+                                     PlaceholderText="https://..."/>
 
                             <TextBlock Classes="field-cap" Text="GENRE"/>
                             <TextBox Classes="stream-field"
@@ -457,7 +462,7 @@
                                      Text="{Binding SelectedServerDescription}"
                                      PlaceholderText="One line about your stream"/>
 
-                            <!-- Public directory toggle (ice-public) — same layout as the TLS row. -->
+                            <!-- Public directory toggle (ice-public) - same layout as the TLS row. -->
                             <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Classes="stream-label" Text="PUBLIC DIRECTORY"/>

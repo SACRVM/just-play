@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:JustPlay.Tag.ViewModels"
         xmlns:uic="using:JustPlay.UI.Controls"
+        xmlns:controls="using:JustPlay.Tag.Controls"
         xmlns:beh="using:JustPlay.UI.Behaviors"
         x:Class="JustPlay.Tag.Views.MainWindow"
         x:DataType="vm:TaggerViewModel"
@@ -10,22 +11,23 @@
         MinWidth="1080" MinHeight="600"
         Background="#00000000"
         TransparencyLevelHint="Transparent,Mica,Blur"
+        beh:KeyboardNav.SuppressTab="False"
         WindowDecorations="None">
 
     <!--
-      JUST TAG — the suite's tagger, built from the PRE CUE FINDER's shell: frameless rounded card,
+      JUST TAG - the suite's tagger, built from the PRE CUE FINDER's shell: frameless rounded card,
       layered themed background, chrome bar with the brand mark left and the caption buttons right,
-      manual resize grips. The chrome is COPIED, not shared and made adaptive — that is the suite
+      manual resize grips. The chrome is COPIED, not shared and made adaptive - that is the suite
       rule (memory just-ui-philosophy), so every JUST window looks identical without any of them
       having to know about the others.
 
       The body is mp3tag's shape: FOLDERS | FILES | EDITOR. The editor is the SHARED JustPlay.UI
-      TagEditorPanel — the same control the floating window in JUST PLAY and the PRE CUE FINDER
+      TagEditorPanel - the same control the floating window in JUST PLAY and the PRE CUE FINDER
       host. There is exactly one tag editor in this suite, and this is it.
     -->
 
     <Window.Resources>
-        <!-- Bottom soft-fade for both lists — copied from the Finder, including the reason: the mask
+        <!-- Bottom soft-fade for both lists - copied from the Finder, including the reason: the mask
              goes on the SCROLLED CONTENT, never on the ListBox (that composites the whole
              virtualising list to transparent) and never on a wrapper (that fades the scrollbar too). -->
         <LinearGradientBrush x:Key="ListBottomFade" StartPoint="0%,0%" EndPoint="0%,100%">
@@ -36,8 +38,8 @@
     </Window.Resources>
 
     <Window.Styles>
-        <!-- Maximized: card fills the screen — no shadow margin, no rounding (MainWindow pattern). -->
-<!-- ⚠ Row look COPIED VERBATIM from the PRE CUE FINDER (finder-list), not re-derived: the
+        <!-- Maximized: card fills the screen - no shadow margin, no rounding (MainWindow pattern). -->
+<!-- (!) Row look COPIED VERBATIM from the PRE CUE FINDER (finder-list), not re-derived: the
              hover/selected accent-gradient swipe, the brighter cursor in the pane that has focus,
              the header wash, the bottom fade. Writing my own flat-grey version is exactly how two
              JUST windows start looking like two different products (Chloe 2026-08-05). -->
@@ -69,7 +71,7 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="0"/>
         </Style>
-        <!-- Selected in the ACTIVE pane: the cursor. Cyan→pink, both highlight colours. -->
+        <!-- Selected in the ACTIVE pane: the cursor. Cyan->pink, both highlight colours. -->
         <Style Selector="ListBox.tag-list.pane-active ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
@@ -104,7 +106,7 @@
             <Setter Property="OpacityMask" Value="{StaticResource ListBottomFade}"/>
         </Style>
 
-        <!-- Pane header row — hairlines top and bottom, and the focused pane lights up. -->
+        <!-- Pane header row - hairlines top and bottom, and the focused pane lights up. -->
         <Style Selector="Border.pane-head">
             <Setter Property="BorderBrush" Value="{DynamicResource HairlineBrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,1"/>
@@ -134,7 +136,7 @@
             <Setter Property="Foreground" Value="#F5FFFFFF"/>
         </Style>
 
-        <!-- EDITOR | FILTER tab buttons — the Finder's tabhead, verbatim. Order matters: .active
+        <!-- EDITOR | FILTER tab buttons - the Finder's tabhead, verbatim. Order matters: .active
              comes last so it wins against :pointerover on an already-active tab. -->
         <Style Selector="Button.tabhead">
             <Setter Property="Background" Value="Transparent"/>
@@ -154,6 +156,21 @@
         </Style>
         <Style Selector="Button.tabhead.active TextBlock.panehead">
             <Setter Property="Foreground" Value="#F5FFFFFF"/>
+        </Style>
+        <!--
+          A tab whose pane has something GOING ON reads in the accent, whether or not you are standing
+          on it (Chloe 2026-08-06: "wir aendern die farbe vom FILTER und EDITOR tab und machen sie in
+          accent color - damit man sieht hier ist was aktiv"). Two states were invisible until now: a
+          search is filtering the list, and the editor holds unsaved edits - both easy to walk away
+          from without noticing.
+
+          (!) Order matters: this comes AFTER .active, so a tab that is BOTH shown and live reads as
+          live. Avalonia has no specificity - among equal-priority styles the later one wins.
+          Deliberately the accent COLOUR and not a dot: an unlabelled dot got thrown out once already
+          for saying nothing anyone could decode (Chloe 2026-08-05).
+        -->
+        <Style Selector="Button.tabhead.live TextBlock.panehead">
+            <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
         </Style>
 
         <!-- Breadcrumb, same recipe as the Finder's. -->
@@ -213,19 +230,19 @@
 
                 <DockPanel Margin="0">
 
-                    <!-- ── Chrome bar — the canonical recipe: brand mark (glyph + name, opens the
+                    <!-- == Chrome bar - the canonical recipe: brand mark (glyph + name, opens the
                          shared About) on the left with the path beside it, cap buttons and the
                          shared window controls on the right. -->
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto"
                           Height="36" Background="Transparent"
                           PointerPressed="OnChromePressed">
 
-                        <!-- Right-click the path (or anywhere on the bar) to switch folders — the
+                        <!-- Right-click the path (or anywhere on the bar) to switch folders - the
                              chrome IS where the current folder is stated, so it is where changing
                              it belongs (Chloe 2026-08-05). -->
                         <Grid.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Browse folder…" Click="OnPickFolder"/>
+                                <MenuItem Header="Browse folder..." Click="OnPickFolder"/>
                             </ContextMenu>
                         </Grid.ContextMenu>
 
@@ -233,16 +250,16 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Stretch">
                             <!-- macOS: traffic lights on the far LEFT (suite chrome rule for mac). -->
                             <uic:WindowControls IsVisible="{x:Static uic:Platform.IsMac}" Margin="14,0,0,0"/>
-                            <!-- ⚠ brandbtn, NOT "brand": that class lives in JustPlay.App's App.axaml
+                            <!-- (!) brandbtn, NOT "brand": that class lives in JustPlay.App's App.axaml
                                  only. Naming it here matched no style at all and FluentTheme drew a
-                                 stock grey button around the mark — which is exactly why the header
+                                 stock grey button around the mark - which is exactly why the header
                                  looked unlike its siblings (2026-08-05). -->
                             <Button Classes="brandbtn" Click="OnAboutClick" Margin="14,0,0,0"
                                     IsVisible="{x:Static uic:Platform.IsNotMac}"
                                     VerticalAlignment="Center" ToolTip.Tip="About JUST TAG">
                                 <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                     <Border Width="20" Height="20" Background="Transparent">
-                                        <!-- Lucide "tag" — JUST TAG's mark, the same one the app icon carries. -->
+                                        <!-- Lucide "tag" - JUST TAG's mark, the same one the app icon carries. -->
                                         <Path Stretch="Uniform" Width="16" Height="16"
                                               Stroke="White" StrokeThickness="2"
                                               StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
@@ -261,7 +278,7 @@
                             </Button>
                         </StackPanel>
 
-                        <!-- Clickable path — every segment jumps to that level, like the Finder's. -->
+                        <!-- Clickable path - every segment jumps to that level, like the Finder's. -->
                         <ItemsControl Grid.Column="1" ItemsSource="{Binding Crumbs}"
                                       VerticalAlignment="Center" Margin="14,0,10,0" ClipToBounds="True">
                             <ItemsControl.ItemsPanel>
@@ -277,7 +294,7 @@
                                             <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
                                                        MaxWidth="180"/>
                                         </Button>
-                                        <TextBlock Classes="crumbsep" Text="›" IsVisible="{Binding !IsLast}"/>
+                                        <TextBlock Classes="crumbsep" Text=">" IsVisible="{Binding !IsLast}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -296,10 +313,10 @@
                         <uic:WindowControls Grid.Column="3" IsVisible="{x:Static uic:Platform.IsNotMac}"/>
                     </Grid>
 
-                    <!-- ── Body: FOLDERS | FILES | EDITOR ─────────────────────────────────────────
+                    <!-- == Body: FOLDERS | FILES | EDITOR =========================================
                          The editor column is FIXED width: it is the working surface, and a sidebar
                          that stretched with the window would move the fields around under your
-                         hands. The folder ↔ files gap is a draggable splitter (transparent — the
+                         hands. The folder <-> files gap is a draggable splitter (transparent - the
                          resize cursor is the affordance), same as the Finder. -->
                     <Grid Margin="16,4,16,14">
                         <Grid.ColumnDefinitions>
@@ -310,7 +327,7 @@
                             <ColumnDefinition Width="524"/>                <!-- EDITOR -->
                         </Grid.ColumnDefinitions>
 
-                        <!-- FOLDERS — flat, one level: ".." plus the sub-folders. -->
+                        <!-- FOLDERS - flat, one level: ".." plus the sub-folders. -->
                         <DockPanel Grid.Column="0">
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding FoldersActive}" Margin="0,0,0,3">
@@ -328,9 +345,13 @@
                                         <!-- Grid, not StackPanel: the name needs a * column or a long
                                              folder hard-clips instead of ellipsising. -->
                                         <Grid ColumnDefinitions="Auto,*" Margin="8,0,10,0">
-                                            <TextBlock Grid.Column="0" Text="{Binding Glyph}" FontSize="11"
-                                                       Foreground="#8CFFFFFF"
-                                                       Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                            <!-- (!) The PRE CUE FINDER's row icon, VERBATIM - same shared
+                                                 control, same size, and deliberately NO Foreground so it
+                                                 inherits the row's colour exactly like the Finder's does.
+                                                 See PreCueFinderWindow.axaml, FolderList ItemTemplate. -->
+                                            <uic:JustIcon Grid.Column="0" Kind="{Binding Icon}"
+                                                          Width="13" Height="13"
+                                                          Margin="0,0,7,0" VerticalAlignment="Center"/>
                                             <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12.5"
                                                        Foreground="#E6FFFFFF" TextTrimming="CharacterEllipsis"
                                                        VerticalAlignment="Center"/>
@@ -348,25 +369,33 @@
                         <DockPanel Grid.Column="2">
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding FilesActive}" Margin="0,0,0,3">
-                                <Grid ColumnDefinitions="Auto,Auto,*">
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,*">
                                     <TextBlock Grid.Column="0" Text="FILES" Classes="panehead" Margin="8,0,0,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding FileCount}" FontSize="11"
                                                Foreground="{DynamicResource MutedBrush}"
                                                VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <!-- How many rows are HELD. It only appears above one, and it is what
+                                         keeps the docked editor honest until multi-EDIT exists: the
+                                         editor writes the cursor file, and this says out loud that more
+                                         than one row is selected. -->
+                                    <TextBlock Grid.Column="2" Text="{Binding SelectionText}" FontSize="11"
+                                               IsVisible="{Binding HasMultiSelection}"
+                                               Foreground="{DynamicResource AccentABrush}"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
                                     <!-- While the folder is being read: how far it has got. It replaces
                                          the index note rather than sitting next to it, because during a
-                                         load "reading tags… 412 of 1203" is the only fact that matters
+                                         load "reading tags... 412 of 1203" is the only fact that matters
                                          (Chloe 2026-08-05: "irgendwo muss man sehen dass der ordner noch
-                                         lädt"). Both vanish when there is nothing to say. -->
-                                    <TextBlock Grid.Column="2" Text="{Binding LoadingText}" FontSize="11"
-                                               IsVisible="{Binding !AllHydrated}"
+                                         laedt"). Both vanish when there is nothing to say. -->
+                                    <TextBlock Grid.Column="3" Text="{Binding LoadingText}" FontSize="11"
+                                               IsVisible="{Binding !Ready}"
                                                Foreground="{DynamicResource CautionBrush}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" Margin="10,0,8,0"/>
                                     <!-- Where the rows came from. Only shown when the machine's library
-                                         index actually covered this folder — outside an indexed root
+                                         index actually covered this folder - outside an indexed root
                                          there is nothing to say, and silence is the honest answer. -->
-                                    <TextBlock Grid.Column="2" Text="{Binding IndexNote}" FontSize="11"
+                                    <TextBlock Grid.Column="3" Text="{Binding IndexNote}" FontSize="11"
                                                IsVisible="{Binding HasIndexNote}"
                                                Foreground="{DynamicResource MutedDimBrush}"
                                                TextTrimming="CharacterEllipsis"
@@ -374,36 +403,12 @@
                                 </Grid>
                             </Border>
 
-                            <!-- ── PREVIEW ─────────────────────────────────────────────────────────
-                                 The thing mp3tag hands to the OS player. It sits under the LIST,
-                                 because what you play is what you picked there. Only visible once
-                                 something is loaded — an empty transport bar is furniture. -->
-                            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,*,Auto"
-                                  Margin="0,8,0,0" IsVisible="{Binding Preview.HasTrack}">
-                                <Button Grid.Column="0" Classes="ghost" Padding="9,5" Click="OnPreviewToggle"
-                                        ToolTip.Tip="Play / pause (Space)">
-                                    <Panel>
-                                        <!-- Play triangle and pause bars, one visible at a time. -->
-                                        <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="#E6FFFFFF"
-                                              Stretch="Uniform" Width="11" Height="11"
-                                              IsVisible="{Binding !Preview.IsPlaying}"/>
-                                        <Path Data="M2 2 H5 V14 H2 Z M9 2 H12 V14 H9 Z" Fill="#E6FFFFFF"
-                                              Stretch="Uniform" Width="11" Height="11"
-                                              IsVisible="{Binding Preview.IsPlaying}"/>
-                                    </Panel>
-                                </Button>
-                                <TextBlock Grid.Column="1" Text="{Binding Preview.Elapsed}" FontSize="11"
-                                           Foreground="#B3FFFFFF" VerticalAlignment="Center"
-                                           Margin="9,0,8,0"/>
-                                <Slider Grid.Column="2" Minimum="0" Maximum="{Binding Preview.Duration}"
-                                        Value="{Binding Preview.Position}" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="3" Text="{Binding Preview.Total}" FontSize="11"
-                                           Foreground="{DynamicResource MutedBrush}"
-                                           VerticalAlignment="Center" Margin="8,0,2,0"/>
-                            </Grid>
+                            <!-- The preview transport MOVED to the bottom of the right-hand column
+                                 (see PLAYER below). Two transports for one playback is one too many,
+                                 and the file list is the working surface - it keeps its full height. -->
 
-                            <!-- ── Column header ────────────────────────────────────────────────
-                                 The SHARED strip (JustPlay.UI TrackDataHeader) — the same widths,
+                            <!-- == Column header ================================================
+                                 The SHARED strip (JustPlay.UI TrackDataHeader) - the same widths,
                                  sort glyphs and click-cycle as the JUST PLAY queue and the Finder,
                                  with JUST TAG's columns switched on. Right-click picks the columns.
                                  Same Grid as the row below it (NAME is the * column with MinWidth
@@ -472,19 +477,24 @@
                                         <ColumnDefinition Width="*" MinWidth="150"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
+                                    <!-- TrackNameMargin, the SAME resource the row's name cell uses. Without
+                                         it the header sat 4 px left of the titles under it (Chloe
+                                         2026-08-06) - the outer Grid margins already matched, this inner
+                                         one was the one that did not. The queue header does exactly this
+                                         (MaxView), so all three tables line up from one definition. -->
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                                                Margin="{DynamicResource TrackNameMargin}"
                                                 Background="Transparent" Tag="title" Tapped="OnHeaderTapped" Cursor="Hand">
                                         <TextBlock Classes="colhead" Text="NAME"/>
-                                        <TextBlock Classes="colhead sortarrow" Text="{Binding Columns.TitleSortGlyph}"
-                                                   IsVisible="{Binding Columns.TitleSortGlyph, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        <uic:JustIcon Classes="sortarrow" Kind="{Binding Columns.TitleSortGlyph}"/>
                                     </StackPanel>
                                     <Panel Grid.Column="1">
                                         <uic:TrackDataHeader Columns="{Binding Columns}"
-                                                             CanSort="{Binding AllHydrated}"
+                                                             CanSort="{Binding Ready}"
                                                              Opacity="{Binding LockedOpacity}"/>
                                         <!-- While the folder is still being read: one "locked" tooltip
                                              over every column, and no sort clicks get through. -->
-                                        <Border Background="Transparent" IsVisible="{Binding !AllHydrated}"
+                                        <Border Background="Transparent" IsVisible="{Binding !Ready}"
                                                 ToolTip.Tip="{Binding LockedTip}"/>
                                     </Panel>
                                 </Grid>
@@ -493,18 +503,26 @@
                             <!-- Nothing picked yet, or an unreadable folder: both say so where the
                                  list would be, instead of leaving an empty pane to be interpreted. -->
                             <Panel>
+                                <!-- Multiple, not Single: a tagger works on RUNS of files - shift for a
+                                     block, ctrl to pick. It is also what makes dragging a selection out
+                                     to another app mean the whole selection (RowDragBehavior reads
+                                     SelectedItems). Chloe 2026-08-06.
+                                     (!) "Multiple" IS the ctrl/shift behaviour here - Avalonia's
+                                     SelectionMode has no Extended member (Single/Multiple/Toggle/
+                                     AlwaysSelected); Toggle is the one that makes a plain click add.
+                                     Same value the queue and the Finder's file pane already use. -->
                                 <ListBox Name="FileList" Classes="tag-list"
                                          beh:SmoothScroll.Enabled="True"
                                          Classes.pane-active="{Binding FilesActive}"
                                          ItemsSource="{Binding Files}"
-                                         SelectionMode="Single"
+                                         SelectionMode="Multiple"
                                          GotFocus="OnFilesGotFocus"
                                          DoubleTapped="OnFileDoubleTapped"
                                          SelectionChanged="OnFileSelected"
                                          IsVisible="{Binding HasFolder}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FileRow">
-                                            <!-- The SHARED row (JustPlay.UI TrackRow) — the same cells,
+                                            <!-- The SHARED row (JustPlay.UI TrackRow) - the same cells,
                                                  widths, key pill and heart as the JUST PLAY queue and
                                                  the Finder. Artist under the title (the queue's shape),
                                                  because the pane is narrow and ARTIST is one right-click
@@ -516,7 +534,7 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
 
-                                <!-- ONE way in, and it is HERE — not a button parked in the pane
+                                <!-- ONE way in, and it is HERE - not a button parked in the pane
                                      header (Chloe 2026-08-05). Dropping a folder on the window and
                                      right-clicking the path in the chrome do the same thing. -->
                                 <StackPanel IsVisible="{Binding !HasFolder}" Spacing="10"
@@ -530,7 +548,7 @@
                                                 M6.3 7.5 A1.2 1.2 0 1 0 8.7 7.5 A1.2 1.2 0 1 0 6.3 7.5"/>
                                     <TextBlock Text="Drop a folder here" FontSize="13"
                                                Foreground="#A6FFFFFF" HorizontalAlignment="Center"/>
-                                    <Button Classes="ghost" Content="Browse folder…" Click="OnPickFolder"
+                                    <Button Classes="ghost" Content="Browse folder..." Click="OnPickFolder"
                                             HorizontalAlignment="Center"/>
                                 </StackPanel>
 
@@ -541,17 +559,26 @@
                             </Panel>
                         </DockPanel>
 
-                        <!-- EDITOR — the shared panel, docked. Same control, same behaviour and same
+                        <!-- EDITOR - the shared panel, docked. Same control, same behaviour and same
                              copy as the floating window in JUST PLAY and the Finder. -->
-                        <DockPanel Grid.Column="4">
-                            <!-- EDITOR | ANALYSIS | FILTER — the Finder's INFO | FILTER pane, adapted.
+                        <!-- GotFocus on the WHOLE column, not on each field: anything inside that takes
+                             focus - a tag box, a combo, the FILTER checkbox - bubbles up here and lights
+                             THIS header instead of leaving FILES lit while the keyboard is over here
+                             (Chloe 2026-08-06: "das panel wird aber nicht hervorgehoben"). -->
+                        <DockPanel Grid.Column="4" GotFocus="OnPanelGotFocus">
+                            <!-- EDITOR | ANALYSIS | FILTER - the Finder's INFO | FILTER pane, adapted.
                                  ANALYSIS sits HERE, on the one tab row, and not inside the shared
                                  panel: a panel that carries its own TAGS|ANALYSIS switch puts a second
                                  row of tabs directly under this one (Chloe 2026-08-05). All three use
                                  the Finder's tabhead recipe. -->
-                            <Border DockPanel.Dock="Top" Classes="pane-head" Margin="0,0,0,3">
+                            <Border DockPanel.Dock="Top" Classes="pane-head"
+                                    Classes.active="{Binding PanelActive}" Margin="0,0,0,3">
                                 <StackPanel Orientation="Horizontal" Spacing="14" Margin="8,0,0,0">
+                                    <!-- .live = the editor holds unsaved edits. Until now the only cue
+                                         was Save/Revert going from grey to enabled, on a pane you may
+                                         not even be looking at. -->
                                     <Button Classes="tabhead" Classes.active="{Binding ShowEditor}"
+                                            Classes.live="{Binding Editor.IsDirty}"
                                             Click="OnShowEditor">
                                         <TextBlock Text="EDITOR" Classes="panehead"/>
                                     </Button>
@@ -560,10 +587,14 @@
                                         <TextBlock Text="ANALYSIS" Classes="panehead"/>
                                     </Button>
                                     <!-- Searching needs EVERY row, so the tab waits for the read and
-                                         says why — instead of quietly answering from the half that
+                                         says why - instead of quietly answering from the half that
                                          happens to be loaded. Same rule as the sort lock on the
                                          column header. -->
+                                    <!-- .live = a search is narrowing the list. The count in the FILES
+                                         header ("12 of 1203") is the number; this is the STATE, and it
+                                         is visible from the other two tabs. -->
                                     <Button Classes="tabhead" Classes.active="{Binding ShowFilter}"
+                                            Classes.live="{Binding IsFiltering}"
                                             Click="OnShowFilter" IsEnabled="{Binding CanFilter}"
                                             ToolTip.Tip="{Binding LockedTip}">
                                         <TextBlock Text="FILTER" Classes="panehead"/>
@@ -571,9 +602,122 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- == PLAYER (light) ==================================================
+                                 Docked at the BOTTOM of the right column, always present, fixed
+                                 height (Chloe 2026-08-06: "nen player light"). It used to sit under
+                                 the file list, which cost the working surface height and only
+                                 appeared once something was loaded.
+
+                                 The TITLE line is not decoration: the preview follows the cursor, but
+                                 the cursor can move away from what is playing, and over here - on the
+                                 far side of the window from the list - there is no highlighted row to
+                                 infer it from. It shows the FILE NAME rather than the title tag,
+                                 because a tagger is usually looking at files whose tags are the
+                                 problem. Everything dims when nothing is loaded instead of vanishing,
+                                 so the strip does not make the layout jump. -->
+                            <!-- (!) ORDER MATTERS: in a DockPanel the FIRST Bottom child takes the
+                                 bottom edge and the next one stacks ABOVE it. The transport is
+                                 therefore declared before its header, or the header would end up
+                                 underneath the controls it labels. -->
+                            <!-- The transport itself: the FINDER's player-bar idioms, not re-invented -
+                                 Button.xport + Path.xicon for the round transport button (including its
+                                 optical-centre nudge on the play triangle) and Slider.fader for both
+                                 sliders, so the accent fill and the white thumb match every other
+                                 themed slider in the suite. Dims when nothing is loaded rather than
+                                 disappearing, so the layout never jumps. -->
+                            <Grid DockPanel.Dock="Bottom" Height="36" Margin="8,4,8,6"
+                                  ColumnDefinitions="Auto,Auto,*,Auto,Auto,68"
+                                  Opacity="{Binding Preview.Dim}">
+                                <!--
+                                  (!) WHY THESE THREE RESOURCES ARE HERE - the sliders did not sit on the
+                                  same optical line as the play button and the times (Chloe 2026-08-06:
+                                  "das sieht ein blinder mit nem krueckstock"), and no nudge could ever
+                                  have fixed it, because it is geometry.
+
+                                  FluentTheme's horizontal Slider is a three-row Grid -
+                                  SliderPreContentMargin (15) / track / SliderPostContentMargin (15) -
+                                  on a container with MinHeight = SliderHorizontalHeight (32). Verified
+                                  against Avalonia.Themes.Fluent/Controls/Slider.xaml, release/12.0.3.
+                                  In a 36 px strip the 30 fixed pixels win, the track gets the remainder
+                                  and is pushed DOWN while the button and labels centre normally.
+
+                                  All THREE have to go, not just the two margins: zeroing the margins
+                                  alone leaves a 32 px floor holding 16 px of rows, and since none of
+                                  the rows is a star row the slack collects at the BOTTOM - the track
+                                  would then sit too HIGH. Off by the other sign is still off.
+
+                                  What is given up: room for TICK BARS, which no JUST slider ever shows.
+                                  Scoped to this Grid on purpose - the two margin keys also drive the
+                                  VERTICAL template's columns, and JUST PLAY's EQ faders stand on that
+                                  geometry. Nothing outside this strip changes.
+                                -->
+                                <Grid.Resources>
+                                    <GridLength x:Key="SliderPreContentMargin">0</GridLength>
+                                    <GridLength x:Key="SliderPostContentMargin">0</GridLength>
+                                    <x:Double x:Key="SliderHorizontalHeight">0</x:Double>
+                                </Grid.Resources>
+
+                                <Button Grid.Column="0" Classes="xport" Click="OnPreviewToggle"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding Preview.HasTrack}"
+                                        ToolTip.Tip="Play / pause (Space or Enter)">
+                                    <Panel>
+                                        <!-- Optical-centre nudge: a right-pointing play triangle is
+                                             left-heavy -> shift right. The pause bars are symmetric. -->
+                                        <Path Classes="xicon" Data="M0,0 L0,10 L9,5 Z"
+                                              IsVisible="{Binding !Preview.IsPlaying}"
+                                              RenderTransform="translate(1.5px, 0)"/>
+                                        <Path Classes="xicon" Data="M0,0 L2.5,0 L2.5,10 L0,10 Z M6.5,0 L9,0 L9,10 L6.5,10 Z"
+                                              IsVisible="{Binding Preview.IsPlaying}"/>
+                                    </Panel>
+                                </Button>
+                                <TextBlock Grid.Column="1" Text="{Binding Preview.Elapsed}" FontSize="11"
+                                           Foreground="#B3FFFFFF" VerticalAlignment="Center"
+                                           Margin="6,0,8,0"/>
+                                <!-- SeekMax, never Duration: Duration is 0 with nothing loaded, and a
+                                     Slider whose Minimum equals its Maximum parks the thumb at the END. -->
+                                <Slider Grid.Column="2" Classes="fader" Minimum="0"
+                                        Maximum="{Binding Preview.SeekMax}"
+                                        Value="{Binding Preview.Position}" VerticalAlignment="Center"
+                                        IsEnabled="{Binding Preview.HasTrack}"/>
+                                <TextBlock Grid.Column="3" Text="{Binding Preview.Total}" FontSize="11"
+                                           Foreground="{DynamicResource MutedBrush}"
+                                           VerticalAlignment="Center" Margin="8,0,10,0"/>
+                                <!-- Volume: an AUDITION level for this session, deliberately not
+                                     persisted and never the app's playback volume. -->
+                                <Path Grid.Column="4" Stretch="Uniform" Width="13" Height="13"
+                                      VerticalAlignment="Center" Margin="0,0,7,0"
+                                      Fill="{DynamicResource MutedBrush}"
+                                      Data="M0,4 H3 L7,0.5 V13.5 L3,10 H0 Z"/>
+                                <Slider Grid.Column="5" Classes="fader" Minimum="0" Maximum="1"
+                                        Value="{Binding Preview.Volume}" VerticalAlignment="Center"
+                                        beh:SliderReset.Default="1"
+                                        ToolTip.Tip="Preview volume - wheel to nudge, double-click to reset"/>
+                            </Grid>
+
+                            <!-- It is a PANE, so it wears a pane head like FOLDER / FILES / EDITOR do -
+                                 same hairlines above and below, same label. A strip without one read
+                                 as a stray control (Chloe 2026-08-06: "hat nicht einen schicken header
+                                 - wo sind die doppelinien?"). The playing file's name sits IN the
+                                 header, next to the label, exactly like FILES puts its count there. -->
+                            <Border DockPanel.Dock="Bottom" Classes="pane-head" Margin="0,10,0,3">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="PLAYER" Classes="panehead" Margin="8,0,0,0"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Preview.TrackName}" FontSize="11"
+                                               Foreground="{DynamicResource MutedBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Preview.TrackName}"
+                                               VerticalAlignment="Center" Margin="10,0,8,0"/>
+                                    <TextBlock Grid.Column="1" Text="nothing loaded" FontSize="11"
+                                               Foreground="{DynamicResource MutedDimBrush}"
+                                               IsVisible="{Binding !Preview.HasTrack}"
+                                               VerticalAlignment="Center" Margin="10,0,8,0"/>
+                                </Grid>
+                            </Border>
+
                             <Panel>
                                 <!-- No card, no frame: this is a PANE, like the Finder's INFO pane.
-                                     The visibility sits on the WRAPPER — on the panel itself it
+                                     The visibility sits on the WRAPPER - on the panel itself it
                                      would bind against the editor's own DataContext, which knows
                                      nothing about tabs. EDITOR and ANALYSIS are the two halves of the
                                      SAME control, so the panel stays up for both and only the header
@@ -583,10 +727,10 @@
                                                         ShowAnalysis="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowAnalysis}"/>
                                 </Panel>
 
-                                <!-- FILTER — the Finder's field, verbatim: the ✕ in the TextBox's own
+                                <!-- FILTER - the Finder's field, verbatim: the x in the TextBox's own
                                      InnerRightContent slot, and "include subfolders" as a plain
-                                     CHECKBOX UNDER the field (⛔ never a header toggle, never on the
-                                     folder tree — both were rejected, 2026-07-31). What it searches
+                                     CHECKBOX UNDER the field ((!!) never a header toggle, never on the
+                                     folder tree - both were rejected, 2026-07-31). What it searches
                                      is what a TAGGER looks for: name, title, artist, genre. -->
                                 <ScrollViewer IsVisible="{Binding ShowFilter}"
                                               VerticalScrollBarVisibility="Auto"
@@ -607,7 +751,7 @@
                                              field is a choice, not a second box (Chloe 2026-08-05:
                                              "think simple and allow complex things"). -->
                                         <!-- Reading order = SENTENCE order: WHAT you search in, HOW it
-                                             compares, then the VALUE — "Genre · contains · hard techno"
+                                             compares, then the VALUE - "Genre - contains - hard techno"
                                              (Chloe 2026-08-05). The simple case is untouched by it: both
                                              pickers already stand on "All fields" / "contains", so
                                              typing in the box below is still the whole interaction. -->
@@ -635,7 +779,7 @@
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
                                             </Grid>
-                                            <!-- The placeholder follows the chosen field (Hint1) — a concrete
+                                            <!-- The placeholder follows the chosen field (Hint1) - a concrete
                                                  EXAMPLE of the value, not a repeat of the label above it. -->
                                             <TextBox Text="{Binding Value1}"
                                                      IsVisible="{Binding NeedsValue1}"
@@ -644,15 +788,17 @@
                                                      Foreground="#E6FFFFFF" FontSize="12" Padding="8,5"
                                                      PlaceholderText="{Binding Hint1}">
                                                 <TextBox.InnerRightContent>
-                                                    <Button Classes="ghost" Content="✕" FontSize="11"
+                                                    <Button Classes="ghost" FontSize="11"
                                                             Padding="7,0" MinWidth="0" MinHeight="0"
                                                             Margin="0,0,3,0" VerticalAlignment="Center"
                                                             IsVisible="{Binding HasValue1}"
                                                             Click="OnClearSearch"
-                                                            ToolTip.Tip="Clear the search"/>
+                                                            ToolTip.Tip="Clear the search">
+                                                        <uic:JustIcon Kind="Close" Width="10" Height="10"/>
+                                                    </Button>
                                                 </TextBox.InnerRightContent>
                                             </TextBox>
-                                            <TextBlock Text="Reading tags…" FontSize="11"
+                                            <TextBlock Text="Reading tags..." FontSize="11"
                                                        Foreground="{DynamicResource MutedBrush}"
                                                        IsVisible="{Binding Searching}"/>
                                         </StackPanel>
@@ -702,7 +848,7 @@
                                             <Button Classes="ghost" Content="+ condition"
                                                     IsVisible="{Binding !HasSecond}"
                                                     Click="OnToggleSecond"/>
-                                            <Button Classes="ghost" Content="− condition"
+                                            <Button Classes="ghost" Content="- condition"
                                                     IsVisible="{Binding HasSecond}"
                                                     Click="OnToggleSecond"/>
                                             <Button Classes="ghost" Content="Clear" Click="OnClearSearch"/>
@@ -710,13 +856,29 @@
 
                                         <TextBlock TextWrapping="Wrap" FontSize="11.5"
                                                    Foreground="{DynamicResource MutedBrush}"
-                                                   Text="The file name always matches. Every other field matches as soon as this folder's tags have been read — that happens once, on the first search."/>
+                                                   Text="The file name always matches. Every other field matches as soon as this folder's tags have been read - that happens once, on the first search."/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Panel>
                         </DockPanel>
                     </Grid>
                 </DockPanel>
+
+                <!-- SETTINGS - a slide-in PANEL on the right, not a separate window (Chloe
+                     2026-08-06: "in just tag haette ich die settings auch gerne als overlay panel
+                     rechts"). Placed AFTER the body so it overlays it, exactly like JUST PLAY's
+                     tweaks sidebar. Its DataContext is the DI SettingsViewModel, assigned in
+                     code-behind - the window's own DataContext is the tagger. -->
+                <!-- (!) IsVisible goes through $parent[Window], NOT a plain {Binding IsSettingsOpen}.
+                     The code-behind assigns THIS element's DataContext (the settings view model), so a
+                     plain binding would look for IsSettingsOpen on the SettingsViewModel, not find it,
+                     and leave IsVisible at its default - which is why the panel was simply always
+                     there (Chloe 2026-08-06). $parent walks the tree and is independent of
+                     DataContext; it is the pattern CLAUDE.md already records for reusable controls,
+                     and the TagEditorPanel two panes down uses the identical form. -->
+                <controls:SettingsPanel Name="Settings"
+                                        IsVisible="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).IsSettingsOpen}"
+                                        HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
             </Panel>
         </Border>
 

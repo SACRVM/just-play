@@ -2,35 +2,41 @@ using System;
 using System.IO;
 using JustPlay.Core.Models;
 
-namespace JustPlay.Tag.Settings;
+namespace JustPlay.Metadata;
 
 /// <summary>
 /// Answers one question for the editor: <b>would saving this file change its ID3v2 version?</b>
 /// <para>
 /// It matters whenever the user has picked one of the three CONVERTING write formats, because those
 /// set <c>TagLib.Id3v2.Tag.ForceDefaultVersion = true</c> and then every save normalises the file to
-/// the configured version — in both directions. (In the default
+/// the configured version - in both directions. (In the default
 /// <see cref="Id3WriteFormat.KeepFileVersion"/> mode nothing converts and there is nothing to warn
 /// about; <see cref="MajorFor"/> returns null and the notice stays away.) Measured
 /// 2026-07-31 (128 writes / 787 vendor frames, dossier
-/// <c>~/.claude/skills/dj-metadata-interop/references/taglib-byte-preservation.md</c> §6): a version
+/// <c>~/.claude/skills/dj-metadata-interop/references/taglib-byte-preservation.md</c> Sec.6): a version
 /// change re-serialises the whole tag and re-encodes GEOB <i>descriptors</i>. No vendor byte is lost,
 /// but Serato and Mixed In Key look their frames up BY that description string, so their cue points /
 /// key / energy can become unfindable while nothing looks broken. Re-verified against the shipped
 /// writer for this change: <c>F_mik_armstrong.mp3</c> (ID3v2.4) saved in the DEFAULT mode came back
-/// ID3v2.3 with its <c>GEOB:CuePoints</c> descriptor rewritten Latin-1 → UTF-16+BOM.
+/// ID3v2.3 with its <c>GEOB:CuePoints</c> descriptor rewritten Latin-1 -> UTF-16+BOM.
 /// </para>
 /// <para>
-/// Lives in the app, not in JustPlay.Metadata, because it is not tag logic — it reads the four
-/// magic bytes at the head of the file and compares an enum. Nothing is parsed, TagLib# is not
-/// involved, and the file is opened read-only and shared.
+/// It reads the four magic bytes at the head of the file and compares an enum. Nothing is parsed,
+/// TagLib# is not involved, and the file is opened read-only and shared.
+/// </para>
+/// <para>(!) It moved OUT of JUST TAG (2026-08-07) because the ID3 column had to stop being a LIVE
+/// probe: the index carries the version now, and it must be the SAME answer the editor's write-format
+/// notice gives, or two screens would contradict each other about one file. Re-deriving it inside
+/// <see cref="TagLibMetadataReader"/> would NOT do - TagLib also finds an ID3v2 tag inside an AIFF/WAV
+/// <c>ID3 </c> chunk, which this deliberately does not (see the scope note above). Same code, one
+/// answer. Chloe 2026-08-07: "null live zugriffe, ergo kommt alles in den index rein".
 /// </para>
 /// </summary>
-internal static class Id3VersionProbe
+public static class Id3VersionProbe
 {
     /// <summary>
     /// The ID3v2 major version at the head of <paramref name="path"/> (2, 3 or 4), or null when the
-    /// file carries no leading ID3v2 tag — a fresh MP3, or a FLAC / MP4 / Ogg, none of which the
+    /// file carries no leading ID3v2 tag - a fresh MP3, or a FLAC / MP4 / Ogg, none of which the
     /// write-format setting touches. Tags that are NOT at the head (the AIFF / WAV <c>ID3 </c> chunk)
     /// are deliberately out of scope: best-effort notice, never a false alarm.
     /// </summary>
@@ -47,13 +53,13 @@ internal static class Id3VersionProbe
         }
         catch
         {
-            return null; // unreadable / locked — say nothing rather than guess
+            return null; // unreadable / locked - say nothing rather than guess
         }
     }
 
     /// <summary>
     /// The ID3v2 major version a given write format converts a file TO on save, or null for
-    /// <see cref="Id3WriteFormat.KeepFileVersion"/> — which converts nothing, so there is no target.
+    /// <see cref="Id3WriteFormat.KeepFileVersion"/> - which converts nothing, so there is no target.
     /// </summary>
     public static int? MajorFor(Id3WriteFormat format) => format switch
     {

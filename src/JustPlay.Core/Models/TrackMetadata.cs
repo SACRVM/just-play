@@ -1,7 +1,7 @@
 namespace JustPlay.Core.Models;
 
 /// <summary>
-/// Tag-level information read from the file. Purely descriptive — no analysis.
+/// Tag-level information read from the file. Purely descriptive - no analysis.
 /// </summary>
 public sealed record TrackMetadata
 {
@@ -22,7 +22,7 @@ public sealed record TrackMetadata
     public string? Comment { get; init; }
 
     /// <summary>
-    /// Content Group / Grouping tag (ID3v2 TIT1, MP4 ©grp, FLAC GROUPING).
+    /// Content Group / Grouping tag (ID3v2 TIT1, MP4 (c)grp, FLAC GROUPING).
     /// Used by JustPlay's batch tagger to store the JP vibe string in a field
     /// that DJ software surfaces in the Grouping column.
     /// </summary>
@@ -43,8 +43,20 @@ public sealed record TrackMetadata
     public byte[]? CoverArt { get; init; }
 
     /// <summary>
+    /// The file's ID3v2 major version as a display string ("2.3", "2.4"), or null when it carries no
+    /// leading ID3v2 tag at all - a FLAC, an MP4, or an MP3 that has never been tagged.
+    ///
+    /// <para>It rides along on the metadata read so the LIBRARY INDEX can store it, which is the whole
+    /// point: the ID3 column used to be a per-row live probe of every visible file, and the table must
+    /// not touch the disk to paint itself (Chloe 2026-08-07: "null live zugriffe, ergo kommt alles in
+    /// den index rein"). The reader fills it from the shared <c>Id3VersionProbe</c> - the SAME code the
+    /// tag editor's write-format notice uses, so the two can never disagree about one file.</para>
+    /// </summary>
+    public string? Id3Version { get; init; }
+
+    /// <summary>
     /// BPM stored in the file's tags, if the producer/labeler wrote one.
-    /// This is the *claimed* BPM — our own analysis may override it.
+    /// This is the *claimed* BPM - our own analysis may override it.
     /// </summary>
     public double? TaggedBpm { get; init; }
 

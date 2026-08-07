@@ -14,7 +14,7 @@
         WindowDecorations="None">
 
     <!--
-      The floating tag editor — ALWAYS ON TOP (Chloe 2026-08-02: "wir machen nen tag edit window -
+      The floating tag editor - ALWAYS ON TOP (Chloe 2026-08-02: "wir machen nen tag edit window -
       was immer im vordergrund bleibt"). Same frameless rounded card as the rest of the suite; the
       body is the SHARED TagEditorPanel, which JUST TAG will dock as its sidebar unchanged.
 
@@ -23,19 +23,17 @@
     -->
 
     <Panel>
-        <Border CornerRadius="14" ClipToBounds="False"
-                Margin="20,20,20,22"
-                Background="#40000000"
-                BoxShadow="{DynamicResource WindowOuter}">
+        <Border Name="DialogCard" ClipToBounds="False"
+                Background="#40000000">
             <Panel>
-                <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="14" RadiusY="14"/>
-                <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="14" RadiusY="14"/>
-                <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14"/>
+                <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the flat slab every JUST dialog
+                     and tool window carries, so it reads as its own object rather than as a second
+                     main window. One definition for every one of them. -->
+                <controls:SurfaceCard CornerRadius="14"/>
 
                 <DockPanel LastChildFill="True">
 
-                    <!-- ─── CHROME / TITLE BAR ─── -->
+                    <!-- === CHROME / TITLE BAR === -->
                     <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto">
@@ -45,7 +43,7 @@
                                 <controls:WindowControls ShowMinimize="False" ShowMaximize="False"
                                                          IsVisible="{x:Static controls:Platform.IsMac}"
                                                          Margin="0,0,4,0"/>
-                                <!-- Lucide "tag" — the same mark JUST TAG carries. -->
+                                <!-- Lucide "tag" - the same mark JUST TAG carries. -->
                                 <Path Stretch="Uniform" Width="14" Height="14"
                                       VerticalAlignment="Center"
                                       Stroke="#D9FFFFFF" StrokeThickness="2"
@@ -57,7 +55,7 @@
                                 <TextBlock Text="EDIT TAGS" FontSize="11" FontWeight="SemiBold"
                                            LetterSpacing="2" Foreground="#D9FFFFFF"
                                            VerticalAlignment="Center"/>
-                                <!-- Unsaved marker: a dot, not a word — it must read at a glance from
+                                <!-- Unsaved marker: a dot, not a word - it must read at a glance from
                                      the corner of the eye while you are looking at the list. -->
                                 <Ellipse Width="6" Height="6" VerticalAlignment="Center"
                                          Fill="{DynamicResource AccentBBrush}"
@@ -65,7 +63,7 @@
                                          ToolTip.Tip="Unsaved changes"/>
                             </StackPanel>
 
-                            <!-- TAGS | ANALYSIS — the panel's two halves, switched from the CHROME.
+                            <!-- TAGS | ANALYSIS - the panel's two halves, switched from the CHROME.
                                  The switch used to live inside TagEditorPanel; it moved out so a host
                                  with its own pane header (JUST TAG) does not end up with two rows of
                                  tabs (Chloe 2026-08-05). Here the chrome IS the header, so this is
@@ -81,7 +79,7 @@
 
                             <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
                                     IsVisible="{x:Static controls:Platform.IsNotMac}">
-                                <TextBlock Text="✕" FontSize="13"/>
+                                <controls:JustIcon Kind="Close" Width="12" Height="12"/>
                             </Button>
                         </Grid>
                     </Border>
@@ -93,7 +91,7 @@
 
         <!-- Edge/corner resize grips in the transparent shadow ring (shared FramelessResizeBehavior).
              A frameless window gets no OS resize frame, so without these the editor would be stuck at
-             its start size — and its size is remembered per WindowPlacement, so resizing it once is
+             its start size - and its size is remembered per WindowPlacement, so resizing it once is
              a lasting setting. -->
         <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
             <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest"/>

@@ -11,67 +11,63 @@
         ShowInTaskbar="False"
         RequestedThemeVariant="Dark"
         Background="#00000000"
-        TransparencyLevelHint="AcrylicBlur,Transparent,Blur"
+        TransparencyLevelHint="Transparent,Mica,Blur"
         WindowDecorations="None">
 
     <!--
-      SHARED "About" dialog for the whole J.U.S.T. suite (JustPlay.UI). Renders in the active
-      palette by consuming the same DynamicResource keys the main windows use (BgLinear/BgGlowA/
-      BgGlowB background, AccentGradient/TitleGradient brand mark) — so it follows live theme
-      switches with no extra wiring, and looks identical across apps. The per-app content (name,
-      tagline, version, glyph) comes from the AboutInfo DataContext; the brand glyph is built in
-      code-behind with the same logic as ThemedWindowIcon so it matches the taskbar mark.
+      SHARED "About" dialog for the whole J.U.S.T. suite (JustPlay.UI). Renders in the active palette
+      through DynamicResource (SurfaceCard's fill, AccentGradient/TitleGradient brand mark), so it
+      follows live theme switches with no extra wiring and looks identical across apps. The per-app
+      content (name, tagline, version, glyph) comes from the AboutInfo DataContext; the brand glyph is
+      built in code-behind with the same logic as ThemedWindowIcon so it matches the taskbar mark.
     -->
-    <!-- Shared WindowOuter shadow + the suite-standard 20/22 transparent margin — the old
-         "0 18 54 0" literal at Margin 14 clipped hard at the window edge (Chloe 2026-07-05). -->
-    <Border CornerRadius="16" Margin="20,20,20,22" ClipToBounds="True"
-            BoxShadow="{DynamicResource WindowOuter}"
+    <!-- Border#DialogCard: margin, radius and the deeper DialogOuter shadow all come from the shared
+         style in JustStyles.axaml - a dialog floats above the app, a window does not. -->
+    <!-- (!) Shadow values and the card margin are a PAIR. Setting Margin here would be a LocalValue and
+         would beat the style, which is how the old "0 18 54 0" literal at Margin 14 ended up clipping
+         hard at the window edge (Chloe 2026-07-05). -->
+    <Border Name="DialogCard" ClipToBounds="True"
             PointerPressed="OnCardPressed">
         <Panel>
             <!--
-              ⚗ EXPERIMENT (Chloe 2026-08-06, "vllt sogar mit einem glass effect ... ich meine nur
-              blur direkt hinter dem fenster - nicht um das fenster herum"): the dialog as GLASS
-              instead of a second copy of the window recipe. Deliberately inline and on ONE dialog
-              until her eye rules on it — building the shared abstraction first would be backwards.
+              (!!) GLASS WAS TRIED HERE ON 2026-08-06 AND DOES NOT WORK WITH THIS WINDOW SHAPE.
+              Do not re-attempt without solving the thing below first.
 
-              Why the shadow margin survives: ServerCompositionExperimentalAcrylicVisual.RenderCore
-              draws the material as a RoundedRect in the VISUAL's own bounds (verified against
-              Avalonia release/12.0.3), not window-wide. So the blur stops at the card and the
-              20/22 margin the drop shadow blooms into stays fully transparent.
-              On Win32 this resolves to DWMWA_USE_HOSTBACKDROPBRUSH + BlurEffect.Acrylic
-              (src/Windows/Avalonia.Win32/WindowImpl.cs) — it samples the windows BEHIND the dialog,
-              which is what "blur directly behind" means. Mica was dropped from the hint list on
-              purpose: it samples the desktop WALLPAPER, not the app underneath.
+              The ask was exactly right and exactly specific: blur DIRECTLY BEHIND the window, not
+              around it. Avalonia can do the first half - ExperimentalAcrylicBorder's material is
+              drawn as a RoundedRect in the visual's own bounds
+              (ServerCompositionExperimentalAcrylicVisual.RenderCore). I read that and concluded the
+              BLUR was clipped to the card too. It is not, and that was my error: the blur is not
+              part of the material, it is a window-level effect. WinUiCompositedWindow builds it as a
+              sibling visual under a container with SetRelativeSizeAdjustment(1,1) - i.e. sized to
+              the WHOLE window - and WindowImpl.SetTransparencyAcrylicBlur turns the per-pixel-alpha
+              path off (SetLegacyTransparency(false)). Every JUST window is a rounded card inside a
+              20/22 transparent margin that the drop shadow blooms into, so the blur filled that
+              margin and the dialog came up inside a hard box (Chloe: "ich sehe deutlich drum herum
+              einen harten kasten mit fehlender transparenz").
 
-              The two radial glows are gone here on purpose — BgGlowB is AccentC at FULL alpha and
-              would sit on the glass as an opaque blob. A dialog reading calmer than the main window
-              is the point, not a side effect.
+              So on Win32 it is one or the other: a transparent shadow margin, or window backdrop
+              blur. The suite chrome is not negotiable, so the dialog keeps the window recipe and
+              the SurfaceCard treatment carries the "this is a different object" job instead.
             -->
-            <ExperimentalAcrylicBorder CornerRadius="16">
-                <ExperimentalAcrylicBorder.Material>
-                    <ExperimentalAcrylicMaterial
-                        BackgroundSource="Digger"
-                        TintColor="{DynamicResource BgVia}"
-                        TintOpacity="0.85"
-                        MaterialOpacity="0.55"
-                        FallbackColor="{DynamicResource BgVia}"/>
-                </ExperimentalAcrylicBorder.Material>
-            </ExperimentalAcrylicBorder>
-            <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+            <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the flat slab that makes this read as
+                 a dialog and not as a second main window. Identical in all nine dialogs and in the
+                 JUST PLAY tweaks sidebar, from one definition. -->
+            <c:SurfaceCard CornerRadius="14"/>
 
-            <!-- Close (×) in the rounded top-right corner (shared Button.cap.close) — Windows.
+            <!-- Close (x) in the rounded top-right corner (shared Button.cap.close) - Windows.
                  macOS gets the traffic lights top-LEFT instead (min/zoom greyed, dialog-style). -->
             <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close"
                     IsVisible="{x:Static c:Platform.IsNotMac}"
                     HorizontalAlignment="Right" VerticalAlignment="Top">
-                <TextBlock Text="✕" FontSize="13"/>
+                <c:JustIcon Kind="Close" Width="12" Height="12"/>
             </Button>
             <c:WindowControls ShowMinimize="False" ShowMaximize="False"
                               IsVisible="{x:Static c:Platform.IsMac}"
                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12,0,0"/>
 
             <StackPanel Margin="30,34,30,28" Spacing="0" HorizontalAlignment="Center">
-                <!-- Brand mark: NO chip background — just the app's white glyph (Chloe 2026-06-30).
+                <!-- Brand mark: NO chip background - just the app's white glyph (Chloe 2026-06-30).
                      The glyph (GlyphHost.Content) is built in code-behind from AboutInfo.Glyph, sized to
                      fill the area the gradient chip used to occupy. -->
                 <Border Width="74" Height="74"
@@ -102,7 +98,7 @@
                            Foreground="{DynamicResource MutedBrush}"
                            HorizontalAlignment="Center" Margin="0,0,0,6"/>
 
-                <!-- The maker credo — every JUST app carries it. -->
+                <!-- The maker credo - every JUST app carries it. -->
                 <TextBlock Text="{Binding Motto}" FontSize="10" FontWeight="SemiBold"
                            LetterSpacing="2.4"
                            Foreground="{DynamicResource AccentABrush}" Opacity="0.85"

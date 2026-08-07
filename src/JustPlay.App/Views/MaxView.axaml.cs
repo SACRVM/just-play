@@ -12,6 +12,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using JustPlay.App.Controls;
 using JustPlay.Core.Abstractions;
+using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
 using JustPlay.UI.ViewModels;
@@ -55,10 +56,10 @@ public partial class MaxView : UserControl
 
         // Queue key handling MUST be registered with handledEventsToo:true. Avalonia's ListBoxItem
         // marks Key.Enter (and Key.Space) as Handled during the bubble pass BEFORE a plain XAML
-        // KeyDown handler runs — ListBoxItem.OnKeyDown → SelectingItemsControl.UpdateSelectionFromEvent,
+        // KeyDown handler runs - ListBoxItem.OnKeyDown -> SelectingItemsControl.UpdateSelectionFromEvent,
         // and ItemSelectionEventTriggers.ShouldTriggerSelection returns true for Space/Enter and sets
         // e.Handled = true (verified against Avalonia 12.0.3 source). A normal (handledEventsToo:false)
-        // handler — which is what KeyDown="..." in XAML installs — therefore never sees Enter, so the
+        // handler - which is what KeyDown="..." in XAML installs - therefore never sees Enter, so the
         // highlighted row's PlayTrack was silently swallowed. Registering here with handledEventsToo:true
         // lets OnTrackListKeyDown observe the already-handled Enter and start the track. The XAML
         // KeyDown attribute is removed so this is the SOLE registration (no double-fire on unhandled
@@ -67,7 +68,7 @@ public partial class MaxView : UserControl
             InputElement.KeyDownEvent, OnTrackListKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
         // Row drag, combined mode (Chloe 2026-07-11, option A): drag INSIDE the list = hand-reorder
-        // the queue (the set-building gesture — accent insertion line, edge autoscroll, multi-select
+        // the queue (the set-building gesture - accent insertion line, edge autoscroll, multi-select
         // moves the block); drag OUT sideways = the OS file-copy drag to Explorer/Traktor/an
         // AI-agent chat (N24). See RowDragBehavior for the Avalonia-12-source-verified mechanics.
         if (this.FindControl<ListBox>("TrackList") is { } trackList &&
@@ -79,7 +80,7 @@ public partial class MaxView : UserControl
                 {
                     Indicator = dropIndicator,
                     // Dragging while a column sort is active is allowed and ADOPTS the sorted order
-                    // as the new hand order (sort glyph clears — MoveTracks handles it). Chloe
+                    // as the new hand order (sort glyph clears - MoveTracks handles it). Chloe
                     // 2026-07-11: implicit beats a dead gesture ("rafft es jemand?"); sort-then-
                     // hand-tune is a real set-building flow.
                     Move = (items, insertIndex) =>
@@ -92,10 +93,10 @@ public partial class MaxView : UserControl
     }
 
     private void OnChromePressed(object? sender, PointerPressedEventArgs e) =>
-        // Drag from empty chrome, DOUBLE-click to maximize/restore — one shared gesture.
+        // Drag from empty chrome, DOUBLE-click to maximize/restore - one shared gesture.
         WindowChrome.HandlePress((TopLevel.GetTopLevel(this) as Window), e);
 
-    // Title-bar brand → open the SHARED themed About dialog (JustPlay.UI), parameterized with
+    // Title-bar brand -> open the SHARED themed About dialog (JustPlay.UI), parameterized with
     // JUST PLAY's name / tagline / version / glyph so every JUST app's About is identical.
     private void OnAboutClick(object? sender, RoutedEventArgs e)
     {
@@ -110,20 +111,20 @@ public partial class MaxView : UserControl
         }
     }
 
-    // Transport spectrum button → open the live analyzer (NON-modal: keep playing / controlling while
-    // it's open). Single instance — a second click just re-focuses the existing window.
+    // Transport spectrum button -> open the live analyzer (NON-modal: keep playing / controlling while
+    // it's open). Single instance - a second click just re-focuses the existing window.
     private JustPlay.UI.Views.SpectrumWindow? _spectrumWindow;
     private void OnSpectrumClick(object? sender, RoutedEventArgs e)
     {
         if (_spectrumWindow is not null) { _spectrumWindow.Activate(); return; }
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
-        // The shared analyzer (JustPlay.UI) takes an ISpectrumSource — our IAudioEngine implements it.
+        // The shared analyzer (JustPlay.UI) takes an ISpectrumSource - our IAudioEngine implements it.
         _spectrumWindow = new JustPlay.UI.Views.SpectrumWindow(Program.Services?.GetService<IAudioEngine>());
         _spectrumWindow.Closed += (_, _) => _spectrumWindow = null;
         _spectrumWindow.Show(owner);
     }
 
-    // Event-log button → open the shared LogWindow (JustPlay.UI). Single instance, NON-modal; opening clears
+    // Event-log button -> open the shared LogWindow (JustPlay.UI). Single instance, NON-modal; opening clears
     // the unread marker. DataContext = the VM's shared EventLog feed (file-lock / tag-write failures land there).
     private JustPlay.UI.Views.LogWindow? _logWindow;
     private void OnOpenLog(object? sender, RoutedEventArgs e)
@@ -138,7 +139,7 @@ public partial class MaxView : UserControl
         vm.EventLog.MarkRead();
     }
 
-    // Title-bar update badge → show the update dialog, then install / ignore / dismiss.
+    // Title-bar update badge -> show the update dialog, then install / ignore / dismiss.
     private async void OnUpdateBadge(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm) return;
@@ -156,7 +157,7 @@ public partial class MaxView : UserControl
         }
     }
 
-    // ── Multi-select queue → keep the VM's SelectedTracks in sync ──────────
+    // -- Multi-select queue -> keep the VM's SelectedTracks in sync ----------
     private void OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || sender is not ListBox lb) return;
@@ -171,7 +172,7 @@ public partial class MaxView : UserControl
             _ = _tagEditor.SetTargetAsync((lb.SelectedItem as TrackViewModel)?.Model.FilePath);
     }
 
-    // ── The shared, always-on-top tag editor ────────────────────────────────────────────────────
+    // -- The shared, always-on-top tag editor ----------------------------------------------------
     // Same window and same body the PRE CUE FINDER opens, and the one JUST TAG docks as its sidebar.
 
     private TagEditorWindow? _tagEditor;
@@ -187,8 +188,8 @@ public partial class MaxView : UserControl
             var editor = vm.CreateTagEditor();
             editor.Saved += vm.RefreshTagsFor;
             _tagEditor = TagEditorWindow.Open(owner, null, editor);
-            // A closed Avalonia window cannot be shown again — drop the reference so the next
-            // "Edit tags…" builds a fresh one instead of raising a dead window.
+            // A closed Avalonia window cannot be shown again - drop the reference so the next
+            // "Edit tags..." builds a fresh one instead of raising a dead window.
             _tagEditor.Closed += (_, _) => _tagEditor = null;
         }
         else
@@ -262,7 +263,7 @@ public partial class MaxView : UserControl
             DispatcherPriority.Background);
     }
 
-    /// <summary>A-Z / 0-9 key → its character for type-ahead, else null.</summary>
+    /// <summary>A-Z / 0-9 key -> its character for type-ahead, else null.</summary>
     private static char? CharForKey(Key key) => key switch
     {
         >= Key.A and <= Key.Z => (char)('a' + (key - Key.A)),
@@ -270,8 +271,8 @@ public partial class MaxView : UserControl
         _ => null,
     };
 
-    // Clickable table headers → sort by that column (Tag carries the lowercase TrackColumns id). The
-    // asc → desc → off cycle lives in the shared Columns; its SortRequested re-orders the queue.
+    // Clickable table headers -> sort by that column (Tag carries the lowercase TrackColumns id). The
+    // asc -> desc -> off cycle lives in the shared Columns; its SortRequested re-orders the queue.
     private void OnHeaderTapped(object? sender, TappedEventArgs e)
     {
         if (DataContext is MainWindowViewModel vm && sender is Control { Tag: string col })
@@ -280,7 +281,7 @@ public partial class MaxView : UserControl
 
     // Right-click: if the clicked row isn't part of the current multi-selection, select just it
     // (standard explorer behaviour) so the menu's bulk actions apply to what the user pointed at.
-    // ContextTarget — the anchor for per-field entries — is set only when exactly one row ends up
+    // ContextTarget - the anchor for per-field entries - is set only when exactly one row ends up
     // selected, so single-field writes never appear (ambiguously) during a multi-selection.
     private void OnListContextRequested(object? sender, ContextRequestedEventArgs e)
     {
@@ -301,7 +302,7 @@ public partial class MaxView : UserControl
         vm.RefreshMenuState(); // fresh enable/disable for Write / Fill / Analyze as the menu opens
     }
 
-    /// <summary>Walk up from the right-clicked element to find which value cell it sits in — the
+    /// <summary>Walk up from the right-clicked element to find which value cell it sits in - the
     /// BPM/Key/Energy cells carry a Tag. Null when the click was on the title or empty row space.</summary>
     private static string? ClickedField(Visual? from)
     {
@@ -311,12 +312,12 @@ public partial class MaxView : UserControl
         return null;
     }
 
-    // ── Streaming cap-button right-click menu ──────────────────────────────
+    // -- Streaming cap-button right-click menu ------------------------------
     // Built fresh on every open so the items track the live broadcast state and the
     // current radio list: "Disconnect" while on air, otherwise one "Connect to <name>"
-    // per configured radio (or "Add a radio…" when none), then a settings shortcut.
+    // per configured radio (or "Add a radio..." when none), then a settings shortcut.
     // Done in code rather than via XAML ItemsSource so each item's Click wiring stays
-    // trivial — no per-item Command binding on generated MenuItems.
+    // trivial - no per-item Command binding on generated MenuItems.
     private void OnStreamMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (sender is not ContextMenu menu || DataContext is not MainWindowViewModel vm) return;
@@ -328,7 +329,7 @@ public partial class MaxView : UserControl
         }
         else if (vm.StreamServers.Count == 0)
         {
-            menu.Items.Add(StreamMenuItem("Add a radio…", vm.OpenStreaming));
+            menu.Items.Add(StreamMenuItem("Add a radio...", vm.OpenStreaming));
         }
         else
         {
@@ -341,7 +342,7 @@ public partial class MaxView : UserControl
         }
 
         menu.Items.Add(new Separator());
-        menu.Items.Add(StreamMenuItem("Streaming settings…", vm.OpenStreaming));
+        menu.Items.Add(StreamMenuItem("Streaming settings...", vm.OpenStreaming));
     }
 
     private static MenuItem StreamMenuItem(string header, Action onClick)
@@ -351,7 +352,7 @@ public partial class MaxView : UserControl
         return item;
     }
 
-    // ── Playlist open / export (M3U8) ──────────────────────────────────────
+    // -- Playlist open / export (M3U8) --------------------------------------
     // Dialogs live in code-behind (they need the window's StorageProvider). "Open" REPLACES the
     // queue with the playlist's set; "Export" writes the current order to a .m3u8.
     private async void OnOpenPlaylist(object? sender, RoutedEventArgs e)
@@ -386,7 +387,7 @@ public partial class MaxView : UserControl
     }
 
     // Export the whole set as a self-contained .zip: the audio files (numbered in set order) plus an
-    // .m3u8 that lists them — one file to share / upload / carry on a stick into other DJ software.
+    // .m3u8 that lists them - one file to share / upload / carry on a stick into other DJ software.
     private async void OnExportZip(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || vm.Tracks.Count == 0) return;
@@ -401,15 +402,15 @@ public partial class MaxView : UserControl
         });
         if (file?.TryGetLocalPath() is not { } path) return;
 
-        // Name the .m3u8 inside the zip after the archive the user chose ("Summer Set.zip" → "Summer Set.m3u8").
+        // Name the .m3u8 inside the zip after the archive the user chose ("Summer Set.zip" -> "Summer Set.m3u8").
         var name = Path.GetFileNameWithoutExtension(path);
-        await RunTransfer(owner, vm, $"{name}  ·  ZIP",
+        await RunTransfer(owner, vm, $"{name}  -  ZIP",
             (progress, ct) => vm.ExportPlaylistZipAsync(path, name, progress, ct));
     }
 
     // Export the set as loose files copied into a folder (audio numbered in set order + the .m3u8).
     // We pick a destination, ASK what the set folder should be called, and create that subfolder inside
-    // the chosen location — so the set stays self-contained rather than dumping loose files.
+    // the chosen location - so the set stays self-contained rather than dumping loose files.
     private async void OnExportFolder(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm || vm.Tracks.Count == 0) return;
@@ -425,7 +426,7 @@ public partial class MaxView : UserControl
         var name = await InputDialog.AskAsync(owner, "Name the set folder", DefaultSetName());
         if (string.IsNullOrWhiteSpace(name)) return;
 
-        await RunTransfer(owner, vm, $"{name}  ·  folder",
+        await RunTransfer(owner, vm, $"{name}  -  folder",
             (progress, ct) => vm.ExportPlaylistFolderAsync(Path.Combine(parent, name), name, progress, ct));
     }
 
@@ -445,7 +446,7 @@ public partial class MaxView : UserControl
         {
             await run(progress, tvm.Token);
         }
-        catch (OperationCanceledException) { /* user cancelled — Core already cleaned up the partial output */ }
+        catch (OperationCanceledException) { /* user cancelled - Core already cleaned up the partial output */ }
         catch { /* swallow other I/O errors; the dialog just closes */ }
         finally
         {
@@ -453,13 +454,13 @@ public partial class MaxView : UserControl
         }
     }
 
-    /// <summary>Default export name: JustPlay_YEAR-MONTH-DAY_HH-MM (no extension — pickers add it).</summary>
+    /// <summary>Default export name: JustPlay_YEAR-MONTH-DAY_HH-MM (no extension - pickers add it).</summary>
     private static string DefaultSetName() => $"JustPlay_{DateTime.Now:yyyy-MM-dd_HH-mm}";
 
-    // (The pre-cue "Load track…" file picker was removed 2026-07-03 — cueing happens from the
+    // (The pre-cue "Load track..." file picker was removed 2026-07-03 - cueing happens from the
     // track list via the row context menu; see LoadPreCueTrackAsync in MainWindowViewModel.)
 
-    /// <summary>Open (or surface) the PRE CUE FINDER — the keyboard-first library audition
+    /// <summary>Open (or surface) the PRE CUE FINDER - the keyboard-first library audition
     /// explorer window. Singleton window + singleton VM: reopening resumes where she left off.</summary>
     private void OnOpenFinderClicked(object? sender, RoutedEventArgs e)
         => PreCueFinderWindow.ShowOrActivate();

@@ -1,6 +1,8 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Reactive;
 
 namespace JustPlay.UI.Controls;
 
@@ -23,8 +25,8 @@ public partial class WindowControls : UserControl
         set => SetValue(ShowMaximizeProperty, value);
     }
 
-    /// <summary>Show the minimize button. Set False for dialogs (About, Log, Settings) — on
-    /// Windows the square disappears (dialogs carry only the ×), on macOS the yellow dot stays
+    /// <summary>Show the minimize button. Set False for dialogs (About, Log, Settings) - on
+    /// Windows the square disappears (dialogs carry only the x), on macOS the yellow dot stays
     /// visible but greyed/disabled, like a native mac dialog's traffic lights.</summary>
     public static readonly StyledProperty<bool> ShowMinimizeProperty =
         AvaloniaProperty.Register<WindowControls, bool>(nameof(ShowMinimize), defaultValue: true);
@@ -35,9 +37,61 @@ public partial class WindowControls : UserControl
         set => SetValue(ShowMinimizeProperty, value);
     }
 
+    /// <summary>
+    /// True while the hosting window is maximized - mirrored from
+    /// <see cref="Behaviors.FramelessMaximize.IsMaximizedProperty"/> on the window.
+    ///
+    /// <para>The maximize button swaps its mark on this: a single square means "maximize", two
+    /// overlapping rectangles mean "restore". We drew the square in both states, which told a
+    /// maximized window's user to maximize it again (Chloe 2026-08-06).</para>
+    /// </summary>
+    public static readonly StyledProperty<bool> IsMaximizedProperty =
+        AvaloniaProperty.Register<WindowControls, bool>(nameof(IsMaximized));
+
+    public bool IsMaximized
+    {
+        get => GetValue(IsMaximizedProperty);
+        set => SetValue(IsMaximizedProperty, value);
+    }
+
+    /// <summary>Tooltip for the maximize button - "Restore" once it restores.</summary>
+    public static readonly StyledProperty<string> MaximizeTipProperty =
+        AvaloniaProperty.Register<WindowControls, string>(nameof(MaximizeTip), defaultValue: "Maximize");
+
+    public string MaximizeTip
+    {
+        get => GetValue(MaximizeTipProperty);
+        set => SetValue(MaximizeTipProperty, value);
+    }
+
     public WindowControls() => InitializeComponent();
 
     private Window? Window => TopLevel.GetTopLevel(this) as Window;
+
+    private IDisposable? _maximizedSubscription;
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        // The window is only reachable once we are in the tree - and the custom maximize never
+        // touches WindowState, so the attached flag is the only thing there is to watch.
+        if (Window is { } window)
+            _maximizedSubscription = window
+                .GetObservable(Behaviors.FramelessMaximize.IsMaximizedProperty)
+                .Subscribe(new AnonymousObserver<bool>(maximized =>
+                {
+                    IsMaximized = maximized;
+                    MaximizeTip = maximized ? "Restore" : "Maximize";
+                }));
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _maximizedSubscription?.Dispose();
+        _maximizedSubscription = null;
+        base.OnDetachedFromVisualTree(e);
+    }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Window?.Close();
 

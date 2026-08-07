@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:uic="using:JustPlay.UI.Controls"
         x:Class="JustPlay.App.Views.OopsDialog"
         Title="Oops"
         Width="620" SizeToContent="Height"
@@ -39,19 +40,22 @@
       hands the user the full report with a Copy button so they can send it to us. Frameless rounded card
       matching the other dialogs.
     -->
-    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
+    <Border Name="DialogCard" ClipToBounds="True"
             BoxShadow="0 18 54 0 #B3000000">
         <Panel>
-            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
-            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
-            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
-            <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+            <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the ONE thing that makes a dialog
+                 read as its own object instead of a second main window (Chloe 2026-08-05/06). The
+                 distinction is FLAT vs GRADIENT: windows carry the ramp plus two accent blooms, a
+                 dialog carries a flat slab. Gradient and glass were both tried on this surface and
+                 both failed for measured reasons - see JustPalette.axaml (banding) and
+                 AboutWindow.axaml (window-level blur eats the shadow margin). -->
+            <uic:SurfaceCard CornerRadius="14"/>
 
             <StackPanel Margin="28,26,28,22" Spacing="0">
-                <TextBlock Text="Oops — JustPlay hit a snag" FontSize="16" FontWeight="Bold"
+                <TextBlock Text="Oops - JustPlay hit a snag" FontSize="16" FontWeight="Bold"
                            Foreground="White"/>
                 <TextBlock TextWrapping="Wrap" FontSize="12.5" Foreground="#A6FFFFFF" Margin="0,8,0,0"
-                           Text="The app kept running — nothing crashed. Copy the details below and send them to us so we can fix it. We stand by our bugs."/>
+                           Text="The app kept running - nothing crashed. Copy the details below and send them to us so we can fix it. We stand by our bugs."/>
 
                 <TextBox x:Name="Details" Margin="0,14,0,0"
                          IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
@@ -60,7 +64,7 @@
                          ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
 
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,16,0,0">
-                    <TextBlock x:Name="CopiedHint" Grid.Column="0" Text="Copied to clipboard ✓"
+                    <TextBlock x:Name="CopiedHint" Grid.Column="0" Text="Copied to clipboard"
                                IsVisible="False" VerticalAlignment="Center"
                                Foreground="{DynamicResource AccentABrush}" FontSize="11.5"/>
                     <Button Grid.Column="2" Classes="dialog-close" Content="Copy details" Click="OnCopy"/>

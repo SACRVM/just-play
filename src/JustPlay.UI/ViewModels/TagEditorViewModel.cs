@@ -19,7 +19,7 @@ public enum TagWriteOutcome
     /// <summary>The file was written, right now.</summary>
     Written,
 
-    /// <summary>The file is busy (it is the playing track) — the write was queued and lands later.</summary>
+    /// <summary>The file is busy (it is the playing track) - the write was queued and lands later.</summary>
     Deferred,
 
     /// <summary>The write was attempted and failed; the host reported it.</summary>
@@ -27,7 +27,7 @@ public enum TagWriteOutcome
 }
 
 /// <summary>
-/// How a write reaches the file. The editor never opens the file itself — it hands the work to the
+/// How a write reaches the file. The editor never opens the file itself - it hands the work to the
 /// host, because only the host knows whether this file is currently being played.
 /// <para>JUST TAG passes <see cref="TagEditorViewModel.WriteDirect"/>. JUST PLAY passes an executor
 /// that routes through its deferred-write queue, so a save onto the PLAYING track is queued and
@@ -37,7 +37,7 @@ public enum TagWriteOutcome
 public delegate TagWriteOutcome TagWriteExecutor(string filePath, Action<string> write);
 
 /// <summary>
-/// One row on the editor's ANALYSIS tab — a value we measured, shown read-only.
+/// One row on the editor's ANALYSIS tab - a value we measured, shown read-only.
 /// <para><paramref name="Bar"/> is the 0..1 fraction for the character axes, which are the only
 /// ones a bar can honestly draw; the rows with a unit (BPM, LUFS, dB) leave it at 0 and are
 /// rendered as text alone.</para>
@@ -45,7 +45,7 @@ public delegate TagWriteOutcome TagWriteExecutor(string filePath, Action<string>
 public sealed record Measurement(string Label, string Text, double Bar, string? Hint);
 
 /// <summary>
-/// The SHARED tag editor — one view model behind two shapes: the floating always-on-top window in
+/// The SHARED tag editor - one view model behind two shapes: the floating always-on-top window in
 /// JUST PLAY / the PRE CUE FINDER, and JUST TAG's docked sidebar. Written once so the two cannot
 /// drift (see memory <c>suite-unify-dont-patch-divergence</c>).
 ///
@@ -59,7 +59,7 @@ public sealed record Measurement(string Label, string Text, double Bar, string? 
 /// actually changed, so editing a title cannot disturb a Serato frame and correcting a key cannot
 /// disturb a cover.</para>
 ///
-/// <para>Hand-rolled <see cref="INotifyPropertyChanged"/> on purpose — the shared UI library stays
+/// <para>Hand-rolled <see cref="INotifyPropertyChanged"/> on purpose - the shared UI library stays
 /// free of a MVVM-toolkit dependency (same rule as <see cref="Logging.LogViewModel"/>).</para>
 /// </summary>
 public sealed class TagEditorViewModel : INotifyPropertyChanged
@@ -89,7 +89,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// What the GENRE box suggests: the spellings this library already uses, then the fallback
-    /// vocabulary. Resolved once, lazily — the library query is a grouped read over the whole index
+    /// vocabulary. Resolved once, lazily - the library query is a grouped read over the whole index
     /// and has no business running every time a window opens.
     /// </summary>
     public IReadOnlyList<string> GenreSuggestions =>
@@ -100,10 +100,10 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     private IReadOnlyList<string>? SafeGenres()
     {
         try { return _genreSource?.Invoke(); }
-        catch { return null; }   // no index, locked db, anything — fall back to the canned list
+        catch { return null; }   // no index, locked db, anything - fall back to the canned list
     }
 
-    // ── The file ────────────────────────────────────────────────────────────────────────────────
+    // -- The file --------------------------------------------------------------------------------
 
     private string? _filePath;
     public string? FilePath { get => _filePath; private set => Set(ref _filePath, value); }
@@ -116,7 +116,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
 
     public bool HasFile => FilePath is not null;
 
-    // ── The file NAME, editable (Chloe 2026-08-03: "dateiname mit reinpacken und änderbar machen") ─
+    // -- The file NAME, editable (Chloe 2026-08-03: "dateiname mit reinpacken und aenderbar machen") -
     //
     // Not a tag, but it is the thing you most want to fix while tidying up, and leaving it out would
     // mean switching tools for half the job. The EXTENSION is deliberately not editable: it is shown
@@ -144,7 +144,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public event Action<string, string>? Renamed;
 
     /// <summary>The quick-rename patterns offered next to the name box. Deliberately a short list of
-    /// shapes people actually file by — the full mask language (and applying one to a whole folder)
+    /// shapes people actually file by - the full mask language (and applying one to a whole folder)
     /// is JUST TAG's job, not this editor's.</summary>
     public static IReadOnlyList<string> RenameMasks =>
     [
@@ -155,7 +155,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     ];
 
     /// <summary>
-    /// Fill the name box from a mask. It only FILLS — nothing is renamed until Save, so the result
+    /// Fill the name box from a mask. It only FILLS - nothing is renamed until Save, so the result
     /// is visible and editable first. A placeholder with no value collapses along with the separator
     /// around it, so a missing album does not leave "Artist - Title ()" behind.
     /// </summary>
@@ -175,7 +175,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         name = TidyName(name);
         if (name.Length == 0)
         {
-            Status = "That pattern comes out empty — the tags it needs are blank.";
+            Status = "That pattern comes out empty - the tags it needs are blank.";
             return;
         }
 
@@ -184,7 +184,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Put the name the file actually has on disk back in the box — the way OUT of a rename.
+    /// Put the name the file actually has on disk back in the box - the way OUT of a rename.
     /// Until this existed the only exit was Revert, which also throws the tag edits away
     /// (Chloe 2026-08-05: "wie komm ich aus der file rename geschichte wieder raus?").
     /// Nothing else is touched, so a half-typed comment survives changing your mind about the name.
@@ -198,7 +198,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Collapse what empty placeholders leave behind, then strip anything a file name may
-    /// not contain. A name is not worth refusing over a colon — fix it and say nothing.</summary>
+    /// not contain. A name is not worth refusing over a colon - fix it and say nothing.</summary>
     private static string TidyName(string s)
     {
         foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
@@ -212,7 +212,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         return s.Trim();
     }
 
-    // ── Editorial fields ────────────────────────────────────────────────────────────────────────
+    // -- Editorial fields ------------------------------------------------------------------------
 
     private string? _title;
     public string? Title { get => _title; set => SetField(ref _title, value); }
@@ -238,10 +238,10 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     private string? _comment;
     public string? Comment { get => _comment; set => SetField(ref _comment, value); }
 
-    // ── Analysis fields, hand-correctable (Chloe 2026-08-02: "ja bpm/key von hand korrigieren") ──
+    // -- Analysis fields, hand-correctable (Chloe 2026-08-02: "ja bpm/key von hand korrigieren") --
     //
     // These are OUR measurements, so correcting one by hand is a statement, not a typo fix: it says
-    // "the detector is wrong on this track". That is recorded as FieldDecision.Kept — the enum's
+    // "the detector is wrong on this track". That is recorded as FieldDecision.Kept - the enum's
     // meaning is exactly "the user reviewed this and the tag stands, stop flagging it". The blob's
     // Detected values are NOT overwritten; a measurement stays what it measured, and the correction
     // sits in the standard tag where every other DJ tool reads it.
@@ -256,18 +256,18 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public string? EnergyText { get => _energy; set { SetField(ref _energy, Digits(value)); SyncDjComment(); } }
 
     /// <summary>
-    /// Keep the DJ segment at the head of the comment — <c>8A - Energy 7</c> — in step with the KEY
+    /// Keep the DJ segment at the head of the comment - <c>8A - Energy 7</c> - in step with the KEY
     /// and ENERGY fields. It is the same segment <c>tag clean</c> and the WriteDjComment setting
     /// produce, and Serato, rekordbox, Traktor and VirtualDJ all read it. Leaving it behind after a
     /// correction would not be "not touching the comment": it would leave the file stating a key we
     /// have just decided is wrong.
     /// <para>
-    /// It only ever REWRITES a segment that is already there — it never adds one. Putting our text
+    /// It only ever REWRITES a segment that is already there - it never adds one. Putting our text
     /// into a field the user owns is an opt-in (<c>UserSettings.WriteDjComment</c>), not a side
     /// effect of typing a key. Whatever stands after the <c>" | "</c> is carried over verbatim, and
     /// an unparseable key or energy changes nothing at all.
     /// </para>
-    /// The rewrite lands in the visible Comment box, before the save — you see it happen and can
+    /// The rewrite lands in the visible Comment box, before the save - you see it happen and can
     /// still undo it by typing.
     /// </summary>
     private void SyncDjComment()
@@ -288,7 +288,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
             : $"{camelot} - Energy {e} {tail}";
     }
 
-    /// <summary>Does this read as our "8A - Energy 7" segment? Deliberately strict — anything else
+    /// <summary>Does this read as our "8A - Energy 7" segment? Deliberately strict - anything else
     /// is the user's own text and is left alone.</summary>
     private static bool IsDjSegment(string head)
     {
@@ -307,42 +307,42 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
             && energy.All(char.IsAsciiDigit);
     }
 
-    /// <summary>What our DSP measured, for the line under the hand-editable fields — so a correction
+    /// <summary>What our DSP measured, for the line under the hand-editable fields - so a correction
     /// is made against a visible number instead of blind.</summary>
     private string? _detectedSummary;
     public string? DetectedSummary { get => _detectedSummary; private set => Set(ref _detectedSummary, value); }
 
     public bool HasDetected => DetectedSummary is not null;
 
-    // ── What we measured (ANALYSIS tab) ─────────────────────────────────────────────────────────
+    // -- What we measured (ANALYSIS tab) ---------------------------------------------------------
     //
     // READ-ONLY on purpose. BPM / KEY / ENERGY are editable because they live in standard tags
-    // (TBPM / TKEY / TXXX:EnergyLevel) that other DJ software reads — correcting one corrects what
+    // (TBPM / TKEY / TXXX:EnergyLevel) that other DJ software reads - correcting one corrects what
     // the file tells the world. Everything below exists only in OUR blob: there is no external
     // reader, no ground truth in the ear for a 0..1 float, and every value here feeds the harmonic
     // sort, so a typed-over number would silently re-rank the whole library. A wrong measurement is
     // fixed by measuring again (the FLAC mono-decode bug is the proof), not by overwriting it.
 
     private IReadOnlyList<Measurement> _numbers = [];
-    /// <summary>The values with a unit — tempo, key, loudness. Text, never a bar.</summary>
+    /// <summary>The values with a unit - tempo, key, loudness. Text, never a bar.</summary>
     public IReadOnlyList<Measurement> Numbers { get => _numbers; private set => Set(ref _numbers, value); }
 
     private IReadOnlyList<Measurement> _character = [];
-    /// <summary>The 0..1 character axes — the ones the sorter ranks on.</summary>
+    /// <summary>The 0..1 character axes - the ones the sorter ranks on.</summary>
     public IReadOnlyList<Measurement> Character { get => _character; private set => Set(ref _character, value); }
 
     private string? _analysedAt;
-    /// <summary>When this was measured and by which detector version — "unknown" is the honest
+    /// <summary>When this was measured and by which detector version - "unknown" is the honest
     /// answer for a blob written before we started stamping it, and reads as maximally stale.</summary>
     public string? AnalysedAt { get => _analysedAt; private set => Set(ref _analysedAt, value); }
 
     public bool HasAnalysis => Numbers.Count > 0 || Character.Count > 0;
 
-    /// <summary>Whether the character axes ran — a v5 blob has loudness but no character, and the
+    /// <summary>Whether the character axes ran - a v5 blob has loudness but no character, and the
     /// divider above them must not float over an empty list.</summary>
     public bool HasCharacter => Character.Count > 0;
 
-    // ── Cover ───────────────────────────────────────────────────────────────────────────────────
+    // -- Cover -----------------------------------------------------------------------------------
 
     private Bitmap? _cover;
     public Bitmap? Cover { get => _cover; private set { Set(ref _cover, value); Raise(nameof(HasCover)); } }
@@ -353,11 +353,11 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     private string? _coverMime;
     private CoverAction _coverAction = CoverAction.Keep;
 
-    // ── State ───────────────────────────────────────────────────────────────────────────────────
+    // -- State -----------------------------------------------------------------------------------
 
     private string _status = "";
     /// <summary>
-    /// The footer line — reserved for things that HAPPENED: a save, a rename preview, a value we
+    /// The footer line - reserved for things that HAPPENED: a save, a rename preview, a value we
     /// could not parse. It is deliberately empty while nothing has happened, and it never repeats
     /// the file name: that already sits in the FILE NAME field and in whatever list the host is
     /// showing behind this panel (Chloe 2026-08-05: "die info ist zig fach sonst in dem UI").
@@ -370,7 +370,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     /// <summary>Raised after a successful save so the host can refresh its own row for this file.</summary>
     public event Action<string>? Saved;
 
-    /// <summary>The values as loaded — the yardstick for <see cref="IsDirty"/>. Comparing against a
+    /// <summary>The values as loaded - the yardstick for <see cref="IsDirty"/>. Comparing against a
     /// baseline rather than latching a flag means typing a character and deleting it again leaves
     /// the editor clean, which is what "unsaved changes" should mean.</summary>
     private Snapshot _baseline = Snapshot.Empty;
@@ -378,11 +378,11 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     private TrackMetadata? _loaded;
     private bool _loading;
 
-    // ── Load ────────────────────────────────────────────────────────────────────────────────────
+    // -- Load ------------------------------------------------------------------------------------
 
     /// <summary>
     /// Point the editor at a file. The caller is responsible for having dealt with
-    /// <see cref="IsDirty"/> first — the prompt is the host's, because it needs an owner window.
+    /// <see cref="IsDirty"/> first - the prompt is the host's, because it needs an owner window.
     /// </summary>
     public void Load(string path)
     {
@@ -424,11 +424,11 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
 
             _baseline = Snapshot.From(this);
             IsDirty = false;
-            Status = "";                       // a fresh file is not news — see Status
+            Status = "";                       // a fresh file is not news - see Status
         }
         catch (Exception ex)
         {
-            Status = $"Couldn't read this file — {ex.Message}";
+            Status = $"Couldn't read this file - {ex.Message}";
         }
         finally
         {
@@ -464,7 +464,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         if (FilePath is { } p) Load(p);
     }
 
-    // ── Cover actions ───────────────────────────────────────────────────────────────────────────
+    // -- Cover actions ---------------------------------------------------------------------------
 
     /// <summary>Replace the cover with picked image bytes (the file picker lives in the view).</summary>
     public void SetNewCover(byte[] bytes, string mime)
@@ -472,7 +472,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         SetCoverBytes(bytes, mime);
         _coverAction = CoverAction.Replace;
         MarkDirty();
-        Status = "Cover replaced — not saved yet";
+        Status = "Cover replaced - not saved yet";
     }
 
     public void RemoveCover()
@@ -481,13 +481,13 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         SetCoverBytes(null, null);
         _coverAction = CoverAction.Remove;
         MarkDirty();
-        Status = "Cover removed — not saved yet";
+        Status = "Cover removed - not saved yet";
     }
 
-    // ── Save ────────────────────────────────────────────────────────────────────────────────────
+    // -- Save ------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Write the changed half (or halves) back. Returns false when nothing was written — either
+    /// Write the changed half (or halves) back. Returns false when nothing was written - either
     /// there was nothing to write, or the input could not be parsed (the reason lands in
     /// <see cref="Status"/> rather than being swallowed).
     /// </summary>
@@ -599,7 +599,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
                       throw;      // the host's executor decides whether this is retried or reported
                   }
               })
-            : TagWriteOutcome.Written;   // rename only — nothing to write into the file
+            : TagWriteOutcome.Written;   // rename only - nothing to write into the file
 
         switch (outcome)
         {
@@ -607,13 +607,15 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
                 _coverAction = CoverAction.Keep;      // what we just saved IS the file's cover now
                 _baseline = now;
                 IsDirty = false;
-                Status = "Saved ✓";
+                // Plain words, no "ok": a status LINE is text, and a tick in it would be a font glyph,
+            // which this suite does not ship (CLAUDE.md rule 5).
+            Status = "Saved";
                 Saved?.Invoke(path);
                 if (newPath is not null) TryRename(path, newPath);
                 return true;
 
             case TagWriteOutcome.Deferred:
-                // The file is playing. The write is queued, so the editor must NOT claim it landed —
+                // The file is playing. The write is queued, so the editor must NOT claim it landed -
                 // but it must also not keep nagging about unsaved changes for work already handed over.
                 _coverAction = CoverAction.Keep;
                 _baseline = now;
@@ -621,13 +623,13 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
                 // A rename CANNOT ride along: the queued write targets the old path, and the engine
                 // is holding the handle anyway. Say so instead of silently dropping half the save.
                 Status = newPath is null
-                    ? "Track is playing — saves when it changes."
-                    : "Track is playing — tags save when it changes, the rename needs it stopped.";
+                    ? "Track is playing - saves when it changes."
+                    : "Track is playing - tags save when it changes, the rename needs it stopped.";
                 if (newPath is not null) { BaseName = _baselineBaseName; MarkDirty(); }
                 return true;
 
             default:
-                Status = failure is null ? "Save failed." : $"Save failed — {failure.Message}";
+                Status = failure is null ? "Save failed." : $"Save failed - {failure.Message}";
                 return false;
         }
     }
@@ -647,9 +649,9 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            // The tags DID land — say both halves, or "save failed" would be a lie about the part
+            // The tags DID land - say both halves, or "save failed" would be a lie about the part
             // that worked.
-            Status = $"Tags saved, rename failed — {ex.Message}";
+            Status = $"Tags saved, rename failed - {ex.Message}";
             BaseName = _baselineBaseName;
             MarkDirty();
             return;
@@ -660,7 +662,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         _baselineBaseName = Path.GetFileNameWithoutExtension(to);
         BaseName = _baselineBaseName;
         IsDirty = false;
-        Status = "Saved ✓ · renamed";
+        Status = "Saved - renamed";
         Renamed?.Invoke(from, to);
     }
 
@@ -668,12 +670,12 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     /// Build the analysis write for a HAND correction.
     ///
     /// <para>The three fields go into the standard tags, and the JUSTPLAY blob records that the user
-    /// decided (<see cref="FieldDecision.Kept"/>) — so nothing flags them as pending again, and the
+    /// decided (<see cref="FieldDecision.Kept"/>) - so nothing flags them as pending again, and the
     /// auto-write on the next analysis leaves them alone.</para>
     ///
     /// <para>Two things are deliberately NOT done here: <c>Detected</c> is carried over untouched
     /// (a measurement is not an opinion, and overwriting it would erase the evidence that the
-    /// detector was wrong on this track), and <c>Original</c> is left alone — it exists to hold the
+    /// detector was wrong on this track), and <c>Original</c> is left alone - it exists to hold the
     /// foreign value WE overwrote, and a hand correction is not us overwriting anything.</para>
     ///
     /// <para>A file with no blob at all gets no blob from this path: the standard tags are written
@@ -703,7 +705,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         };
     }
 
-    // ── Dirty tracking ──────────────────────────────────────────────────────────────────────────
+    // -- Dirty tracking --------------------------------------------------------------------------
 
     private void MarkDirty()
     {
@@ -713,7 +715,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
                || WillRename;
     }
 
-    /// <summary>The editable values at one moment — the yardstick behind <see cref="IsDirty"/> and
+    /// <summary>The editable values at one moment - the yardstick behind <see cref="IsDirty"/> and
     /// the "which half changed" decision in <see cref="Save"/>.</summary>
     private readonly record struct Snapshot(
         string? Title, string? Artist, string? Album, string? AlbumArtist,
@@ -739,12 +741,12 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         public bool Differs(Snapshot o) => EditorialDiffers(o) || AnalysisDiffers(o);
     }
 
-    /// <summary>Null and "" are the same thing in a tag field — a box the user emptied and a box
+    /// <summary>Null and "" are the same thing in a tag field - a box the user emptied and a box
     /// that was never set must not read as a change.</summary>
     private static bool TextEquals(string? a, string? b) =>
         string.Equals(a ?? "", b ?? "", StringComparison.Ordinal);
 
-    // ── Helpers ─────────────────────────────────────────────────────────────────────────────────
+    // -- Helpers ---------------------------------------------------------------------------------
 
     private void SetCoverBytes(byte[]? bytes, string? mime)
     {
@@ -758,14 +760,14 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
                 Cover = new Bitmap(ms);
                 return;
             }
-            catch { /* undecodable image bytes — show no cover rather than crash */ }
+            catch { /* undecodable image bytes - show no cover rather than crash */ }
         }
         Cover = null;
     }
 
     /// <summary>
     /// Turn the stored blob into the read-only rows of the ANALYSIS tab. Only values that are
-    /// actually present become rows — an absent measurement is left OUT rather than shown as 0,
+    /// actually present become rows - an absent measurement is left OUT rather than shown as 0,
     /// which would read as "we measured, and it is nothing".
     /// </summary>
     private void BuildMeasurements(TrackAnalysisState? s)
@@ -787,7 +789,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
             numbers.Add(new("BPM", a.Bpm.Value.ToString("0.#", inv), 0, null));
         if (a.Key is { } k)
             numbers.Add(new("KEY",
-                k.Camelot is { Length: > 0 } c ? $"{k.Name} · {c}" : k.Name, 0,
+                k.Camelot is { Length: > 0 } c ? $"{k.Name} - {c}" : k.Name, 0,
                 a.KeyConfidence is { } kc ? $"confidence {kc.ToString("0.00", inv)}" : null));
         if (a.Energy is { } e)
             numbers.Add(new("ENERGY", $"{e} / 10", 0, null));
@@ -800,23 +802,23 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
             numbers.Add(new("PEAK", p.ToString("0.###", inv), 0, "sample peak, not true peak"));
 
         var character = new List<Measurement>();
-        Add(character, "DARK",        a.Dark,            "low end against the highs — high reads dark");
-        Add(character, "HARSHNESS",   a.Harshness,       "2–6 kHz fatigue — high wears the ear out");
+        Add(character, "DARK",        a.Dark,            "low end against the highs - high reads dark");
+        Add(character, "HARSHNESS",   a.Harshness,       "2-6 kHz fatigue - high wears the ear out");
         Add(character, "BASS PUNCH",  a.BassPunch,       "how hard the bass transients hit");
         Add(character, "BASS GROOVE", a.BassGroove,      "swung / off-grid bass against straight");
         Add(character, "HYPNOTIC",    a.Hypnotic,        "how little the track changes over its length");
         Add(character, "FLATNESS",    a.SpectralFlatness,"tonal (0) against noise-like (1)");
-        Add(character, "GRID",        a.GridConfidence,  "below 0.45 a beatgrid tends to fail — gig-validated");
+        Add(character, "GRID",        a.GridConfidence,  "below 0.45 a beatgrid tends to fail - gig-validated");
 
         Numbers = numbers;
         Character = character;
 
-        // The epoch is how a blob written before we stamped the time says "unknown" — it must read
+        // The epoch is how a blob written before we stamped the time says "unknown" - it must read
         // as maximally stale, never as clean.
         var when = s.AnalysedAtUtc is { } t && t > DateTime.UnixEpoch
             ? t.ToLocalTime().ToString("yyyy-MM-dd", inv)
             : "date unknown";
-        AnalysedAt = $"{when}  ·  detector v{s.Version.ToString(inv)}";
+        AnalysedAt = $"{when}  -  detector v{s.Version.ToString(inv)}";
         Raise(nameof(HasAnalysis));
         Raise(nameof(HasCharacter));
 
@@ -833,9 +835,9 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         if (a is null) return null;
         var parts = new List<string>();
         if (a.Bpm is > 0) parts.Add($"{a.Bpm.Value:0.#} BPM");
-        if (a.Key is { } k) parts.Add(k.Camelot is { Length: > 0 } c ? $"{k.Name} · {c}" : k.Name);
+        if (a.Key is { } k) parts.Add(k.Camelot is { Length: > 0 } c ? $"{k.Name} - {c}" : k.Name);
         if (a.Energy is { } e) parts.Add($"Energy {e}");
-        return parts.Count == 0 ? null : string.Join("  ·  ", parts);
+        return parts.Count == 0 ? null : string.Join("  -  ", parts);
     }
 
     private static string? Digits(string? s) =>
@@ -855,7 +857,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
             parts.Add(m.Duration.ToString(m.Duration.TotalHours >= 1 ? @"h\:mm\:ss" : @"m\:ss"));
         if (m.Bitrate is > 0) parts.Add($"{m.Bitrate} kbps");
         if (m.SampleRate is > 0) parts.Add($"{m.SampleRate / 1000.0:0.#} kHz");
-        return string.Join("  ·  ", parts);
+        return string.Join("  -  ", parts);
     }
 
     private static string? GuessMime(byte[]? b)
@@ -865,7 +867,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         return "image/jpeg";
     }
 
-    // ── INotifyPropertyChanged (hand-rolled — no MVVM toolkit in the shared UI library) ──────────
+    // -- INotifyPropertyChanged (hand-rolled - no MVVM toolkit in the shared UI library) ----------
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -21,24 +21,24 @@ using JustPlay.UI.ViewModels;
 namespace JustPlay.App.ViewModels;
 
 /// <summary>
-/// PRE CUE FINDER — the keyboard-first library audition explorer (0.5.0 headline, queue N26).
+/// PRE CUE FINDER - the keyboard-first library audition explorer (0.5.0 headline, queue N26).
 ///
-/// <para><b>P2 browse model (Chloe 2026-07-05):</b> two flat panes, Norton-Commander style —
+/// <para><b>P2 browse model (Chloe 2026-07-05):</b> two flat panes, Norton-Commander style -
 /// FOLDERS left, FILES right. The left pane lists the current folder's navigable children with no
-/// nesting: a ".." hop, each sub-folder (📁), and each playlist (☰) treated as a VIRTUAL FOLDER
+/// nesting: a ".." hop, each sub-folder (folder), and each playlist (list) treated as a VIRTUAL FOLDER
 /// (entering one loads its tracks into the file pane). TAB switches which pane has focus (the
 /// focused pane's header lights up); Enter descends / adds; Backspace goes up (only while the
 /// folders pane is focused). The clickable breadcrumb in the chrome jumps to any level.</para>
 ///
 /// <para>Play/pause is a browsing MODE (Space): in play mode the selected song starts after ~1 s
-/// (so racing down a list never blasts the ears — see chloe-sound-sensitivity), paused browsing
+/// (so racing down a list never blasts the ears - see chloe-sound-sensitivity), paused browsing
 /// stays silent. Enter (files) adds the selected song to the CURRENT queue and advances; L likes;
-/// the detail panel shows everything the analyzer stored in the v9 blob — zero DSP on browse.</para>
+/// the detail panel shows everything the analyzer stored in the v9 blob - zero DSP on browse.</para>
 ///
 /// <para>Shares the single <see cref="IPreListenEngine"/> (and thus the hard cue-isolation
 /// invariant) and the cue device selection (<see cref="UserSettings.HeadphoneDeviceName"/>, edited
 /// here via <see cref="Main"/>) with the pre-cue tab. Its own add-on settings (library root, seek
-/// step) live in <see cref="IFinderSettingsService"/> — a separate file.</para>
+/// step) live in <see cref="IFinderSettingsService"/> - a separate file.</para>
 /// </summary>
 public sealed partial class PreCueFinderViewModel : ViewModelBase
 {
@@ -46,7 +46,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public enum FinderPane { Folders, Files }
 
 
-    // Folder names never worth showing — dot-folders plus the usual NAS system dirs
+    // Folder names never worth showing - dot-folders plus the usual NAS system dirs
     // (Synology thumbnail/recycle, Windows share clutter). Name-based on purpose: an
     // Attributes check would cost one extra round-trip per entry on a network share.
     private static readonly HashSet<string> IgnoredFolderNames = new(StringComparer.OrdinalIgnoreCase)
@@ -54,7 +54,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         "@eaDir", "#recycle", "@Recycle", "$RECYCLE.BIN", "System Volume Information"
     };
 
-    /// <summary>Sub-folders of <paramref name="folder"/>, junk filtered, natural-sorted. May throw —
+    /// <summary>Sub-folders of <paramref name="folder"/>, junk filtered, natural-sorted. May throw -
     /// callers guard (NAS).</summary>
     internal static List<string> ListSubfolders(string folder) =>
         Directory.EnumerateDirectories(folder)
@@ -64,8 +64,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             .ToList();
 
     /// <summary>Playlists in <paramref name="folder"/> (the same M3U source JUST PLAY imports, so
-    /// the finder shows exactly what the app can open — .pls/.xspf ride in via the N25 façade).
-    /// Natural-sorted. May throw — callers guard.</summary>
+    /// the finder shows exactly what the app can open - .pls/.xspf ride in via the N25 facade).
+    /// Natural-sorted. May throw - callers guard.</summary>
     internal static List<string> ListPlaylists(string folder) =>
         Directory.EnumerateFiles(folder)
             .Where(M3uPlaylist.IsPlaylist)
@@ -83,14 +83,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// its pixel width, so a fixed, generous value keeps the shape crisp at any window size.</summary>
     private const int WaveformBuckets = 1600;
 
-    /// <summary>Debounce between selection and cue playback in play mode: ~1 s, so holding ↓
+    /// <summary>Debounce between selection and cue playback in play mode: ~1 s, so holding v
     /// browses silently and only the row she actually settles on starts sounding.</summary>
     private readonly DispatcherTimer _playDebounce = new() { Interval = TimeSpan.FromSeconds(1) };
 
     /// <summary>UI-rate position readout while the window is open (same cadence as the shell VM's tick).</summary>
     private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromMilliseconds(200) };
 
-    /// <summary>Normalised paths of everything on the current queue — drives the ✓ column.</summary>
+    /// <summary>Normalised paths of everything on the current queue - drives the ok column.</summary>
     private readonly HashSet<string> _queuePaths = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Like-writes deferred because an engine still holds the file (last press wins).
@@ -131,19 +131,23 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         };
         _tick.Tick += (_, _) => OnTick();
 
-        // Shared column visibility + sort state (see TrackColumns) — the SAME object the queue uses, so the
+        // Shared column visibility + sort state (see TrackColumns) - the SAME object the queue uses, so the
         // finder's TrackDataHeader + TrackRow bind straight to it and can't drift. Hydrated from
         // finder.settings.json; a toggle persists there, a header click re-sorts the current view.
         Columns = new TrackColumns(_settings.Current.VisibleColumns);
-        Columns.VisibilityChanged += () => _settings.Save(_settings.Current with { Columns = Columns.Enabled.ToArray() });
+        Columns.VisibilityChanged += () =>
+        {
+            _settings.Save(_settings.Current with { Columns = Columns.Enabled.ToArray() });
+            Columns.Widths.Refit(Columns);   // who wants space changed; what is in the rows did not
+        };
         Columns.SortRequested += RebuildView;
 
-        // Engine events fire on BASS's playback thread — marshal (CLAUDE.md threading rule).
+        // Engine events fire on BASS's playback thread - marshal (CLAUDE.md threading rule).
         _preListen.StateChanged += (_, s) =>
             Dispatcher.UIThread.Post(() => IsCuePlaying = s == PlaybackState.Playing);
         _preListen.PlaybackEnded += (_, _) => Dispatcher.UIThread.Post(OnCueEnded);
 
-        // ✓ stays live: the moment Enter (or anything else) changes the queue, re-flag rows.
+        // ok stays live: the moment Enter (or anything else) changes the queue, re-flag rows.
         _main.Tracks.CollectionChanged += (_, _) => RebuildMembership();
 
         // "Fits what's playing" targets whatever is on the main deck right now.
@@ -154,14 +158,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             OnPropertyChanged(nameof(NowPlayingMatchText));
         };
 
-        // FILTER ranges — one dual-handle slider per analyzed field, each re-filtering the view live.
+        // FILTER ranges - one dual-handle slider per analyzed field, each re-filtering the view live.
         // Vibe scores gate on HasAnalysis (the finder loads the stored blob into Model.Analysis on browse),
         // so an un-analyzed row reads null and drops out of any active vibe band.
         Ranges =
         [
             new("bpm",      "BPM",      t => t.Bpm,                                     v => v.ToString("0"), RebuildView),
             new("nrg",      "Energy",   t => (double?)t.Energy,                          v => v.ToString("0"), RebuildView),
-            // No gain-dB / LUFS / length ranges — nobody filters a set by those (Chloe 2026-07-07). They stay
+            // No gain-dB / LUFS / length ranges - nobody filters a set by those (Chloe 2026-07-07). They stay
             // as sortable columns; only the vibe scores + BPM + energy + key earn a range slider here.
             new("dark",     "Dark",     t => t.HasAnalysis ? t.DarkScore : null,         v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
             new("hypnotic", "Hypnotic", t => t.HasAnalysis ? t.HypnoticScore : null,     v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
@@ -175,16 +179,16 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _index.UseRoot(LibraryRoot);
     }
 
-    /// <summary>The FILTER tab's numeric range sliders (BPM · energy · vibe scores) — the fields DJs actually
+    /// <summary>The FILTER tab's numeric range sliders (BPM - energy - vibe scores) - the fields DJs actually
     /// narrow a set by; gain/LUFS/length stay sortable columns but earn no range slider.</summary>
     public IReadOnlyList<FinderFilterRange> Ranges { get; }
 
-    /// <summary>The shell VM — the settings flyout binds the shared cue device + volume through
+    /// <summary>The shell VM - the settings flyout binds the shared cue device + volume through
     /// this (HeadphoneDevices / SelectedHeadphoneDevice / PreCueVolume), so the finder and the
     /// pre-cue tab can never disagree about where cue audio goes.</summary>
     public MainWindowViewModel Main => _main;
 
-    // ── Which folder / playlist we're browsing ───────────────────────────────
+    // -- Which folder / playlist we're browsing -------------------------------
 
     /// <summary>The folder whose children fill the LEFT pane and whose files fill the RIGHT pane
     /// (unless a playlist is entered). Null before a library root is picked.</summary>
@@ -192,18 +196,18 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(CanGoUp))]
     private string? _currentFolder;
 
-    /// <summary>Non-null while a playlist ("virtual folder") is loaded into the file pane — the
+    /// <summary>Non-null while a playlist ("virtual folder") is loaded into the file pane - the
     /// left pane still shows <see cref="CurrentFolder"/>'s children, with this playlist selected.</summary>
     [ObservableProperty]
     private string? _currentPlaylist;
 
-    /// <summary>Non-null while a LEAF folder (no sub-folders/playlists) is opened into the file pane —
+    /// <summary>Non-null while a LEAF folder (no sub-folders/playlists) is opened into the file pane -
     /// same "virtual folder" treatment as <see cref="CurrentPlaylist"/>, but the source is the folder's
     /// own tracks rather than an M3U. Mutually exclusive with <see cref="CurrentPlaylist"/>.</summary>
     [ObservableProperty]
     private string? _currentLeafFolder;
 
-    // ── Folder pane (left) ───────────────────────────────────────────────────
+    // -- Folder pane (left) ---------------------------------------------------
 
     /// <summary>Left-pane rows for the current folder: ".." + sub-folders + playlists (flat).</summary>
     public BulkObservableCollection<FinderEntryViewModel> FolderEntries { get; } = [];
@@ -213,7 +217,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(SelectedEntryIsPlaylist))]
     private FinderEntryViewModel? _selectedEntry;
 
-    /// <summary>↑/↓/PageUp/PageDown while the FOLDER pane has focus (relative, clamped).</summary>
+    /// <summary>^/v/PageUp/PageDown while the FOLDER pane has focus (relative, clamped).</summary>
     public void MoveFolderSelection(int delta)
     {
         if (FolderEntries.Count == 0) return;
@@ -221,7 +225,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         SelectedEntry = FolderEntries[Math.Clamp(i + delta, 0, FolderEntries.Count - 1)];
     }
 
-    /// <summary>Home/End in the FOLDER pane — jump to an absolute row (clamped).</summary>
+    /// <summary>Home/End in the FOLDER pane - jump to an absolute row (clamped).</summary>
     public void MoveFolderSelectionTo(int index)
     {
         if (FolderEntries.Count == 0) return;
@@ -229,12 +233,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>Set by the window so the VM can hand keyboard focus to the file pane when it opens a
-    /// playlist / leaf folder — a view concern the VM can't do itself.</summary>
+    /// playlist / leaf folder - a view concern the VM can't do itself.</summary>
     public Action? RequestFocusFiles { get; set; }
 
     /// <summary>Enter / single-click / double-click on a folder-pane row. ".." goes up; a playlist and a
     /// LEAF folder (no sub-folders or playlists of its own) open their tracks in the file pane and hand
-    /// it focus — a leaf folder is treated exactly like a playlist, because descending into one would
+    /// it focus - a leaf folder is treated exactly like a playlist, because descending into one would
     /// show only ".." (Chloe 2026-07-06: "in einen Ordner ohne Unterordner geht man nicht rein"). A
     /// folder that DOES have navigable children descends, keeping focus left so she can keep drilling.</summary>
     public void ActivateEntry()
@@ -256,7 +260,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>Decide off-thread whether <paramref name="folder"/> is a container (has sub-folders or
-    /// playlists → descend) or a leaf (only tracks → open like a playlist). The enumeration is a NAS
+    /// playlists -> descend) or a leaf (only tracks -> open like a playlist). The enumeration is a NAS
     /// round-trip, so it never runs on the UI thread.</summary>
     private void ActivateFolder(string folder)
     {
@@ -267,7 +271,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             catch (Exception ex)
             {
                 Console.WriteLine($"[Finder] leaf check failed: {folder}: {ex.GetType().Name}: {ex.Message}");
-                hasChildren = false; // unreadable folder → treat as a leaf, at least show its tracks
+                hasChildren = false; // unreadable folder -> treat as a leaf, at least show its tracks
             }
             Dispatcher.UIThread.Post(() =>
             {
@@ -277,7 +281,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         });
     }
 
-    /// <summary>Open a leaf folder's tracks in the file pane WITHOUT descending — the left pane keeps
+    /// <summary>Open a leaf folder's tracks in the file pane WITHOUT descending - the left pane keeps
     /// showing the parent (with this folder selected), exactly like entering a playlist.</summary>
     private void OpenLeafFolder(string folder)
     {
@@ -288,7 +292,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>Backspace (folders pane) / the ".." row: hop to the parent folder. Bounded at the
-    /// library root — the finder never wanders above the configured library.</summary>
+    /// library root - the finder never wanders above the configured library.</summary>
     [RelayCommand]
     private void GoUp()
     {
@@ -310,7 +314,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                && nf[nr.Length] == Path.DirectorySeparatorChar;
     }
 
-    // ── Navigation ───────────────────────────────────────────────────────────
+    // -- Navigation -----------------------------------------------------------
 
     /// <summary>Descend into (or jump to) a folder: rebuild the left pane + breadcrumb and load the
     /// folder's own files into the right pane. <paramref name="selectChild"/> lands the left-pane
@@ -387,12 +391,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }, cts.Token);
     }
 
-    // ── File pane (right) ────────────────────────────────────────────────────
+    // -- File pane (right) ----------------------------------------------------
 
     public BulkObservableCollection<FinderItemViewModel> Items { get; } = [];
 
     /// <summary>Everything loaded for the current folder/playlist, BEFORE the FILTER tab narrows it.
-    /// <see cref="Items"/> is always sort(filter(this)). Filtering is purely in-memory over this list —
+    /// <see cref="Items"/> is always sort(filter(this)). Filtering is purely in-memory over this list -
     /// in FOLDER scope it was read from disk, in LIBRARY scope (0.6) it came from the index. The
     /// 0.5 note "keine library, erstmal" no longer applies: the index is the point of
     /// <see cref="FinderScope.Library"/>.</summary>
@@ -406,12 +410,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         RaiseDetail();
         _playDebounce.Stop();
         // Auto-play mode (opt-in): settle on a row and it auditions after the ~1 s debounce, so racing
-        // the list never blasts the ears (chloe-sound-sensitivity). Default OFF — Enter plays instead.
+        // the list never blasts the ears (chloe-sound-sensitivity). Default OFF - Enter plays instead.
         if (value is not null && AutoPlayOnSelect) _playDebounce.Start();
     }
 
     /// <summary>Load failure for the current folder / playlist (NAS offline, permissions, root
-    /// deleted…). Shown as an inline hint — the finder must never crash on a flaky share.</summary>
+    /// deleted...). Shown as an inline hint - the finder must never crash on a flaky share.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyFolderHint))]
     private string? _loadError;
@@ -421,20 +425,20 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public bool ShowEmptyFolderHint =>
         !HasNoRoot && LoadError is null && CurrentFolder is not null && _masterItems.Count == 0
         && !ShowLibraryNotScanned   // "scan the library" is the better hint when that's the reason
-        && !IsScanning;             // …and NO hint at all while the disc is up (see ShowNoMatches)
+        && !IsScanning;             // ...and NO hint at all while the disc is up (see ShowNoMatches)
 
-    /// <summary>The folder HAS tracks but the FILTER narrowed them all out — a distinct, non-alarming hint.
+    /// <summary>The folder HAS tracks but the FILTER narrowed them all out - a distinct, non-alarming hint.
     ///
-    /// <para>⚠ Every centred hint in this pane must switch off while the progress disc is up. They
+    /// <para>(!) Every centred hint in this pane must switch off while the progress disc is up. They
     /// share the pane's centre, so the disc covers the MIDDLE of a hint line and leaves both ends
-    /// sticking out past its rim — which is exactly what Chloe photographed on 2026-07-30 and took
+    /// sticking out past its rim - which is exactly what Chloe photographed on 2026-07-30 and took
     /// for rendering artefacts: the "N" of "Nothing to audition in this folder." on one side and
     /// the end of the sentence on the other.</para></summary>
     public bool ShowNoMatches =>
         !HasNoRoot && LoadError is null && _masterItems.Count > 0 && Items.Count == 0
         && !IsScanning;
 
-    /// <summary>↑/↓/PageUp/PageDown while the FILE pane has focus — deterministic regardless of which
+    /// <summary>^/v/PageUp/PageDown while the FILE pane has focus - deterministic regardless of which
     /// control actually holds keyboard focus.</summary>
     public void MoveSelection(int delta)
     {
@@ -443,7 +447,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Selected = Items[Math.Clamp(i + delta, 0, Items.Count - 1)];
     }
 
-    /// <summary>Home/End in the FILE pane — jump to an absolute row (clamped).</summary>
+    /// <summary>Home/End in the FILE pane - jump to an absolute row (clamped).</summary>
     public void MoveSelectionTo(int index)
     {
         if (Items.Count == 0) return;
@@ -451,9 +455,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>The "+" / A key: add to the current queue. With a multi-selection (Ctrl/Shift-click) it
-    /// adds ALL selected rows at once — the whole point of finder multi-select ("viele zur PL hinzufügen",
+    /// adds ALL selected rows at once - the whole point of finder multi-select ("viele zur PL hinzufuegen",
     /// Chloe 2026-07-07). With a single cursor it adds that one row and advances, for fast one-handed queue
-    /// building. Chloe 2026-07-06: adding is "+", NOT Enter — Enter PLAYS (see <see cref="PlaySelected"/>).</summary>
+    /// building. Chloe 2026-07-06: adding is "+", NOT Enter - Enter PLAYS (see <see cref="PlaySelected"/>).</summary>
     public void ActivateSelected()
     {
         if (SelectedItems.Count > 1) { AddSelectionToQueue(); return; }
@@ -462,7 +466,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         AdvanceToNextTrackRow(item);
     }
 
-    // ── Multi-select (Ctrl/Shift-click) → bulk right-click actions ───────────────────────────────
+    // -- Multi-select (Ctrl/Shift-click) -> bulk right-click actions -------------------------------
     // Kept in sync by the window's SelectionChanged (same pattern as the JUST PLAY queue's SelectedTracks).
     // The cursor (Selected) still drives the cue + INFO panel; this set drives the row context menu.
 
@@ -471,7 +475,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public ObservableCollection<FinderItemViewModel> SelectedItems { get; } = [];
 
     /// <summary>
-    /// Re-read one file's tags into its row(s) after the shared tag editor wrote them — a corrected
+    /// Re-read one file's tags into its row(s) after the shared tag editor wrote them - a corrected
     /// artist or key has to appear in the list at once, not after the next folder change.
     /// <para>Goes over <see cref="_masterItems"/> (the unfiltered set) rather than <see cref="Items"/>,
     /// because the edited row may currently be filtered out and would otherwise keep stale values
@@ -491,13 +495,13 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Set by the window: clears the file ListBox's live (multi-)selection. Invoked right before
     /// <see cref="Items"/> is reset, because Avalonia's SelectionModel throws (ArgumentOutOfRangeException,
     /// enumerating SelectedItems against stale indices) when the bound source resets while a selection is
-    /// live — and setting <see cref="Selected"/>=null alone can't reach a Ctrl-click MULTI-selection.
+    /// live - and setting <see cref="Selected"/>=null alone can't reach a Ctrl-click MULTI-selection.
     /// Chloe 2026-07-08 (the KeyWheel-click crash).</summary>
     public Action? ClearFileSelection { get; set; }
 
     public bool HasFileSelection => SelectedItems.Count > 0;
 
-    /// <summary>Row context-menu headers — carry "(N)" when more than one row is selected, exactly like the
+    /// <summary>Row context-menu headers - carry "(N)" when more than one row is selected, exactly like the
     /// queue's bulk headers. "Analyze" until every selected row already has a v9 blob, then "Re-analyze".</summary>
     public string AddSelectionHeader => WithFileCount("Add to list");
     public string ReanalyzeSelectionHeader =>
@@ -507,7 +511,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         SelectedItems.Count > 1 ? $"{verb} ({SelectedItems.Count})" : verb;
 
     /// <summary>Refresh the row-menu headers + visibility as the menu opens (called from the window's
-    /// ContextRequested, after it has fixed up the selection) — mirrors the queue's RefreshMenuState.</summary>
+    /// ContextRequested, after it has fixed up the selection) - mirrors the queue's RefreshMenuState.</summary>
     public void RefreshFileMenuState()
     {
         OnPropertyChanged(nameof(HasFileSelection));
@@ -515,13 +519,13 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(ReanalyzeSelectionHeader));
     }
 
-    /// <summary>The selected rows in on-screen (list) order — a set added to a playlist should land in the
+    /// <summary>The selected rows in on-screen (list) order - a set added to a playlist should land in the
     /// order it reads, not the order it was clicked.</summary>
     private List<FinderItemViewModel> SelectionInListOrder() =>
         (SelectedItems.Count > 0 ? SelectedItems : (Selected is { } s ? [s] : []))
             .OrderBy(Items.IndexOf).ToList();
 
-    /// <summary>Right-click → "Add to list": add every selected row to the current queue, in list order.</summary>
+    /// <summary>Right-click -> "Add to list": add every selected row to the current queue, in list order.</summary>
     [RelayCommand]
     private void AddSelectionToQueue()
     {
@@ -530,7 +534,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _ = AddPathsGuarded(paths);
     }
 
-    /// <summary>Right-click → "(Re-)analyze": run the analyzer over every selected row through the shell's
+    /// <summary>Right-click -> "(Re-)analyze": run the analyzer over every selected row through the shell's
     /// shared pipeline (threads cap + the auto-write-on-analyse consent). Each finder row wraps its own
     /// TrackViewModel, so the columns + INFO panel refresh in place as each track finishes.</summary>
     [RelayCommand]
@@ -541,25 +545,25 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _ = _main.AnalyzeExternalAsync(targets);
     }
 
-    // ── Left-pane (folder / playlist) context actions ────────────────────────────────────────────
+    // -- Left-pane (folder / playlist) context actions --------------------------------------------
     // The finder already navigates INTO folders/playlists to audition; these two verbs act on a whole
-    // ENTRY without entering it — the same two moves JUST PLAY already makes for external files
-    // (a playlist REPLACES the queue; loose tracks are ADDED). Target is always the current queue —
+    // ENTRY without entering it - the same two moves JUST PLAY already makes for external files
+    // (a playlist REPLACES the queue; loose tracks are ADDED). Target is always the current queue -
     // no new playlist is created, no file on disk is touched (Chloe 2026-07-22: "keine neue magie").
 
     /// <summary>True when the (right-clicked) left-pane entry is a real folder/playlist, not the ".." hop
-    /// — gates the "Add to list" context item.</summary>
+    /// - gates the "Add to list" context item.</summary>
     public bool CanAddSelectedEntry => SelectedEntry is { IsUp: false };
 
-    /// <summary>True when the (right-clicked) left-pane entry is a playlist — gates "Open playlist".</summary>
+    /// <summary>True when the (right-clicked) left-pane entry is a playlist - gates "Open playlist".</summary>
     public bool SelectedEntryIsPlaylist => SelectedEntry is { IsPlaylist: true };
 
     /// <summary>Set by the window: show a modal yes/no confirm over the finder window
-    /// (title, message, confirm-button label) → true when confirmed. Null-safe: a missing hook fails
+    /// (title, message, confirm-button label) -> true when confirmed. Null-safe: a missing hook fails
     /// safe (treated as NOT confirmed), so a destructive action never runs unasked.</summary>
     public Func<string, string, string, Task<bool>>? ConfirmAsync { get; set; }
 
-    /// <summary>Context "Add to list" on a folder or playlist: add ALL its tracks to the queue — the bulk
+    /// <summary>Context "Add to list" on a folder or playlist: add ALL its tracks to the queue - the bulk
     /// sibling of the file pane's per-selection add, run on a whole entry. Same guarded enqueue path.</summary>
     [RelayCommand]
     private async Task AddEntryToQueue()
@@ -567,14 +571,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         if (SelectedEntry is not { IsUp: false } entry) return;
 
         List<string> paths;
-        try { paths = await Task.Run(() => ReadEntryTracks(entry)); }   // NAS round-trip — off the UI thread
+        try { paths = await Task.Run(() => ReadEntryTracks(entry)); }   // NAS round-trip - off the UI thread
         catch (Exception ex) { ErrorReporter.Report(ex, $"Reading \"{entry.Name}\" to add to the queue"); return; }
 
         if (paths.Count == 0) { _main.EventLog.Append($"\"{entry.Name}\" has no tracks to add."); return; }
         await AddPathsGuarded(paths);
     }
 
-    /// <summary>Context "Open playlist" on a playlist: open it like an Explorer double-click — REPLACE the
+    /// <summary>Context "Open playlist" on a playlist: open it like an Explorer double-click - REPLACE the
     /// queue with it (via the shell's LoadPlaylistAsync). Confirms first when the queue isn't empty, so a
     /// live set is never wiped by accident (Chloe: "open nachfragen").</summary>
     [RelayCommand]
@@ -584,10 +588,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
         if (_main.Tracks.Count > 0)
         {
-            if (ConfirmAsync is not { } confirm) return;   // no way to ask → never wipe the queue silently
+            if (ConfirmAsync is not { } confirm) return;   // no way to ask -> never wipe the queue silently
             var n = _main.Tracks.Count;
             var ok = await confirm("Open playlist?",
-                $"This replaces your current queue ({n} track{(n == 1 ? "" : "s")}) with “{entry.Name}”.",
+                $"This replaces your current queue ({n} track{(n == 1 ? "" : "s")}) with '{entry.Name}'.",
                 "Open");
             if (!ok) return;
         }
@@ -596,12 +600,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         catch (Exception ex) { ErrorReporter.Report(ex, $"Opening playlist \"{entry.Name}\""); }
     }
 
-    /// <summary>Context "Refresh": re-read the current view from disk — a NAS browser changes under you
+    /// <summary>Context "Refresh": re-read the current view from disk - a NAS browser changes under you
     /// (tracks dropped, playlists added/removed). Reloads whatever is showing: a loaded playlist, a leaf
     /// folder's tracks, or the current folder's entries + files. Always available, so no menu is ever
     /// empty (Chloe 2026-07-22: a refresh beats suppressing the empty ".." menu).</summary>
     /// <summary>
-    /// Reload what the file pane is showing — and, with an index in play, CHECK it for real rather
+    /// Reload what the file pane is showing - and, with an index in play, CHECK it for real rather
     /// than trusting the stored fingerprint. This is the escape hatch for the cases the cheap checks
     /// cannot see: a share that does not maintain timestamps, a change that landed inside the 2 s
     /// tolerance, or a playlist whose tracks were retagged from the other machine.
@@ -649,7 +653,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>Read an entry's audio tracks: a playlist's referenced audio (in playlist order), or a
-    /// folder's own audio files (natural-sorted). Same sources the file pane lists — may throw (NAS),
+    /// folder's own audio files (natural-sorted). Same sources the file pane lists - may throw (NAS),
     /// so callers run it off the UI thread and guard.</summary>
     private static List<string> ReadEntryTracks(FinderEntryViewModel entry) =>
         entry.IsPlaylist
@@ -664,11 +668,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>
     /// List ONE folder. With a usable index the rows are painted from it IMMEDIATELY and the disk is
-    /// consulted afterwards, in the background — Chloe 2026-07-30: <i>"wir können gerne einen check
-    /// im hintergrund starten, ob das verzeichnis noch aktuell ist … und bei abweichung scannen und
+    /// consulted afterwards, in the background - Chloe 2026-07-30: <i>"wir koennen gerne einen check
+    /// im hintergrund starten, ob das verzeichnis noch aktuell ist ... und bei abweichung scannen und
     /// nachpflegen"</i>.
     ///
-    /// <para>Measured why: enumerating a folder costs 0.12–0.25 ms per file — 18 ms for a normal
+    /// <para>Measured why: enumerating a folder costs 0.12-0.25 ms per file - 18 ms for a normal
     /// folder but 276 ms for her 1,092-file one, and that would be paid on EVERY open, almost always
     /// to learn that nothing changed. The check itself still enumerates, but behind an already
     /// painted list, and it only writes when the fingerprint moved.</para>
@@ -687,9 +691,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             var indexed = _index.QueryFolder(folder);
             if (indexed.Count > 0)
             {
-                // Paint now…
+                // Paint now...
                 PopulateItems(indexed.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
-                // …and check behind it.
+                // ...and check behind it.
                 _ = VerifyFolderInBackground(folder, cts);
                 return;
             }
@@ -708,7 +712,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             }
             catch (Exception ex)
             {
-                PostLoadError(cts.Token, $"Can't open this folder — {ex.Message}");
+                PostLoadError(cts.Token, $"Can't open this folder - {ex.Message}");
                 return;
             }
 
@@ -721,7 +725,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>
     /// Runs the folder check behind the painted list and reloads the pane only if something actually
-    /// moved — and only if she is still standing in that folder.
+    /// moved - and only if she is still standing in that folder.
     /// </summary>
     private async Task VerifyFolderInBackground(string folder, CancellationTokenSource cts)
     {
@@ -753,20 +757,20 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             List<string> paths;
             try
             {
-                // M3uPlaylist.ReadPaths never throws on a bad entry (it skips) — but a dead share
+                // M3uPlaylist.ReadPaths never throws on a bad entry (it skips) - but a dead share
                 // on File.ReadAllLines can. Guard, and keep only audio it references (defensive).
                 paths = M3uPlaylist.ReadPaths(playlistPath).Where(AudioFileTypes.IsAudio).ToList();
             }
             catch (Exception ex)
             {
-                PostLoadError(cts.Token, $"Can't read this playlist — {ex.Message}");
+                PostLoadError(cts.Token, $"Can't read this playlist - {ex.Message}");
                 return;
             }
-            // Playlist ORDER is meaningful — do not re-sort. Rows come from the index, which already
+            // Playlist ORDER is meaningful - do not re-sort. Rows come from the index, which already
             // holds the newest thing we know about each track (Chloe 2026-07-30: "wir wissen welche
-            // songs in der playliste sind und wir haben alle songs in der DB … wir haben also die
+            // songs in der playliste sind und wir haben alle songs in der DB ... wir haben also die
             // neuste version"). No verification pass runs here on purpose: the tracks live in
-            // folders, and those are what the fingerprint checks keep honest — re-checking the same
+            // folders, and those are what the fingerprint checks keep honest - re-checking the same
             // files a second time because they happen to be listed in an m3u is duplicated work.
             // Anything the index does not know still falls back to a tag read, per row, and
             // Refresh forces a real check.
@@ -782,7 +786,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }, cts.Token);
     }
 
-    // ── How deep the file pane looks (0.6) ──────────────────────────────────────────────────────
+    // -- How deep the file pane looks (0.6) ------------------------------------------------------
 
     /// <summary>
     /// Off: the file pane lists the tracks directly in the selected folder. On: it also lists
@@ -790,10 +794,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     ///
     /// <para>This is the ONE thing the user decides. Where the rows come from is not a mode and is
     /// deliberately not exposed: one folder is read from disk (cheap, always current), a whole
-    /// subtree comes out of the index — reading it from disk would mean a tag read per file, and
+    /// subtree comes out of the index - reading it from disk would mean a tag read per file, and
     /// measured over SMB that is ~57 ms each.</para>
     ///
-    /// <para>Persisted in finder.settings.json — it is a working habit, not a per-visit choice.</para>
+    /// <para>Persisted in finder.settings.json - it is a working habit, not a per-visit choice.</para>
     /// </summary>
     public bool IncludeSubfolders
     {
@@ -810,7 +814,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// ⛔ The indexing opt-in. Off (the default) = the 0.5 finder: every listing read from disk,
+    /// (!!) The indexing opt-in. Off (the default) = the 0.5 finder: every listing read from disk,
     /// no index file created on this machine. On = keep a local index and use it wherever it is
     /// faster. It never scans by itself.
     /// </summary>
@@ -829,29 +833,29 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>
     /// The double check every read does: opted in, the database exists, and it actually holds
-    /// something. Only then is the index used — for anything.
+    /// something. Only then is the index used - for anything.
     /// </summary>
     public bool IndexReady => UseLibraryIndex && _index.HasIndex && _index.Count > 0;
 
-    /// <summary>Searching below the current folder needs the index — a subtree cannot be walked
+    /// <summary>Searching below the current folder needs the index - a subtree cannot be walked
     /// from disk at a sane cost (~57 ms per file, measured over SMB).</summary>
     public bool CanSearchSubfolders => IndexReady;
 
     /// <summary>
-    /// WHY the subfolder search is unavailable — shown on the disabled toggle. A control that is
+    /// WHY the subfolder search is unavailable - shown on the disabled toggle. A control that is
     /// simply greyed out with no reason is the most annoying kind.
     /// </summary>
     public string? SubfoldersLockedReason =>
         CanSearchSubfolders            ? null
-        : !UseLibraryIndex             ? "Searching below this folder needs the library index. Turn it on in the finder settings (⚙)."
-        : IsScanning                   ? "The library is being scanned — this unlocks when it finishes."
-                                       : "The library index is empty. Scan it once (⚙ finder settings) and searching across subfolders unlocks.";
+        : !UseLibraryIndex             ? "Searching below this folder needs the library index. Turn it on in the finder settings, top right."
+        : IsScanning                   ? "The library is being scanned - this unlocks when it finishes."
+                                       : "The library index is empty. Scan it once in the finder settings and searching across subfolders unlocks.";
 
     /// <summary>What the toggle says on hover: what it does, or why it can't.</summary>
     public string SubfoldersTip =>
         SubfoldersLockedReason ?? "Search the folders below this one too";
 
-    /// <summary>Dim the toggle while it is locked — the same "this is unavailable" cue the FILTER
+    /// <summary>Dim the toggle while it is locked - the same "this is unavailable" cue the FILTER
     /// tab uses while a folder is still loading, so the two read alike.</summary>
     public double SubfoldersOpacity => CanSearchSubfolders ? 1.0 : 0.45;
 
@@ -865,15 +869,15 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>
     /// Fill the file pane from the index: everything below <paramref name="folder"/>, including
     /// tracks that have not been analysed yet (they show blank columns and say so in the detail
-    /// pane — a track on disk is never invisible).
+    /// pane - a track on disk is never invisible).
     ///
     /// <para><b>Playlists below the folder count too.</b> They are virtual folders in this finder,
-    /// so "look deeper" has to include them — otherwise a folder that holds nothing BUT playlists
+    /// so "look deeper" has to include them - otherwise a folder that holds nothing BUT playlists
     /// (her <c>SETS</c>) shows an empty pane and the filter has nothing to work on, which is exactly
     /// where she landed (2026-07-31: <i>"ich war in SETS auf .. und wunderte mich"</i>). Reading them
-    /// is cheap — an m3u is a small text file and the tracks it names are already in the index — and
-    /// it turns the filter into something new: <i>"könnten wir doch auch über mehrere playlisten
-    /// hinweg filtern - wie geil wäre das?"</i>. One row per track, deduplicated, carrying the sets
+    /// is cheap - an m3u is a small text file and the tracks it names are already in the index - and
+    /// it turns the filter into something new: <i>"koennten wir doch auch ueber mehrere playlisten
+    /// hinweg filtern - wie geil waere das?"</i>. One row per track, deduplicated, carrying the sets
     /// it came from.</para>
     /// </summary>
     private void LoadLibraryFiles(string folder)
@@ -890,18 +894,18 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 {
                     PathPrefix     = folder,
                     SuccessOnly    = false,   // un-analysed tracks belong in the list
-                    IncludeMissing = false,   // …but ones the last scan could not find do not
+                    IncludeMissing = false,   // ...but ones the last scan could not find do not
                     Sort           = LibrarySort.Path,
                 });
             }
             catch (Exception ex)
             {
-                PostLoadError(cts.Token, $"Can't read the library index — {ex.Message}");
+                PostLoadError(cts.Token, $"Can't read the library index - {ex.Message}");
                 return;
             }
 
             // The index answers instantly, the playlists need the share. So paint what we have first
-            // and merge the sets in behind it — unless there is nothing to paint, in which case a
+            // and merge the sets in behind it - unless there is nothing to paint, in which case a
             // first pass would only flash "nothing here" before the real content lands.
             if (rows.Count > 0)
                 PopulateItems(rows.Select(e => new PendingRow(e.FilePath, e)).ToList(), cts.Token);
@@ -945,7 +949,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// Keyed by normalised path so the same track referenced from three sets collapses to one entry
     /// that remembers all three.
     ///
-    /// <para>⚠ Enumerated by extension pattern, not by walking every file: at the library root the
+    /// <para>(!) Enumerated by extension pattern, not by walking every file: at the library root the
     /// unfiltered walk returns 14k entries (measured 3.2 s over SMB) to find a handful of m3u.</para>
     /// </summary>
     private static Dictionary<string, (string Path, List<string> Sets)> ReadPlaylistsBelow(
@@ -963,7 +967,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            // An unreadable share must never break a listing — the folder's own tracks still show.
+            // An unreadable share must never break a listing - the folder's own tracks still show.
             Console.WriteLine($"[Finder] playlist sweep failed under {folder}: {ex.Message}");
             return byTrack;
         }
@@ -998,9 +1002,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         return byTrack;
     }
 
-    // ── Scanning the library (keeps the index in step with the disk) ─────────────────────────────
+    // -- Scanning the library (keeps the index in step with the disk) -----------------------------
 
-    /// <summary>True while a scan runs — drives the shared floating BusyOverlay. Also silences every
+    /// <summary>True while a scan runs - drives the shared floating BusyOverlay. Also silences every
     /// centred hint in the pane, so nothing peeks out from behind the disc.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyFolderHint))]
@@ -1011,7 +1015,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(SubfoldersTip))]
     private bool _isScanning;
 
-    /// <summary>The scan's PHASE, e.g. "Reading tags…" — changes a handful of times per job, never
+    /// <summary>The scan's PHASE, e.g. "Reading tags..." - changes a handful of times per job, never
     /// per file. The counter lives in <see cref="ScanDetail"/> and the completion in
     /// <see cref="ScanProgress"/>, so nothing in the overlay has to resize as work goes on.</summary>
     [ObservableProperty] private string? _scanMessage;
@@ -1023,8 +1027,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [ObservableProperty] private double? _scanProgress;
 
     /// <summary>
-    /// Throttle for the progress callback. A scan reports per file — 17 a second at the measured
-    /// tag-read rate, far more from a cached folder — and pushing every one of those into bound
+    /// Throttle for the progress callback. A scan reports per file - 17 a second at the measured
+    /// tag-read rate, far more from a cached folder - and pushing every one of those into bound
     /// properties is pure UI churn. The ring eases between the values it does get, so 10 Hz looks
     /// identical to 1000 Hz and costs nothing.
     /// </summary>
@@ -1032,7 +1036,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private long _lastScanUiTick;
 
     /// <summary>
-    /// Opted in, nothing indexed yet, and the pane has nothing to show — then the scan offer is the
+    /// Opted in, nothing indexed yet, and the pane has nothing to show - then the scan offer is the
     /// useful hint. Requires an empty pane on purpose: a populated folder listing must never get an
     /// overlay telling her to scan, because that listing is perfectly fine without an index.
     /// </summary>
@@ -1041,24 +1045,24 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         && _index.Count == 0 && _masterItems.Count == 0;
 
     /// <summary>
-    /// The SAME state as <see cref="ShowLibraryNotScanned"/>, but with tracks on screen — so it
+    /// The SAME state as <see cref="ShowLibraryNotScanned"/>, but with tracks on screen - so it
     /// cannot use the centred offer (that one owns the empty pane) and shows a slim strip above the
     /// list instead.
     ///
-    /// <para>Chloe 2026-07-31: <i>"wenn lib scan an ist und noch kein initialer scan angestoßen
+    /// <para>Chloe 2026-07-31: <i>"wenn lib scan an ist und noch kein initialer scan angestossen
     /// wurde, dann auch melden"</i>. Without this, switching the index on and then browsing a folder
     /// that happens to have songs in it says NOTHING: the rows come from disk exactly as before, the
     /// subfolder toggle is locked with its reason buried in a tooltip, and the switch she just
     /// flipped looks like it did nothing at all.</para>
     ///
-    /// <para>It states the consequence, not just the fact — a notice that only says "empty" leaves
+    /// <para>It states the consequence, not just the fact - a notice that only says "empty" leaves
     /// her to work out what she is missing.</para>
     /// </summary>
     public bool ShowScanReminder =>
         UseLibraryIndex && !HasNoRoot && !IsScanning
         && _index.Count == 0 && _masterItems.Count > 0;
 
-    /// <summary>"14,186 tracks indexed" — the footer note under the scan button.</summary>
+    /// <summary>"14,186 tracks indexed" - the footer note under the scan button.</summary>
     public string LibraryCountText => $"{_index.Count:N0} tracks indexed";
 
     private void RaiseLibraryState()
@@ -1086,7 +1090,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         var cts = _scanCts = new CancellationTokenSource();
 
         IsScanning     = true;
-        ScanMessage    = "Reading the library…";
+        ScanMessage    = "Reading the library...";
         ScanDetail     = null;
         ScanProgress   = null;
         _lastScanUiTick = 0;
@@ -1109,7 +1113,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         catch (OperationCanceledException) { /* window closed or rescanned */ }
         catch (Exception ex)
         {
-            LoadError = $"Library scan failed — {ex.Message}";
+            LoadError = $"Library scan failed - {ex.Message}";
         }
         finally
         {
@@ -1120,17 +1124,17 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Pushes a progress report into the overlay — phase, counter and completion as three separate
+    /// Pushes a progress report into the overlay - phase, counter and completion as three separate
     /// values, throttled. A phase change always gets through; the per-file churn in between does not.
     /// </summary>
     private void ReportScan(SyncProgress p)
     {
         var phase = p.Phase switch
         {
-            SyncPhase.Enumerating => "Listing files…",
-            SyncPhase.Comparing   => "Comparing against the index…",
-            SyncPhase.ReadingTags => "Reading tags…",
-            _                     => "Finishing up…",
+            SyncPhase.Enumerating => "Listing files...",
+            SyncPhase.Comparing   => "Comparing against the index...",
+            SyncPhase.ReadingTags => "Reading tags...",
+            _                     => "Finishing up...",
         };
 
         var phaseChanged = ScanMessage != phase;
@@ -1139,7 +1143,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _lastScanUiTick = now;
 
         ScanMessage  = phase;
-        // Compact, the way she wrote it — it has to fit inside the disc, where "2,445 / 36,332"
+        // Compact, the way she wrote it - it has to fit inside the disc, where "2,445 / 36,332"
         // would eat the width that keeps the string from trimming.
         ScanDetail   = p.Total > 0 ? $"{p.Done}/{p.Total}" : null;
         ScanProgress = p.Total > 0 ? Math.Clamp((double)p.Done / p.Total, 0, 1) : null;
@@ -1157,19 +1161,19 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             OnPropertyChanged(nameof(ShowScanReminder));
         });
 
-    // ── Hydration progress (fetch-what-you-see) ──────────────────────────────────────────────────
+    // -- Hydration progress (fetch-what-you-see) --------------------------------------------------
     // Sorting needs EVERY row's data, so it stays locked until the whole folder is hydrated.
     private int _hydratedCount;   // rows read so far this load (mutated on the UI thread only)
     private int _hydrateTotal;    // rows in this load
 
     /// <summary>False while a folder is still filling; true once every row is hydrated (or the folder is
-    /// empty). Gates column sorting — the finder header disables + tooltips while this is false.</summary>
+    /// empty). Gates column sorting - the finder header disables + tooltips while this is false.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LockedWhileLoadingTip))]
     [NotifyPropertyChangedFor(nameof(LockedOpacity))]
     private bool _allHydrated = true;
 
-    /// <summary>Tooltip for the controls locked while a folder is still loading — the sort header AND the
+    /// <summary>Tooltip for the controls locked while a folder is still loading - the sort header AND the
     /// FILTER tab, both of which need every row's data. Null (no tooltip) once hydrated.</summary>
     public string? LockedWhileLoadingTip => AllHydrated ? null : "Unlocks once every track has loaded.";
 
@@ -1178,7 +1182,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public double LockedOpacity => AllHydrated ? 1.0 : 0.45;
 
     /// <summary>Turn a list of file paths into rows. Rows appear instantly; metadata is fetched
-    /// what-you-see — the visible viewport (HydrateVisible) and a parallel background fill race to read
+    /// what-you-see - the visible viewport (HydrateVisible) and a parallel background fill race to read
     /// each row once. Shared by the folder and playlist loads.</summary>
     private void PopulateItems(List<PendingRow> rows, CancellationToken ct)
     {
@@ -1232,15 +1236,15 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             AllHydrated = needHydration == 0;
             ApplyMembership();
             RecomputeRangeDomains(); // scale the FILTER ranges to this folder (redone once tags are in)
-            RebuildView();           // load order while filling — SortList stays in load order until AllHydrated
+            RebuildView();           // load order while filling - SortList stays in load order until AllHydrated
         });
 
         // Fetch-what-you-see: rows hydrate on demand as they scroll into view (HydrateVisible, from the
-        // window's ContainerPrepared) AND a PARALLEL background pass fills the rest — so scrolling anywhere
+        // window's ContainerPrepared) AND a PARALLEL background pass fills the rest - so scrolling anywhere
         // in a huge folder populates THOSE rows at once, while sort/filter still get every row's data. A
         // one-shot claim per row (FinderItemViewModel.TryClaimHydration) means each file is read exactly
         // once, whoever reaches it first. Degree = the shared "Analysis threads" setting; tag reads are
-        // I/O-bound (NAS latency), so this is a safe cap. TagLibMetadataReader is stateless → safe in parallel.
+        // I/O-bound (NAS latency), so this is a safe cap. TagLibMetadataReader is stateless -> safe in parallel.
         var cores = Math.Max(1, _main.AnalysisThreads);
         try
         {
@@ -1248,10 +1252,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 new ParallelOptions { MaxDegreeOfParallelism = cores, CancellationToken = ct },
                 item => HydrateItem(item, ct));
         }
-        catch (OperationCanceledException) { /* navigated away — a newer load owns the pane */ }
+        catch (OperationCanceledException) { /* navigated away - a newer load owns the pane */ }
     }
 
-    /// <summary>Called from the window when a file row scrolls INTO view — hydrate it now (priority), off
+    /// <summary>Called from the window when a file row scrolls INTO view - hydrate it now (priority), off
     /// the UI thread. The one-shot claim means the background fill simply skips a row the viewport took.</summary>
     public void HydrateVisible(FinderItemViewModel item)
     {
@@ -1260,7 +1264,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         _ = Task.Run(() => HydrateItem(item, ct));
     }
 
-    /// <summary>Read ONE row's metadata (the stored v9 blob IS the analysis) and push it to the row — off
+    /// <summary>Read ONE row's metadata (the stored v9 blob IS the analysis) and push it to the row - off
     /// the UI thread. Guarded by the one-shot claim so each file is read once. Counts toward
     /// <see cref="AllHydrated"/> exactly once (even on a read failure); the last row unlocks sorting and
     /// finalises the filter ranges.</summary>
@@ -1276,7 +1280,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             tvm.Model.Metadata = md;
             if (md.StoredAnalysis is { } stored)
             {
-                // Trust the blob as-is, any version — re-analyse stays an explicit action.
+                // Trust the blob as-is, any version - re-analyse stays an explicit action.
                 tvm.Model.Analysis = stored.Detected;
                 tvm.Model.AnalysedAtUtc = stored.AnalysedAtUtc;   // imported, not measured here
                 tvm.Model.AnalysisStatus = AnalysisStatus.Done;
@@ -1293,17 +1297,17 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             tvm.Refresh();
             if (ReferenceEquals(item, Selected)) RaiseDetail();
 
-            // Counter runs on the UI thread only (all these posts serialize here) — plain ++ is safe.
+            // Counter runs on the UI thread only (all these posts serialize here) - plain ++ is safe.
             if (++_hydratedCount >= _hydrateTotal)
             {
                 AllHydrated = true;      // unlock sorting
-                RecomputeRangeDomains(); // real values are all in → finalise the FILTER ranges + re-apply
+                RecomputeRangeDomains(); // real values are all in -> finalise the FILTER ranges + re-apply
                 RebuildView();
             }
         });
     }
 
-    // ── Pane focus (drives the header highlight; set from the window's GotFocus) ──
+    // -- Pane focus (drives the header highlight; set from the window's GotFocus) --
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FoldersActive))]
@@ -1315,7 +1319,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     public void SetActivePane(FinderPane pane) => ActivePane = pane;
 
-    // ── Breadcrumb (clickable path in the chrome) ────────────────────────────
+    // -- Breadcrumb (clickable path in the chrome) ----------------------------
 
     public ObservableCollection<BreadcrumbSegment> BreadcrumbSegments { get; } = [];
 
@@ -1352,14 +1356,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             BreadcrumbSegments.Add(built[i] with { IsLast = i == built.Count - 1 });
     }
 
-    // ── Queue membership (the ✓ column) ──────────────────────────────────────
+    // -- Queue membership (the ok column) --------------------------------------
 
     /// <summary>Normalise a path for membership matching: absolute, single separator style, no
     /// trailing slash. Compared case-insensitively (Windows/NAS semantics).</summary>
     internal static string NormalizePath(string path)
     {
         try { path = Path.GetFullPath(path); }
-        catch { /* malformed path — normalise what we can */ }
+        catch { /* malformed path - normalise what we can */ }
         return path.Replace('/', Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar);
     }
 
@@ -1376,7 +1380,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     private void ApplyMembership()
     {
-        // Flag the whole loaded set, not just the filtered view, so the ✓ stays correct when the filter
+        // Flag the whole loaded set, not just the filtered view, so the ok stays correct when the filter
         // is later relaxed and a hidden row reappears.
         foreach (var item in _masterItems)
             item.IsOnPlaylist = _queuePaths.Contains(item.NormalizedPath);
@@ -1403,7 +1407,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Selected = Items[i + 1]; // autoplay follows via the selection debounce (in play mode)
     }
 
-    // ── Window lifecycle ─────────────────────────────────────────────────────
+    // -- Window lifecycle -----------------------------------------------------
 
     /// <summary>Called by the window when it opens: start ticking and land in the library root
     /// (or show the setup hint until one is picked in the finder settings). The VM is a singleton,
@@ -1441,25 +1445,25 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         NowPlayingTitle = "";
         NowPlayingArtist = "";
         PositionFraction = 0;
-        PositionText = "–:––";
-        DurationText = "–:––";
-        FlushPendingLikes(); // nothing is held any more — everything can land
+        PositionText = "-:--";
+        DurationText = "-:--";
+        FlushPendingLikes(); // nothing is held any more - everything can land
     }
 
-    // ── Cue playback: Enter PLAYS the selected song, Space pauses/resumes ─────
+    // -- Cue playback: Enter PLAYS the selected song, Space pauses/resumes -----
 
-    /// <summary>True while a cue is loaded but paused (Space) — drives the "⏸ paused" transport hint.
+    /// <summary>True while a cue is loaded but paused (Space) - drives the "pause paused" transport hint.
     /// Distinct from <see cref="IsCuePlaying"/> (the engine is actually sounding).</summary>
     [ObservableProperty]
     private bool _isCuePaused;
 
-    /// <summary>Mirror the paused state onto the cued ROW so its status glyph flips ▶ ↔ ⏸.</summary>
+    /// <summary>Mirror the paused state onto the cued ROW so its status glyph flips > <-> pause.</summary>
     partial void OnIsCuePausedChanged(bool value)
     {
         if (_cuedItem is not null) _cuedItem.Paused = value;
     }
 
-    /// <summary>Enter / double-click / (auto-play): play the SELECTED song on the cue device NOW — the
+    /// <summary>Enter / double-click / (auto-play): play the SELECTED song on the cue device NOW - the
     /// primary, explicit play action, no debounce (Chloe: "Return ist der default zum Abspielen").</summary>
     public void PlaySelected()
     {
@@ -1500,14 +1504,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private string _nowPlayingText = "";
 
     /// <summary>Cued track title / artist, split for the two-line player-bar readout (title white, artist
-    /// accent — the FUVI layout).</summary>
+    /// accent - the FUVI layout).</summary>
     [ObservableProperty]
     private string _nowPlayingTitle = "";
 
     [ObservableProperty]
     private string _nowPlayingArtist = "";
 
-    /// <summary>True once a track is loaded in the cue slot — gates the seek buttons + waveform.</summary>
+    /// <summary>True once a track is loaded in the cue slot - gates the seek buttons + waveform.</summary>
     [ObservableProperty]
     private bool _hasCue;
 
@@ -1516,17 +1520,17 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [ObservableProperty]
     private IReadOnlyList<float>? _waveformPeaks;
 
-    /// <summary>The decode for the cued track is in flight — the bar shows a faint "reading…" placeholder.</summary>
+    /// <summary>The decode for the cued track is in flight - the bar shows a faint "reading..." placeholder.</summary>
     [ObservableProperty]
     private bool _waveformLoading;
 
     [ObservableProperty]
-    private string _positionText = "–:––";
+    private string _positionText = "-:--";
 
     [ObservableProperty]
-    private string _durationText = "–:––";
+    private string _durationText = "-:--";
 
-    /// <summary>0..1 — drives both the transport progress and the waveform playhead / played-fill.</summary>
+    /// <summary>0..1 - drives both the transport progress and the waveform playhead / played-fill.</summary>
     [ObservableProperty]
     private double _positionFraction;
 
@@ -1553,9 +1557,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         HasCue = true;
         _loadedCuePath = item.NormalizedPath;
         var tvm = item.Track;
-        NowPlayingText = tvm.Artist == "—" ? tvm.Title : $"{tvm.Artist} — {tvm.Title}";
+        NowPlayingText = tvm.Artist == "-" ? tvm.Title : $"{tvm.Artist} - {tvm.Title}";
         NowPlayingTitle = tvm.Title;
-        NowPlayingArtist = tvm.Artist == "—" ? "" : tvm.Artist;
+        NowPlayingArtist = tvm.Artist == "-" ? "" : tvm.Artist;
         StartWaveform(item.FullPath);
         UpdatePosition();
         FlushPendingLikes(); // the previously-held file is free now
@@ -1563,7 +1567,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>Decode the cued track's waveform off-thread (cancelling any previous one), then paint it.
     /// The strip shows a faint placeholder until the peaks land; a cancelled/failed decode leaves it empty
-    /// (the waveform is cosmetic — never worth an error dialog). ComputeAsync already offloads, and this is
+    /// (the waveform is cosmetic - never worth an error dialog). ComputeAsync already offloads, and this is
     /// called on the UI thread, so the await resumes on the UI thread to set the bound state.</summary>
     private void StartWaveform(string fullPath)
     {
@@ -1583,7 +1587,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             WaveformPeaks = peaks;
             WaveformLoading = false;
         }
-        catch (OperationCanceledException) { /* cue moved on — the newer decode owns the strip */ }
+        catch (OperationCanceledException) { /* cue moved on - the newer decode owns the strip */ }
         catch (Exception ex)
         {
             Console.WriteLine($"[Finder] waveform decode failed: {fullPath}: {ex.GetType().Name}: {ex.Message}");
@@ -1591,7 +1595,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Waveform click / drag → jump the cue playhead to that fraction (0..1) of the track.</summary>
+    /// <summary>Waveform click / drag -> jump the cue playhead to that fraction (0..1) of the track.</summary>
     [RelayCommand]
     private void SeekToFraction(double fraction)
     {
@@ -1606,7 +1610,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private void OnCueEnded()
     {
         // Song played out: in auto-play mode, if she's still ON that row, flow to the next track; in
-        // manual mode (Enter-to-play) a finished song just stops — don't yank the selection around.
+        // manual mode (Enter-to-play) a finished song just stops - don't yank the selection around.
         IsCuePaused = false;
         if (AutoPlayOnSelect && _cuedItem is { } ended && ReferenceEquals(Selected, ended))
             AdvanceToNextTrackRow(ended);
@@ -1641,11 +1645,11 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         var pos = _preListen.Position;
         var dur = _preListen.Duration;
         PositionText = pos.ToString(@"m\:ss");
-        DurationText = dur > TimeSpan.Zero ? dur.ToString(@"m\:ss") : "–:––";
+        DurationText = dur > TimeSpan.Zero ? dur.ToString(@"m\:ss") : "-:--";
         PositionFraction = dur > TimeSpan.Zero ? Math.Clamp(pos / dur, 0, 1) : 0;
     }
 
-    // ── Like (deferred POPM writes) ──────────────────────────────────────────
+    // -- Like (deferred POPM writes) ------------------------------------------
 
     /// <summary>L key: toggle the selected track's heart. Goes through the row command so the
     /// optimistic flip + callback are identical to a mouse click on the heart.</summary>
@@ -1665,7 +1669,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     {
         foreach (var (path, pending) in _pendingLikes.ToList())
         {
-            // Our own cue engine holds this file's handle — keep it deferred until track change/close.
+            // Our own cue engine holds this file's handle - keep it deferred until track change/close.
             if (string.Equals(path, _loadedCuePath, StringComparison.OrdinalIgnoreCase)) continue;
             _pendingLikes.Remove(path);
 
@@ -1673,7 +1677,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 t => string.Equals(NormalizePath(t.Model.FilePath), path, StringComparison.OrdinalIgnoreCase));
             if (mainRow is not null)
             {
-                // The file may be the MAIN engine's playing track — route through the shell's
+                // The file may be the MAIN engine's playing track - route through the shell's
                 // toggle path, which defers via PlaybackController.WithFileReleased and keeps
                 // the queue row's heart in sync (reverting it if the write fails).
                 mainRow.IsFavorite = pending.Liked; // instant heart sync in the queue
@@ -1694,7 +1698,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                     }
                     catch (Exception ex)
                     {
-                        _main.EventLog.Append($"Finder like write failed — \"{System.IO.Path.GetFileName(item.FullPath)}\": {ex.Message}");
+                        _main.EventLog.Append($"Finder like write failed - \"{System.IO.Path.GetFileName(item.FullPath)}\": {ex.Message}");
                         // Revert the optimistic flip, same contract as the queue's toggle path.
                         Dispatcher.UIThread.Post(() => item.Track.IsFavorite = !liked);
                     }
@@ -1703,7 +1707,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
     }
 
-    // ── Detail panel visibility (values bind through Selected.Track.*) ──────
+    // -- Detail panel visibility (values bind through Selected.Track.*) ------
 
     public bool ShowDetail => Selected is not null;
     public bool ShowDetailAnalysis => Selected is { Track.HasAnalysis: true };
@@ -1716,7 +1720,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(ShowDetailUnanalyzed));
     }
 
-    // ── Help + settings overlays ─────────────────────────────────────────────
+    // -- Help + settings overlays ---------------------------------------------
 
     [ObservableProperty]
     private bool _helpOpen;
@@ -1730,9 +1734,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     [RelayCommand]
     private void ToggleSettings() => SettingsOpen = !SettingsOpen;
 
-    // ── Add-on settings (finder.settings.json) ───────────────────────────────
+    // -- Add-on settings (finder.settings.json) -------------------------------
 
-    /// <summary>The user's Music folder — the default library root when none has been picked yet.
+    /// <summary>The user's Music folder - the default library root when none has been picked yet.
     /// Chloe 2026-07-05: don't ship a hardcoded NAS path; land in the home Music folder.</summary>
     public static string DefaultLibraryRoot { get; } =
         Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
@@ -1750,14 +1754,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             _settings.Save(_settings.Current with { LibraryRoot = value });
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasNoRoot));
-            // The index is per library root — point it at the new one before anything reloads.
+            // The index is per library root - point it at the new one before anything reloads.
             _index.UseRoot(LibraryRoot);
             RaiseLibraryState();
             ResetToRoot();
         }
     }
 
-    /// <summary>Reset navigation to the (new) library root — or clear everything if there's no root.</summary>
+    /// <summary>Reset navigation to the (new) library root - or clear everything if there's no root.</summary>
     private void ResetToRoot()
     {
         CurrentPlaylist = null;
@@ -1786,23 +1790,25 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     public string SeekLegendText => $"seek {SeekStepSeconds} s";
 
     /// <summary>The footer legend entries for the shared <see cref="KeyLegend"/> bar. Rebuilt when the
-    /// seek step changes (SetSeekStep) so the Shift ← → label tracks it.</summary>
+    /// seek step changes (SetSeekStep) so the Shift Left/Right label tracks it.</summary>
     public IReadOnlyList<KeyHint> KeyHints =>
     [
         new("Enter", "play / open"),
         new("Space", "play / pause"),
         new("+ / A", "add to list"),
         new("Tab", "folders / files"),
-        new("↑ ↓", "browse"),
-        new("⌫", "up"),
-        new("Shift ← →", SeekLegendText),
+        new("Up/Down", "browse"),
+        // Spelled out, like Enter / Space / Tab beside it - "Backspace" was a font glyph, and this suite
+        // ships vectors or words, never characters that the OS picks a font for (CLAUDE.md rule 5).
+        new("Backspace", "up"),
+        new("Shift Left/Right", SeekLegendText),
         new("L", "like"),
     ];
 
-    // ── Auto-play on select (finder.settings.json) ───────────────────────────
+    // -- Auto-play on select (finder.settings.json) ---------------------------
 
     /// <summary>Off by default: Enter plays the selected song. On: settling on a row auto-auditions it
-    /// after the debounce — the setting that "makes everyone happy" (Chloe 2026-07-06).</summary>
+    /// after the debounce - the setting that "makes everyone happy" (Chloe 2026-07-06).</summary>
     public bool AutoPlayOnSelect
     {
         get => _settings.Current.AutoPlayOnSelect;
@@ -1815,18 +1821,18 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         }
     }
 
-    // ── Column sorting — the STATE + the asc → desc → off cycle + the sort glyphs all live in the shared
-    // Columns (TrackColumns); a header tap calls Columns.SortBy, which fires SortRequested → RebuildView
+    // -- Column sorting - the STATE + the asc -> desc -> off cycle + the sort glyphs all live in the shared
+    // Columns (TrackColumns); a header tap calls Columns.SortBy, which fires SortRequested -> RebuildView
     // (wired in the constructor). The finder only owns the actual re-order (SortList, below).
 
     /// <summary>Reorder <see cref="Items"/> to the active sort (or back to load order). The comparison
-    /// itself is the SHARED <see cref="TrackSort"/> — the same one the JUST PLAY queue and JUST TAG use,
+    /// itself is the SHARED <see cref="TrackSort"/> - the same one the JUST PLAY queue and JUST TAG use,
     /// so "sort by genre" cannot mean three subtly different things.</summary>
     private void SortList(List<FinderItemViewModel> list)
     {
         if (list.Count < 2) return;
 
-        // While a folder is still filling, stay in LOAD ORDER — sorting needs every row's data and is
+        // While a folder is still filling, stay in LOAD ORDER - sorting needs every row's data and is
         // locked in the UI until AllHydrated (SortDisabledTip / TrackDataHeader.CanSort). This also ignores
         // a sort column carried over from a previous folder until the new one has fully loaded.
         if (!AllHydrated || Columns.SortColumn is null)
@@ -1844,8 +1850,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         });
     }
 
-    // ── Column visibility + sort state — the shared TrackColumns (right-click the header toggles a column
-    // via Columns.ToggleColumnCommand → VisibilityChanged persists it; the TrackDataHeader + TrackRow bind
+    // -- Column visibility + sort state - the shared TrackColumns (right-click the header toggles a column
+    // via Columns.ToggleColumnCommand -> VisibilityChanged persists it; the TrackDataHeader + TrackRow bind
     // their cell IsVisible + sort glyphs straight to this). ONE definition, shared with the JUST PLAY queue.
     public TrackColumns Columns { get; }
 
@@ -1862,7 +1868,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         OnPropertyChanged(nameof(KeyHints));
     }
 
-    // ── FILTER tab — in-memory search/filter over the CURRENT file pane only (no library index) ───────
+    // -- FILTER tab - in-memory search/filter over the CURRENT file pane only (no library index) -------
     // Shares the right pane with INFO via a header tab switch; everything narrows _masterItems live.
 
     [ObservableProperty]
@@ -1881,10 +1887,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private string _filterName = "";
     partial void OnFilterNameChanged(string value) => RebuildView();
 
-    /// <summary>Drives the ✕ inside the search box — it only exists while there is something to clear.</summary>
+    /// <summary>Drives the x inside the search box - it only exists while there is something to clear.</summary>
     public bool HasSearchText => FilterName.Length > 0;
 
-    /// <summary>Clears ONLY the search text (the ✕ in the box). Deliberately not
+    /// <summary>Clears ONLY the search text (the x in the box). Deliberately not
     /// <see cref="ClearFiltersCommand"/>: wiping the key wheel and every range because she emptied a
     /// text field would be a nasty surprise.</summary>
     [RelayCommand]
@@ -1894,12 +1900,12 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     private readonly HashSet<string> _selectedKeys = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _effectiveKeys = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Bound to the KeyWheel — the codes she picked (strong highlight).</summary>
+    /// <summary>Bound to the KeyWheel - the codes she picked (strong highlight).</summary>
     [ObservableProperty] private IReadOnlyList<string> _selectedKeyList = [];
-    /// <summary>Bound to the KeyWheel — the extra codes a harmonic filter also lets through (soft glow).</summary>
+    /// <summary>Bound to the KeyWheel - the extra codes a harmonic filter also lets through (soft glow).</summary>
     [ObservableProperty] private IReadOnlyList<string> _neighborKeyList = [];
 
-    /// <summary>"+ harmonic": also match the neighbours (A/B flip + wheel ±1) of every picked key.</summary>
+    /// <summary>"+ harmonic": also match the neighbours (A/B flip + wheel +/-1) of every picked key.</summary>
     [ObservableProperty] private bool _harmonicKeys;
     partial void OnHarmonicKeysChanged(bool value) { RecomputeKeys(); RebuildView(); }
 
@@ -1925,7 +1931,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>The Camelot codes a picked key mixes with: the A/B flip and the two wheel neighbours
-    /// (±1, wrapping 12↔1) — the standard harmonic set.</summary>
+    /// (+/-1, wrapping 12<->1) - the standard harmonic set.</summary>
     private static IEnumerable<string> KeyNeighbors(string code)
     {
         if (!TryParseCamelot(code, out var n, out var letter)) yield break;
@@ -1946,7 +1952,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         return int.TryParse(code[..^1], out n) && n is >= 1 and <= 12;
     }
 
-    /// <summary>"12 / 340" — matches / total in the current folder view.</summary>
+    /// <summary>"12 / 340" - matches / total in the current folder view.</summary>
     public string FilterMatchText => $"{Items.Count} / {_masterItems.Count}";
 
     /// <summary>Any filter is narrowing the view (drives the FILTER-tab dot + the Clear button).</summary>
@@ -1956,18 +1962,18 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>True when there is a playing track with enough analysis to mix out of.</summary>
     public bool CanMatchNowPlaying => _main.Current is { } t && (t.Bpm is not null || t.KeyText.Length > 0);
 
-    /// <summary>What the "fits what's playing" button says it will match, e.g. "8A · 145".</summary>
+    /// <summary>What the "fits what's playing" button says it will match, e.g. "8A - 145".</summary>
     public string NowPlayingMatchText => _main.Current is { } t
-        ? string.Join(" · ", new[] { t.KeyText, t.Bpm?.ToString("0") }.Where(s => !string.IsNullOrEmpty(s)))
+        ? string.Join(" - ", new[] { t.KeyText, t.Bpm?.ToString("0") }.Where(s => !string.IsNullOrEmpty(s)))
         : "";
 
-    /// <summary>BPM window either side of the playing track — a hair over a 2 % pitch nudge, which is
+    /// <summary>BPM window either side of the playing track - a hair over a 2 % pitch nudge, which is
     /// what a beatmatched blend actually tolerates.</summary>
     private const double MatchBpmWindow = 3.0;
 
     /// <summary>
     /// Narrow the view to what mixes out of the track currently playing: its key plus the harmonic
-    /// neighbours, a ±3 BPM window, and energy from one step below it upward (a set can hold or
+    /// neighbours, a +/-3 BPM window, and energy from one step below it upward (a set can hold or
     /// lift, dropping two steps mid-mix kills a floor).
     ///
     /// <para>Deliberately expressed through the SAME filters the FILTER tab shows rather than as a
@@ -2020,7 +2026,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         RebuildView();
     }
 
-    // ── The view pipeline: Items = sort(filter(master)) ──────────────────────────────────────────────
+    // -- The view pipeline: Items = sort(filter(master)) ----------------------------------------------
 
     private bool PassesFilter(FinderItemViewModel item)
     {
@@ -2045,16 +2051,16 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// the cursor on the same row when it survives. The single funnel every filter/sort change flows through.</summary>
     private void RebuildView()
     {
-        // Filtering needs every row's data too — while a folder is still filling, show ALL rows (the
+        // Filtering needs every row's data too - while a folder is still filling, show ALL rows (the
         // FILTER tab is disabled meanwhile); once AllHydrated, apply the filter. Mirrors the SortList gate.
         var filtered = AllHydrated ? _masterItems.Where(PassesFilter).ToList() : _masterItems.ToList();
         SortList(filtered);
 
         // Detach the selection BEFORE the Reset. A ListBox in SelectionMode=Multiple with a bound
         // SelectedItem crashes inside Avalonia's SelectionModel when the source collection resets while a
-        // selection is live — it enumerates SelectedItems against now-stale indices (the crash report from
+        // selection is live - it enumerates SelectedItems against now-stale indices (the crash report from
         // clicking a key on the wheel). Clearing against the still-valid OLD collection, then reselecting
-        // in the NEW one, sidesteps it. Multi-selection collapses to the cursor on any filter/sort — fine,
+        // in the NEW one, sidesteps it. Multi-selection collapses to the cursor on any filter/sort - fine,
         // the old selection was over the old view anyway. Chloe 2026-07-07.
         var keep = Selected;
         Selected = null;
@@ -2062,12 +2068,16 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Items.ReplaceAll(filtered);
         Selected = keep is not null && filtered.Contains(keep) ? keep : filtered.FirstOrDefault();
 
+        // Size the text columns to THIS view's content - same call JUST TAG makes from its
+        // ApplyFilter, so the two tables size by one rule (Chloe 2026-08-06 "pro Ansicht").
+        Columns.Widths.Measure(filtered.Select(i => i.Track).ToList());
+
         OnPropertyChanged(nameof(FilterMatchText));
         OnPropertyChanged(nameof(HasActiveFilter));
         OnPropertyChanged(nameof(ShowEmptyFolderHint));
         OnPropertyChanged(nameof(ShowNoMatches));
         OnPropertyChanged(nameof(ShowLibraryNotScanned));   // depends on the pane being empty
-        OnPropertyChanged(nameof(ShowScanReminder));        // …and this one on it NOT being
+        OnPropertyChanged(nameof(ShowScanReminder));        // ...and this one on it NOT being
     }
 
     /// <summary>Auto-scale every range's domain to the values present in the current view and reset its
@@ -2088,10 +2098,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                     if (x > max) max = x;
                 }
 
-            if (min > max) { r.SetDomain(0, 0); continue; } // no values → collapsed → the row hides itself
+            if (min > max) { r.SetDomain(0, 0); continue; } // no values -> collapsed -> the row hides itself
 
             // Bucket the values into a normalised distribution (peak bucket = 1) the slider paints behind
-            // its track — "see the shape of the crate, then dial into the dense part" (Chloe 2026-07-07).
+            // its track - "see the shape of the crate, then dial into the dense part" (Chloe 2026-07-07).
             double[]? hist = null;
             if (max > min)
             {

@@ -11,7 +11,7 @@
       Two hand-drawn variants, chosen by Platform (never both visible):
         - Windows: square minimize / maximize / close on the RIGHT (host app's
           Button.cap / Button.cap.close styles, part of the shared design system).
-        - macOS: traffic lights close / minimize / zoom on the LEFT — real macOS
+        - macOS: traffic lights close / minimize / zoom on the LEFT - real macOS
           colours + glyphs-on-group-hover, drawn by us (suite rule: no stock OS
           chrome). Hosts place one instance per side; Platform.IsMac / IsNotMac
           collapse the wrong side.
@@ -58,7 +58,7 @@
 
     <Panel>
 
-        <!-- ── macOS: traffic lights, LEFT (close / minimize / zoom) ─────────────── -->
+        <!-- == macOS: traffic lights, LEFT (close / minimize / zoom) =============== -->
         <!-- Transparent background so the 8px gaps between dots keep the group hover alive. -->
         <StackPanel Name="MacCaps" Orientation="Horizontal" Spacing="8"
                     Background="Transparent"
@@ -82,7 +82,7 @@
             </Button>
         </StackPanel>
 
-        <!-- ── Windows: squares, RIGHT (minimize / maximize / close) ─────────────── -->
+        <!-- == Windows: squares, RIGHT (minimize / maximize / close) =============== -->
         <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Top"
                     IsVisible="{x:Static c:Platform.IsNotMac}">
             <Button Classes="cap" Click="OnMinimizeClick" ToolTip.Tip="Minimize"
@@ -91,11 +91,25 @@
                       Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1"
                       Data="M 0,0 L 10,0"/>
             </Button>
-            <Button Classes="cap" Click="OnMaximizeClick" ToolTip.Tip="Maximize"
+            <!-- MAXIMIZE / RESTORE - the mark tracks the state, which is the Windows convention and
+                 what we got wrong: a single square OFFERS maximize, two overlapping rectangles offer
+                 RESTORE. We drew the square in both states, so a full-screen window still said
+                 "maximize" (Chloe 2026-08-06). The flag comes from the shared FramelessMaximize,
+                 attached to the window - our maximize is custom, so WindowState never moves. -->
+            <Button Classes="cap" Click="OnMaximizeClick"
+                    ToolTip.Tip="{Binding $parent[c:WindowControls].MaximizeTip}"
                     IsVisible="{Binding $parent[c:WindowControls].ShowMaximize}">
-                <Path Stretch="None" Width="10" Height="10"
-                      Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"
-                      Data="M 0,0 L 10,0 L 10,10 L 0,10 Z"/>
+                <Panel Width="10" Height="10">
+                    <Path Stretch="None" Width="10" Height="10"
+                          IsVisible="{Binding !$parent[c:WindowControls].IsMaximized}"
+                          Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"
+                          Data="M 0,0 L 10,0 L 10,10 L 0,10 Z"/>
+                    <!-- Front square plus the visible edges of the one behind it. -->
+                    <Path Stretch="None" Width="10" Height="10"
+                          IsVisible="{Binding $parent[c:WindowControls].IsMaximized}"
+                          Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1" Fill="Transparent"
+                          Data="M 0,3 L 7,3 L 7,10 L 0,10 Z  M 3,3 L 3,0 L 10,0 L 10,7 L 7,7"/>
+                </Panel>
             </Button>
             <Button Classes="cap close" Click="OnCloseClick" ToolTip.Tip="Close">
                 <Path Stretch="None" Width="10" Height="10"

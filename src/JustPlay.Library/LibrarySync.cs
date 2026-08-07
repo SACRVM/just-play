@@ -7,7 +7,7 @@ namespace JustPlay.Library;
 /// Brings this machine's index in line with what is actually on disk.
 ///
 /// <para><b>The rule the whole pass is built around:</b> never open a file you do not have to.
-/// Measured 2026-07-30 on <c>\\nas\music\GENRES</c> — a directory entry costs 0.23 ms, opening a
+/// Measured 2026-07-30 on <c>\\nas\music\GENRES</c> - a directory entry costs 0.23 ms, opening a
 /// file to read its tags costs 57.5 ms, and re-reads are just as slow as cold reads (the wall is
 /// the per-file open, not bandwidth: parallelism buys ~15 %). So the sweep enumerates, compares
 /// the cheap key, and touches only what actually changed.</para>
@@ -16,9 +16,9 @@ namespace JustPlay.Library;
 /// machine analysed a track first wrote it there, so the other machine imports the full
 /// <see cref="Core.Models.AnalysisResult"/> with a tag read and runs nothing. On Chloe's library
 /// that covered 400/400 sampled files. Files with no blob are RETURNED for analysis rather than
-/// analysed here — DSP needs the BASS adapter, and this project stays platform-agnostic.</para>
+/// analysed here - DSP needs the BASS adapter, and this project stays platform-agnostic.</para>
 ///
-/// <para>A file that vanished is flagged, never deleted (<see cref="LibraryDb.MarkMissing"/>) —
+/// <para>A file that vanished is flagged, never deleted (<see cref="LibraryDb.MarkMissing"/>) -
 /// an offline share or a renamed folder must not silently shrink the library.</para>
 /// </summary>
 public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
@@ -36,7 +36,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         var opt   = options ?? SyncOptions.Default;
         var total = Stopwatch.StartNew();
 
-        // ── 1. Enumerate: the only pass over the whole tree ──────────────────
+        // -- 1. Enumerate: the only pass over the whole tree ------------------
         progress?.Report(new SyncProgress(SyncPhase.Enumerating, 0, 0, null));
 
         var enumerateWatch = Stopwatch.StartNew();
@@ -45,7 +45,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
 
         ct.ThrowIfCancellationRequested();
 
-        // ── 2. Compare against the index in memory ───────────────────────────
+        // -- 2. Compare against the index in memory ---------------------------
         progress?.Report(new SyncProgress(SyncPhase.Comparing, 0, onDisk.Count, null));
 
         var known = db.LoadSyncState();
@@ -63,7 +63,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
                 key.Matches(file.SizeBytes, file.ModifiedUtc))
             {
                 unchanged++;
-                // It was flagged missing and is back — a one-statement UPDATE, no re-read.
+                // It was flagged missing and is back - a one-statement UPDATE, no re-read.
                 if (key.Missing && db.ClearMissing(file.Path)) recovered++;
                 continue;
             }
@@ -71,7 +71,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             changed.Add(file);
         }
 
-        // ── 3. Only now do we open anything ──────────────────────────────────
+        // -- 3. Only now do we open anything ----------------------------------
         var tagWatch  = Stopwatch.StartNew();
         var imported  = 0;
         var queued    = new List<string>();
@@ -79,54 +79,83 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         var batch     = new List<TrackIndexEntry>(opt.BatchSize);
         var done      = 0;
 
-        foreach (var file in changed)
+        // (!) READ IN PARALLEL, WRITE ON ONE THREAD. A tag read is I/O-bound - it waits on SMB latency,
+        // not on a core - so N of them overlap almost perfectly, and a full library pass goes from
+        // hours to minutes (Chloe 2026-08-07: "wozu hat man zig prozessorkerne?!"). The DATABASE stays
+        // single-threaded on purpose: SQLite is serialised behind LibraryDb's own lock anyway, and
+        // batching from one thread keeps one transaction per BatchSize instead of contending per row.
+        // TagLibMetadataReader is stateless, so it is safe to call from many threads (same reasoning
+        // the finder's parallel hydration already relies on).
+        var gate = new object();
+
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            progress?.Report(new SyncProgress(SyncPhase.ReadingTags, done, changed.Count, file.Path));
-
-            TrackIndexEntry? entry = null;
-            try
-            {
-                var meta = metadata.Read(file.Path);
-                entry = TrackIndexMapping.FromStoredBlob(
-                    file.Path, file.SizeBytes, file.ModifiedUtc, meta, opt.MinBlobVersion);
-
-                if (entry is not null)
+            Parallel.ForEach(
+                changed,
+                new ParallelOptions { MaxDegreeOfParallelism = opt.Threads, CancellationToken = ct },
+                file =>
                 {
-                    imported++;
-                }
-                else
-                {
-                    // No usable blob → this one needs real DSP. Index it anyway (tags only) so a
-                    // track on disk is never invisible in the library just because it is new.
-                    queued.Add(file.Path);
-                    if (opt.IndexUnanalysedFiles)
-                        entry = TrackIndexMapping.NotAnalysed(
-                            file.Path, file.SizeBytes, file.ModifiedUtc, meta);
-                }
-            }
-            catch (Exception)
-            {
-                // A locked or unreadable file is not a reason to abort a library sweep.
-                tagFailed++;
-                if (!queued.Contains(file.Path)) queued.Add(file.Path);
-            }
+                    TrackIndexEntry? entry = null;
+                    var failed = false;
+                    var needsDsp = false;
 
-            if (entry is not null) batch.Add(entry);
+                    try
+                    {
+                        var meta = metadata.Read(file.Path);
+                        entry = TrackIndexMapping.FromStoredBlob(
+                            file.Path, file.SizeBytes, file.ModifiedUtc, meta, opt.MinBlobVersion);
 
-            if (batch.Count >= opt.BatchSize)
-            {
-                db.UpsertMany(batch);
-                batch.Clear();
-            }
+                        if (entry is null)
+                        {
+                            // No usable blob -> this one needs real DSP. Index it anyway (tags only) so
+                            // a track on disk is never invisible in the library just because it is new.
+                            needsDsp = true;
+                            if (opt.IndexUnanalysedFiles)
+                                entry = TrackIndexMapping.NotAnalysed(
+                                    file.Path, file.SizeBytes, file.ModifiedUtc, meta);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // A locked or unreadable file is not a reason to abort a library sweep.
+                        failed = true;
+                        needsDsp = true;
+                    }
 
-            done++;
+                    // Everything shared happens here, under one lock, for a handful of microseconds -
+                    // the expensive part (the file read) is already done and was not holding it.
+                    lock (gate)
+                    {
+                        if (failed) tagFailed++;
+                        else if (!needsDsp) imported++;
+                        if (needsDsp) queued.Add(file.Path);
+
+                        if (entry is not null) batch.Add(entry);
+
+                        done++;
+                        progress?.Report(
+                            new SyncProgress(SyncPhase.ReadingTags, done, changed.Count, file.Path));
+
+                        if (batch.Count >= opt.BatchSize)
+                        {
+                            db.UpsertMany(batch);
+                            batch.Clear();
+                        }
+                    }
+                });
+        }
+        catch (OperationCanceledException)
+        {
+            // Flush what was already read before letting the cancellation out - those files are
+            // indexed correctly and re-reading them next time would be wasted NAS traffic.
+            if (batch.Count > 0) db.UpsertMany(batch);
+            throw;
         }
 
         if (batch.Count > 0) db.UpsertMany(batch);
         tagWatch.Stop();
 
-        // ── 4. What disappeared ──────────────────────────────────────────────
+        // -- 4. What disappeared ----------------------------------------------
         progress?.Report(new SyncProgress(SyncPhase.Finishing, changed.Count, changed.Count, null));
 
         var markedMissing = 0;
@@ -159,17 +188,17 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     }
 
     /// <summary>
-    /// Checks ONE folder against the index and repairs it if it drifted — the background half of
+    /// Checks ONE folder against the index and repairs it if it drifted - the background half of
     /// painting a directory from the index.
     ///
     /// <para>The early-out is Chloe's fingerprint (2026-07-30): the file count plus the newest
     /// modification time among the folder's tracks. It moves for an added, deleted, renamed OR
-    /// retagged file, which the folder's own timestamp does not — measured, <c>GENRES\Bass_House</c>
+    /// retagged file, which the folder's own timestamp does not - measured, <c>GENRES\Bass_House</c>
     /// held a file modified 07-29 while the directory still read 07-17. When it matches, this
     /// returns having written nothing.</para>
     ///
-    /// <para>Cheap enough to run behind every folder open: 0.12–0.25 ms per file, measured over SMB
-    /// (276 ms for the 1,092-file folder, ~18 ms for a normal one) — but only because it is NOT on
+    /// <para>Cheap enough to run behind every folder open: 0.12-0.25 ms per file, measured over SMB
+    /// (276 ms for the 1,092-file folder, ~18 ms for a normal one) - but only because it is NOT on
     /// the path that paints the list.</para>
     /// </summary>
     public FolderVerifyResult VerifyFolder(
@@ -185,7 +214,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         if (db.FolderState(folder) is { } stored && stored.Matches(live))
             return new FolderVerifyResult { Folder = folder, Changed = false };
 
-        // Something moved. Compare per file — the fingerprint says THAT it changed, not WHAT.
+        // Something moved. Compare per file - the fingerprint says THAT it changed, not WHAT.
         var known = db.LookupMany(files.Select(f => f.Path));
         var seen  = new HashSet<string>(files.Count, StringComparer.OrdinalIgnoreCase);
 
@@ -200,7 +229,11 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             seen.Add(file.Path);
 
             var existing = known.GetValueOrDefault(file.Path);
-            if (existing is not null && existing.LooksUnchanged(file.SizeBytes, file.ModifiedUtc))
+            // Unchanged AND extracted by the current tag shape. The second half is what lets a new
+            // indexed field ever reach an old row: without it a re-sync skips exactly the files that
+            // need re-reading (measured, night task C2, 2026-08-07). Costs one file open, no DSP.
+            if (existing is not null &&
+                existing.LooksUnchanged(file.SizeBytes, file.ModifiedUtc) && existing.TagsAreCurrent)
                 continue;   // this one is fine; something else in the folder moved
 
             TrackIndexEntry? entry = null;
@@ -261,12 +294,12 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     }
 
     /// <summary>
-    /// The same check for an explicit LIST of tracks rather than a folder — what a playlist needs.
+    /// The same check for an explicit LIST of tracks rather than a folder - what a playlist needs.
     ///
     /// <para>A playlist is an arbitrary set of paths, so there is no folder fingerprint to early-out
     /// on; each file is checked by its own cheap key. That is affordable because a stat is nothing
     /// next to a tag read: measured 2026-07-30 over SMB, <b>1.58 ms per file against ~57 ms to open
-    /// one</b> — 36× cheaper, so a 100-track playlist verifies in ~160 ms in the background instead
+    /// one</b> - 36x cheaper, so a 100-track playlist verifies in ~160 ms in the background instead
     /// of costing six seconds of reads up front.</para>
     /// </summary>
     public TrackVerifyResult VerifyTracks(
@@ -307,7 +340,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             }
 
             var existing = known.GetValueOrDefault(path);
-            if (existing is not null && existing.LooksUnchanged(size, modified))
+            if (existing is not null && existing.LooksUnchanged(size, modified) && existing.TagsAreCurrent)
                 continue;
 
             TrackIndexEntry? entry = null;
@@ -350,7 +383,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     }
 
     /// <summary>
-    /// Entries that are on disk and unchanged but whose stored analysis a rule rejects — the
+    /// Entries that are on disk and unchanged but whose stored analysis a rule rejects - the
     /// FLAC mono-decode debt, a failed run worth retrying, a never-analysed file. Paged so a
     /// very large library does not materialise at once.
     ///
@@ -417,6 +450,18 @@ public sealed record SyncOptions
     /// <summary>Entries per write transaction. One transaction per file would fsync per file.</summary>
     public int BatchSize { get; init; } = 200;
 
+    /// <summary>
+    /// How many files to READ at once. Tag reads are I/O-bound - they wait on SMB latency rather than
+    /// on a core - so raising this shortens a full library pass close to linearly; the writes stay on
+    /// one thread regardless.
+    ///
+    /// <para>(!) Passed IN, never read from settings: the library layer does not know what a user
+    /// preference is (the same rule <c>AnalysisBatchRunner.MaxConcurrency</c> follows). The app hands
+    /// it <c>UserSettings.AnalysisThreads</c>. The default here is 4, matching that setting's own
+    /// default, so a caller that says nothing behaves like the rest of the suite.</para>
+    /// </summary>
+    public int Threads { get; init; } = 4;
+
     public static readonly SyncOptions Default = new();
 }
 
@@ -428,13 +473,13 @@ public sealed record SyncReport
     /// <summary>Audio files found on disk.</summary>
     public int Scanned { get; init; }
 
-    /// <summary>Matched the cheap key — not one of these was opened.</summary>
+    /// <summary>Matched the cheap key - not one of these was opened.</summary>
     public int Unchanged { get; init; }
 
     /// <summary>Previously flagged missing, found again.</summary>
     public int Recovered { get; init; }
 
-    /// <summary>New/changed files whose analysis came straight out of their tags — no DSP.</summary>
+    /// <summary>New/changed files whose analysis came straight out of their tags - no DSP.</summary>
     public int ImportedFromTags { get; init; }
 
     /// <summary>Files that need a real analysis run (no usable blob, or unreadable).</summary>
@@ -455,8 +500,8 @@ public sealed record SyncReport
 
     /// <summary>One line for the log / library panel.</summary>
     public override string ToString() =>
-        $"{Scanned:N0} on disk · {Unchanged:N0} unchanged · {ImportedFromTags:N0} imported from tags · " +
-        $"{QueuedForAnalysis.Count:N0} need analysis · {MarkedMissing:N0} missing · " +
+        $"{Scanned:N0} on disk - {Unchanged:N0} unchanged - {ImportedFromTags:N0} imported from tags - " +
+        $"{QueuedForAnalysis.Count:N0} need analysis - {MarkedMissing:N0} missing - " +
         $"enumerate {EnumerateElapsed.TotalSeconds:F1}s, tags {TagReadElapsed.TotalSeconds:F1}s";
 }
 
@@ -470,6 +515,6 @@ public enum SyncPhase
 
 /// <param name="Phase">Which stage the pass is in.</param>
 /// <param name="Done">Items processed in this stage.</param>
-/// <param name="Total">Items in this stage (0 when not yet known — enumeration cannot predict).</param>
+/// <param name="Total">Items in this stage (0 when not yet known - enumeration cannot predict).</param>
 /// <param name="CurrentPath">File being read, when applicable.</param>
 public readonly record struct SyncProgress(SyncPhase Phase, int Done, int Total, string? CurrentPath);

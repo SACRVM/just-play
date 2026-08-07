@@ -31,4 +31,22 @@ public partial class TrackRow : UserControl
     // twice in one app and nowhere in another.
 
     public TrackRow() => InitializeComponent();
+
+    /// <summary>
+    /// A row is as wide as the list, so the row is where the available width is known - and it hands
+    /// that to the shared sizing, which re-shares it between the TEXT columns.
+    ///
+    /// <para>Every row reports the same number, so this is idempotent by design:
+    /// <see cref="TrackColumns.FitWidths"/> only publishes widths that actually changed, which means
+    /// the second and every later row of a listing do no work. That is deliberately simpler than
+    /// wiring a size watcher into three different hosts' list containers - and it cannot be forgotten
+    /// by the next host that adopts the row.</para>
+    /// </summary>
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        var arranged = base.ArrangeOverride(finalSize);
+        if (Columns is { } columns && finalSize.Width > 0)
+            columns.FitWidths(finalSize.Width);
+        return arranged;
+    }
 }

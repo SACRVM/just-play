@@ -16,12 +16,12 @@
         WindowDecorations="None"
         WindowStartupLocation="CenterScreen">
 
-    <!-- Frameless rounded floating card — SAME shell as JUST PLAY (MainWindow.axaml): no classic
+    <!-- Frameless rounded floating card - SAME shell as JUST PLAY (MainWindow.axaml): no classic
          OS title bar, rounded card + drop shadow blooming into a transparent margin, custom caption
          buttons, drag from the chrome bar. Shadow = the shared theme-driven WindowOuter: the old
          "0 18 50 -12" literal (from the single-theme era) was LARGER than the transparent margin
          and clipped hard at the window edge (Chloe 2026-07-05); WindowOuter is sized for exactly
-         these 20/22 margins — proven in JUST PLAY. -->
+         these 20/22 margins - proven in JUST PLAY. -->
     <Window.Styles>
         <!-- Maximized: square off card (margin/corners/shadow) + the inner aurora rectangles. -->
 <!-- Limiter 2x2 mode buttons (LED left of the name). Active = green lit lamp + brighter text. -->
@@ -63,7 +63,7 @@
             </Setter>
         </Style>
 
-        <!-- OFF is the "bypassed" state → its lamp + active border are RED, not green
+        <!-- OFF is the "bypassed" state -> its lamp + active border are RED, not green
              (defined AFTER the green rules so they override for the .off button). -->
         <Style Selector="Ellipse.lamp.off.on">
             <Setter Property="Fill" Value="#FF5C57"/>
@@ -72,8 +72,8 @@
             </Setter>
         </Style>
 
-        <!-- OUTPUT-LEVEL gain-reduction lamp (right of each L/R meter): dim idle → AMBER (occasional,
-             shallow catch = healthy) → RED (deep ≤−4 dB or sustained ≥50% = crushing). Per-channel lit,
+        <!-- OUTPUT-LEVEL gain-reduction lamp (right of each L/R meter): dim idle -> AMBER (occasional,
+             shallow catch = healthy) -> RED (deep <=-4 dB or sustained >=50% = crushing). Per-channel lit,
              bus-wide colour. -->
         <Style Selector="Ellipse.grlamp">
             <Setter Property="Width" Value="9"/>
@@ -101,12 +101,12 @@
             <Setter Property="BorderBrush" Value="#66FF5C57"/>
         </Style>
 
-        <!-- REC — the compact sibling of the CONNECT cta: same quiet glass, narrower, MUTED when
+        <!-- REC - the compact sibling of the CONNECT cta: same quiet glass, narrower, MUTED when
              idle (CONNECT stays the primary action), red while recording. The red dot is the
              universal record mark; it gets a glow when live. Defined here (window styles come
-             after App.axaml) so .live re-states the cta red — same literals as Button.cta.live. -->
+             after App.axaml) so .live re-states the cta red - same literals as Button.cta.live. -->
         <Style Selector="Button.cta.recbtn">
-            <!-- 96 = just clears the widest label ("12:34:56" + dot) at the trimmed padding —
+            <!-- 96 = just clears the widest label ("12:34:56" + dot) at the trimmed padding -
                  Chloe 2026-07-05: REC + CONNECT ate ~50% of the mini bar, both narrowed. -->
             <Setter Property="Width" Value="96"/>
             <Setter Property="Padding" Value="6,11"/>
@@ -138,12 +138,12 @@
 
                 <DockPanel LastChildFill="True">
 
-                    <!-- ─── CHROME / TITLE BAR (frameless; brand left, gear + caption buttons right) ── -->
+                    <!-- === CHROME / TITLE BAR (frameless; brand left, gear + caption buttons right) == -->
                     <Border DockPanel.Dock="Top" Height="36" Name="ChromeBar"
                             Background="Transparent" PointerPressed="OnChromePressed">
                         <Grid ColumnDefinitions="Auto,*,Auto,Auto">
 
-                            <!-- Brand mark (top-left) — the FUNKTURM (radio-tower) glyph on the theme
+                            <!-- Brand mark (top-left) - the FUNKTURM (radio-tower) glyph on the theme
                                  gradient chip, per the JUST suite UI philosophy (CLAUDE.md). -->
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
                                         Margin="6,0,0,0" VerticalAlignment="Center">
@@ -151,15 +151,15 @@
                                 <ui:WindowControls ShowMaximize="False" Margin="8,0,0,0"
                                                    IsVisible="{x:Static ui:Platform.IsMac}"/>
                                 <!-- Brand mark IS the About button (top-left), per the JUST suite UI
-                                     philosophy — opens the SHARED About dialog (JustPlay.UI).
+                                     philosophy - opens the SHARED About dialog (JustPlay.UI).
                                      On macOS the brand sits CENTERED instead (end of this grid). -->
                                 <Button Classes="brandbtn" Click="OnAbout" ToolTip.Tip="About JUST STREAM"
                                         IsVisible="{x:Static ui:Platform.IsNotMac}">
                                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                        <!-- TRANSPARENT chip — just the enlarged white Funkturm glyph filling
+                                        <!-- TRANSPARENT chip - just the enlarged white Funkturm glyph filling
                                              the area where the gradient chip was (Chloe 2026-06-30). -->
                                         <Border Width="20" Height="20" Background="Transparent">
-                                            <!-- Lucide "radio-tower" (ISC) — the Funkturm mark. -->
+                                            <!-- Lucide "radio-tower" (ISC) - the Funkturm mark. -->
                                             <Path Stretch="Uniform" Width="16" Height="16"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                                   Stroke="White" StrokeThickness="2"
@@ -180,7 +180,7 @@
                                                    LetterSpacing="2" Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
-                                <!-- Hairline separates brand and label — pointless on macOS, where the
+                                <!-- Hairline separates brand and label - pointless on macOS, where the
                                      label sits directly next to the traffic lights. -->
                                 <Panel IsVisible="{x:Static ui:Platform.IsNotMac}">
                                     <Border Background="{StaticResource HairlineBrush}" Width="1" Height="16" Margin="4,0"
@@ -192,12 +192,12 @@
 
                             <!-- Log + Settings (cap buttons, match the caption buttons) -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-                                <!-- View toggle — swaps glyph AND tooltip by mode, like JUST PLAY (MaxView shows
+                                <!-- View toggle - swaps glyph AND tooltip by mode, like JUST PLAY (MaxView shows
                                      "Mini player"/picture-in-picture, MiniView shows "Expand"/box). STREAM is one
                                      resizing window, so the single slot flips on IsMini. -->
-                                <!-- FULL → go mini: Lucide picture-in-picture-2 -->
+                                <!-- FULL -> go mini: Lucide picture-in-picture-2 -->
                                 <!-- Suite terminology (Chloe 2026-07-05): "Compact view" / "Expand to
-                                     full view" everywhere — "player" was wrong for STREAM (it broadcasts),
+                                     full view" everywhere - "player" was wrong for STREAM (it broadcasts),
                                      so both apps share the neutral pair now. -->
                                 <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Compact view"
                                         IsVisible="{Binding !IsMini}">
@@ -208,7 +208,7 @@
                                           Data="M21 9 V6 a2 2 0 0 0 -2 -2 H4 a2 2 0 0 0 -2 2 v10 c0 1.1 .9 2 2 2 h4
                                                 M14 13 h6 a2 2 0 0 1 2 2 v3 a2 2 0 0 1 -2 2 h-6 a2 2 0 0 1 -2 -2 v-3 a2 2 0 0 1 2 -2 Z"/>
                                 </Button>
-                                <!-- MINI → expand back: same box glyph + "Expand" tooltip as JUST PLAY's MiniView -->
+                                <!-- MINI -> expand back: same box glyph + "Expand" tooltip as JUST PLAY's MiniView -->
                                 <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Expand to full view"
                                         IsVisible="{Binding IsMini}">
                                     <Path Stretch="None" Width="14" Height="14"
@@ -217,7 +217,7 @@
                                           StrokeJoin="Round" Fill="Transparent"
                                           Data="M 1,3 L 13,3 L 13,11 L 1,11 Z"/>
                                 </Button>
-                                <!-- Spectrum analyzer — opens the SHARED live spectrum window (JustPlay.UI)
+                                <!-- Spectrum analyzer - opens the SHARED live spectrum window (JustPlay.UI)
                                      over the broadcast bus (DRY vs WET + limiter GR). OUT L/R column hidden:
                                      STREAM already shows its own output meter. Glyph pulses while a signal
                                      is arriving (input present), NOT only on air (Chloe 2026-07-02).
@@ -227,11 +227,11 @@
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       VerticalAlignment="Center"/>
                                 </Button>
-                                <!-- Event-log button — opens the LogWindow; the dot marks unread entries.
+                                <!-- Event-log button - opens the LogWindow; the dot marks unread entries.
                                      Stays visible in mini: it opens a SEPARATE window, so mini doesn't block it. -->
                                 <Panel>
                                     <Button Classes="cap" Click="OnOpenLog" ToolTip.Tip="Event log">
-                                        <!-- 3-bar "log" glyph as stacked rectangles — VerticalAlignment=Center
+                                        <!-- 3-bar "log" glyph as stacked rectangles - VerticalAlignment=Center
                                              guarantees vertical centring (Path+Uniform kept drifting). -->
                                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3.5">
                                             <Rectangle Width="15" Height="1.7" RadiusX="1" RadiusY="1" Fill="{Binding $parent[Button].Foreground}"/>
@@ -244,7 +244,7 @@
                                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,3,3,0"
                                             IsHitTestVisible="False" IsVisible="{Binding EventLog.HasUnread}"/>
                                 </Panel>
-                                <!-- Settings gear — also stays in mini (separate window, can open). -->
+                                <!-- Settings gear - also stays in mini (separate window, can open). -->
                                 <Button Name="SettingsBtn" Classes="cap" Click="OpenSettings" ToolTip.Tip="Settings">
                                     <Path Stretch="Uniform" Width="16" Height="16"
                                           Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.2"
@@ -253,20 +253,20 @@
                                 </Button>
                             </StackPanel>
 
-                            <!-- Caption buttons — shared suite control (JustPlay.UI/Controls/WindowControls).
+                            <!-- Caption buttons - shared suite control (JustPlay.UI/Controls/WindowControls).
                                  No maximize: JUST STREAM is a fixed-size window (its layout isn't dynamic).
                                  Windows-only here; on macOS the traffic lights sit LEFT (brand panel above). -->
                             <ui:WindowControls Grid.Column="3" ShowMaximize="False"
                                                IsVisible="{x:Static ui:Platform.IsNotMac}"/>
 
-                            <!-- macOS: brand mark CENTERED in the chrome bar (mac title-bar convention) —
+                            <!-- macOS: brand mark CENTERED in the chrome bar (mac title-bar convention) -
                                  still the About button, mirrors JUST PLAY's MaxView. -->
                             <Button Grid.ColumnSpan="4" Classes="brandbtn" Click="OnAbout"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     IsVisible="{x:Static ui:Platform.IsMac}" ToolTip.Tip="About JUST STREAM">
                                 <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                     <Border Width="20" Height="20" Background="Transparent">
-                                        <!-- Lucide "radio-tower" (ISC) — the Funkturm mark. -->
+                                        <!-- Lucide "radio-tower" (ISC) - the Funkturm mark. -->
                                         <Path Stretch="Uniform" Width="16" Height="16"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
                                               Stroke="White" StrokeThickness="2"
@@ -290,16 +290,16 @@
                         </Grid>
                     </Border>
 
-                    <!-- Keyboard-hint bar — the SHARED KeyLegend, the same control the PRE CUE FINDER uses
+                    <!-- Keyboard-hint bar - the SHARED KeyLegend, the same control the PRE CUE FINDER uses
                          (Chloe 2026-07-06: "ein Guss"). Docks to the BOTTOM so the body Grid stays the fill
-                         child; hidden via Settings → Look for pros (ShowKeyHints). -->
+                         child; hidden via Settings -> Look for pros (ShowKeyHints). -->
                     <Border DockPanel.Dock="Bottom" IsVisible="{Binding ShowKeyHints}" Padding="18,4,18,10">
                         <ui:KeyLegend Hints="{Binding KeyHints}" HorizontalAlignment="Center"/>
                     </Border>
 
-                    <!-- ─── BODY — de-boxed: sections sit directly on the aurora bg, divided by thin
+                    <!-- === BODY - de-boxed: sections sit directly on the aurora bg, divided by thin
                          hairlines (Border.sep), NOT nested card containers. The ON-AIR band is the one
-                         framed element by design (the broadcast SIGNATURE). ── -->
+                         framed element by design (the broadcast SIGNATURE). == -->
                     <Grid Margin="18,4,18,24"
                           RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
@@ -307,7 +307,7 @@
                         <ComboBox Grid.Row="0" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
                                   HorizontalAlignment="Stretch" Margin="0,0,0,12"
                                   IsEnabled="{Binding !IsConnected}"
-                                  PlaceholderText="Select server profile…">
+                                  PlaceholderText="Select server profile...">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:StreamServerProfile">
                                     <TextBlock Text="{Binding Name}"/>
@@ -315,7 +315,7 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
-                        <!-- ═══ SIGNATURE: ON-AIR band + CONNECT (kept framed — glows green on air) ═══ -->
+                        <!-- === SIGNATURE: ON-AIR band + CONNECT (kept framed - glows green on air) === -->
                         <Border Grid.Row="1" Classes="onair" Classes.live="{Binding OnAir}" Margin="0,0,0,12">
                             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                                 <Border Grid.Column="0" Classes="tally" Classes.live="{Binding OnAir}"
@@ -324,7 +324,7 @@
                                     <TextBlock Text="{Binding StatusText}" FontSize="24" FontWeight="Bold"
                                                TextTrimming="CharacterEllipsis"/>
                                     <!-- Dynamic detail (replaces the old static "STREAM STATUS" caption):
-                                         armed target offline · host while connecting · confirmed format on air. -->
+                                         armed target offline - host while connecting - confirmed format on air. -->
                                     <TextBlock Text="{Binding StatusDetail}" FontSize="12"
                                                Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
@@ -333,15 +333,15 @@
                                                HorizontalAlignment="Right"/>
                                     <TextBlock Classes="label" Text="ON-AIR TIME" HorizontalAlignment="Right"/>
                                 </StackPanel>
-                                <!-- REC — record the master bus to a local file (independent of the stream:
+                                <!-- REC - record the master bus to a local file (independent of the stream:
                                      works off-air, survives reconnects; format/folder in Settings). Idle =
-                                     muted "● REC"; recording = red + elapsed time; click = stop (finalizes
-                                     the file). Stays visible in mini — recording is a while-mixing action. -->
+                                     muted "o REC"; recording = red + elapsed time; click = stop (finalizes
+                                     the file). Stays visible in mini - recording is a while-mixing action. -->
                                 <Button Grid.Column="3" Classes="cta recbtn" Classes.live="{Binding IsRecording}"
                                         Command="{Binding ToggleRecordCommand}"
                                         ToolTip.Tip="{Binding RecordTooltip}"
                                         VerticalAlignment="Center" Margin="0,0,10,0">
-                                    <!-- Right-click → jump to the recordings on disk. Click handler, not a
+                                    <!-- Right-click -> jump to the recordings on disk. Click handler, not a
                                          Command: a ContextMenu popup is outside the visual tree, so command
                                          bindings resolve null (same pattern as the preset chips). -->
                                     <Button.ContextMenu>
@@ -355,23 +355,31 @@
                                     </StackPanel>
                                 </Button>
                                 <!-- CONNECT/DISCONNECT share ONE quiet-glass style (Button.cta), fixed width,
-                                     differ only by colour + glyph (▶ accent / ■ red) — see App.axaml. -->
+                                     differ only by colour + glyph (> accent / stop red) - see App.axaml. -->
                                 <Button Grid.Column="4" Classes="cta" Classes.live="{Binding IsConnected}"
-                                        Content="{Binding ConnectLabel}" Command="{Binding ToggleConnectCommand}"
-                                        VerticalAlignment="Center"/>
+                                        Command="{Binding ToggleConnectCommand}"
+                                        VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <ui:JustIcon Kind="{Binding ConnectIcon}" Width="10" Height="10"
+                                                     VerticalAlignment="Center"
+                                                     IsVisible="{Binding ConnectIcon, Converter={x:Static ui:IconConverters.IsSet}}"/>
+                                        <TextBlock Text="{Binding ConnectLabel}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </Grid>
                         </Border>
 
-                        <!-- ═══ OUTPUT LEVEL — hi-fi broadcast meter (de-boxed) ═══ -->
+                        <!-- === OUTPUT LEVEL - hi-fi broadcast meter (de-boxed) === -->
                         <StackPanel Grid.Row="2" Spacing="9">
                             <DockPanel>
                                 <TextBlock Classes="label" Text="OUTPUT LEVEL" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                                <TextBlock Classes="label" Text="TRUE-PEAK · dBTP" DockPanel.Dock="Right"
+                                <TextBlock Classes="label" Text="TRUE-PEAK - dBTP" DockPanel.Dock="Right"
                                            Foreground="{StaticResource MutedFaintBrush}" VerticalAlignment="Center"
                                            HorizontalAlignment="Right"/>
                             </DockPanel>
 
-                            <!-- L — trailing 22px column holds the limiter gain-reduction lamp (right side
+                            <!-- L - trailing 22px column holds the limiter gain-reduction lamp (right side
                                  = symmetry with the L/R labels on the left + a useful per-channel readout). -->
                             <Grid ColumnDefinitions="14,*,22" VerticalAlignment="Center">
                                 <TextBlock Grid.Column="0" Text="L" Classes="label" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -379,7 +387,7 @@
                                                Margin="4,0,0,0" Height="16"/>
                                 <Ellipse Grid.Column="2" Classes="grlamp" VerticalAlignment="Center" HorizontalAlignment="Center"
                                          Classes.lit="{Binding LeftLimitActive}" Classes.hard="{Binding LimiterHard}"
-                                         ToolTip.Tip="Limiter — amber: catching peaks (healthy) · red: heavy/sustained (lower the input)"/>
+                                         ToolTip.Tip="Limiter - amber: catching peaks (healthy) - red: heavy/sustained (lower the input)"/>
                             </Grid>
 
                             <!-- R -->
@@ -389,10 +397,10 @@
                                                Margin="4,0,0,0" Height="16"/>
                                 <Ellipse Grid.Column="2" Classes="grlamp" VerticalAlignment="Center" HorizontalAlignment="Center"
                                          Classes.lit="{Binding RightLimitActive}" Classes.hard="{Binding LimiterHard}"
-                                         ToolTip.Tip="Limiter — amber: catching peaks (healthy) · red: heavy/sustained (lower the input)"/>
+                                         ToolTip.Tip="Limiter - amber: catching peaks (healthy) - red: heavy/sustained (lower the input)"/>
                             </Grid>
 
-                            <!-- dB ruler — same 14,*,22 grid so the bar (*) lines up under the meters above. -->
+                            <!-- dB ruler - same 14,*,22 grid so the bar (*) lines up under the meters above. -->
                             <Grid ColumnDefinitions="14,*,22">
                                 <StackPanel Grid.Column="1" Margin="4,0,0,0" Spacing="2">
                                     <Grid ColumnDefinitions="*,*,*,*" Height="4">
@@ -415,11 +423,11 @@
 
                         <Border Grid.Row="3" Classes="sep" Margin="0,12" IsVisible="{Binding !IsMini}"/>
 
-                        <!-- ═══ STREAM INFO + NOW PLAYING (left) · INPUT (right) — de-boxed, vertical hairline ═══ -->
+                        <!-- === STREAM INFO + NOW PLAYING (left) - INPUT (right) - de-boxed, vertical hairline === -->
                         <Grid Grid.Row="4" ColumnDefinitions="*,1,*" IsVisible="{Binding !IsMini}">
                             <StackPanel Grid.Column="0" Spacing="12" Margin="0,0,16,0">
                                 <TextBlock Classes="label" Text="STREAM INFO"/>
-                                <!-- LISTENERS + RATE (read-only) · CODEC + QUALITY dropdowns (editable, locked while live) · MOUNT.
+                                <!-- LISTENERS + RATE (read-only) - CODEC + QUALITY dropdowns (editable, locked while live) - MOUNT.
                                      x:CompileBindings=False: ComboBox.SelectedItem binds to an enum/int VM property. -->
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" x:CompileBindings="False">
                                     <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2" Margin="0,0,8,8">
@@ -461,7 +469,7 @@
                                     <!-- Input + SEND only usable when song-info is active (on AND codec supports it). -->
                                     <Grid ColumnDefinitions="*,Auto" IsEnabled="{Binding IsSongInfoActive}">
                                         <TextBox Grid.Column="0" Text="{Binding NowPlayingText}"
-                                                 PlaceholderText="What's playing…" VerticalContentAlignment="Center"/>
+                                                 PlaceholderText="What's playing..." VerticalContentAlignment="Center"/>
                                         <!-- Themed like JUST PLAY's action buttons: a compact primary pill
                                              (accent gradient + glow + hover lift), not the old flat AccentC
                                              segment. Padding override keeps it small in the inline slot. -->
@@ -470,7 +478,7 @@
                                     </Grid>
                                     <!-- Disabled for Opus: Ogg/Opus can't carry live ICY now-playing (MP3 only). -->
                                     <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding CanBroadcastSongInfo}"
-                                                ToolTip.Tip="Live now-playing works on MP3 only — Opus/Ogg streams can't carry track titles.">
+                                                ToolTip.Tip="Live now-playing works on MP3 only - Opus/Ogg streams can't carry track titles.">
                                         <ToggleSwitch IsChecked="{Binding SendSongInfo}" OnContent="" OffContent=""/>
                                         <TextBlock Classes="label" Text="BROADCAST SONG INFO" VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -482,8 +490,10 @@
                             <StackPanel Grid.Column="2" Spacing="10" Margin="16,0,0,0">
                                 <DockPanel>
                                     <TextBlock Classes="label" Text="INPUT SOURCE" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                                    <Button Classes="seg" Content="↻" DockPanel.Dock="Right"
-                                            Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices / apps" MinWidth="30"/>
+                                    <Button Classes="seg" DockPanel.Dock="Right"
+                                            Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices / apps" MinWidth="30">
+                                        <ui:JustIcon Kind="Refresh" Width="12" Height="12"/>
+                                    </Button>
                                     <!-- Device vs single-App capture. Only shown when the OS build supports
                                          per-process loopback (Windows 10 2004+). App = capture ONE app invisibly. -->
                                     <ToggleSwitch DockPanel.Dock="Right" Margin="20,0,8,0"
@@ -495,7 +505,7 @@
                                 <!-- Device / loopback picker (default source). -->
                                 <ComboBox IsVisible="{Binding !IsAppSourceMode}"
                                           ItemsSource="{Binding InputDevices}" SelectedItem="{Binding SelectedInputDevice}"
-                                          HorizontalAlignment="Stretch" PlaceholderText="Select input / loopback…">
+                                          HorizontalAlignment="Stretch" PlaceholderText="Select input / loopback...">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:AudioInputDevice">
                                             <TextBlock Text="{Binding Name}"/>
@@ -505,7 +515,7 @@
                                 <!-- App picker (per-process capture). DJ apps sort first. -->
                                 <ComboBox IsVisible="{Binding IsAppSourceMode}"
                                           ItemsSource="{Binding CaptureApps}" SelectedItem="{Binding SelectedCaptureApp}"
-                                          HorizontalAlignment="Stretch" PlaceholderText="Select an app to capture…">
+                                          HorizontalAlignment="Stretch" PlaceholderText="Select an app to capture...">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:CaptureApp">
                                             <TextBlock Text="{Binding DisplayName}"/>
@@ -521,7 +531,7 @@
                                     <TextBlock Classes="label" Text="BROADCAST CHANNELS"/>
                                     <ComboBox x:CompileBindings="False" HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding AppChannelOptions}" SelectedItem="{Binding SelectedAppChannels}"
-                                              ToolTip.Tip="Which channels of the app go on air. Channels 1-2 (default) — on DJ gear that's usually the Master, so the headphone Cue (usually 3-4) is left out; a normal stereo app is just its audio. Channels 3-4 — if your Master is routed to that pair. Full mix — all channels combined.">
+                                              ToolTip.Tip="Which channels of the app go on air. Channels 1-2 (default) - on DJ gear that's usually the Master, so the headphone Cue (usually 3-4) is left out; a normal stereo app is just its audio. Channels 3-4 - if your Master is routed to that pair. Full mix - all channels combined.">
                                         <ComboBox.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{Binding Converter={x:Static vm:AppChannelsLabelConverter.Instance}}"/>
@@ -534,7 +544,7 @@
                                      bypasses that engine, so it appears in the list but delivers silence.
                                      Honest inline hint so a DJ knows WHY (Chloe 2026-07-02). -->
                                 <TextBlock IsVisible="{Binding IsAppSourceMode}" Classes="hint"
-                                           Text="No sound from an app? If it drives your DJ card via ASIO or WASAPI-exclusive it bypasses Windows and can't be captured here — set that app's output to a normal Windows device (shared mode), or use a Device source."/>
+                                           Text="No sound from an app? If it drives your DJ card via ASIO or WASAPI-exclusive it bypasses Windows and can't be captured here - set that app's output to a normal Windows device (shared mode), or use a Device source."/>
 
                                 <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
                                     <TextBlock Grid.Column="0" Classes="label" Text="GAIN" VerticalAlignment="Center" Width="40"/>
@@ -546,13 +556,15 @@
                                 </Grid>
 
                                 <StackPanel Spacing="10"
-                                            ToolTip.Tip="Listen to the processed broadcast on a chosen output of THIS PC — does NOT affect the stream. 'No output (stream only)' = no local monitor (the default; you simply hear the stream itself).">
-                                    <!-- LastChildFill=False so the ↻ honours Dock=Right and hugs the right edge,
+                                            ToolTip.Tip="Listen to the processed broadcast on a chosen output of THIS PC - does NOT affect the stream. 'No output (stream only)' = no local monitor (the default; you simply hear the stream itself).">
+                                    <!-- LastChildFill=False so the refresh honours Dock=Right and hugs the right edge,
                                          matching the INPUT SOURCE row (where the toggle is the fill child). -->
                                     <DockPanel LastChildFill="False">
                                         <TextBlock Classes="label" Text="MONITOR (LOCAL)" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                                        <Button Classes="seg" Content="↻" DockPanel.Dock="Right"
-                                                Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices" MinWidth="30"/>
+                                        <Button Classes="seg" DockPanel.Dock="Right"
+                                                Command="{Binding RefreshDeviceListCommand}" ToolTip.Tip="Rescan devices" MinWidth="30">
+                                            <ui:JustIcon Kind="Refresh" Width="12" Height="12"/>
+                                        </Button>
                                     </DockPanel>
                                     <ComboBox HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding OutputDevices}" SelectedItem="{Binding SelectedOutputDevice}">
@@ -577,7 +589,7 @@
 
                         <Border Grid.Row="5" Classes="sep" Margin="0,12" IsVisible="{Binding !IsMini}"/>
 
-                        <!-- ═══ BROADCAST DSP (faders, left) + LIMITER/MAXIMIZER (right) — side by side ═══ -->
+                        <!-- === BROADCAST DSP (faders, left) + LIMITER/MAXIMIZER (right) - side by side === -->
                         <StackPanel Grid.Row="6" Spacing="10" IsVisible="{Binding !IsMini}">
                             <DockPanel>
                                 <TextBlock Classes="label" Text="BROADCAST DSP" DockPanel.Dock="Left" VerticalAlignment="Center"/>
@@ -598,11 +610,11 @@
                                                     <Button Classes="seg" Content="{Binding Name}"
                                                             Command="{Binding DataContext.ApplyPresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
-                                                            ToolTip.Tip="Apply this preset · right-click to replace / rename / delete">
+                                                            ToolTip.Tip="Apply this preset - right-click to replace / rename / delete">
                                                         <Button.ContextMenu>
                                                             <ContextMenu>
                                                                 <MenuItem Header="Replace with current" Click="OnPresetReplace"/>
-                                                                <MenuItem Header="Rename…" Click="OnPresetRename"/>
+                                                                <MenuItem Header="Rename..." Click="OnPresetRename"/>
                                                                 <MenuItem Header="Delete" Click="OnPresetDelete"/>
                                                             </ContextMenu>
                                                         </Button.ContextMenu>
@@ -611,7 +623,7 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                         <!-- Save the current EQ + Tilt + Punch + Limiter as a NEW named preset.
-                                             Square (26×26): override seg's 44 MinWidth + side padding so it's not wider than tall. -->
+                                             Square (26x26): override seg's 44 MinWidth + side padding so it's not wider than tall. -->
                                         <Button Classes="seg" Content="+" Command="{Binding SavePresetCommand}"
                                                 MinWidth="0" Width="26" Padding="0" FontSize="15"
                                                 ToolTip.Tip="Save the current DSP settings as a named preset"/>
@@ -619,12 +631,12 @@
                                 </Border>
                             </DockPanel>
 
-                            <!-- DSP row — three equal columns (33/33/33): EQ | Auto-Tilt+Punch | Limiter.
+                            <!-- DSP row - three equal columns (33/33/33): EQ | Auto-Tilt+Punch | Limiter.
                                  All five vertical faders are the SAME control: Classes="fader", Width 62,
-                                 Height 72, centred readout — only the Max + binding differ. -->
+                                 Height 72, centred readout - only the Max + binding differ. -->
                             <Grid ColumnDefinitions="*,*,*">
 
-                                <!-- Col 0: 3-band EQ — HIGH → MID → LOW (left to right) -->
+                                <!-- Col 0: 3-band EQ - HIGH -> MID -> LOW (left to right) -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <StackPanel Width="62" Spacing="4">
                                         <TextBlock Classes="mono" FontSize="10" HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}"
@@ -664,8 +676,8 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Col 2: Limiter / Maximizer — 2x2 LED buttons. Same vertical structure as the
-                                     fader columns (readout-height spacer · 72-tall body · label) so it lines up. -->
+                                <!-- Col 2: Limiter / Maximizer - 2x2 LED buttons. Same vertical structure as the
+                                     fader columns (readout-height spacer - 72-tall body - label) so it lines up. -->
                                 <Border Grid.Column="2" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1,0,0,0" Padding="8,0,0,0">
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
                                         <TextBlock Classes="mono" FontSize="10" Text=" "/>
@@ -713,7 +725,7 @@
             </Panel>
         </Border>
 
-        <!-- Resize grips kept in markup but DISABLED — JUST STREAM is fixed-size (no dynamic layout),
+        <!-- Resize grips kept in markup but DISABLED - JUST STREAM is fixed-size (no dynamic layout),
              so user resizing is off (CanResize=False + these hidden). -->
         <Grid Name="ResizeGrips" IsVisible="False" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
             <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest" PointerPressed="OnResizePressed" PointerMoved="OnResizeMoved" PointerReleased="OnResizeReleased"/>

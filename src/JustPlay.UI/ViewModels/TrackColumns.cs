@@ -2,28 +2,29 @@ using System;
 using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustPlay.UI.Controls;
 
 namespace JustPlay.UI.ViewModels;
 
 /// <summary>
-/// Shared column-visibility + sort state for the track tables — the JUST PLAY queue (MaxView), the Pre-Cue
+/// Shared column-visibility + sort state for the track tables - the JUST PLAY queue (MaxView), the Pre-Cue
 /// Finder file list AND JUST TAG's file pane. ONE definition so the lists can never drift on which columns
-/// exist, how the sort arrows render, or how a header click cycles asc → desc → off. This class holds no
+/// exist, how the sort arrows render, or how a header click cycles asc -> desc -> off. This class holds no
 /// rows: the owning view-model keeps its own collection and re-sorts (via the shared <see cref="TrackSort"/>)
 /// when <see cref="SortRequested"/> fires. The shared <see cref="Controls.TrackRow"/> and header bind their
 /// cell visibility + sort glyphs straight to this object, so a new column is added in exactly one place.
-/// (Chloe 2026-07-07 — the anti-drift refactor; 2026-08-05 the tagging columns joined for JUST TAG.)
+/// (Chloe 2026-07-07 - the anti-drift refactor; 2026-08-05 the tagging columns joined for JUST TAG.)
 /// </summary>
 public sealed partial class TrackColumns : ObservableObject
 {
-    // Canonical column ids (lowercase) — the SUPERSET across all track tables. A given list enables a subset:
+    // Canonical column ids (lowercase) - the SUPERSET across all track tables. A given list enables a subset:
     // the queue never enables the vibe columns, the finder leans on them, and JUST TAG enables the editorial
     // and file-fact ones the DJ lists have no use for. One superset, three focuses.
     public const string Title = "title", Artist = "artist", Genre = "genre", Bpm = "bpm", Key = "key", Nrg = "nrg",
         Gain = "gain", Lufs = "lufs", Dark = "dark", Hypnotic = "hypnotic", Groove = "groove",
         Punch = "punch", Harsh = "harsh", Comment = "comment", Duration = "duration", Like = "like";
 
-    // The tagging columns (JUST TAG's focus). "What you can filter on, you must be able to see" —
+    // The tagging columns (JUST TAG's focus). "What you can filter on, you must be able to see" -
     // Chloe 2026-08-05: the search can aim at a cover, an ID3 version or a file type, so the table has
     // to be able to show those too, or a hit is a claim you cannot check.
     public const string Album = "album", AlbumArtist = "albumartist", Year = "year", TrackNo = "trackno",
@@ -40,6 +41,22 @@ public sealed partial class TrackColumns : ObservableObject
     /// <summary>The currently-visible column ids (read-only view for persistence).</summary>
     public IReadOnlyCollection<string> Enabled => _enabled;
 
+    /// <summary>
+    /// The content-sized widths of the flexible TEXT columns for THIS table. It lives here because
+    /// one table owns one <see cref="TrackColumns"/>, which is exactly the scope the sizing is meant
+    /// to have - per view, not per app (Chloe 2026-08-06). The row and header bind through it, so a
+    /// host needs no extra plumbing; it only has to call
+    /// <see cref="TrackColumnWidths.Measure"/> when its listing changes.
+    /// </summary>
+    public TrackColumnWidths Widths { get; } = new();
+
+    /// <summary>
+    /// Re-share the row's width between the text columns. <paramref name="rowWidth"/> is the whole
+    /// row; the fixed columns are subtracted here so no caller has to know what they cost.
+    /// </summary>
+    public void FitWidths(double rowWidth) =>
+        Widths.Fit(rowWidth - TrackTableMetrics.FixedTotal(this), this);
+
     /// <summary>Swap the whole visible-column set. The queue calls this when its A/B/C lens changes; the
     /// finder has a single set and mutates it via <see cref="ToggleColumnCommand"/>.</summary>
     public void SetEnabled(IEnumerable<string> enabled)
@@ -47,6 +64,11 @@ public sealed partial class TrackColumns : ObservableObject
         _enabled = new HashSet<string>(enabled, StringComparer.OrdinalIgnoreCase);
         RaiseVisibility();
     }
+
+    /// <summary>Is this column id switched on? The Show* properties below are the bindable form of
+    /// the same question; this one takes the id, for code that walks a set of columns
+    /// (<see cref="TrackColumnWidths"/> sizing the flexible text ones).</summary>
+    public bool IsEnabled(string columnId) => _enabled.Contains(columnId);
 
     public bool ShowArtist   => _enabled.Contains(Artist);
     public bool ShowAlbum    => _enabled.Contains(Album);
@@ -115,41 +137,52 @@ public sealed partial class TrackColumns : ObservableObject
         OnPropertyChanged(nameof(ShowFileName));
     }
 
-    // ── Sort state (identical cycle in both lists; each owner sorts its own collection) ─────────────────
+    // -- Sort state (identical cycle in both lists; each owner sorts its own collection) -----------------
     [ObservableProperty] private string? _sortColumn;
     [ObservableProperty] private bool _sortDescending;
 
-    /// <summary>Raised when the sort column/direction changed — the owner re-sorts its collection.</summary>
+    /// <summary>Raised when the sort column/direction changed - the owner re-sorts its collection.</summary>
     public event Action? SortRequested;
 
-    private string Glyph(string col) =>
-        string.Equals(SortColumn, col, StringComparison.OrdinalIgnoreCase) ? (SortDescending ? "▼" : "▲") : "";
+    /// <summary>
+    /// The little arrow next to the header of the column being sorted - <see cref="IconKind.None"/>
+    /// for every other column, which is also what hides it (<c>IconConverters.IsSet</c>).
+    ///
+    /// <para>(!!) It used to return the characters "^" / "v". Icons in this suite are shipped vectors,
+    /// never glyphs, because the OS picks the font and we do not - see CLAUDE.md rule 5. The type is
+    /// <see cref="IconKind"/> rather than a string precisely so the compiler finds every header that
+    /// still expects text: there are two dozen of them across four windows.</para>
+    /// </summary>
+    private IconKind Glyph(string col) =>
+        !string.Equals(SortColumn, col, StringComparison.OrdinalIgnoreCase) ? IconKind.None
+        : SortDescending ? IconKind.SortDesc
+        : IconKind.SortAsc;
 
-    public string TitleSortGlyph    => Glyph(Title);
-    public string ArtistSortGlyph   => Glyph(Artist);
-    public string AlbumSortGlyph    => Glyph(Album);
-    public string AlbumArtistSortGlyph => Glyph(AlbumArtist);
-    public string GenreSortGlyph    => Glyph(Genre);
-    public string YearSortGlyph     => Glyph(Year);
-    public string TrackNoSortGlyph  => Glyph(TrackNo);
-    public string BpmSortGlyph      => Glyph(Bpm);
-    public string KeySortGlyph      => Glyph(Key);
-    public string NrgSortGlyph      => Glyph(Nrg);
-    public string GainSortGlyph     => Glyph(Gain);
-    public string LufsSortGlyph     => Glyph(Lufs);
-    public string DarkSortGlyph     => Glyph(Dark);
-    public string HypnoticSortGlyph => Glyph(Hypnotic);
-    public string GrooveSortGlyph   => Glyph(Groove);
-    public string PunchSortGlyph    => Glyph(Punch);
-    public string HarshSortGlyph    => Glyph(Harsh);
-    public string CommentSortGlyph  => Glyph(Comment);
-    public string AnalysisSortGlyph => Glyph(Analysis);
-    public string CoverSortGlyph    => Glyph(Cover);
-    public string Id3SortGlyph      => Glyph(Id3);
-    public string FileTypeSortGlyph => Glyph(FileType);
-    public string DurationSortGlyph => Glyph(Duration);
-    public string LikeSortGlyph     => Glyph(Like);
-    public string FileNameSortGlyph => Glyph(FileName);
+    public IconKind TitleSortGlyph    => Glyph(Title);
+    public IconKind ArtistSortGlyph   => Glyph(Artist);
+    public IconKind AlbumSortGlyph    => Glyph(Album);
+    public IconKind AlbumArtistSortGlyph => Glyph(AlbumArtist);
+    public IconKind GenreSortGlyph    => Glyph(Genre);
+    public IconKind YearSortGlyph     => Glyph(Year);
+    public IconKind TrackNoSortGlyph  => Glyph(TrackNo);
+    public IconKind BpmSortGlyph      => Glyph(Bpm);
+    public IconKind KeySortGlyph      => Glyph(Key);
+    public IconKind NrgSortGlyph      => Glyph(Nrg);
+    public IconKind GainSortGlyph     => Glyph(Gain);
+    public IconKind LufsSortGlyph     => Glyph(Lufs);
+    public IconKind DarkSortGlyph     => Glyph(Dark);
+    public IconKind HypnoticSortGlyph => Glyph(Hypnotic);
+    public IconKind GrooveSortGlyph   => Glyph(Groove);
+    public IconKind PunchSortGlyph    => Glyph(Punch);
+    public IconKind HarshSortGlyph    => Glyph(Harsh);
+    public IconKind CommentSortGlyph  => Glyph(Comment);
+    public IconKind AnalysisSortGlyph => Glyph(Analysis);
+    public IconKind CoverSortGlyph    => Glyph(Cover);
+    public IconKind Id3SortGlyph      => Glyph(Id3);
+    public IconKind FileTypeSortGlyph => Glyph(FileType);
+    public IconKind DurationSortGlyph => Glyph(Duration);
+    public IconKind LikeSortGlyph     => Glyph(Like);
+    public IconKind FileNameSortGlyph => Glyph(FileName);
 
     partial void OnSortColumnChanged(string? value) => RaiseSortGlyphs();
     partial void OnSortDescendingChanged(bool value) => RaiseSortGlyphs();
@@ -183,7 +216,7 @@ public sealed partial class TrackColumns : ObservableObject
         OnPropertyChanged(nameof(FileNameSortGlyph));
     }
 
-    /// <summary>Header click: same column ascending → descending → off (natural order); a new column starts
+    /// <summary>Header click: same column ascending -> descending -> off (natural order); a new column starts
     /// ascending. Fires <see cref="SortRequested"/> so the owner applies it to its own rows.</summary>
     public void SortBy(string? column)
     {

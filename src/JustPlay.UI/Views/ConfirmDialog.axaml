@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:uic="using:JustPlay.UI.Controls"
         x:Class="JustPlay.UI.Views.ConfirmDialog"
         Title="Confirm"
         Width="380" SizeToContent="Height"
@@ -12,17 +13,20 @@
         WindowDecorations="None">
 
     <!--
-      Shared tiny themed yes/no dialog — the suite's "are you sure?" for anything that would
+      Shared tiny themed yes/no dialog - the suite's "are you sure?" for anything that would
       discard work (same frameless rounded card as InputDialog/About). ShowDialog returns
-      true on confirm, false on cancel/Esc — see ConfirmDialog.AskAsync.
+      true on confirm, false on cancel/Esc - see ConfirmDialog.AskAsync.
     -->
-    <Border CornerRadius="16" Margin="14" ClipToBounds="True"
+    <Border Name="DialogCard" ClipToBounds="True"
             BoxShadow="0 18 54 0 #B3000000">
         <Panel>
-            <Rectangle Fill="{DynamicResource BgLinear}" RadiusX="16" RadiusY="16"/>
-            <Rectangle Fill="{DynamicResource BgGlowA}"   RadiusX="16" RadiusY="16"/>
-            <Rectangle Fill="{DynamicResource BgGlowB}"   RadiusX="16" RadiusY="16"/>
-            <Border BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="16"/>
+            <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the ONE thing that makes a dialog
+                 read as its own object instead of a second main window (Chloe 2026-08-05/06). The
+                 distinction is FLAT vs GRADIENT: windows carry the ramp plus two accent blooms, a
+                 dialog carries a flat slab. Gradient and glass were both tried on this surface and
+                 both failed for measured reasons - see JustPalette.axaml (banding) and
+                 AboutWindow.axaml (window-level blur eats the shadow margin). -->
+            <uic:SurfaceCard CornerRadius="14"/>
 
             <StackPanel Margin="28,26,28,22" Spacing="0">
                 <TextBlock x:Name="TitleText" Text="Confirm" FontSize="14" FontWeight="SemiBold"

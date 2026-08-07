@@ -67,9 +67,65 @@ Non-negotiable rules (all proven in JUST PLAY — cite these files when building
    track live theme switches with zero extra wiring. Reference: `App.axaml` styles,
    `Controls/Vinyl.axaml`, the `DynamicResource` usage throughout `AboutWindow.axaml`.
 
+5. **⛔ NO EMOJI / FONT GLYPHS IN THE UI — ship the vector.** Every icon in every JUST
+   app is a path we ship, drawn by `JustPlay.UI/Controls/JustIcon.cs`. Never put a
+   pictograph character (`📁`, `☰`, `🔒`, `♥`, `✕`, `↻`, `▲`) into `Text=`, `Content=`
+   or a view-model string.
+
+   The reason is not taste, it is that **a character is rendered by whatever font the
+   OS picks, and that is not under our control**: the same `📁` (U+1F4C1), from the same
+   source line, rendered BRIGHT YELLOW in JUST TAG and monochrome white in the PRE CUE
+   FINDER — two processes, same Avalonia, same `WithInterFont()`, same codepoint
+   (verified: identical UTF-16 in both files). Chloe 2026-08-06: *"ich bin kein Fan
+   davon Emojis zu verwenden in der UI — wer weiß ob das dann überall gleich aussieht,
+   vor allem auf Mac oder Linux."* She is right, and the macOS port makes it concrete:
+   Apple renders many BMP symbols (`♥`, `✓`, `⚠`, `▶`, `■`) with **emoji presentation
+   by default** — they would come out red/coloured on the Mac.
+
+   A vector also gets what a glyph never can: it follows `Foreground`, so it tracks the
+   live theme like everything else (rule 4).
+
+   Adding an icon = one `IconKind` value + one path string in `JustIcon.cs`, and it is
+   then available to every app. ⛔ Do not draw a second copy of an existing icon in an
+   app-local `Path`/style — that is how two windows drift (see `RowGlyph`'s history and
+   the `Button.ghost` note in `JustStyles.axaml`).
+
+   **Same rule for raster images: vector by default, a bitmap only as an approved
+   exception.** No PNG/JPG/ICO shipped as chrome, decoration or an icon — it does not
+   scale, does not follow the theme, and needs a set per DPI. Chloe 2026-08-06: *"Bilder
+   nur in Ausnahmefällen die einzeln genehmigt werden müssen — sonst immer
+   Vektorgrafik."* An exception is asked for and granted **per image, before** it is
+   added. (Album artwork is not chrome — it is user content and obviously stays a
+   bitmap; so is the rendered window icon, which `ThemedWindowIcon.cs` rasterises from a
+   vector at runtime because Win32 demands a bitmap handle.)
+
 When building JUST STREAM (or any new app) UI: start by mirroring these files, swap the
 glyph, reuse the same `DynamicResource` theme keys and `App.axaml` style patterns. The
 goal is zero UI re-iteration — it should look like a JUST PLAY sibling on first run.
+
+## Source is ASCII, English, and unattributed (enforced by test)
+
+`SourceIsAsciiTests` fails the build if any `.cs` or `.axaml` under `src/` or `tests/`
+contains a byte above 127. Three rules, one of which a machine can check:
+
+1. **ASCII only.** A source file with no BOM and a non-ASCII byte is a file that any
+   tool which guesses its encoding can silently destroy — and one did (a PowerShell
+   find-and-replace read a UTF-8 file as ANSI and mojibake'd 250 characters). Giving
+   358 files a BOM was rejected: a BOM is not self-enforcing, the next templated file
+   has none, and the hazard returns unnoticed. Use the plain equivalents:
+   `-` `=` `->` `<=` `>=` `x` `~` `+/-` `^2` `...` `(!)` `(!!)` `(*)`, and
+   `tau` / `alpha` / `pi` / `sigma` for the Greek — you cannot type a `τ` into a
+   search box, so the ASCII form is also the greppable one.
+   ⚠ Two traps the conversion hit, both caught by the build: `--` is illegal inside an
+   XML comment (use `=` for a section rule in `.axaml`), and a typographic quote inside
+   a C# string literal becomes a plain `"` and ends the string.
+2. **English only.** Not "mostly English" — no German sentences in comments, not even
+   quoted. State the decision and its reason in English; that is shorter than the quote
+   and needs no translation from the next reader.
+3. **No attribution.** No names, no "X decided on DATE". There is one developer, so a
+   name carries no information and reads as noise in public code. Keep a date only when
+   the date IS the fact — a MEASUREMENT ages ("measured 2026-08-07: 957 files"), a
+   preference does not.
 
 ## Avalonia conventions in this repo
 

@@ -5,24 +5,24 @@
         xmlns:theming="using:JustPlay.UI.Theming"
         x:Class="JustPlay.UI.Theming.JustStyles">
     <!--
-      ════════════════════════════════════════════════════════════════════════
-      J.U.S.T. SUITE — SHARED CONTROL STYLES (chrome, tabs, cursor, text)
-      ════════════════════════════════════════════════════════════════════════
+      ========================================================================
+      J.U.S.T. SUITE - SHARED CONTROL STYLES (chrome, tabs, cursor, text)
+      ========================================================================
       The look that EVERY JUST app shares, written once. JUST PLAY is the
       reference; these are lifted verbatim from its App.axaml. App-specific control
-      styles (the player transport, broadcast meters, dialog buttons, …) stay in
+      styles (the player transport, broadcast meters, dialog buttons, ...) stay in
       each app's own App.axaml and layer AFTER this include, so an app can still
       add or extend (e.g. JUST PLAY's Button.cap.streaming / .update).
 
-      Consumes the shared palette (JustPalette) via DynamicResource — merge that
+      Consumes the shared palette (JustPalette) via DynamicResource - merge that
       dictionary into Application.Resources alongside this StyleInclude.
     -->
 
     <!--
       Global text styling:
-      • ClipToBounds=False: descenders (y, g, p, J, Y…) sometimes get cut by tight
+      - ClipToBounds=False: descenders (y, g, p, J, Y...) sometimes get cut by tight
         bounding boxes. Letting TextBlock render past its own bounds is the cheap fix.
-      • DropShadowEffect: a soft 1-px black drop under every TextBlock — keeps glyphs
+      - DropShadowEffect: a soft 1-px black drop under every TextBlock - keeps glyphs
         legible against the aurora background and gives the UI a "lifted" feel. Kept
         small (blur 2, opacity .45) to stay cheap even on dense lists.
     -->
@@ -36,17 +36,17 @@
     <!--
       Kill the default TAB focus traversal + keyboard focus ring in EVERY window of the suite.
       Avalonia's built-in navigation moves focus on Tab before any handler we add and ignores
-      e.Handled, so we suppress it via the KeyboardNav behavior (restores focus on Tab → no-op).
+      e.Handled, so we suppress it via the KeyboardNav behavior (restores focus on Tab -> no-op).
       A view that REPURPOSES Tab (the PRE CUE FINDER's folders/files switch) opts out with
       beh:KeyboardNav.SuppressTab="False". :is(Window) so it also matches every derived window
-      (MainWindow, dialogs, …). Chloe 2026-07-06: "default Tab raus, aus allen Apps/Sichten."
+      (MainWindow, dialogs, ...). Chloe 2026-07-06: "default Tab raus, aus allen Apps/Sichten."
     -->
     <Style Selector=":is(Window)">
         <Setter Property="(beh:KeyboardNav.SuppressTab)" Value="True"/>
     </Style>
 
     <!--
-      Hand cursor on everything clickable — web-style affordance. Covers the control
+      Hand cursor on everything clickable - web-style affordance. Covers the control
       types that represent a click action; clickable TextBlocks set Cursor="Hand"
       inline where they live.
     -->
@@ -60,11 +60,11 @@
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
     <!--
-      ComboBox — the SUITE default, not a per-app chore. FluentTheme paints an open dropdown's
+      ComboBox - the SUITE default, not a per-app chore. FluentTheme paints an open dropdown's
       hover/selected rows with the Windows SYSTEM ACCENT, which on this machine is RED and has
       now shown up in three different apps. JUST PLAY (device-picker) and JUST STREAM each carry
       their own identical copy of this fix; putting it in the shared sheet means the next app
-      cannot forget it. Those two keep working unchanged — their local rules set the same values.
+      cannot forget it. Those two keep working unchanged - their local rules set the same values.
     -->
     <Style Selector="ComboBox">
         <Setter Property="Cursor" Value="Hand"/>
@@ -106,16 +106,16 @@
     </Style>
 
     <!--
-      ════════════════════════════════════════════════════════════════════════
-      THE WINDOW CARD — rounded, shadowed … and SQUARE when maximized
-      ════════════════════════════════════════════════════════════════════════
+      ========================================================================
+      THE WINDOW CARD - rounded, shadowed ... and SQUARE when maximized
+      ========================================================================
       Every JUST window is one Border named RootCard: a rounded card inside a transparent margin
       that the drop shadow blooms into (and that hosts the resize grips). Maximized, all three of
-      those have to go — full screen means filling the screen.
+      those have to go - full screen means filling the screen.
 
-      ⚠ THE DEFAULTS LIVE HERE, AS STYLES, ON PURPOSE. They used to sit INLINE on the Border
+      (!) THE DEFAULTS LIVE HERE, AS STYLES, ON PURPOSE. They used to sit INLINE on the Border
       (Margin="20,20,20,22" CornerRadius="14" BoxShadow="..."), and an inline value is
-      BindingPriority.LocalValue = 0, which beats StyleTrigger — verified against Avalonia
+      BindingPriority.LocalValue = 0, which beats StyleTrigger - verified against Avalonia
       release/12.0.3, src/Avalonia.Base/Data/BindingPriority.cs. So the .maximized setters below
       could never win, in ANY of the four windows, and maximizing left the transparent frame and
       the rounded corners exactly where they were (Chloe 2026-08-05: "gleiches verhalten wie
@@ -145,7 +145,7 @@
         <Setter Property="RadiusX" Value="0"/>
         <Setter Property="RadiusY" Value="0"/>
     </Style>
-    <!-- The 1-px hairline outline drawn over the card edge (the finder and JUST TAG have one) —
+    <!-- The 1-px hairline outline drawn over the card edge (the finder and JUST TAG have one) -
          it traces the same corner and has to square off with it. -->
     <Style Selector="Border#RootCard Border.cardedge">
         <Setter Property="CornerRadius" Value="14"/>
@@ -155,10 +155,61 @@
     </Style>
 
     <!--
-      ════════════════════════════════════════════════════════════════════════
-      THE LIFTED SURFACE — controls:SurfaceCard (dialogs + slide-in panels)
-      ════════════════════════════════════════════════════════════════════════
-      ONE flat fill + the hairline edge — see JustPalette.axaml for why flat is the point and
+      ========================================================================
+      PANEL CLOSE (x) - the corner of a slide-in panel, shared
+      ========================================================================
+      Both slide-in panels - JUST PLAY's TWEAKS and JUST TAG's SETTINGS - close from a x in their
+      top-right corner, and the two did NOT look the same (Chloe 2026-08-06: "das settings panel bei
+      just tag hat nen anderen close button als just play oder taeusche ich mich?").
+
+      (!) The cause is worth knowing, because it is still live elsewhere: both were written as
+      Classes="ghost", but `Button.ghost` is declared SEPARATELY in each app's App.axaml and the two
+      declarations are different controls. JUST PLAY's is a bare transparent icon button (padding 8,
+      no border, #A6FFFFFF at 15); JUST TAG's is a filled pill (#0FFFFFFF, 1 px border, radius 8,
+      12 SemiBold). Same class name, two meanings - so "use the same class" quietly produced two
+      different buttons. Values below are JUST PLAY's, verbatim, because that is the reference.
+
+      This fixes the x. It does NOT fix `Button.ghost` itself, which still means two things in two
+      apps and will bite again - that wants a rename pass, not a patch smuggled in here.
+    -->
+    <Style Selector="Button.panelclose">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="Foreground" Value="#A6FFFFFF"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.panelclose:pointerover">
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <!--
+      ========================================================================
+      THE DIALOG CARD - a window card, one level higher
+      ========================================================================
+      Every JUST dialog is one Border named DialogCard. Same shape as Border#RootCard above, and for
+      the same reason these live as STYLES and not as inline attributes: an inline value is
+      BindingPriority.LocalValue and would beat anything a selector wants to say later.
+
+      What makes it a dialog rather than a window is exactly two things, and both are deliberate:
+      the FLAT SurfaceCard fill inside it (windows carry the gradient ramp plus two accent blooms),
+      and DialogOuter - a deeper, darker shadow, so it reads as floating ABOVE the app instead of
+      lying in the same plane. The bottom margin is 26 because that is what DialogOuter needs to fade
+      out instead of clipping at the window edge; the two are a pair, change them together.
+    -->
+    <Style Selector="Border#DialogCard">
+        <Setter Property="Margin" Value="20,20,20,26"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="BoxShadow" Value="{DynamicResource DialogOuter}"/>
+    </Style>
+
+    <!--
+      ========================================================================
+      THE LIFTED SURFACE - controls:SurfaceCard (dialogs + slide-in panels)
+      ========================================================================
+      ONE flat fill + the hairline edge - see JustPalette.axaml for why flat is the point and
       not a shortcut (a low-contrast gradient bands on a tall narrow panel; Avalonia does not
       dither gradient fills).
 
@@ -166,7 +217,7 @@
       edge") and the Border this replaced, which never set it either. Worth knowing before anyone
       "fixes" it: Border implements IVisualWithRoundRectClip (ClipToBoundsRadius => CornerRadius,
       verified against Avalonia release/12.0.3, src/Avalonia.Controls/Border.cs), so its clip is
-      rounded — but ONLY when ClipToBounds is switched on. Off is a choice here, not an oversight.
+      rounded - but ONLY when ClipToBounds is switched on. Off is a choice here, not an oversight.
     -->
     <Style Selector="controls|SurfaceCard">
         <Setter Property="CornerRadius" Value="14"/>
@@ -189,7 +240,7 @@
         </Setter>
     </Style>
     <!--
-      Frameless-window CHROME — square 36×36 caption buttons (pair with the shared
+      Frameless-window CHROME - square 36x36 caption buttons (pair with the shared
       WindowControls), transparent until hovered, dark grey on hover, Close goes red.
       Path icons inside Content scale via the button's Foreground so hover brightens
       the glyph too.
@@ -236,7 +287,7 @@
     </Style>
     <!--
       macOS: the caption buttons sit LEFT (traffic lights), so an ordinary cap button ends
-      up in the top-right corner instead of the close button — same square-hover-vs-rounded-
+      up in the top-right corner instead of the close button - same square-hover-vs-rounded-
       card problem as above. The "corner" class is assigned from code-behind on macOS only
       (it can move at runtime, e.g. JUST PLAY's update badge appearing right of the log).
     -->
@@ -250,13 +301,13 @@
         <Setter Property="CornerRadius" Value="0,14,0,0"/>
     </Style>
 
-    <!-- ⚠ MAXIMIZED: these MUST come AFTER the rules above. Avalonia has no CSS specificity —
+    <!-- (!) MAXIMIZED: these MUST come AFTER the rules above. Avalonia has no CSS specificity -
          among styles of equal priority the LAST matching setter wins, so a "more specific"
          selector placed earlier loses to a plainer one placed later. That is exactly how the
          close button stayed rounded in full screen after the card itself had been squared off
          (Chloe 2026-08-05: "sagte ich doch bereits"). Maximized there is no corner left to match,
-         so the button and its hover/pressed fills — which carry their own radius on the templated
-         ContentPresenter — all square off. -->
+         so the button and its hover/pressed fills - which carry their own radius on the templated
+         ContentPresenter - all square off. -->
     <Style Selector="Border#RootCard.maximized Button.cap.close">
         <Setter Property="CornerRadius" Value="0"/>
     </Style>
@@ -275,10 +326,10 @@
         <Setter Property="CornerRadius" Value="0"/>
     </Style>
 
-    <!-- ════ Underline tabs (SHARED) ════
+    <!-- ==== Underline tabs (SHARED) ====
          A Button with Classes="tab" (add "active", or bind Classes.active) whose Content is
          a Panel holding the label (top) + a <Border Classes="tabline"/> (bottom). No frame,
-         no hover fill — just an accent-gradient underline that spans the text width, with a
+         no hover fill - just an accent-gradient underline that spans the text width, with a
          glow when active. Used by JUST PLAY (UP NEXT / Lyrics, Tweaks panel) and JUST STREAM
          (settings) so the two products look like one family. -->
     <Style Selector="Button.tab">
@@ -321,7 +372,7 @@
     </Style>
 
     <!--
-      Shared dialog button — pill, dark translucent, hover lift. Used by the suite's frameless
+      Shared dialog button - pill, dark translucent, hover lift. Used by the suite's frameless
       dialog windows (the shared About, and JUST PLAY's Transfer / InputDialog). Overriding the
       pointerover/pressed ContentPresenter background keeps FluentTheme's accent from leaking
       through (the documented custom-button quirk).
@@ -342,7 +393,7 @@
         <Setter Property="Background" Value="#14FFFFFF"/>
     </Style>
     <!--
-      "ghost" variant — a de-emphasised dialog action (e.g. "Ignore this version" sitting to the
+      "ghost" variant - a de-emphasised dialog action (e.g. "Ignore this version" sitting to the
       left of the primary). Transparent until hover, muted text, tighter padding so a long label
       doesn't crowd the primary actions. Pair with Classes="dialog-close ghost".
     -->
@@ -363,18 +414,18 @@
     </Style>
 
     <!--
-      Shared fader look — used by JUST PLAY (EQ + Revive sliders in TweaksPanel) and JUST STREAM
+      Shared fader look - used by JUST PLAY (EQ + Revive sliders in TweaksPanel) and JUST STREAM
       (EQ + AutoTilt + Punch + Gain + Monitor faders). Lifted verbatim from TweaksPanel so the two
-      products share one implementation. WHITE thumb — theme-independent, not the OS SystemAccent
+      products share one implementation. WHITE thumb - theme-independent, not the OS SystemAccent
       which rendered wrong (red) on Chloe's Midnight theme. AccentABrush fills the value side
       (PART_DecreaseButton); a faint groove sits past the thumb (PART_IncreaseButton). Selectors
       no-op when a part is absent (i.e., the opposite orientation's template parts are simply missing).
 
       Classes to apply:
-        Classes="eq fader"  — for EQ-range sliders (Minimum=0, Maximum=2, kill/flat/+6dB)
-        Classes="fader"     — for all other themed sliders (0..1 range, gain, monitor)
+        Classes="eq fader"  - for EQ-range sliders (Minimum=0, Maximum=2, kill/flat/+6dB)
+        Classes="fader"     - for all other themed sliders (0..1 range, gain, monitor)
     -->
-    <!-- Mouse-wheel nudges every themed fader (one shared behaviour, both apps) — the operation must
+    <!-- Mouse-wheel nudges every themed fader (one shared behaviour, both apps) - the operation must
          feel identical in JUST PLAY and JUST STREAM. 2.5%/notch. -->
     <Style Selector="Slider.fader">
         <Setter Property="beh:SliderWheel.Enabled" Value="True"/>
@@ -385,7 +436,7 @@
          with MinWidth 32 (SliderVerticalWidth, verified against release/12.0.3
          Themes.Fluent/Controls/Slider.xaml). Forcing the Slider narrower than that (the old
          Width=30) under-sizes the track so its optical centre drifts off the centred label.
-         Letting it size naturally — exactly like JUST STREAM's faders — keeps track and label
+         Letting it size naturally - exactly like JUST STREAM's faders - keeps track and label
          on the same centre. -->
     <Style Selector="Slider.eq">
         <Setter Property="Minimum" Value="0"/>
@@ -408,15 +459,15 @@
     </Style>
 
     <!--
-      Round transparent transport buttons + filled icon glyphs (seek / play / pause / add …).
+      Round transparent transport buttons + filled icon glyphs (seek / play / pause / add ...).
       Born in the Pre-Cue Finder's player bar, lifted here (2026-07-12) so every JUST app uses
       the SAME transport buttons instead of re-inventing them (JUST BOOTLEG was the second
-      consumer). Glyphs are FILLED Path.xicon in a shared ~9×10 box + Uniform stretch, so
+      consumer). Glyphs are FILLED Path.xicon in a shared ~9x10 box + Uniform stretch, so
       play / pause / seek all render the exact same size (the text-glyph size trap, 2026-07-07).
 
       Classes to apply:
-        Button Classes="xport"  — the round hover-brightening button (30×30)
-        Path   Classes="xicon"  — the glyph inside (Fill follows the button's Foreground)
+        Button Classes="xport"  - the round hover-brightening button (30x30)
+        Path   Classes="xicon"  - the glyph inside (Fill follows the button's Foreground)
     -->
     <Style Selector="Button.xport">
         <Setter Property="Width" Value="30"/>
@@ -452,7 +503,7 @@
     </Style>
 
     <!--
-      Palette swatch (chip) — coloured ring + accent glow when active. Used by JUST PLAY's
+      Palette swatch (chip) - coloured ring + accent glow when active. Used by JUST PLAY's
       TweaksPanel and JUST STREAM's SettingsWindow Look tab. Defined here (shared) so the two
       products stay visually identical without duplicating the swatch/swatchbtn styles.
     -->
@@ -461,7 +512,7 @@
       one apart by fill (same dark as the card). The selection cue is a RING in the swatch's OWN
       highlight colour (BorderBrush set inline per swatch via {theming:ThemeAccent <Name>}): the active
       theme shows it persistently; every other swatch shows it only on hover. The ring is toggled by
-      growing BorderThickness 0→2 (the colour is the inline per-theme accent), so each swatch lights in
+      growing BorderThickness 0->2 (the colour is the inline per-theme accent), so each swatch lights in
       ITS theme's highlight, not the globally-active one. (Chloe 2026-06-30.)
     -->
     <Style Selector="Border.swatch">
@@ -512,7 +563,7 @@
     </Style>
 
     <!--
-      Codec/bitrate segmented radio buttons — shared look for the CodecBitrateEditor
+      Codec/bitrate segmented radio buttons - shared look for the CodecBitrateEditor
       (JustPlay.UI.Views) used on JUST STREAM's main page. Identical to the locally-scoped
       fmt-radio/bps-radio styles in JustPlay.App/Controls/StreamingPanel.axaml; lifted here
       so the suite shares one definition without duplicating markup.
@@ -563,11 +614,11 @@
     </Style>
 
     <!--
-      Fluent gives a FOCUSED TextBox a bold accent border (TextControlBorderBrushFocused) — which on
-      the red-accent Hardcore theme reads as a harsh RED outline — and an ERRORED one a hard red border
+      Fluent gives a FOCUSED TextBox a bold accent border (TextControlBorderBrushFocused) - which on
+      the red-accent Hardcore theme reads as a harsh RED outline - and an ERRORED one a hard red border
       (SystemControlErrorTextForegroundBrush). Both clash with our calm hairline fields. Replace them,
       suite-wide, with a subtle brighter hairline that just lifts a touch on focus (Chloe 2026-07-05:
-      "focus suchfeld - roter rand" — UI is mine to own). Part verified = PART_BorderElement against the
+      "focus suchfeld - roter rand" - UI is mine to own). Part verified = PART_BorderElement against the
       Avalonia 12.0.3 Fluent TextBox template.
     -->
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
@@ -579,8 +630,8 @@
         <Setter Property="BorderThickness" Value="1"/>
     </Style>
 
-    <!-- Segmented / compact action button (limiter-drive segments, the device-rescan ↻, log show/clear)
-         — SHARED so JUST PLAY + STREAM use the IDENTICAL control. Moved here from STREAM's App.axaml
+    <!-- Segmented / compact action button (limiter-drive segments, the device-rescan refresh, log show/clear)
+         - SHARED so JUST PLAY + STREAM use the IDENTICAL control. Moved here from STREAM's App.axaml
          ("lens-seg"); theme brushes via DynamicResource so it tracks live theme switches. -->
     <Style Selector="Button.seg">
         <Setter Property="MinWidth" Value="44"/>
@@ -610,16 +661,16 @@
     </Style>
 
     <!--
-      Theme-picker swatch chip (shared, all apps) — see ThemeSwatchChip.cs. A 46×46 rounded square split
-      on the bottom-left→top-right diagonal: PART_Bg (a Border) carries the theme BACKGROUND gradient over
+      Theme-picker swatch chip (shared, all apps) - see ThemeSwatchChip.cs. A 46x46 rounded square split
+      on the bottom-left->top-right diagonal: PART_Bg (a Border) carries the theme BACKGROUND gradient over
       the whole face; PART_Accent (the upper-left triangle, Polygon points (0,0)(46,0)(0,46)) sits on top
       with the theme accent gradient; PART_Card is the per-theme ring; the glow + hover-zoom are from code.
 
-      LAYERS (avalonia skill — verified): PART_Glow is a sibling BEHIND, NOT clipped, so its BoxShadow
+      LAYERS (avalonia skill - verified): PART_Glow is a sibling BEHIND, NOT clipped, so its BoxShadow
       bloom escapes; PART_Bg is the ONLY ClipToBounds=True element (rounds the corners + the diagonal).
-      Pitfalls that bit earlier cuts: (1) a DropShadowEffect on the control rasterised it offscreen →
-      aliased edges + the glow vanished — use BoxShadow on the unclipped sibling instead; (2) a stroke-less
-      Rectangle as the bg field measures to ~0 and renders NOTHING (black void) — use a Border.Background.
+      Pitfalls that bit earlier cuts: (1) a DropShadowEffect on the control rasterised it offscreen ->
+      aliased edges + the glow vanished - use BoxShadow on the unclipped sibling instead; (2) a stroke-less
+      Rectangle as the bg field measures to ~0 and renders NOTHING (black void) - use a Border.Background.
       (Chloe 2026-06-30.)
     -->
     <Style Selector="theming|ThemeSwatchChip">
@@ -637,7 +688,7 @@
         <Setter Property="Template">
             <ControlTemplate>
                 <Panel Background="Transparent">
-                    <!-- Glow sibling BEHIND, never clipped — its BoxShadow blooms (set from code when lit). -->
+                    <!-- Glow sibling BEHIND, never clipped - its BoxShadow blooms (set from code when lit). -->
                     <Border Name="PART_Glow" CornerRadius="10" Background="Transparent" ClipToBounds="False"/>
                     <!-- The chip FACE: PART_Bg.Background = the theme BACKGROUND gradient (a Border fills
                          reliably; a stroke-less Rectangle measures to ~0 and renders nothing). The accent
@@ -652,10 +703,10 @@
         </Setter>
     </Style>
 
-    <!-- ═══ Hint / explainer text (shared) ═══
+    <!-- === Hint / explainer text (shared) ===
          The small description paragraphs under settings controls. A subtle 1-px drop shadow
-         lifts the text off the aurora glow — readability fix for the bright/green themes
-         (Chloe 2026-07-05: "mehr weiß, weniger durchsichtig + text drop shadow"). -->
+         lifts the text off the aurora glow - readability fix for the bright/green themes
+         (Chloe 2026-07-05: "mehr weiss, weniger durchsichtig + text drop shadow"). -->
     <Style Selector="TextBlock.hint">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
@@ -666,10 +717,10 @@
         </Setter>
     </Style>
 
-    <!-- ═══ Keyboard-hint chip + label (shared) ═══
+    <!-- === Keyboard-hint chip + label (shared) ===
          The little key-cap + its action label, used by the shared KeyLegend bar (PRE CUE FINDER +
          JUST STREAM) and the finder's F1 help overlay. Lifted here so there's ONE definition
-         (Chloe 2026-07-06: "ein Guss — reused funktionality"). -->
+         (Chloe 2026-07-06: "ein Guss - reused funktionality"). -->
     <Style Selector="Border.kbd">
         <Setter Property="Background" Value="#14FFFFFF"/>
         <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -689,19 +740,19 @@
     </Style>
 
     <!--
-      ═══ Vertical scrollbar — the SUITE pill (shared) ═══
+      === Vertical scrollbar - the SUITE pill (shared) ===
       The JUST PLAY queue scrollbar, lifted VERBATIM from MaxView so every JUST window (the
       queue, the PRE CUE FINDER, JUST STREAM's log/settings) shows the identical thin white
       pill instead of the fat grey Fluent bar (Chloe 2026-07-05: "einfach wie die liste in
-      JUST PLAY … immer so machen wie immer"). FULL CUSTOM TEMPLATE because `/template/`
+      JUST PLAY ... immer so machen wie immer"). FULL CUSTOM TEMPLATE because `/template/`
       overrides of the Fluent scrollbar didn't win reliably (dark track, square thumb, line
       buttons all slipped through). With our own ControlTemplate we own the tree end-to-end:
 
-      • Root Grid transparent — no painted track strip.
-      • DecreaseButton / IncreaseButton: opacity-0 RepeatButtons (still page-scrollable, invisible).
-      • Thumb: its OWN template — one Border, CornerRadius 3 (= half of the 6-px width → a pill).
-      • NO line buttons (top/bottom chevrons) — simply absent from the template.
-      • Bar floats FLUSH at the right edge (no horizontal margin); the gap to content comes from
+      - Root Grid transparent - no painted track strip.
+      - DecreaseButton / IncreaseButton: opacity-0 RepeatButtons (still page-scrollable, invisible).
+      - Thumb: its OWN template - one Border, CornerRadius 3 (= half of the 6-px width -> a pill).
+      - NO line buttons (top/bottom chevrons) - simply absent from the template.
+      - Bar floats FLUSH at the right edge (no horizontal margin); the gap to content comes from
         each list's row right-margin (16 in the queue + finder). BOTH orientations are themed the
         same way (the horizontal one shows e.g. in the Event Log's no-wrap text box).
     -->
@@ -775,13 +826,13 @@
     <Style Selector="ScrollViewer:focus-within ScrollBar:vertical">
         <Setter Property="Opacity" Value="1"/>
     </Style>
-    <!-- ⚠ And the bar's OWN hover, which is what keeps it alive while you DRAG it. The rule above
+    <!-- (!) And the bar's OWN hover, which is what keeps it alive while you DRAG it. The rule above
          alone loses the bar mid-drag: the pill is 6 px flush at the right edge, so sliding a few
          pixels sideways while holding the thumb takes the pointer out of the ScrollViewer, the
          condition goes false, and the thing you are holding fades away under your hand (Chloe
          2026-07-31: "pack ich die scrollbar und drag scrolle - verschwindet diese"). During a drag
          the Thumb holds pointer CAPTURE, so the ScrollBar stays pointer-over wherever the mouse
-         goes — this selector is true for the whole drag, off-edge included. -->
+         goes - this selector is true for the whole drag, off-edge included. -->
     <Style Selector="ScrollBar:vertical:pointerover">
         <Setter Property="Opacity" Value="1"/>
     </Style>
@@ -789,7 +840,7 @@
         <Setter Property="Opacity" Value="1"/>
     </Style>
 
-    <!-- Horizontal bar — same slim pill as vertical, laid on its side (Height 6, Orientation Horizontal,
+    <!-- Horizontal bar - same slim pill as vertical, laid on its side (Height 6, Orientation Horizontal,
          Thumb MinWidth). Shows in no-wrap scroll areas like the Event Log. Chloe 2026-07-08. -->
     <Style Selector="ScrollBar:horizontal">
         <Setter Property="Height" Value="6"/>
@@ -851,12 +902,12 @@
     </Style>
 
     <!--
-      ════════════════════════════════════════════════════════════════════════
-      TRACK-ROW CELLS — the styling the shared TrackRow needs, wherever it runs
-      ════════════════════════════════════════════════════════════════════════
+      ========================================================================
+      TRACK-ROW CELLS - the styling the shared TrackRow needs, wherever it runs
+      ========================================================================
       These belong WITH the control (JustPlay.UI/Controls/TrackRow.axaml), not with
       whichever app happens to host it. They lived in JUST PLAY's App.axaml until the
-      row moved here (2026-08-05) — a second app rendering the row would otherwise have
+      row moved here (2026-08-05) - a second app rendering the row would otherwise have
       had to copy them, which is exactly the drift this refactor exists to end.
     -->
 
@@ -899,7 +950,7 @@
         <Setter Property="Background" Value="#26FFFFFF"/>
     </Style>
 
-    <!-- Column-header label — tracked caps. FlushTrailing reclaims the trailing letter-spacing so
+    <!-- Column-header label - tracked caps. FlushTrailing reclaims the trailing letter-spacing so
          right/centre labels sit flush with the untracked row values below (single-source: derived from
          LetterSpacing). Shared, because each host draws its own leading NAME cell beside the strip and
          that label must be the identical one. -->
@@ -913,7 +964,7 @@
     </Style>
     <!-- Active-sort arrow: smaller, snug, no tracking. Defined after .colhead so it wins on the shared
          cells. Collapses (IsVisible off the glyph) when unsorted, so unsorted headers reserve no arrow
-         gap → flush; when sorted, its left margin is the gap that hangs on the arrow. -->
+         gap -> flush; when sorted, its left margin is the gap that hangs on the arrow. -->
     <Style Selector="TextBlock.sortarrow">
         <Setter Property="FontSize" Value="7"/>
         <Setter Property="LetterSpacing" Value="0"/>
@@ -924,12 +975,25 @@
         <Setter Property="IsVisible"
                 Value="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
     </Style>
+    <!-- The same arrow, as the SHIPPED VECTOR it is now (CLAUDE.md rule 5 - "^"/"v" were characters,
+         and the font that draws a character is the OS's choice, not ours). Geometry, colour, size and
+         the collapse-when-unsorted rule all live HERE, so a header only names the class and binds the
+         Kind - which is why swapping two dozen call sites cost one line each. -->
+    <Style Selector="controls|JustIcon.sortarrow">
+        <Setter Property="Width" Value="7"/>
+        <Setter Property="Height" Value="7"/>
+        <Setter Property="Foreground" Value="#73FFFFFF"/>
+        <Setter Property="Margin" Value="3,1,0,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="IsVisible"
+                Value="{Binding $self.Kind, Converter={x:Static controls:IconConverters.IsSet}}"/>
+    </Style>
 
     <!--
       PREP "GAIN" cell. Default + clip colour are BOTH styles (no inline Foreground): an inline
       value has LocalValue precedence and would beat the .gain-clip setter, so the red would
       silently never show (the documented Avalonia precedence trap). Red = the track would clip
-      on playback (brick-walled, or a positive gain overflows) — see TrackViewModel.GainClips.
+      on playback (brick-walled, or a positive gain overflows) - see TrackViewModel.GainClips.
     -->
     <Style Selector="TextBlock.gain-cell">
         <Setter Property="Foreground" Value="#CCFFFFFF"/>
@@ -939,13 +1003,21 @@
     </Style>
 
     <!-- LIKE-column heart: dim by default, accent when the track is favorited. -->
-    <Style Selector="TextBlock.likecell">
+    <!-- The like heart - dim by default, theme accent once the track is liked. It is a shipped vector
+         (controls:JustIcon), not a "heart": U+2665 is one of the characters Apple renders with EMOJI
+         presentation by default, so on the Mac this cell would have gone red on its own, in a colour
+         nobody chose. CLAUDE.md rule 5. -->
+    <Style Selector="controls|JustIcon.likecell">
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
         <Setter Property="Foreground" Value="#33FFFFFF"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
-    <Style Selector="TextBlock.likecell.active">
+    <Style Selector="controls|JustIcon.likecell.active">
         <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
     </Style>
-    <!-- Transparent, no-chrome, hand-cursor heart button so the ♥ cell is clickable in the row. -->
+    <!-- Transparent, no-chrome, hand-cursor heart button so the heart cell is clickable in the row. -->
     <Style Selector="Button.heartcell">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>

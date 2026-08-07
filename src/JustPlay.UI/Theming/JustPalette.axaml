@@ -2,22 +2,22 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     x:Class="JustPlay.UI.Theming.JustPalette">
     <!--
-      ════════════════════════════════════════════════════════════════════════
-      J.U.S.T. SUITE — CANONICAL THEME PALETTE (the single source of truth)
-      ════════════════════════════════════════════════════════════════════════
+      ========================================================================
+      J.U.S.T. SUITE - CANONICAL THEME PALETTE (the single source of truth)
+      ========================================================================
       Every JUST app (JUST PLAY, JUST STREAM, future ones) merges THIS dictionary
       so the design tokens are written ONCE, never re-invented per app. JUST PLAY
-      is the reference — these values are its proven palette, lifted verbatim. Any
-      app-specific resources (converters, broadcast meters, …) stay local to that
+      is the reference - these values are its proven palette, lifted verbatim. Any
+      app-specific resources (converters, broadcast meters, ...) stay local to that
       app; only the shared theme language lives here.
 
       THE nine theme Colors below are the only ones AvaloniaThemeService overwrites
-      at runtime (Aurora → Sunset/Midnight/Neon/Hardcore). IMPORTANT: every consumer
-      references these through {DynamicResource …}, NOT {StaticResource …}. Static
-      captures the value once at XAML-load and never updates — the classic "theme
+      at runtime (Aurora -> Sunset/Midnight/Neon/Hardcore). IMPORTANT: every consumer
+      references these through {DynamicResource ...}, NOT {StaticResource ...}. Static
+      captures the value once at XAML-load and never updates - the classic "theme
       switch works on next start but not live" bug. DynamicResource subscribes to
       key changes and re-renders. (Brush resources composed with DynamicResource
-      stops mutate in place, so holding the brush is enough — but new XAML should
+      stops mutate in place, so holding the brush is enough - but new XAML should
       still prefer DynamicResource on the keys for clarity and correctness.)
     -->
     <Color x:Key="BgFrom">#3a1d6b</Color>
@@ -29,51 +29,51 @@
     <Color x:Key="AccentC">#8a5fff</Color>   <!-- purple -->
     <Color x:Key="Glow">#8C8C69FF</Color>    <!-- rgba(140,105,255, 0.55) -->
 
-    <!-- Bottom-bar gradient pair from the design's `bottomBarFrom/To` — declared
+    <!-- Bottom-bar gradient pair from the design's `bottomBarFrom/To` - declared
          so future UI consumers can DynamicResource them. -->
     <Color x:Key="BottomBarFrom">#8a4fe0</Color>
     <Color x:Key="BottomBarTo">#5fa0ff</Color>
 
     <!-- Pre-alphaised variants of the accent Colors. CSS in the design specifies
-         these per-theme as e.g. `${accentC}22` (= accentC at alpha 0x22 / 13.3%) —
+         these per-theme as e.g. `${accentC}22` (= accentC at alpha 0x22 / 13.3%) -
          the same Color with a different alpha byte. Avalonia's BoxShadow string
          grammar AND its LinearGradientBrush stops want the alpha baked into the
          Color value, so each alpha variant is its own key; AvaloniaThemeService
          recomputes them from each theme's AccentB / AccentC at apply-time. Defaults
          below are Aurora. -->
 
-    <!-- AccentB (warm — pink in Aurora) -->
-    <Color x:Key="AccentBGlow">#99ff5fae</Color>       <!-- α .60 — play halo idle -->
-    <Color x:Key="AccentBGlowStrong">#CCff5fae</Color> <!-- α .80 — play halo hover -->
-    <Color x:Key="AccentBSolid">#FFff5fae</Color>      <!-- α 1.0 — active-row edge halo -->
-    <Color x:Key="AccentBRow">#10ff5fae</Color>        <!-- α .063 — selected row gradient stop (design) -->
-    <Color x:Key="AccentBRowHover">#1Aff5fae</Color>   <!-- α .10  — selected+hover row gradient stop -->
+    <!-- AccentB (warm - pink in Aurora) -->
+    <Color x:Key="AccentBGlow">#99ff5fae</Color>       <!-- alpha .60 - play halo idle -->
+    <Color x:Key="AccentBGlowStrong">#CCff5fae</Color> <!-- alpha .80 - play halo hover -->
+    <Color x:Key="AccentBSolid">#FFff5fae</Color>      <!-- alpha 1.0 - active-row edge halo -->
+    <Color x:Key="AccentBRow">#10ff5fae</Color>        <!-- alpha .063 - selected row gradient stop (design) -->
+    <Color x:Key="AccentBRowHover">#1Aff5fae</Color>   <!-- alpha .10  - selected+hover row gradient stop -->
 
-    <!-- AccentC (tertiary — purple in Aurora) -->
-    <Color x:Key="AccentCRow">#228a5fff</Color>        <!-- α .133 — selected row gradient stop (design) -->
-    <Color x:Key="AccentCRowHover">#338a5fff</Color>   <!-- α .20  — selected+hover row gradient stop -->
+    <!-- AccentC (tertiary - purple in Aurora) -->
+    <Color x:Key="AccentCRow">#228a5fff</Color>        <!-- alpha .133 - selected row gradient stop (design) -->
+    <Color x:Key="AccentCRowHover">#338a5fff</Color>   <!-- alpha .20  - selected+hover row gradient stop -->
 
     <!-- Extra glow alphas. SkeuSlider thumb glow tracks the design's progress-bar
          `0 0 10px ${theme.accentB}88` (~53%). Sleeve aura and window haze are our
          Aurora-style extensions, theme-driven so every palette gets matching tints. -->
-    <Color x:Key="AccentBHalfGlow">#80ff5fae</Color>   <!-- α .50  — slider thumb halo -->
-    <Color x:Key="AccentCSoftAura">#408a5fff</Color>   <!-- α .25  — sleeve outer aura -->
-    <Color x:Key="AccentCWindowGlow">#2A8a5fff</Color> <!-- α .16  — window outer haze -->
+    <Color x:Key="AccentBHalfGlow">#80ff5fae</Color>   <!-- alpha .50  - slider thumb halo -->
+    <Color x:Key="AccentCSoftAura">#408a5fff</Color>   <!-- alpha .25  - sleeve outer aura -->
+    <Color x:Key="AccentCWindowGlow">#2A8a5fff</Color> <!-- alpha .16  - window outer haze -->
 
-    <!-- DERIVED BRUSHES — composed from the Colors above via DynamicResource, so a
+    <!-- DERIVED BRUSHES - composed from the Colors above via DynamicResource, so a
          single Color swap by AvaloniaThemeService propagates into every brush that
          references it without rebuilding brushes here. -->
     <SolidColorBrush x:Key="AccentABrush" Color="{DynamicResource AccentA}"/>
     <SolidColorBrush x:Key="AccentBBrush" Color="{DynamicResource AccentB}"/>
     <SolidColorBrush x:Key="AccentCBrush" Color="{DynamicResource AccentC}"/>
 
-    <!-- Cyan → Pink gradient used on progress, primary button, gradient text -->
+    <!-- Cyan -> Pink gradient used on progress, primary button, gradient text -->
     <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
         <GradientStop Offset="1" Color="{DynamicResource AccentB}"/>
     </LinearGradientBrush>
 
-    <!-- Cyan → White → Pink — for gradient track-title / wordmark text -->
+    <!-- Cyan -> White -> Pink - for gradient track-title / wordmark text -->
     <LinearGradientBrush x:Key="TitleGradient" StartPoint="0%,0%" EndPoint="100%,0%">
         <GradientStop Offset="0" Color="{DynamicResource AccentA}"/>
         <GradientStop Offset="0.5" Color="White"/>
@@ -96,20 +96,20 @@
     </RadialGradientBrush>
 
     <!--
-      ════════════════════════════════════════════════════════════════════════
-      THE LIFTED SURFACE — dialogs and slide-in panels (shared, one recipe)
-      ════════════════════════════════════════════════════════════════════════
+      ========================================================================
+      THE LIFTED SURFACE - dialogs and slide-in panels (shared, one recipe)
+      ========================================================================
       A dialog or a sidebar has to read as its OWN object sitting on the app, not as
       another window with the same skin (Chloe 2026-08-05: "die sehen ja identisch zu
       den main fenstern aus - aber heben sich dadurch kaum ab"). Ruled out up front:
-      no blur, no dimming scrim — most JUST dialogs are NOT modal, so darkening what
+      no blur, no dimming scrim - most JUST dialogs are NOT modal, so darkening what
       is behind them would be a lie.
 
-      ⚠⚠ THE SURFACE IS FLAT ON PURPOSE — do not "give it back the app's gradients".
+      (!)(!) THE SURFACE IS FLAT ON PURPOSE - do not "give it back the app's gradients".
       That was tried on 2026-08-06 and it failed on a hard technical limit, not on taste
       (Chloe, on the very first look: "ich erkenne nun deutlich scan lines - der
-      farbverlauf ist nicht flüssig - ich sehe streifen"). A gradient down the dark half
-      of the ramp is a LOW-CONTRAST ramp — Aurora's BgVia → BgTo is #251347 → #120a26 —
+      farbverlauf ist nicht fluessig - ich sehe streifen"). A gradient down the dark half
+      of the ramp is a LOW-CONTRAST ramp - Aurora's BgVia -> BgTo is #251347 -> #120a26 -
       and stretched down a ~700 px tall, ~370 px wide panel that is only a handful of
       distinguishable 8-bit steps, so it BANDS. Stacking a second shallow white ramp on
       top makes it worse, not smoother. The main window runs the same colours without
@@ -124,16 +124,16 @@
       What this still fixes: the flat slab is now written ONCE and consumed only through
       controls:SurfaceCard, so a dialog and a sidebar cannot drift apart.
 
-      ⚠ Open, and deliberately not changed under Chloe's feet: SurfaceFill is the tweaks
+      (!) Open, and deliberately not changed under Chloe's feet: SurfaceFill is the tweaks
       panel's original hard-coded value, a blue-grey slate that does NOT follow the theme
       (it is off-key in Hardcore's red/black). Theming it is a visible change to a look
-      she has approved — her call, not a silent cleanup.
+      she has approved - her call, not a silent cleanup.
     -->
-    <SolidColorBrush x:Key="SurfaceFill" Color="#F01a1828"/>   <!-- slate, α .94 -->
+    <SolidColorBrush x:Key="SurfaceFill" Color="#F01a1828"/>   <!-- slate, alpha .94 -->
     <SolidColorBrush x:Key="SurfaceEdge" Color="#1FFFFFFF"/>   <!-- white .12 hairline -->
 
-    <!-- Text ramp — muted ladder lifted one notch 2026-07-05 (Chloe: explainer texts were
-         hard to read against the glow, worst on the green theme): .65→.75, .45→.50, .25→.35. -->
+    <!-- Text ramp - muted ladder lifted one notch 2026-07-05 (Chloe: explainer texts were
+         hard to read against the glow, worst on the green theme): .65->.75, .45->.50, .25->.35. -->
     <SolidColorBrush x:Key="TextBrush" Color="White"/>
     <SolidColorBrush x:Key="MutedBrush" Color="#BFFFFFFF"/>        <!-- white .75 -->
     <SolidColorBrush x:Key="MutedDimBrush" Color="#80FFFFFF"/>     <!-- white .50 -->
@@ -141,14 +141,14 @@
     <SolidColorBrush x:Key="HairlineBrush" Color="#14FFFFFF"/>     <!-- white .08 -->
 
     <!--
-      STATUS tokens — deliberately theme-INDEPENDENT, unlike everything above. Two reasons, and both
+      STATUS tokens - deliberately theme-INDEPENDENT, unlike everything above. Two reasons, and both
       were argued before they were used: the accent means "selected / active" in this design system, so
       a status that borrowed it would read as a chosen state; and a traffic light that changes hue with
-      the palette stops being a traffic light. They stay quiet — a warm sand rather than a red, because
+      the palette stops being a traffic light. They stay quiet - a warm sand rather than a red, because
       "your analysis is a version old" is news, not an error.
       Ok = the same green as the update badge ("ready / go"). Caution came from JUST TAG's own App.axaml
       (built 2026-08-03 for the ID3 write-format notice) and moved here the moment a second surface
-      needed it — the analysis traffic light, 2026-08-05.
+      needed it - the analysis traffic light, 2026-08-05.
     -->
     <Color x:Key="Ok">#3BD671</Color>
     <SolidColorBrush x:Key="OkBrush" Color="{DynamicResource Ok}"/>
@@ -160,25 +160,25 @@
     <SolidColorBrush x:Key="CautionEdgeBrush" Color="{DynamicResource Caution}" Opacity="0.34"/>
 
     <!--
-      ToggleSwitch overrides — FluentTheme's defaults bind ToggleSwitchFillOn et al.
+      ToggleSwitch overrides - FluentTheme's defaults bind ToggleSwitchFillOn et al.
       to SystemAccentColor, which picks up whatever accent the user set in Windows
       (red on some configs). Pin these to the theme palette: AccentB (warm) for the ON
       track, AccentC for pressed. These flow through {DynamicResource AccentB} live and
       follow the active theme as it switches.
     -->
-    <!-- ON state — track background -->
+    <!-- ON state - track background -->
     <SolidColorBrush x:Key="ToggleSwitchFillOn"            Color="{DynamicResource AccentB}"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource AccentB}"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnPressed"     Color="{DynamicResource AccentC}"/>
     <SolidColorBrush x:Key="ToggleSwitchFillOnDisabled"    Color="#40FFFFFF"/>
 
-    <!-- ON state — track stroke (border) -->
+    <!-- ON state - track stroke (border) -->
     <SolidColorBrush x:Key="ToggleSwitchStrokeOn"            Color="{DynamicResource AccentB}"/>
     <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource AccentB}"/>
     <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed"     Color="{DynamicResource AccentC}"/>
     <SolidColorBrush x:Key="ToggleSwitchStrokeOnDisabled"    Color="#40FFFFFF"/>
 
-    <!-- ON state — knob (the round handle). White reads cleanly on every theme's warm
+    <!-- ON state - knob (the round handle). White reads cleanly on every theme's warm
          accent; the dark Fluent default leaves it nearly invisible. -->
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOn"            Color="White"/>
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPointerOver" Color="White"/>
@@ -186,12 +186,50 @@
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnDisabled"    Color="#80FFFFFF"/>
 
     <!--
+      CheckBox + RadioButton - the SAME leak the ToggleSwitch above had, and it surfaced the same way:
+      a ticked "Include subfolders" in JUST TAG came up RED, because FluentTheme binds these to
+      SystemAccentColor and Chloe's Windows accent is red (2026-08-06). Nothing in a JUST app should
+      take its colour from the OS - the palette decides, always.
+
+      Key names verified against Avalonia release/12.0.3, Avalonia.Themes.Fluent/Controls/CheckBox.xaml
+      and RadioButton.xaml. Pinned to the SAME roles as the toggle: AccentB for on/checked, AccentC
+      for pressed, white glyph (readable on every theme's warm accent), muted white when disabled.
+      Fixed here rather than in JUST TAG because every JUST app inherits the same leak - a local
+      override would just move the bug to the next window that ships a checkbox.
+    -->
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked"              Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver"   Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPressed"       Color="{DynamicResource AccentC}"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedDisabled"      Color="#40FFFFFF"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked"            Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed"     Color="{DynamicResource AccentC}"/>
+    <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedDisabled"    Color="#40FFFFFF"/>
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked"             Color="White"/>
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver"  Color="White"/>
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed"      Color="#F0FFFFFF"/>
+    <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedDisabled"     Color="#80FFFFFF"/>
+
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill"              Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver"   Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed"       Color="{DynamicResource AccentC}"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillDisabled"      Color="#40FFFFFF"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke"            Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="{DynamicResource AccentB}"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed"     Color="{DynamicResource AccentC}"/>
+    <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokeDisabled"    Color="#40FFFFFF"/>
+    <SolidColorBrush x:Key="RadioButtonCheckGlyphFill"                       Color="White"/>
+    <SolidColorBrush x:Key="RadioButtonCheckGlyphFillPointerOver"            Color="White"/>
+    <SolidColorBrush x:Key="RadioButtonCheckGlyphFillPressed"                Color="#F0FFFFFF"/>
+    <SolidColorBrush x:Key="RadioButtonCheckGlyphFillDisabled"               Color="#80FFFFFF"/>
+
+    <!--
       Per-theme palette-preview swatches MOVED OUT of this dictionary (Chloe 2026-06-29). They used to
-      be hand-painted here and drifted from the app-icon gradient — different stop counts and even
+      be hand-painted here and drifted from the app-icon gradient - different stop counts and even
       different colours per theme (only Onyx happened to match). Now both the icon (ThemedWindowIcon)
-      AND the swatch chip (`{theming:ThemeSwatch <Name>}`) derive from ONE source —
+      AND the swatch chip (`{theming:ThemeSwatch <Name>}`) derive from ONE source -
       ThemeBrushes.IconGradient(theme) in JustPlay.UI/Theming/ThemeSwatch.cs (= IconFrom/IconTo ??
-      AccentA/AccentB, the exact theme record) — so a swatch is literally its app icon's gradient and
+      AccentA/AccentB, the exact theme record) - so a swatch is literally its app icon's gradient and
       they can never diverge again.
     -->
 </ResourceDictionary>
