@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -67,11 +69,39 @@ public partial class TagEditorWindow : Window
     /// </summary>
     public async Task<bool> SetTargetAsync(string? path)
     {
-        if (string.Equals(Editor.FilePath, path, StringComparison.OrdinalIgnoreCase)) return true;
+        if (!Editor.IsMulti &&
+            string.Equals(Editor.FilePath, path, StringComparison.OrdinalIgnoreCase)) return true;
         if (Body is { } body && !await body.ConfirmLeaveAsync(this)) return false;
 
         if (path is null) Editor.Clear();
         else { Editor.Load(path); FitHeightToContentOnce(); }
+        return true;
+    }
+
+    /// <summary>
+    /// Point the editor at a whole SELECTION - the floating window's half of multi-file editing, so
+    /// the PRE CUE FINDER gets it from the same panel JUST TAG docks.
+    ///
+    /// <para>One file falls through to <see cref="SetTargetAsync"/>, so the ordinary case has no
+    /// second path. A selection is compared as a SET: swapping one row for another is a different
+    /// edit even when the count is unchanged, and the count alone cannot see that.</para>
+    /// </summary>
+    public async Task<bool> SetSelectionAsync(IReadOnlyList<TagTarget> targets)
+    {
+        ArgumentNullException.ThrowIfNull(targets);
+
+        if (targets.Count <= 1) return await SetTargetAsync(targets.Count == 1 ? targets[0].Path : null);
+
+        var now = Editor.SelectedPaths;
+        if (Editor.IsMulti && now.Count == targets.Count && targets.All(t => now.Contains(t.Path)))
+            return true;
+
+        if (Body is { } body && !await body.ConfirmLeaveAsync(this)) return false;
+
+        Editor.LoadMany(targets);
+        // A tab that vanishes under you has to leave you somewhere.
+        if (Body is { } panel) panel.ShowAnalysis = false;
+        FitHeightToContentOnce();
         return true;
     }
 

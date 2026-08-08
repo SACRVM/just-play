@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Avalonia;
@@ -16,6 +17,7 @@ using JustPlay.UI;
 using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
+using JustPlay.UI.ViewModels;
 using JustPlay.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -440,10 +442,26 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         foreach (var it in lb.SelectedItems!.OfType<FinderItemViewModel>())
             vm.SelectedItems.Add(it);
 
-        // The tag editor follows the CURSOR - this is the selection changing, which is the one
-        // signal it is allowed to follow (a track ending must never retarget it; see TagEditorWindow).
+        // The tag editor follows the SELECTION - which is the one signal it is allowed to follow (a
+        // track ending must never retarget it; see TagEditorWindow). More than one row turns it into
+        // a multi-file edit, the same panel and the same rules JUST TAG docks.
         if (_tagEditor is not null)
-            _ = _tagEditor.SetTargetAsync(vm.Selected?.FullPath);
+            _ = _tagEditor.SetSelectionAsync(TagTargets(vm));
+    }
+
+    /// <summary>
+    /// The current file selection as editor targets. The tags ride along from the ROWS rather than
+    /// being read again - and where a row has not been hydrated yet the editor reads that one itself,
+    /// so a selection made while a big folder is still filling is answered correctly rather than as
+    /// "these files all differ".
+    /// </summary>
+    private static IReadOnlyList<TagTarget> TagTargets(PreCueFinderViewModel vm)
+    {
+        if (vm.SelectedItems.Count > 0)
+            return vm.SelectedItems.Select(i => new TagTarget(i.FullPath, i.Track.Model.Metadata))
+                                   .ToList();
+
+        return vm.Selected is { } one ? [new TagTarget(one.FullPath, one.Track.Model.Metadata)] : [];
     }
 
     // -- The shared, always-on-top tag editor ----------------------------------------------------
@@ -473,7 +491,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             _tagEditor.Activate();
         }
 
-        _ = _tagEditor.SetTargetAsync(vm.Selected?.FullPath);
+        _ = _tagEditor.SetSelectionAsync(TagTargets(vm));
     }
 
     // Right-click a file row: if it isn't part of the current multi-selection, select just it (standard

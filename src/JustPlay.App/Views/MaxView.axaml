@@ -869,8 +869,11 @@
                                                   IsVisible="{Binding HasSelection}"/>
                                         <Separator IsVisible="{Binding HasSelection}"/>
                                         <!-- Opens the SHARED floating editor (JustPlay.UI) - stays on top and
-                                             follows the queue cursor. Single row only; batch is JUST TAG's job. -->
-                                        <MenuItem Header="Edit tags..." Click="OnEditTags"
+                                             follows the queue's selection. A selection of any size: the
+                                             same window and the same panel the finder opens and JUST TAG
+                                             docks, so the queue gets multi-edit for free rather than a
+                                             rule of its own. The header carries the count. -->
+                                        <MenuItem Header="{Binding EditTagsHeader}" Click="OnEditTags"
                                                   IsVisible="{Binding ShowEditTags}"/>
                                         <Separator IsVisible="{Binding ShowEditTags}"/>
                                         <MenuItem Header="{Binding ContextTarget.WriteBpmMenu}" CommandParameter="Bpm"

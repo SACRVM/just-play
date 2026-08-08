@@ -428,28 +428,7 @@ public sealed partial class TagEditorViewModel
             Raise(nameof(RenameTickTip));
             Raise(nameof(RenamePreviewTip));
 
-            var tags = targets.Select(t => t.Tags).ToList();
-
-            _uniform = TagField.None;
-            Title       = Common(tags, m => m.Title, TagField.Title);
-            Artist      = Common(tags, m => m.Artist, TagField.Artist);
-            Album       = Common(tags, m => m.Album, TagField.Album);
-            AlbumArtist = Common(tags, m => m.AlbumArtist, TagField.AlbumArtist);
-            Genre       = Common(tags, m => m.Genre, TagField.Genre);
-            Year        = Common(tags, m => Num(m.Year), TagField.Year);
-            Track       = Common(tags, m => Num(m.TrackNumber), TagField.Track);
-            Comment     = Common(tags, m => m.Comment, TagField.Comment);
-            BpmText     = Common(tags, m => m.TaggedBpm is > 0
-                                          ? m.TaggedBpm.Value.ToString("0.##", CultureInfo.InvariantCulture)
-                                          : null, TagField.Bpm);
-            KeyText     = Common(tags, m => m.TaggedKey, TagField.Key);
-            EnergyText  = Common(tags, m => m.TaggedEnergy?.ToString(CultureInfo.InvariantCulture),
-                                 TagField.Energy);
-
-            // Agreed fields start ticked and show their shared value; disagreeing ones start unticked
-            // and empty. NAME and COVER are never ticked by default - neither is something to drift
-            // into, and both have their own gesture to opt in with.
-            _write = _uniform & ~TagField.Name & ~TagField.Cover;
+            DeriveFields(targets.Select(t => t.Tags).ToList());
 
             DetectedSummary = null;
             BuildMeasurements(null);
@@ -469,6 +448,36 @@ public sealed partial class TagEditorViewModel
         }
 
         StartCoverCompare(targets);
+    }
+
+    /// <summary>
+    /// Work out every field's shared value (or lack of one) and which ticks start on. Separate from
+    /// <see cref="LoadMany"/> because the background probe re-runs it: a host whose rows hydrate
+    /// lazily (the PRE CUE FINDER) can hand over a selection whose tags are not all read yet, and
+    /// "not read yet" must not be allowed to read as "they differ".
+    /// </summary>
+    private void DeriveFields(IReadOnlyList<TrackMetadata?> tags)
+    {
+        _uniform = TagField.None;
+        Title       = Common(tags, m => m.Title, TagField.Title);
+        Artist      = Common(tags, m => m.Artist, TagField.Artist);
+        Album       = Common(tags, m => m.Album, TagField.Album);
+        AlbumArtist = Common(tags, m => m.AlbumArtist, TagField.AlbumArtist);
+        Genre       = Common(tags, m => m.Genre, TagField.Genre);
+        Year        = Common(tags, m => Num(m.Year), TagField.Year);
+        Track       = Common(tags, m => Num(m.TrackNumber), TagField.Track);
+        Comment     = Common(tags, m => m.Comment, TagField.Comment);
+        BpmText     = Common(tags, m => m.TaggedBpm is > 0
+                                      ? m.TaggedBpm.Value.ToString("0.##", CultureInfo.InvariantCulture)
+                                      : null, TagField.Bpm);
+        KeyText     = Common(tags, m => m.TaggedKey, TagField.Key);
+        EnergyText  = Common(tags, m => m.TaggedEnergy?.ToString(CultureInfo.InvariantCulture),
+                             TagField.Energy);
+
+        // Agreed fields start ticked and show their shared value; disagreeing ones start unticked and
+        // empty. NAME and COVER are never ticked by default - neither is something to drift into, and
+        // both have their own gesture to opt in with.
+        _write = _uniform & ~TagField.Name & ~TagField.Cover;
     }
 
     /// <summary>The shared value, or null when they differ. A field they all agree on is recorded in
@@ -537,8 +546,15 @@ public sealed partial class TagEditorViewModel
         _coverCompare = cts;
         var token = cts.Token;
 
+        // Does anything still need its TAGS read? A host whose rows hydrate lazily can hand over a
+        // selection that is only partly known. When they are all known the pass may stop at the first
+        // cover mismatch, which is what it is worth on a big selection; when they are not, every file
+        // has to be read anyway - and one read answers both questions.
+        var needTags = targets.Any(t => t.Tags is null);
+
         _ = Task.Run(() =>
         {
+            var tags = new TrackMetadata?[targets.Count];
             byte[]? shared = null;
             string? sharedHash = null;
             var same = true;
@@ -547,17 +563,21 @@ public sealed partial class TagEditorViewModel
             {
                 if (token.IsCancellationRequested) return;
 
-                byte[]? bytes;
-                try { bytes = _reader.Read(targets[i].Path).CoverArt; }
-                catch { same = false; break; }      // unreadable: do not claim they match
+                TrackMetadata? m;
+                try { m = _reader.Read(targets[i].Path); }
+                catch { m = null; same = false; if (!needTags) break; else continue; }
+
+                tags[i] = m;
+                var bytes = m.CoverArt;
 
                 if (i == 0) { shared = bytes; sharedHash = Hash(bytes); continue; }
+                if (!same) continue;
 
                 if ((bytes?.Length ?? 0) != (shared?.Length ?? 0) ||
                     !string.Equals(Hash(bytes), sharedHash, StringComparison.Ordinal))
                 {
                     same = false;
-                    break;
+                    if (!needTags) break;
                 }
             }
 
@@ -566,6 +586,17 @@ public sealed partial class TagEditorViewModel
             Dispatcher.UIThread.Post(() =>
             {
                 if (token.IsCancellationRequested || CoverState != CoverPlan.Comparing) return;
+
+                // Fill in what the rows could not tell us. Only while the panel is still CLEAN: once
+                // there are edits in it, re-deriving would overwrite what was typed - and the answer
+                // is worth less than the typing.
+                if (needTags && !IsDirty)
+                {
+                    _loading = true;
+                    try { DeriveFields(tags); _baseline = Snapshot.From(this); }
+                    finally { _loading = false; }
+                    RaiseMultiState();
+                }
 
                 if (same)
                 {

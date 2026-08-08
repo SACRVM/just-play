@@ -309,9 +309,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public bool ShowFieldSeparator =>
         ShowBpmField || ShowKeyField || ShowEnergyField || ShowRestoreBpm || ShowRestoreKey || ShowRestoreEnergy;
 
-    /// <summary>Row context-menu "Edit tags..." - one row only. The floating editor edits a single
-    /// file; batch editing is JUST TAG's job and must not be implied here.</summary>
-    public bool ShowEditTags => ContextTarget is not null;
+    /// <summary>
+    /// Row context-menu "Edit tags...". Shown for a selection of ANY size.
+    /// <para>It used to be a single row on the grounds that batch editing was JUST TAG's job. That
+    /// stopped being true when the shared editor learned to edit a selection: it is the same window
+    /// and the same panel in all three places, so restricting one host is not a policy, it is the
+    /// two of them drifting apart. Writing onto the PLAYING track still defers, exactly as a
+    /// single-file save here always has.</para>
+    /// </summary>
+    public bool ShowEditTags => ContextTarget is not null || SelectedTracks.Count > 0;
+
+    /// <summary>The menu says what it is about to open, because a queue selection can be large and
+    /// the right-clicked row is not always what you think is selected.</summary>
+    public string EditTagsHeader =>
+        SelectedTracks.Count > 1 ? $"Edit tags ({SelectedTracks.Count})..." : "Edit tags...";
 
     /// <summary>Row context-menu "Pre-cue on headphones" - shown for a single right-clicked row only
     /// (ContextTarget null under multi-select, same rule as the per-field entries), and only while
@@ -470,6 +481,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(CanWriteTags));
         OnPropertyChanged(nameof(CanFillMissing));
+        OnPropertyChanged(nameof(ShowEditTags));
+        OnPropertyChanged(nameof(EditTagsHeader));
     }
 
     [ObservableProperty]

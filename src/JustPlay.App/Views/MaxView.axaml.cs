@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -180,8 +181,10 @@ public partial class MaxView : UserControl
     private void OnEditTags(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm) return;
-        if (vm.ContextTarget is not { } target) return;
         if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+        var targets = TagTargets(vm);
+        if (targets.Count == 0) return;
 
         if (_tagEditor is null)
         {
@@ -197,7 +200,25 @@ public partial class MaxView : UserControl
             _tagEditor.Activate();
         }
 
-        _ = _tagEditor.SetTargetAsync(target.Model.FilePath);
+        _ = _tagEditor.SetSelectionAsync(targets);
+    }
+
+    /// <summary>
+    /// What the editor should open on. The SELECTION when there is one - right-clicking inside a
+    /// selection means "these", which is what every other list in the suite already does - and the
+    /// right-clicked row alone otherwise.
+    /// <para>The tags ride along from the rows: the queue reads them when a track is added, so
+    /// answering "do these agree on their genre?" opens no file.</para>
+    /// </summary>
+    private static IReadOnlyList<TagTarget> TagTargets(MainWindowViewModel vm)
+    {
+        if (vm.SelectedTracks.Count > 0)
+            return vm.SelectedTracks.Select(t => new TagTarget(t.Model.FilePath, t.Model.Metadata))
+                                    .ToList();
+
+        return vm.ContextTarget is { } one
+            ? [new TagTarget(one.Model.FilePath, one.Model.Metadata)]
+            : [];
     }
 
     // Queue keyboard behaviour: Delete removes, Enter plays, a typed letter/digit jumps to the next

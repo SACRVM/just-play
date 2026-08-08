@@ -86,7 +86,11 @@
                                         IsVisible="{Binding HasFile}">
                                 <Button Classes="tag-tab" Content="TAGS" Click="OnShowTags"
                                         Classes.selected="{Binding !#Panel.ShowAnalysis}"/>
+                                <!-- ANALYSIS is ONE file's measurements; across a selection there is
+                                     no such thing, so the tab is not offered (SetSelectionAsync puts
+                                     the panel back on TAGS if you were standing on it). -->
                                 <Button Classes="tag-tab" Content="ANALYSIS" Click="OnShowAnalysis"
+                                        IsVisible="{Binding CanShowAnalysis}"
                                         Classes.selected="{Binding #Panel.ShowAnalysis}"/>
                             </StackPanel>
 
