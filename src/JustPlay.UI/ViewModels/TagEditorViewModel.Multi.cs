@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
+using JustPlay.Core.Tagging;
 
 namespace JustPlay.UI.ViewModels;
 
@@ -90,12 +91,13 @@ public sealed record RenamePreviewRow(string From, string To, RenameIssue Issue)
         RenameIssue.Collides => "two files would get this name",
         RenameIssue.Exists   => "that name is already taken here",
         RenameIssue.Empty    => "the tags this pattern needs are blank",
+        RenameIssue.NoMatch  => "this name does not fit the pattern - left alone",
         _                    => "",
     };
 }
 
-/// <summary>Why a previewed rename cannot go ahead. <see cref="None"/> is the good case.</summary>
-public enum RenameIssue { None, Collides, Exists, Empty }
+/// <summary>Why a previewed row cannot go ahead. <see cref="None"/> is the good case.</summary>
+public enum RenameIssue { None, Collides, Exists, Empty, NoMatch }
 
 /// <summary>
 /// What a save is about to do, worked out BEFORE it runs so it can be shown and refused.
@@ -106,12 +108,15 @@ public sealed record TagSavePlan(
     int FileCount,
     IReadOnlyList<TagSetting> Sets,
     string? RenameMask,
-    CoverPlan Cover)
+    CoverPlan Cover,
+    string? TagFromNameMask = null,
+    IReadOnlyList<string>? TagFromNameFields = null)
 {
     public bool ChangesCover => Cover is CoverPlan.Replace or CoverPlan.Remove;
 
     /// <summary>Would this save touch anything at all?</summary>
-    public bool HasWork => Sets.Count > 0 || RenameMask is not null || ChangesCover;
+    public bool HasWork =>
+        Sets.Count > 0 || RenameMask is not null || ChangesCover || TagFromNameMask is not null;
 }
 
 /// <summary>One line of the confirmation: this field, set to this value, on every selected file.</summary>
@@ -193,7 +198,7 @@ public sealed partial class TagEditorViewModel
     // is that sentence. In single-file mode every getter reports true, so the panel's read-only
     // bindings and the existing save path behave exactly as they always did.
 
-    private bool Ticked(TagField f) => !IsMulti || (_write & f) != 0;
+    private bool Ticked(TagField f) => FromName(f) || !IsMulti || (_write & f) != 0;
 
     private void Tick(TagField f, bool on, [CallerMemberName] string? name = null)
     {
@@ -247,7 +252,9 @@ public sealed partial class TagEditorViewModel
     /// from that moment empty is a value: it will be written.
     /// </summary>
     private string Hint(TagField f, string what) =>
-        IsMulti && !Ticked(f) && (_uniform & f) == 0 ? what : "";
+        FromName(f) ? "from the file name"
+        : IsMulti && !Ticked(f) && (_uniform & f) == 0 ? what
+        : "";
 
     public string TitleHint       => Hint(TagField.Title, DifferentValues);
     public string ArtistHint      => Hint(TagField.Artist, DifferentValues);
@@ -379,6 +386,194 @@ public sealed partial class TagEditorViewModel
     /// </summary>
     public bool HasRenameMask => RenameMask is { Length: > 0 };
 
+    // -- Tags FROM the file name -----------------------------------------------------------------
+    //
+    // The other direction, and the one that behaves differently from everything else in this panel:
+    // it produces a DIFFERENT value per file. The panel's whole model is "one value per field, into
+    // every file", so a field the mask fills cannot show a value at all - it shows what it is going
+    // to be filled FROM, and goes read-only. Wanting one of those fields by hand means picking a
+    // mask that does not name it.
+
+    private string? _fromNameMask;
+
+    /// <summary>The pattern the file NAMES are read apart with, e.g. <c>%artist% - %title%</c>. Null
+    /// or unusable means the fields stay yours.</summary>
+    public string? TagFromNameMask
+    {
+        get => _fromNameMask;
+        set
+        {
+            Set(ref _fromNameMask, value);
+            _fromName = FieldsOf(value);
+            Raise(nameof(TagFromNameLabel));
+            Raise(nameof(HasTagFromName));
+            Raise(nameof(TagFromNameFit));
+
+            // ONE file: fill the boxes and stop. There is a name to read and one set of fields to
+            // put it in, so the result belongs on screen where it can be corrected before it is
+            // written - the same way picking a rename pattern only fills the name box. Across a
+            // selection there is no single set of fields, so it stays a plan (see FromName).
+            if (!IsMulti) { ApplyTagsFromName(); _fromName = TagField.None; }
+
+            RaiseFieldStates();
+            MarkDirty();
+        }
+    }
+
+    /// <summary>Drop the name pattern - see LoadMany for why a change of target always does this.</summary>
+    private void ClearTagFromName()
+    {
+        _fromNameMask = null;
+        _fromName = TagField.None;
+        Raise(nameof(TagFromNameMask));
+        Raise(nameof(TagFromNameLabel));
+        Raise(nameof(HasTagFromName));
+        Raise(nameof(TagFromNameFit));
+        RaiseFieldStates();
+    }
+
+    /// <summary>Read THIS file's name apart and put the values in the boxes. Single-file only.</summary>
+    private void ApplyTagsFromName()
+    {
+        if (FilePath is not { } path || !HasTagFromName) return;
+
+        var parsed = FileNameMask.Parse(_fromNameMask!, FileNameMask.SubjectFor(_fromNameMask!, path));
+        if (parsed is null || parsed.Count == 0)
+        {
+            Status = "That name does not fit this pattern.";
+            return;
+        }
+
+        foreach (var (field, value) in parsed)
+            switch (field)
+            {
+                case "artist":      Artist = value; break;
+                case "title":       Title = value; break;
+                case "album":       Album = value; break;
+                case "albumartist": AlbumArtist = value; break;
+                case "genre":       Genre = value; break;
+                case "year":        Year = value; break;
+                case "track":       Track = value; break;
+            }
+
+        Status = $"Filled {parsed.Count} field{(parsed.Count == 1 ? "" : "s")} from the name - not saved yet.";
+    }
+
+    /// <summary>The fields the active mask owns.</summary>
+    private TagField _fromName = TagField.None;
+
+    public bool HasTagFromName => FileNameMask.CanParse(_fromNameMask);
+
+    public string TagFromNameLabel => HasTagFromName ? _fromNameMask! : "Leave tags alone";
+
+    /// <summary>
+    /// How many of the selected names the mask actually fits, counted as you type.
+    ///
+    /// <para>This is what turns a mask box from a guess into a dial. Without it you write a pattern,
+    /// open the preview, close it, change a character, open it again. With it the number moves while
+    /// you type and you stop when it stops climbing - which is the difference between five canned
+    /// patterns and a language you can aim at your own library.</para>
+    /// </summary>
+    public string TagFromNameFit
+    {
+        get
+        {
+            if (!IsMulti || _targets.Count == 0) return "";
+            if (!HasTagFromName)
+                return string.IsNullOrWhiteSpace(_fromNameMask) ? "" : "not a usable pattern";
+
+            var mask = _fromNameMask!;
+            var fits = _targets.Count(t =>
+                FileNameMask.Parse(mask, FileNameMask.SubjectFor(mask, t.Path)) is { Count: > 0 });
+
+            return fits == _targets.Count
+                ? $"fits all {fits}"
+                : $"fits {fits} of {_targets.Count}";
+        }
+    }
+
+    /// <summary>
+    /// Starting points, offered in the box's drop-down. They are SUGGESTIONS, not the language: the
+    /// box takes free text, because five canned patterns cover almost nothing of a real library -
+    /// label prefixes, vinyl sides, remix brackets, underscores, and the album or genre sitting in
+    /// the folder rather than the name.
+    /// </summary>
+    public static IReadOnlyList<string> TagMaskSuggestions =>
+    [
+        "%artist% - %title%",
+        "%title% - %artist%",
+        "%track% - %artist% - %title%",
+        "%dummy% - %artist% - %title%",
+        "%artist% - %title% (%album%)",
+        "%artist%_%title%",
+        "%dummy%. %artist% - %title%",
+        "%album%/%artist% - %title%",
+        "%genre%/%artist% - %title%",
+        "%artist%/%album%/%track% - %title%",
+    ];
+
+    /// <summary>The words of the language, shown under the box. One you cannot see the vocabulary of
+    /// is one you cannot use.</summary>
+    public static string MaskVocabulary =>
+        "%artist% %title% %album% %albumartist% %genre% %year% %track%   -   "
+        + "%dummy% swallows a part you do not want   -   / reaches into the folder";
+
+
+    /// <summary>Is this field being filled from the name? Then it is not yours to type in.</summary>
+    private bool FromName(TagField f) => HasTagFromName && (_fromName & f) != 0;
+
+    public bool TitleFromName       => FromName(TagField.Title);
+    public bool ArtistFromName      => FromName(TagField.Artist);
+    public bool AlbumFromName       => FromName(TagField.Album);
+    public bool AlbumArtistFromName => FromName(TagField.AlbumArtist);
+    public bool GenreFromName       => FromName(TagField.Genre);
+    public bool YearFromName        => FromName(TagField.Year);
+    public bool TrackFromName       => FromName(TagField.Track);
+
+    /// <summary>Mask field names -> our flags. One place, so a name added to the language reaches
+    /// the panel by being listed here and nowhere else.</summary>
+    private static TagField FieldsOf(string? mask)
+    {
+        var f = TagField.None;
+        foreach (var name in FileNameMask.FieldsIn(mask))
+            f |= name switch
+            {
+                "artist"      => TagField.Artist,
+                "title"       => TagField.Title,
+                "album"       => TagField.Album,
+                "albumartist" => TagField.AlbumArtist,
+                "genre"       => TagField.Genre,
+                "year"        => TagField.Year,
+                "track"       => TagField.Track,
+                _             => TagField.None,
+            };
+        return f;
+    }
+
+    private static string NameOf(TagField f) => f switch
+    {
+        TagField.Artist      => "artist",
+        TagField.Title       => "title",
+        TagField.Album       => "album",
+        TagField.AlbumArtist => "albumartist",
+        TagField.Genre       => "genre",
+        TagField.Year        => "year",
+        TagField.Track       => "track",
+        _                    => "",
+    };
+
+    private void RaiseFieldStates()
+    {
+        foreach (var f in AllFields)
+        {
+            Raise(HintNameFor(f));
+            Raise(WriteNameFor(f));
+        }
+        Raise(nameof(TitleFromName)); Raise(nameof(ArtistFromName)); Raise(nameof(AlbumFromName));
+        Raise(nameof(AlbumArtistFromName)); Raise(nameof(GenreFromName));
+        Raise(nameof(YearFromName)); Raise(nameof(TrackFromName));
+    }
+
     /// <summary>Why the tick is greyed, rather than leaving you to work it out. A disabled control
     /// that says nothing is the same dead end as one that silently does nothing.</summary>
     public string RenameTickTip => HasRenameMask
@@ -418,11 +613,16 @@ public sealed partial class TagEditorViewModel
             BaseName = null;
             _baselineBaseName = null;
 
-            // The PATTERN survives a new selection on purpose - picking one and walking it through
-            // folder after folder is the actual workflow, and re-choosing it every time is friction
-            // for nothing. What does NOT survive is its tick: _write below drops Name, so the pattern
-            // is offered, never armed. Carrying a live rename into a selection you just made would be
-            // the one way this could surprise someone.
+            // The RENAME pattern survives a new selection on purpose - picking one and walking it
+            // through folder after folder is the actual workflow. What does not survive is its tick:
+            // _write below drops Name, so the pattern is offered, never armed.
+            //
+            // (!) The TAGS-FROM-NAME pattern is cleared instead, and the difference is not an
+            // inconsistency - it is that this one has no tick to disarm. Picking it IS switching it
+            // on, so carrying it into a selection you just made would make that selection dirty the
+            // instant it appeared, and every click somewhere else would ask about unsaved changes you
+            // never made (Chloe 2026-08-09). Nothing that would WRITE survives a change of target.
+            ClearTagFromName();
             Raise(nameof(RenameMaskLabel));
             Raise(nameof(HasRenameMask));
             Raise(nameof(RenameTickTip));
@@ -646,6 +846,9 @@ public sealed partial class TagEditorViewModel
 
         void Add(TagField f, string label, string? value)
         {
+            // Filled per file from the name - it has no ONE value, and the plan says so on its own
+            // line instead of pretending to.
+            if (FromName(f)) return;
             if (!Ticked(f)) return;
 
             // A field the selection already agrees on, left untouched, writes nothing - so it is not
@@ -671,7 +874,9 @@ public sealed partial class TagEditorViewModel
         var mask = Ticked(TagField.Name) && !string.IsNullOrWhiteSpace(RenameMask) ? RenameMask : null;
         var cover = Ticked(TagField.Cover) ? CoverState : CoverPlan.Same;
 
-        return new TagSavePlan(FileCount, sets, mask, cover);
+        return new TagSavePlan(FileCount, sets, mask, cover,
+                               HasTagFromName ? _fromNameMask : null,
+                               HasTagFromName ? FileNameMask.FieldsIn(_fromNameMask) : null);
     }
 
     private string? BaselineOf(TagField f) => f switch
@@ -742,16 +947,57 @@ public sealed partial class TagEditorViewModel
                                : r).ToList();
     }
 
-    /// <summary>The mask resolved against ONE file's tags. Same placeholders as the single-file quick
-    /// rename, so a pattern means the same thing wherever it is used.</summary>
-    private static string Resolve(string mask, TrackMetadata? m) => mask
-        .Replace("%artist%", m?.Artist ?? "", StringComparison.OrdinalIgnoreCase)
-        .Replace("%title%", m?.Title ?? "", StringComparison.OrdinalIgnoreCase)
-        .Replace("%album%", m?.Album ?? "", StringComparison.OrdinalIgnoreCase)
-        .Replace("%albumartist%", m?.AlbumArtist ?? "", StringComparison.OrdinalIgnoreCase)
-        .Replace("%genre%", m?.Genre ?? "", StringComparison.OrdinalIgnoreCase)
-        .Replace("%year%", Num(m?.Year) ?? "", StringComparison.OrdinalIgnoreCase)
-        .Replace("%track%", Num(m?.TrackNumber) ?? "", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// What reading the names apart would produce, per file - the same look-before-you-leap the
+    /// rename preview is, in the other direction. A name that does not fit the mask is shown as
+    /// exactly that: left alone. It is not an error, it is the answer.
+    /// <para>Costs nothing - the names are already in hand.</para>
+    /// </summary>
+    public IReadOnlyList<RenamePreviewRow> PreviewTagsFromName()
+    {
+        if (!HasTagFromName || _targets.Count == 0) return [];
+
+        var mask = _fromNameMask!;
+        var rows = new List<RenamePreviewRow>(_targets.Count);
+
+        foreach (var t in _targets)
+        {
+            var from = Path.GetFileName(t.Path);
+            var parsed = FileNameMask.Parse(mask, FileNameMask.SubjectFor(mask, t.Path));
+
+            if (parsed is null || parsed.Count == 0)
+            {
+                rows.Add(new RenamePreviewRow(from, "", RenameIssue.NoMatch));
+                continue;
+            }
+
+            // field = value, in the order the mask names them, so the line reads like the pattern.
+            var shown = string.Join("   ",
+                FileNameMask.FieldsIn(mask)
+                            .Where(parsed.ContainsKey)
+                            .Select(f => $"{f} = {parsed[f]}"));
+
+            rows.Add(new RenamePreviewRow(from, shown, RenameIssue.None));
+        }
+
+        return rows;
+    }
+
+    /// <summary>The mask resolved against ONE file's tags. Goes through the SHARED
+    /// <see cref="FileNameMask"/> - the same language that reads names apart also writes them, so a
+    /// placeholder cannot come to mean two things.</summary>
+    private static string Resolve(string mask, TrackMetadata? m) =>
+        FileNameMask.Format(mask, field => field switch
+        {
+            "artist"      => m?.Artist,
+            "title"       => m?.Title,
+            "album"       => m?.Album,
+            "albumartist" => m?.AlbumArtist,
+            "genre"       => m?.Genre,
+            "year"        => Num(m?.Year),
+            "track"       => Num(m?.TrackNumber),
+            _             => null,
+        });
 
     // -- The save --------------------------------------------------------------------------------
 
@@ -818,7 +1064,8 @@ public sealed partial class TagEditorViewModel
                 var path = targets[i].Path;
                 try
                 {
-                    switch (WriteOne(path, write, values, analysis, coverAction, coverBytes, coverMime))
+                    switch (WriteOne(path, write, values, analysis, coverAction, coverBytes,
+                                     coverMime, plan.TagFromNameMask))
                     {
                         case null:                     unchanged++; break;
                         case TagWriteOutcome.Deferred: deferred++;  break;
@@ -861,20 +1108,35 @@ public sealed partial class TagEditorViewModel
     /// changes something. Returns null for "nothing to do".
     /// </summary>
     private TagWriteOutcome? WriteOne(string path, TagField write, Snapshot v, TagWrite? analysis,
-                                      CoverAction coverAction, byte[]? coverBytes, string? coverMime)
+                                      CoverAction coverAction, byte[]? coverBytes, string? coverMime,
+                                      string? fromName)
     {
         var current = _reader.Read(path);
 
+        // Tags read OUT of this file's own name. Null when there is no mask, or when this name does
+        // not fit it - and "does not fit" means the file is left exactly as it was rather than being
+        // given whatever a loose pattern happened to capture.
+        var parsed = fromName is null
+            ? null
+            : FileNameMask.Parse(fromName, FileNameMask.SubjectFor(fromName, path));
+
+        string? Field(TagField f, string? typed, string? currently) =>
+            parsed is not null && parsed.TryGetValue(NameOf(f), out var fromFile)
+                ? fromFile
+                : Pick(write, f, typed, currently);
+
         var next = new EditableTags
         {
-            Title       = Pick(write, TagField.Title, v.Title, current.Title),
-            Artist      = Pick(write, TagField.Artist, v.Artist, current.Artist),
-            Album       = Pick(write, TagField.Album, v.Album, current.Album),
-            AlbumArtist = Pick(write, TagField.AlbumArtist, v.AlbumArtist, current.AlbumArtist),
-            Genre       = Pick(write, TagField.Genre, v.Genre, current.Genre),
+            Title       = Field(TagField.Title, v.Title, current.Title),
+            Artist      = Field(TagField.Artist, v.Artist, current.Artist),
+            Album       = Field(TagField.Album, v.Album, current.Album),
+            AlbumArtist = Field(TagField.AlbumArtist, v.AlbumArtist, current.AlbumArtist),
+            Genre       = Field(TagField.Genre, v.Genre, current.Genre),
             Comment     = Pick(write, TagField.Comment, v.Comment, current.Comment),
-            Year        = PickNum(write, TagField.Year, v.Year, current.Year),
-            TrackNumber = PickNum(write, TagField.Track, v.Track, current.TrackNumber),
+            Year        = ParseUint(Field(TagField.Year, v.Year, Num(current.Year)))
+                          is var y && y > 0 ? y : PickNum(write, TagField.Year, v.Year, current.Year),
+            TrackNumber = ParseUint(Field(TagField.Track, v.Track, Num(current.TrackNumber)))
+                          is var t && t > 0 ? t : PickNum(write, TagField.Track, v.Track, current.TrackNumber),
         };
 
         var editorialChanged =

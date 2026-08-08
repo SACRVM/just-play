@@ -29,15 +29,22 @@ public partial class RenamePreviewWindow : Window
     /// <summary>
     /// Show the preview for <paramref name="rows"/> and wait until it is closed.
     /// </summary>
-    public static Task ShowAsync(Window owner, string mask, IReadOnlyList<RenamePreviewRow> rows)
+    /// <param name="title">The chrome label - this window serves BOTH directions of the mask
+    /// language, and which one you are looking at is the first thing it has to say.</param>
+    /// <param name="left">Header over the left column ("NOW" / "FILE").</param>
+    /// <param name="right">Header over the right column ("AFTER" / "WOULD GET").</param>
+    public static Task ShowAsync(Window owner, string title, string left, string right,
+                                 string mask, IReadOnlyList<RenamePreviewRow> rows)
     {
         var window = new RenamePreviewWindow();
 
+        window.FindControl<TextBlock>("TitleText")!.Text = title;
+        window.FindControl<TextBlock>("LeftHeader")!.Text = left;
+        window.FindControl<TextBlock>("RightHeader")!.Text = right;
         window.FindControl<TextBlock>("MaskText")!.Text = mask;
         window.FindControl<ItemsControl>("Rows")!.ItemsSource = rows;
 
-        var problems = rows.Count(r => r.IsProblem);
-        window.FindControl<TextBlock>("SummaryText")!.Text = Summarise(rows.Count, problems);
+        window.FindControl<TextBlock>("SummaryText")!.Text = Summarise(rows);
 
         return window.ShowDialog(owner);
     }
@@ -47,18 +54,29 @@ public partial class RenamePreviewWindow : Window
     /// <para>The problem count leads when there is one - "35 of 37" buries the fact that two of them
     /// would collide, and a count you have to subtract in your head is a count you will get wrong.</para>
     /// </summary>
-    private static string Summarise(int total, int problems)
+    private static string Summarise(IReadOnlyList<RenamePreviewRow> rows)
     {
-        var files = total == 1 ? "1 file" : $"{total} files";
+        var files = rows.Count == 1 ? "1 file" : $"{rows.Count} files";
 
-        return problems switch
-        {
-            0 => $"{files} would be renamed. Nothing is renamed until you save.",
-            1 => $"{files}, but 1 cannot be renamed - fix it or pick another pattern. "
-                 + "Saving is blocked until it is clear.",
-            _ => $"{files}, but {problems} cannot be renamed - fix them or pick another pattern. "
-                 + "Saving is blocked until they are clear.",
-        };
+        // A name that does not FIT the pattern is not a problem to be fixed - that file is simply
+        // left alone, which is the safe answer and the honest one. A COLLISION is a problem: two
+        // files cannot have one name, and the save refuses until it is gone.
+        var skipped = rows.Count(r => r.Issue == RenameIssue.NoMatch);
+        var blocking = rows.Count(r => r.IsProblem && r.Issue != RenameIssue.NoMatch);
+
+        if (blocking > 0)
+            return $"{files}, but {blocking} cannot go ahead - fix them or pick another pattern. "
+                   + "Saving is blocked until they are clear.";
+
+        if (skipped == rows.Count)
+            return $"None of these {rows.Count} names fit this pattern - nothing would change.";
+
+        if (skipped > 0)
+            return $"{rows.Count - skipped} of {files} would change; "
+                   + $"{skipped} do not fit the pattern and stay as they are. "
+                   + "Nothing is written until you save.";
+
+        return $"All {files} would change. Nothing is written until you save.";
     }
 
     private void OnChromePressed(object? sender, PointerPressedEventArgs e)

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -37,6 +38,18 @@ public partial class TagSaveConfirmWindow : Window
                 ? "The cover is removed from every file."
                 : "The chosen cover is written to every file.";
             cover.IsVisible = true;
+        }
+
+        if (plan.TagFromNameMask is { Length: > 0 } fromName)
+        {
+            var fields = plan.TagFromNameFields is { Count: > 0 } f
+                ? string.Join(", ", f.Select(x => x.ToUpperInvariant()))
+                : "";
+            var line = window.FindControl<TextBlock>("FromNameText")!;
+            // Named separately from the value list above, because these do NOT get one value: each
+            // file gets what its own name says. A file whose name does not fit is left alone.
+            line.Text = $"{fields} come from each file's own name  ({fromName})";
+            line.IsVisible = true;
         }
 
         if (plan.RenameMask is { Length: > 0 } mask)

@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+// Avalonia 12 moved the clipboard to DataTransfer; SetTextAsync survives as an EXTENSION here
+// (verified in src/Avalonia.Base/Input/Platform/ClipboardExtensions.cs, release/12.0.3), so the
+// using is what makes it exist rather than a package reference.
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -502,6 +506,65 @@ public partial class MainWindow : Window, IFramelessWindow
 
         return rows.Count == 1
             && string.Equals(rows[0].Path, vm.Editor.FilePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // -- The row menu ----------------------------------------------------------------------------
+
+    /// <summary>
+    /// Right-clicking a row that is NOT part of the current selection selects just it first -
+    /// Explorer's rule, and the one the Finder's file pane already follows. Without it, a bulk entry
+    /// would silently act on a set you cannot see any more because you are looking at the row you
+    /// pointed at.
+    /// </summary>
+    private void OnFilesContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (Vm is not { } vm || FileList is not { } list) return;
+        if (e.Source is not Visual source) return;
+
+        var row = source.GetSelfAndVisualAncestors().OfType<ListBoxItem>().FirstOrDefault();
+        if (row?.DataContext is not FileRow clicked) return;
+
+        if (!vm.Selected.Contains(clicked)) list.SelectedItem = clicked;
+    }
+
+    /// <summary>Play or pause the one row the menu is standing on - the same toggle Space is.</summary>
+    private void OnMenuPreview(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is { Selected: [{ } row] } vm) vm.Preview.Toggle(row.Path);
+    }
+
+    /// <summary>Open the file's folder and highlight it. A tagger is fixing files, and everything
+    /// else you might do to one of them happens outside this window.</summary>
+    private void OnMenuReveal(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is { Selected: [{ } row] }) SystemFileBrowser.Reveal(row.Path);
+    }
+
+    /// <summary>
+    /// The paths on the clipboard, one per line. The keyboard's version of what dragging a row out
+    /// already does - handing a file to another tool, or to an agent's chat window.
+    /// </summary>
+    private async void OnMenuCopyPath(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (Vm is not { Selected.Count: > 0 } vm) return;
+            if (Clipboard is not { } clipboard) return;
+
+            await clipboard.SetTextAsync(string.Join(Environment.NewLine,
+                                                     vm.Selected.Select(r => r.Path)));
+        }
+        catch (Exception)
+        {
+            // `async void` on an event handler must not let anything escape, and a clipboard the OS
+            // refuses to hand over is not worth a dialog.
+        }
+    }
+
+    /// <summary>Re-read the folder from disk. Same entry the Finder's menu carries.</summary>
+    private void OnMenuRefresh(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is { Folder: { Length: > 0 } here } vm) vm.Open(here);
     }
 
     /// <summary>Point the list back at whatever the editor is actually holding.</summary>

@@ -19,7 +19,14 @@ namespace JustPlay.UI.Controls;
 /// </summary>
 public partial class TagFieldBox : UserControl
 {
-    public TagFieldBox() => AvaloniaXamlLoader.Load(this);
+    public TagFieldBox()
+    {
+        AvaloniaXamlLoader.Load(this);
+
+        // The suggestion box's INNER text box needs the bare class put on from code - see BareInput
+        // for why a style cannot reach it. Without this a focused GENRE field drew two rings.
+        if (this.FindControl<AutoCompleteBox>("Suggest") is { } suggest) BareInput.Apply(suggest);
+    }
 
     /// <summary>The caption above the box.</summary>
     public static readonly StyledProperty<string?> LabelProperty =
@@ -67,8 +74,17 @@ public partial class TagFieldBox : UserControl
 
     // -- Derived, so the XAML stays free of converters --------------------------------------------
 
-    /// <summary>Read-only because it is not part of the save. A box you cannot write should not
-    /// invite typing into it.</summary>
+    /// <summary>
+    /// Locked from OUTSIDE, whatever the tick says: the field is being filled per file from
+    /// somewhere else (the file name), so it has no single value to show and none to accept.
+    /// </summary>
+    public static readonly StyledProperty<bool> LockedProperty =
+        AvaloniaProperty.Register<TagFieldBox, bool>(nameof(Locked));
+
+    public bool Locked { get => GetValue(LockedProperty); set => SetValue(LockedProperty, value); }
+
+    /// <summary>Read-only because it is not part of the save, or because something else owns it. A
+    /// box you cannot write should not invite typing into it.</summary>
     public static readonly StyledProperty<bool> IsLockedProperty =
         AvaloniaProperty.Register<TagFieldBox, bool>(nameof(IsLocked));
 
@@ -100,9 +116,10 @@ public partial class TagFieldBox : UserControl
         base.OnPropertyChanged(change);
 
         if (change.Property == TextProperty || change.Property == HintProperty ||
-            change.Property == TickedProperty || change.Property == ShowTickProperty)
+            change.Property == TickedProperty || change.Property == ShowTickProperty ||
+            change.Property == LockedProperty)
         {
-            IsLocked = ShowTick && !Ticked;
+            IsLocked = Locked || (ShowTick && !Ticked);
             ShowHint = string.IsNullOrEmpty(Text) && !string.IsNullOrEmpty(Hint);
         }
         else if (change.Property == SuggestionsProperty)

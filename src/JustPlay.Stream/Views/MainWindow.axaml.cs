@@ -336,7 +336,8 @@ public partial class MainWindow : Window, IFramelessWindow
         {
             var folder = vm.EffectiveRecordingFolder;
             Directory.CreateDirectory(folder);
-            Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
+            // SHARED (JustPlay.UI SystemFileBrowser) - one definition for the whole suite.
+            SystemFileBrowser.OpenFolder(folder);
         }
         catch (Exception ex)
         {

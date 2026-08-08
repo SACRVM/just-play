@@ -46,17 +46,18 @@ public partial class SettingsWindow : Window
     // created if missing. Mirrors the REC button's "Open recordings folder".
     private void OnOpenSettingsFolder(object? sender, RoutedEventArgs e)
     {
-        try
-        {
-            var folder = JustDataPaths.Combine("JustStream");
-            Directory.CreateDirectory(folder);
-            Process.Start(new ProcessStartInfo { FileName = folder, UseShellExecute = true });
-        }
+        var folder = JustDataPaths.Combine("JustStream");
+        try { Directory.CreateDirectory(folder); }
         catch (Exception ex)
         {
-            // never-crash rule: a missing drive / denied path must not take the settings window down.
+            // never-crash rule: a denied path must not take the settings window down.
             Console.WriteLine($"[Settings] Open settings folder failed: {ex.Message}");
+            return;
         }
+
+        // SHARED (JustPlay.UI SystemFileBrowser) - the same call JUST TAG's row menu makes. This was
+        // written out inline here and once more in MainWindow, which is how it stayed Windows-only.
+        SystemFileBrowser.OpenFolder(folder);
     }
 
     // Recording tab -> FOLDER "Browse...": OS folder picker via StorageProvider. Click handler

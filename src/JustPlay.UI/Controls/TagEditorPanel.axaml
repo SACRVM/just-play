@@ -264,19 +264,23 @@
                             <controls:TagFieldBox Label="TITLE" ShowTick="{Binding IsMulti}"
                                                   Text="{Binding Title, Mode=TwoWay}"
                                                   Ticked="{Binding WriteTitle, Mode=TwoWay}"
-                                                  Hint="{Binding TitleHint}"/>
+                                                  Hint="{Binding TitleHint}"
+                                              Locked="{Binding TitleFromName}"/>
                             <controls:TagFieldBox Label="ARTIST" ShowTick="{Binding IsMulti}"
                                                   Text="{Binding Artist, Mode=TwoWay}"
                                                   Ticked="{Binding WriteArtist, Mode=TwoWay}"
-                                                  Hint="{Binding ArtistHint}"/>
+                                                  Hint="{Binding ArtistHint}"
+                                              Locked="{Binding ArtistFromName}"/>
                             <controls:TagFieldBox Label="ALBUM" ShowTick="{Binding IsMulti}"
                                                   Text="{Binding Album, Mode=TwoWay}"
                                                   Ticked="{Binding WriteAlbum, Mode=TwoWay}"
-                                                  Hint="{Binding AlbumHint}"/>
+                                                  Hint="{Binding AlbumHint}"
+                                              Locked="{Binding AlbumFromName}"/>
                             <controls:TagFieldBox Label="ALBUM ARTIST" ShowTick="{Binding IsMulti}"
                                                   Text="{Binding AlbumArtist, Mode=TwoWay}"
                                                   Ticked="{Binding WriteAlbumArtist, Mode=TwoWay}"
-                                                  Hint="{Binding AlbumArtistHint}"/>
+                                                  Hint="{Binding AlbumArtistHint}"
+                                              Locked="{Binding AlbumArtistFromName}"/>
                         </StackPanel>
                     </Grid>
 
@@ -289,15 +293,18 @@
                                               Text="{Binding Genre, Mode=TwoWay}"
                                               Ticked="{Binding WriteGenre, Mode=TwoWay}"
                                               Hint="{Binding GenreHint}"
+                                              Locked="{Binding GenreFromName}"
                                               Suggestions="{Binding GenreSuggestions}"/>
                         <controls:TagFieldBox Grid.Column="2" Label="YEAR" ShowTick="{Binding IsMulti}"
                                               Text="{Binding Year, Mode=TwoWay}"
                                               Ticked="{Binding WriteYear, Mode=TwoWay}"
-                                              Hint="{Binding YearHint}"/>
+                                              Hint="{Binding YearHint}"
+                                              Locked="{Binding YearFromName}"/>
                         <controls:TagFieldBox Grid.Column="4" Label="TRACK #" ShowTick="{Binding IsMulti}"
                                               Text="{Binding Track, Mode=TwoWay}"
                                               Ticked="{Binding WriteTrack, Mode=TwoWay}"
-                                              Hint="{Binding TrackHint}"/>
+                                              Hint="{Binding TrackHint}"
+                                              Locked="{Binding TrackFromName}"/>
                     </Grid>
 
                     <controls:TagFieldBox Label="COMMENT" ShowTick="{Binding IsMulti}" Multiline="True"
@@ -347,6 +354,69 @@
                          The extension stays outside the box and is carried over verbatim, so a
                          typo cannot make the file unplayable. -->
                     <Border Height="1" Background="#14FFFFFF" Margin="0,2,0,0"/>
+
+                    <!-- == TAGS FROM THE NAME ==================================================
+                         The same mask language as the rename below, read the other way: instead of
+                         building a name out of tags, it pulls tags out of a name. They sit together
+                         because they are one language, and seeing both directions next to each other
+                         is what makes the placeholders obvious.
+
+                         There is no tick here. Picking a pattern IS switching it on, and "Leave tags
+                         alone" is how it goes off - a tick would be a second switch for one decision.
+
+                         ONE file: the pattern FILLS the boxes above, where you can correct it before
+                         saving. A SELECTION: every file gets its own values, so the fields it owns
+                         say "from the file name" and stop taking input - a box cannot show a value
+                         that is different in every file, and pretending otherwise is worse than
+                         saying so. -->
+                    <StackPanel Spacing="3">
+                        <TextBlock Text="TAGS FROM NAME" Classes="tag-label"/>
+                        <!-- (!) TYPE IT. The presets are SUGGESTIONS in the drop-down, not the whole
+                             language: five canned patterns cover almost none of a real library
+                             (Chloe 2026-08-08 - "wird nur in ganz wenigen faellen wirklich greifen").
+                             Real names carry label prefixes, vinyl sides, remix brackets, underscores
+                             - and often the album or genre in the FOLDER, which a mask reaches with
+                             a slash. The box is the same AutoCompleteBox the GENRE field is, so
+                             typing and picking are one control. -->
+                        <Border Classes="fieldbox">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                <AutoCompleteBox Grid.Column="0" Name="TagMask" Classes="bare"
+                                                 Text="{Binding TagFromNameMask, Mode=TwoWay}"
+                                                 ItemsSource="{Binding TagMaskSuggestions}"
+                                                 FilterMode="Contains" MinimumPrefixLength="0"
+                                                 MaxDropDownHeight="240"
+                                                 Watermark="Leave tags alone"/>
+
+                                <!-- The dial. Without a number that moves while you type, a mask box
+                                     is guess - open preview - close - adjust; with it you stop when
+                                     the count stops climbing. -->
+                                <TextBlock Grid.Column="1" Text="{Binding TagFromNameFit}"
+                                           FontSize="11" Margin="10,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MutedBrush}"/>
+
+                                <!-- The vocabulary lives in a card you can park beside the editor,
+                                     not in a line of grey text under the box: help you have read is
+                                     help that is in the way (Chloe 2026-08-08). -->
+                                <Button Grid.Column="2" Classes="fieldclear" Margin="6,0,0,0"
+                                        Click="OnMaskHelp"
+                                        ToolTip.Tip="What can go in a pattern">
+                                    <TextBlock Text="?" FontSize="12" FontWeight="Bold"
+                                               Foreground="#A6FFFFFF"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Button>
+
+                                <Button Grid.Column="3" Classes="fieldclear" Margin="4,0,0,0"
+                                        Click="OnPreviewTagsFromName"
+                                        IsVisible="{Binding IsMulti}"
+                                        IsEnabled="{Binding HasTagFromName}"
+                                        ToolTip.Tip="Preview what every file would get">
+                                    <controls:JustIcon Kind="Eye" Width="12" Height="12"
+                                                       Foreground="#D9FFFFFF"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+</StackPanel>
 
                     <StackPanel Spacing="3">
                         <TextBlock Text="FILE NAME" Classes="tag-label"/>

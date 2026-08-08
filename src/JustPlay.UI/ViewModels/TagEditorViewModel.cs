@@ -399,6 +399,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         _write = TagField.All;          // one file: every field takes part, as it always has
         _uniform = TagField.None;
         _renameMask = null;
+        ClearTagFromName();
         CoverState = CoverPlan.Same;
         try
         {
@@ -461,6 +462,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         _write = TagField.All;          // single-file meaning: every field takes part
         _uniform = TagField.None;
         _renameMask = null;
+        ClearTagFromName();
         CoverState = CoverPlan.Same;
         FilePath = null; _loaded = null;
         FileName = ""; FileInfo = "";
@@ -480,9 +482,17 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         RaiseMultiState();
     }
 
-    /// <summary>Throw the edits away and show the file as it is on disk again.</summary>
+    /// <summary>
+    /// Throw the edits away and show what is on disk again.
+    ///
+    /// <para>(!) A SELECTION has no <see cref="FilePath"/> - deliberately, so nothing can quietly act
+    /// on "the" file - so this used to walk straight past a multi-file edit and do nothing at all,
+    /// while leaving <see cref="IsDirty"/> standing. Pressing Revert appeared to be ignored and the
+    /// next click still asked about unsaved changes (Chloe 2026-08-09).</para>
+    /// </summary>
     public void Revert()
     {
+        if (IsMulti) { LoadMany(_targets); return; }
         if (FilePath is { } p) Load(p);
     }
 

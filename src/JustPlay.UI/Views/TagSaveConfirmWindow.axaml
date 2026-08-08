@@ -58,6 +58,8 @@
 
                 <!-- The two things that are not tag values, and that people underestimate: the cover
                      and the rename. Both get their own line rather than being folded into the list. -->
+                <TextBlock Name="FromNameText" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Foreground="#ECFFFFFF" IsVisible="False"/>
                 <TextBlock Name="CoverText" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"
                            Foreground="#ECFFFFFF" IsVisible="False"/>
                 <TextBlock Name="RenameText" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"

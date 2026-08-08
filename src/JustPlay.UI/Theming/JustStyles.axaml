@@ -1014,6 +1014,37 @@
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
     </Style>
+    <!-- (!) The suite gives a focused TextBox a 1 px ring (see "Fluent gives a FOCUSED TextBox..."
+         above). Inside a fieldbox that is a SECOND ring nested in the field's own, which is what made
+         a focused mask box look wrong. The field owns the focus state here, so the inner one is
+         switched off - for the error ring too, same reason. -->
+    <Style Selector="TextBox.bare:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="TextBox.bare:error /template/ Border#PART_BorderElement">
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <!--
+      (!!) AND the ERROR ADORNER, which is a different thing again. DataValidationErrors wraps the
+      box INSIDE its template and draws Fluent's own red (SystemControlErrorTextForegroundBrush)
+      around it - outside PART_BorderElement, so neutralising that border does not touch it. That is
+      the red that kept flashing through a field while it was being typed in (Chloe 2026-08-09).
+
+      It is given an empty template rather than a recoloured one on purpose: a field inside a
+      fieldbox has its own way of saying something is wrong (the panel says it in words, next to the
+      box), and the suite's rule is that the OS red is never allowed through - the same reason the
+      focused-border colour above exists.
+    -->
+    <Style Selector="TextBox.bare">
+        <Setter Property="(DataValidationErrors.ErrorTemplate)">
+            <DataTemplate><Panel/></DataTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="AutoCompleteBox.bare">
+        <Setter Property="(DataValidationErrors.ErrorTemplate)">
+            <DataTemplate><Panel/></DataTemplate>
+        </Setter>
+    </Style>
 
     <Style Selector="AutoCompleteBox.bare">
         <Setter Property="Background" Value="Transparent"/>

@@ -525,7 +525,37 @@
                                          GotFocus="OnFilesGotFocus"
                                          DoubleTapped="OnFileDoubleTapped"
                                          SelectionChanged="OnFileSelected"
+                                         ContextRequested="OnFilesContextRequested"
                                          IsVisible="{Binding HasFolder}">
+                                    <!--
+                                      The row menu. Deliberately short, and every entry is something
+                                      this window could NOT do until now - editing tags is the docked
+                                      panel's job and would only be a second door to the same room,
+                                      and analysing is not offered because JUST TAG does not carry the
+                                      analyzer at all (it would mean shipping the whole DSP stack in
+                                      the tagger, which is a decision and not a menu item).
+
+                                      Right-clicking a row that is not part of the selection selects
+                                      just it first - Explorer's rule, and the one the Finder's file
+                                      pane already follows - so a bulk entry always acts on what you
+                                      pointed at.
+                                    -->
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu x:DataType="vm:TaggerViewModel">
+                                            <MenuItem Header="{Binding PreviewMenuHeader}"
+                                                      Click="OnMenuPreview"
+                                                      IsVisible="{Binding HasOneSelected}"/>
+                                            <Separator IsVisible="{Binding HasOneSelected}"/>
+                                            <MenuItem Header="{Binding RevealMenuHeader}"
+                                                      Click="OnMenuReveal"
+                                                      IsVisible="{Binding HasOneSelected}"/>
+                                            <MenuItem Header="{Binding CopyPathMenuHeader}"
+                                                      Click="OnMenuCopyPath"
+                                                      IsVisible="{Binding HasSelection}"/>
+                                            <Separator IsVisible="{Binding HasSelection}"/>
+                                            <MenuItem Header="Refresh" Click="OnMenuRefresh"/>
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FileRow">
                                             <!-- The SHARED row (JustPlay.UI TrackRow) - the same cells,

@@ -20,7 +20,11 @@ namespace JustPlay.UI.Controls;
 /// </summary>
 public partial class TagEditorPanel : UserControl
 {
-    public TagEditorPanel() => AvaloniaXamlLoader.Load(this);
+    public TagEditorPanel()
+    {
+        AvaloniaXamlLoader.Load(this);
+        if (this.FindControl<AutoCompleteBox>("TagMask") is { } mask) BareInput.Apply(mask);
+    }
 
     /// <summary>
     /// Which half is showing: the editable TAGS, or the read-only ANALYSIS. It lives on the CONTROL,
@@ -109,12 +113,47 @@ public partial class TagEditorPanel : UserControl
             if (Vm is not { RenameMask: { Length: > 0 } mask } vm) return;
             if (TopLevel.GetTopLevel(this) is not Window owner) return;
 
-            await RenamePreviewWindow.ShowAsync(owner, mask, vm.PreviewRenames());
+            await RenamePreviewWindow.ShowAsync(owner, "RENAME PREVIEW", "NOW", "AFTER",
+                                                mask, vm.PreviewRenames());
         }
         catch (Exception)
         {
             // `async void` on an event handler must not let anything escape. A preview that fails to
             // open costs nothing - no file has been touched at this point, by construction.
+        }
+    }
+
+    /// <summary>
+    /// The pattern that reads TAGS out of a name. One file: it fills the boxes above, so the result
+    /// is on screen and correctable. A selection: it is kept as a plan and applied per file, and the
+    /// fields it owns go read-only - a box cannot show a value that differs in every file.
+    /// </summary>
+    private void OnPickTagMask(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is not { } vm) return;
+        vm.TagFromNameMask = (sender as Control)?.Tag as string;
+    }
+
+    /// <summary>The pattern cheat sheet - one window, parked wherever you put it.</summary>
+    private void OnMaskHelp(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is Window owner) MaskHelpWindow.Open(owner);
+    }
+
+    /// <summary>The eye for the other direction: what each file's name would give it. A name that
+    /// does not fit the pattern is shown as left alone, which is the answer and not an error.</summary>
+    private async void OnPreviewTagsFromName(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (Vm is not { TagFromNameMask: { Length: > 0 } mask } vm) return;
+            if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+            await RenamePreviewWindow.ShowAsync(owner, "TAGS FROM NAME", "FILE", "WOULD GET",
+                                                mask, vm.PreviewTagsFromName());
+        }
+        catch (Exception)
+        {
         }
     }
 

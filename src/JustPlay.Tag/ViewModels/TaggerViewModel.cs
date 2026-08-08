@@ -1304,6 +1304,28 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
     public bool HasMultiSelection => _selected.Count > 1;
 
+    public bool HasSelection => _selected.Count > 0;
+
+    /// <summary>Exactly one row. The entries that act on A FILE - play it, show it on disk - have no
+    /// meaning for a set, and offering them greyed would be a worse answer than not offering them.</summary>
+    public bool HasOneSelected => _selected.Count == 1;
+
+    // -- Row menu headers ------------------------------------------------------------------------
+    // They carry the COUNT and the platform's own wording, because a menu that says what it will do
+    // to how many files is the cheapest kind of protection there is.
+
+    /// <summary>Play or pause - the same toggle Space is, named for what it will actually do.</summary>
+    public string PreviewMenuHeader =>
+        Preview.IsPlaying && _selected.Count == 1 &&
+        string.Equals(Preview.Path, _selected[0].Path, StringComparison.OrdinalIgnoreCase)
+            ? "Pause" : "Play";
+
+    /// <summary>"Show in Explorer" / "Reveal in Finder" - muscle memory is platform-shaped.</summary>
+    public static string RevealMenuHeader => SystemFileBrowser.RevealVerb;
+
+    public string CopyPathMenuHeader =>
+        _selected.Count > 1 ? $"Copy paths ({_selected.Count})" : "Copy path";
+
     public void SetSelection(IEnumerable<FileRow>? rows)
     {
         var next = rows?.ToList() ?? [];
@@ -1312,6 +1334,10 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         Raise(nameof(Selected));
         Raise(nameof(SelectionText));
         Raise(nameof(HasMultiSelection));
+        Raise(nameof(HasSelection));
+        Raise(nameof(HasOneSelected));
+        Raise(nameof(PreviewMenuHeader));
+        Raise(nameof(CopyPathMenuHeader));
     }
 
     private string? _problem;
