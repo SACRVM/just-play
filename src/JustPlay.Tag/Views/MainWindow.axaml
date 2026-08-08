@@ -589,7 +589,12 @@
                                             Click="OnShowEditor">
                                         <TextBlock Text="EDITOR" Classes="panehead"/>
                                     </Button>
+                                    <!-- ANALYSIS is ONE file's measurements. Across a selection there
+                                         is no such thing, so the tab goes away instead of standing
+                                         there empty - and if you were on it, the pane falls back to
+                                         EDITOR (SyncAnalysisTab). -->
                                     <Button Classes="tabhead" Classes.active="{Binding ShowAnalysis}"
+                                            IsVisible="{Binding CanShowAnalysisTab}"
                                             Click="OnShowAnalysis">
                                         <TextBlock Text="ANALYSIS" Classes="panehead"/>
                                     </Button>

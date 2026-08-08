@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Layout;
 
 namespace JustPlay.UI.Controls;
 
@@ -14,17 +15,35 @@ namespace JustPlay.UI.Controls;
 /// <para>Usage: give the window a grid of thin transparent grip <see cref="Border"/>s in the
 /// shadow margin (outside the visible card), each with <c>Tag</c> set to a compass name
 /// containing "North"/"South"/"East"/"West" (e.g. "NorthWest"), then call
-/// <see cref="Attach"/> once with that grid. Grip visibility (maximized, mini mode ...)
-/// stays the window's concern. Extracted from MainWindow so the PRE CUE FINDER - and any
-/// future JUST window - resizes identically without copying the pointer maths.</para>
+/// <see cref="Attach"/> once with that grid and the card it surrounds.</para>
+///
+/// <para>(!) <b>Pass the CARD.</b> The grip band has to be exactly the card's own margin, and that
+/// margin is not one number: a window card sits at <c>20,20,20,22</c> and a dialog card at
+/// <c>20,20,20,26</c> (Theming/JustStyles.axaml), while every window's grip grid was written out by
+/// hand as <c>20,*,20</c>. The bottom edge therefore had a dead strip between the visible card and
+/// the first pixel that resizes - 2 px in a window, 6 px in a dialog, which is what made sub-windows
+/// feel like they only resized "where the shadow ends" (Chloe 2026-08-08). Reading it off the card
+/// makes the two agree by construction, in every window at once, and it keeps agreeing when the
+/// margin changes: maximizing sets it to 0, which collapses the grips to nothing - exactly the state
+/// a maximized window wants.</para>
 /// </summary>
 public static class FramelessResizeBehavior
 {
-    /// <summary>Wire resize handling onto every direct child of <paramref name="grips"/> that
-    /// carries a compass-name Tag. Respects the window's MinWidth/MinHeight.</summary>
-    public static void Attach(Window window, Grid grips)
+    /// <summary>
+    /// Wire resize handling onto every direct child of <paramref name="grips"/> that carries a
+    /// compass-name Tag. Respects the window's MinWidth/MinHeight.
+    /// </summary>
+    /// <param name="card">The visible rounded card. Its Margin becomes the grip band - see the class
+    /// remarks for why this must not be a constant.</param>
+    /// <param name="canResize">Optional extra gate, for a window with a mode that must not resize at
+    /// all (JUST PLAY's mini view). Maximizing needs no gate: the card's margin goes to 0 and the
+    /// bands go with it.</param>
+    public static void Attach(Window window, Grid grips, Border? card = null,
+                              Func<bool>? canResize = null)
     {
-        var state = new ResizeState(window);
+        if (card is not null) BindBandToCard(grips, card);
+
+        var state = new ResizeState(window, canResize);
         foreach (var child in grips.Children)
         {
             if (child is not Border { Tag: string } grip) continue;
@@ -34,7 +53,34 @@ public static class FramelessResizeBehavior
         }
     }
 
-    private sealed class ResizeState(Window window)
+    /// <summary>Keep the outer grid bands equal to the card's margin, now and whenever it changes.</summary>
+    private static void BindBandToCard(Grid grips, Border card)
+    {
+        Apply();
+        card.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Layoutable.MarginProperty) Apply();
+        };
+
+        void Apply()
+        {
+            var m = card.Margin;
+
+            if (grips.ColumnDefinitions.Count == 3)
+            {
+                grips.ColumnDefinitions[0].Width = new GridLength(Math.Max(0, m.Left));
+                grips.ColumnDefinitions[2].Width = new GridLength(Math.Max(0, m.Right));
+            }
+
+            if (grips.RowDefinitions.Count == 3)
+            {
+                grips.RowDefinitions[0].Height = new GridLength(Math.Max(0, m.Top));
+                grips.RowDefinitions[2].Height = new GridLength(Math.Max(0, m.Bottom));
+            }
+        }
+    }
+
+    private sealed class ResizeState(Window window, Func<bool>? canResize)
     {
         private bool _resizing, _wEdge, _eEdge, _nEdge, _sEdge;
         private PixelPoint _pointerStart, _posStart;   // screen px, window-pos px
@@ -42,6 +88,7 @@ public static class FramelessResizeBehavior
 
         public void OnPressed(object? sender, PointerPressedEventArgs e)
         {
+            if (canResize is not null && !canResize()) return;
             if (sender is not Border { Tag: string name } grip) return;
             if (!e.GetCurrentPoint(window).Properties.IsLeftButtonPressed) return;
             _wEdge = name.Contains("West"); _eEdge = name.Contains("East");

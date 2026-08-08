@@ -3,7 +3,7 @@
         xmlns:uic="using:JustPlay.UI.Controls"
         x:Class="JustPlay.UI.Views.ConfirmDialog"
         Title="Confirm"
-        Width="380" SizeToContent="Height"
+        MinWidth="380" MaxWidth="560" SizeToContent="WidthAndHeight"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
@@ -16,6 +16,13 @@
       Shared tiny themed yes/no dialog - the suite's "are you sure?" for anything that would
       discard work (same frameless rounded card as InputDialog/About). ShowDialog returns
       true on confirm, false on cancel/Esc - see ConfirmDialog.AskAsync.
+
+      (!) It sizes to its CONTENT between a floor and a ceiling rather than to a fixed width. At a
+      flat 380 the three-button variant (Cancel | Discard | Save) needed 318 px of a 324 px opening -
+      six pixels of headroom, which any font metric spends. A number picked for the two-button case
+      is simply wrong for the three-button one, and the next message would break it again. The floor
+      keeps a one-word question from shrinking into a tooltip; the ceiling keeps a 120-character file
+      name from stretching the card across the screen instead of wrapping.
     -->
     <Border Name="DialogCard" ClipToBounds="True"
             BoxShadow="0 18 54 0 #B3000000">

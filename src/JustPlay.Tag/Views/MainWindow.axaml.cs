@@ -16,6 +16,7 @@ using JustPlay.UI;
 using JustPlay.UI.Behaviors;
 using JustPlay.UI.Controls;
 using JustPlay.UI.Theming;
+using JustPlay.UI.ViewModels;
 using JustPlay.UI.Views;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -56,7 +57,7 @@ public partial class MainWindow : Window, IFramelessWindow
         // TransparencyLevelHint comes from the XAML ONLY - re-setting it here trips Avalonia's
         // macOS opaque fallback (black surround); measured 2026-07-31.
 
-        FramelessResizeBehavior.Attach(this, ResizeGrips);
+        FramelessResizeBehavior.Attach(this, ResizeGrips, this.FindControl<Border>("RootCard"));
         WindowPlacement.Track(this, "JustTag.Main");
 
         // (!) JUST TAG carried the .maximized STYLE from the day it was built, but nothing ever set the
@@ -352,35 +353,38 @@ public partial class MainWindow : Window, IFramelessWindow
 
         if (row.IsUp) { vm.GoUp(); return; }
 
-        if (row.IsPlaylist) { OpenAsList(vm, row.Path, playlist: true, moveFocus); return; }
+        if (row.IsPlaylist) { OpenPlaylistAsList(vm, row.Path, moveFocus); return; }
 
-        // Is this a LEAF (nothing to browse into)? Decided HERE, when the row is activated - the
-        // Finder's shape exactly. It is one directory check, off the UI thread because on a share it
-        // is a round trip, and the answer is needed once per click rather than for every row in the
-        // listing (which is what froze the app on a library root, 2026-08-06).
-        var path = row.Path;
-        Task.Run(() => TaggerViewModel.HasNavigableChildren(path))
-            .ContinueWith(t => Dispatcher.UIThread.Post(() =>
-            {
-                if (Vm is not { } v) return;
-                if (t.Result) v.Open(path); else OpenAsList(v, path, playlist: false, moveFocus);
-            }), TaskScheduler.Default);
+        // Leaf or not is decided in the VIEW MODEL now, by the same GoTo every other way into a
+        // folder goes through - startup, a drop, the picker, a crumb. It used to be decided right
+        // here, and only here, which is exactly how a dropped leaf folder could be entered and then
+        // remembered as the folder to reopen (Chloe 2026-08-08). alreadyInParent, because the folder
+        // pane is already listing this row's parent: a leaf only has to fill the file pane.
+        vm.GoTo(row.Path, alreadyInParent: true,
+                whenShownAsList: moveFocus ? HandFocusToFiles : null);
     }
 
-    /// <summary>A playlist or a leaf folder: fill the FILE pane. The folder pane stays where it is -
-    /// these are lists of songs, not places. <paramref name="moveFocus"/> is the KEYBOARD's business
-    /// only: Enter hands the cursor on, a mouse click leaves it exactly where you put it.</summary>
-    private void OpenAsList(TaggerViewModel vm, string path, bool playlist, bool moveFocus)
+    /// <summary>A playlist: fill the FILE pane. The folder pane stays where it is - a set is a list
+    /// of songs, not a place.</summary>
+    private void OpenPlaylistAsList(TaggerViewModel vm, string path, bool moveFocus)
     {
-        if (playlist) vm.OpenPlaylist(path); else vm.OpenFolderTracks(path);
-        if (!moveFocus) return;
+        vm.OpenPlaylist(path);
+        if (moveFocus) HandFocusToFiles();
+    }
+
+    /// <summary>Enter hands the cursor on to the file pane; a mouse click leaves it where you put it.</summary>
+    private void HandFocusToFiles()
+    {
+        if (Vm is not { } vm) return;
         vm.Activate(TaggerViewModel.FocusPane.Files);
         FocusFiles();
     }
 
     private void OnCrumbClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is Control { Tag: string path }) Vm?.Open(path);
+        // A crumb is always an ANCESTOR, so it always has something to browse into - but it goes
+        // through the same door as everything else rather than relying on that staying true.
+        if (sender is Control { Tag: string path }) Vm?.GoTo(path);
     }
 
     // The focused pane owns the header highlight, and GotFocus (which bubbles up from whatever inside
@@ -416,14 +420,14 @@ public partial class MainWindow : Window, IFramelessWindow
         var first = dropped[0];
         if (Directory.Exists(first))
         {
-            vm.Open(first);
+            vm.GoTo(first);
             return;
         }
 
         var folder = Path.GetDirectoryName(first);
         if (string.IsNullOrEmpty(folder)) return;
 
-        vm.Open(folder);
+        vm.GoTo(folder);
         RestoreSelection(first);          // land on the file that was actually dropped
         if (FileList.SelectedItem is FileRow row) vm.Editor.Load(row.Path);
     }
@@ -458,13 +462,14 @@ public partial class MainWindow : Window, IFramelessWindow
 
         // The SET first, and unconditionally: how many rows are selected is a display fact, and it has
         // to stay right even when the editor refuses to leave a dirty file below.
-        vm.SetSelection((sender as ListBox)?.SelectedItems?.OfType<FileRow>());
+        var rows = (sender as ListBox)?.SelectedItems?.OfType<FileRow>().ToList() ?? [];
+        vm.SetSelection(rows);
 
         if (_restoringSelection || Editor is not { } panel) return;
 
-        var picked = (sender as ListBox)?.SelectedItem as FileRow;
-        if (picked is not null && string.Equals(picked.Path, vm.Editor.FilePath,
-                                                StringComparison.OrdinalIgnoreCase)) return;
+        // Already showing exactly these files? Then nothing changed that the editor cares about -
+        // and re-loading would throw away edits in progress for no reason.
+        if (ShowsSameFiles(vm, rows)) return;
 
         if (!await panel.ConfirmLeaveAsync(this))
         {
@@ -472,8 +477,31 @@ public partial class MainWindow : Window, IFramelessWindow
             return;
         }
 
-        if (picked is null) vm.Editor.Clear();
-        else vm.Editor.Load(picked.Path);
+        // MORE THAN ONE ROW turns the editor into a multi-file edit. The tags come off the ROWS
+        // rather than off disk: since schema v3 the index carries them, so "do these 37 files agree
+        // on their genre?" is answered without opening anything.
+        if (rows.Count > 1)
+            vm.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, r.Meta)).ToList());
+        else if (rows.Count == 1) vm.Editor.Load(rows[0].Path);
+        else vm.Editor.Clear();
+
+        vm.SyncAnalysisTab();
+    }
+
+    /// <summary>Is the editor already pointed at exactly this set of files, in any order?</summary>
+    private static bool ShowsSameFiles(TaggerViewModel vm, IReadOnlyList<FileRow> rows)
+    {
+        if (rows.Count > 1 || vm.Editor.IsMulti)
+        {
+            // A selection is compared as a SET: adding a row and removing another is a different
+            // edit even when the count is the same, so the count alone cannot answer this.
+            var now = vm.Editor.SelectedPaths;
+            return now.Count == rows.Count
+                && rows.All(r => now.Contains(r.Path));
+        }
+
+        return rows.Count == 1
+            && string.Equals(rows[0].Path, vm.Editor.FilePath, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Point the list back at whatever the editor is actually holding.</summary>
@@ -504,7 +532,7 @@ public partial class MainWindow : Window, IFramelessWindow
                 AllowMultiple = false,
             });
 
-            if (picked?.FirstOrDefault()?.TryGetLocalPath() is { Length: > 0 } path) Vm?.Open(path);
+            if (picked?.FirstOrDefault()?.TryGetLocalPath() is { Length: > 0 } path) Vm?.GoTo(path);
         }
         catch (Exception)
         {

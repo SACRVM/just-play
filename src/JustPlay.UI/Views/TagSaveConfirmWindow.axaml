@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:uic="using:JustPlay.UI.Controls"
+        xmlns:vm="using:JustPlay.UI.ViewModels"
+        x:Class="JustPlay.UI.Views.TagSaveConfirmWindow"
+        Title="Write tags"
+        Width="440" MaxHeight="620" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <!--
+      What a multi-file save is about to do, in full, before it runs.
+
+      Writing tags into dozens of files cannot be taken back, and the panel alone does not answer
+      "what exactly happens": ticks are spread over eleven fields, some of them off-screen. This is
+      the one place where the whole instruction is one sentence you can read.
+
+      Everything shown comes from TagEditorViewModel.BuildPlan() - the SAME value the save then
+      executes, so this cannot drift into promising something else.
+    -->
+
+    <Border Name="DialogCard" ClipToBounds="True" BoxShadow="0 18 54 0 #B3000000">
+        <Panel>
+            <uic:SurfaceCard CornerRadius="14"/>
+
+            <StackPanel Margin="28,26,28,22" Spacing="0">
+                <TextBlock Name="TitleText" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+
+                <!-- WHAT gets set, and to what. A cleared field reads in the caution colour: it is
+                     the one setting here that destroys a value rather than replacing it. -->
+                <ScrollViewer MaxHeight="300" Margin="0,14,0,0"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl Name="Rows">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TagSetting">
+                                <Grid ColumnDefinitions="118,*" Margin="0,0,0,7">
+                                    <TextBlock Grid.Column="0" Text="{Binding Field}" FontSize="10"
+                                               FontWeight="Bold" LetterSpacing="1.6"
+                                               Foreground="#73FFFFFF" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12.5"
+                                               Foreground="#ECFFFFFF" TextWrapping="Wrap"
+                                               IsVisible="{Binding !Clears}"/>
+                                    <TextBlock Grid.Column="1" Text="emptied on every file"
+                                               FontSize="12.5" FontStyle="Italic"
+                                               Foreground="{DynamicResource CautionBrush}"
+                                               IsVisible="{Binding Clears}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- The two things that are not tag values, and that people underestimate: the cover
+                     and the rename. Both get their own line rather than being folded into the list. -->
+                <TextBlock Name="CoverText" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Foreground="#ECFFFFFF" IsVisible="False"/>
+                <TextBlock Name="RenameText" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Foreground="#ECFFFFFF" IsVisible="False"/>
+
+                <Border Height="1" Background="#14FFFFFF" Margin="0,16,0,0"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,14,0,0">
+                    <uic:JustIcon Kind="Warning" Width="13" Height="13" VerticalAlignment="Top"
+                                  Margin="0,1,0,0"
+                                  Foreground="{DynamicResource CautionBrush}"/>
+                    <TextBlock Text="This cannot be undone." FontSize="12" TextWrapping="Wrap"
+                               Foreground="{DynamicResource CautionBrush}"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="10"
+                            HorizontalAlignment="Right" Margin="0,18,0,0">
+                    <Button Classes="dialog-close" Content="Cancel" Click="OnCancel"/>
+                    <Button Name="WriteButton" Classes="dialog-close" Click="OnConfirm"/>
+                </StackPanel>
+            </StackPanel>
+        </Panel>
+    </Border>
+</Window>

@@ -43,7 +43,37 @@ public partial class TagEditorPanel : UserControl
 
     private TagEditorViewModel? Vm => DataContext as TagEditorViewModel;
 
-    private void OnSave(object? sender, RoutedEventArgs e) => Vm?.Save();
+    private async void OnSave(object? sender, RoutedEventArgs e)
+    {
+        try { await SaveAsync(); }
+        catch (Exception)
+        {
+            // `async void` on an event handler cannot let anything escape. Whatever went wrong has
+            // already landed in the view model's Status line, which is where the user reads it.
+        }
+    }
+
+    /// <summary>
+    /// One file saves straight away; a selection asks first.
+    /// <para>The asking is not ceremony: writing tags into dozens of files cannot be taken back, and
+    /// what is about to happen is spread over eleven ticks the user may have scrolled past. The
+    /// dialog is handed the SAME plan object the save then executes, so it cannot promise one thing
+    /// and do another.</para>
+    /// </summary>
+    private async Task SaveAsync()
+    {
+        if (Vm is not { } vm) return;
+
+        if (!vm.IsMulti) { vm.Save(); return; }
+
+        var plan = vm.BuildPlan();
+        if (!plan.HasWork) { await vm.SaveManyAsync(); return; }   // sets "Nothing to save."
+
+        if (TopLevel.GetTopLevel(this) is not Window owner) return;
+        if (!await TagSaveConfirmWindow.AskAsync(owner, plan)) return;
+
+        await vm.SaveManyAsync();
+    }
 
     private void OnRevert(object? sender, RoutedEventArgs e) => Vm?.Revert();
 
@@ -54,6 +84,38 @@ public partial class TagEditorPanel : UserControl
     private void OnRenameMask(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { Tag: string mask }) Vm?.ApplyRenameMask(mask);
+    }
+
+    /// <summary>
+    /// Across a selection the same patterns are a CHOICE rather than a fill: there is no one box to
+    /// put a name in, so the pattern is kept and resolved per file at save time. A menu item with no
+    /// Tag is "leave names alone", which clears it.
+    /// </summary>
+    private void OnPickMask(object? sender, RoutedEventArgs e)
+    {
+        if (Vm is not { } vm) return;
+        vm.RenameMask = (sender as Control)?.Tag as string;
+    }
+
+    /// <summary>
+    /// The eye: what every selected file would end up called. Opened BEFORE the save, because the two
+    /// ways a bulk rename goes wrong - two files landing on one name, a name the folder already holds
+    /// - are invisible in the pattern and obvious in the list.
+    /// </summary>
+    private async void OnPreviewNames(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (Vm is not { RenameMask: { Length: > 0 } mask } vm) return;
+            if (TopLevel.GetTopLevel(this) is not Window owner) return;
+
+            await RenamePreviewWindow.ShowAsync(owner, mask, vm.PreviewRenames());
+        }
+        catch (Exception)
+        {
+            // `async void` on an event handler must not let anything escape. A preview that fails to
+            // open costs nothing - no file has been touched at this point, by construction.
+        }
     }
 
     /// <summary>Put the file's real name back in the box - the exit from a rename that does not
@@ -104,13 +166,18 @@ public partial class TagEditorPanel : UserControl
         var choice = await ConfirmDialog.AskSaveDiscardCancelAsync(
             owner,
             "Unsaved changes",
-            $"\"{vm.FileName}\" has edits you haven't saved.");
+            vm.IsMulti
+                ? $"{vm.FileCount} files have edits you haven't saved."
+                : $"\"{vm.FileName}\" has edits you haven't saved.");
 
-        return choice switch
-        {
-            SaveChoice.Save    => vm.Save(),   // a refused save (bad input) keeps us on this file
-            SaveChoice.Discard => true,
-            _                  => false,
-        };
+        if (choice == SaveChoice.Discard) return true;
+        if (choice != SaveChoice.Save) return false;
+
+        // A refused save (bad input, an unresolved name clash) keeps us where we are - the edits are
+        // still there, and moving on would throw them away behind the user's back.
+        if (!vm.IsMulti) return vm.Save();
+
+        await SaveAsync();
+        return !vm.IsDirty;
     }
 }

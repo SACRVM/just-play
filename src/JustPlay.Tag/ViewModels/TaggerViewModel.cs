@@ -210,7 +210,23 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     public void ShowTab(TagPane pane)
     {
         if (pane == TagPane.Filter && !CanFilter) return;   // still reading - the tab says so
+        if (pane == TagPane.Analysis && !CanShowAnalysisTab) return;
         Pane = pane;
+    }
+
+    /// <summary>ANALYSIS shows ONE file's measurements. Across a selection there is no such thing, so
+    /// the tab is not offered rather than offered and empty.</summary>
+    public bool CanShowAnalysisTab => Editor.CanShowAnalysis;
+
+    /// <summary>
+    /// Call after the editor's target changes. If ANALYSIS just stopped being available and you were
+    /// standing on it, the pane falls back to EDITOR - a tab that vanishes under you must leave you
+    /// somewhere, not on a blank half.
+    /// </summary>
+    public void SyncAnalysisTab()
+    {
+        Raise(nameof(CanShowAnalysisTab));
+        if (!CanShowAnalysisTab && _pane == TagPane.Analysis) Pane = TagPane.Editor;
     }
 
     public TaggerViewModel(TagEditorViewModel editor, PreviewViewModel preview,
@@ -264,7 +280,9 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         //      registry that decides whether a folder is indexed (Chloe 2026-08-05).
         StartFile = startup.SelectFile;
         var start = FirstExisting(startup.Folder, settings.Current.LastFolder, FirstLibraryRoot());
-        if (start is not null) Open(start);
+        // GoTo, not Open: the remembered folder has to be entered by the SAME rule a click
+        // uses, or a leaf that was opened once stays opened for good.
+        if (start is not null) GoTo(start);
     }
 
     /// <summary>A file we were launched on - the window selects it once the listing is up.</summary>
@@ -1308,7 +1326,60 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// one folder is one screen, and descending is a click. (Batch across a tree is the workbench
     /// step, and it is a different feature with a different confirmation.)
     /// </summary>
-    public void Open(string path)
+    /// <summary>
+    /// Land on a folder the way ACTIVATING its row does - the ONE entry point for "take me to this
+    /// folder", used by startup, by a drop, by the folder picker.
+    ///
+    /// <para>(!) <b>Why this exists.</b> The leaf rule - a folder with nothing to browse into shows
+    /// its TRACKS instead of being descended into - lived in the view, on the click handler alone.
+    /// Every other way of reaching a folder called <see cref="Open"/> raw and simply went in, and
+    /// <see cref="Open"/> is what records LastFolder. So dropping a leaf folder on the window put you
+    /// inside it AND remembered it, and the next start reopened it: a state you cannot reach by
+    /// clicking, but that the app could put you in and keep you in (Chloe 2026-08-08). The rule is
+    /// here now, so a rule stated once is applied everywhere.</para>
+    ///
+    /// <para>The check is one directory probe and runs off the UI thread - on a share it is a round
+    /// trip, and it is the same call the click path already pays for.</para>
+    /// </summary>
+    /// <param name="alreadyInParent">The folder pane is ALREADY listing this folder's parent - which
+    /// is true of a click on a row and of nothing else. A leaf then only has to fill the file pane;
+    /// re-listing the parent would rebuild the folder list under the pointer for no gain.</param>
+    /// <param name="whenShownAsList">Runs if it turned out to be a leaf and its tracks were listed.
+    /// The keyboard's business only: Enter hands the cursor to the file pane, a mouse click leaves it
+    /// where you put it.</param>
+    public void GoTo(string path, bool alreadyInParent = false, Action? whenShownAsList = null)
+    {
+        string full;
+        try { full = Path.GetFullPath(path); }
+        catch (Exception) { Problem = "That path is not valid."; return; }
+
+        Task.Run(() => HasNavigableChildren(full)).ContinueWith(t =>
+        {
+            // A probe that threw counts as browsable, matching HasNavigableChildren's own rule:
+            // let Open report why a folder cannot be read rather than pouring an unreadable folder
+            // into the file pane.
+            var canBrowse = t.Status != TaskStatus.RanToCompletion || t.Result;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (canBrowse) { Open(full); return; }
+
+                // A LEAF. Stand in its PARENT with the leaf's tracks in the file pane - exactly the
+                // state clicking the row produces. A leaf with no parent (a drive root holding only
+                // songs) has nowhere to stand, so it is opened as an ordinary folder.
+                if (alreadyInParent) OpenFolderTracks(full);
+                else if (Directory.GetParent(full)?.FullName is { Length: > 0 } parent)
+                    Open(parent, thenShowTracksOf: full);
+                else { Open(full); return; }
+
+                whenShownAsList?.Invoke();
+            });
+        }, TaskScheduler.Default);
+    }
+
+    /// <param name="thenShowTracksOf">A LEAF folder whose tracks fill the file pane once
+    /// <paramref name="path"/> is listed. See <see cref="GoTo"/>.</param>
+    public void Open(string path, string? thenShowTracksOf = null)
     {
         string full;
         try { full = Path.GetFullPath(path); }
@@ -1446,6 +1517,12 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                     StartTagPass();
                     ApplyListingSort(isPlaylist: false);
                     ApplyFilter();
+
+                    // The folder pane is now standing in the parent; swap the file pane over to the
+                    // leaf. It has to happen HERE and not right after Open returns, because both
+                    // listings share _listCts - starting the second one early would cancel the first
+                    // and leave the folder pane empty.
+                    if (thenShowTracksOf is { Length: > 0 } leaf) OpenFolderTracks(leaf);
                 });
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)

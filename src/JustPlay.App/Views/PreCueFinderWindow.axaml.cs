@@ -95,7 +95,8 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnWindowPointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!);
+        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!,
+                                      this.FindControl<Border>("RootCard"));
 
         // Theme-tinted taskbar icon, re-rendered on every palette switch (suite rule #2).
         _themeSvc = Program.Services.GetRequiredService<IThemeService>();

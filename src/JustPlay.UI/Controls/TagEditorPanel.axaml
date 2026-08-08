@@ -29,60 +29,23 @@
             <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
         </Style>
 
-        <!-- Editable field - frosted box, accent focus ring (the OS red is never allowed through). -->
-        <Style Selector="TextBox.tag-field">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="7"/>
-            <Setter Property="Foreground" Value="#ECFFFFFF"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="SelectionBrush" Value="#448a5fff"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource AccentBBrush}"/>
-        </Style>
-        <Style Selector="TextBox.tag-field:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
-        </Style>
-        <Style Selector="TextBox.tag-field:focus /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
-            <Setter Property="Background" Value="#14FFFFFF"/>
-        </Style>
+        <!-- (!) The field LOOK is no longer written here. The frosted box, the tick, the X and the
+             chromeless input are suite styles (Theming/JustStyles.axaml, "EDITABLE FIELD"), composed
+             by TagFieldBox - which is what let the genre box stop being a second, hand-matched copy
+             of the same design. -->
 
-        <!-- Genre suggestions: an AutoCompleteBox wearing the same clothes as the plain fields, so
-             the row does not announce itself as a different KIND of input. The inner TextBox carries
-             the look; the outer control is only a shell. -->
-        <Style Selector="AutoCompleteBox.tag-field">
+        <!-- The pattern picker in the file-name row. It sits INSIDE a fieldbox, so it brings no
+             chrome of its own - only the text and the chevron that says it opens a list. -->
+        <Style Selector="Button.maskpick">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="MinHeight" Value="0"/>
-        </Style>
-        <Style Selector="AutoCompleteBox.tag-field /template/ TextBox">
-            <Setter Property="Background" Value="#14FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="7"/>
             <Setter Property="Foreground" Value="#ECFFFFFF"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Padding" Value="8,5"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="SelectionBrush" Value="#448a5fff"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource AccentBBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <!-- The suggestion list - never left in stock chrome. -->
-        <Style Selector="AutoCompleteBox.tag-field /template/ ListBox">
-            <Setter Property="Background" Value="#F01a1828"/>
-            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="MaxHeight" Value="220"/>
-        </Style>
-        <Style Selector="AutoCompleteBox.tag-field /template/ ListBox ListBoxItem">
-            <Setter Property="Foreground" Value="#D9FFFFFF"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="FontSize" Value="12.5"/>
+        <Style Selector="Button.maskpick /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!-- The locked extension next to the name box. -->
@@ -249,49 +212,71 @@
                                     Background="#12FFFFFF"
                                     BorderBrush="#1FFFFFFF" BorderThickness="1">
                                 <Panel>
-                                    <TextBlock Text="No cover" Classes="tag-muted" FontSize="10.5"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                               IsVisible="{Binding !HasCover}"/>
                                     <Image Source="{Binding Cover}" Stretch="UniformToFill"
                                            IsVisible="{Binding HasCover}"/>
+
+                                    <!-- What an empty slot MEANS. One file: there is no picture.
+                                         A selection: the same sentence the text fields show, in the
+                                         same words - the picture is a field like the others. -->
+                                    <TextBlock Text="No cover" Classes="tag-muted" FontSize="10.5"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowNoCover}"/>
+                                    <TextBlock Text="{Binding CoverHint}" Classes="tag-muted"
+                                               FontSize="10.5" FontStyle="Italic" Margin="8,0"
+                                               TextAlignment="Center" TextWrapping="Wrap"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding HasCoverHint}"/>
+
+                                    <!-- The tick and the X, drawn INTO the picture (Chloe 2026-08-07).
+                                         The picture IS this field, so its two controls sit inside it
+                                         exactly as they sit inside a text box - and they mean the
+                                         same two things. The scrim keeps them legible on bright
+                                         artwork; without it a white sleeve swallows both. -->
+                                    <Border Background="#66000000" CornerRadius="7" Padding="4"
+                                            Margin="6" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            IsVisible="{Binding IsMulti}">
+                                        <ToggleButton Classes="fieldtick"
+                                                      IsChecked="{Binding WriteCover, Mode=TwoWay}"
+                                                      ToolTip.Tip="Include the cover when saving"/>
+                                    </Border>
+                                    <Border Background="#66000000" CornerRadius="7" Padding="3"
+                                            Margin="6" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                        <Button Classes="fieldclear" Click="OnRemoveCover"
+                                                ToolTip.Tip="Remove the cover">
+                                            <controls:JustIcon Kind="Close" Width="9" Height="9"
+                                                               Foreground="#D9FFFFFF"/>
+                                        </Button>
+                                    </Border>
                                 </Panel>
                             </Border>
-                            <StackPanel Grid.Row="2" Margin="0,6,0,0"
-                                        Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center">
-                                <Button Classes="tag-ghost" Content="Change..." Padding="10,6"
-                                        Click="OnChangeCover"/>
-                                <Button Classes="tag-ghost" Padding="9,6" Click="OnRemoveCover"
-                                        ToolTip.Tip="Remove cover">
-                                    <Path Stretch="Uniform" Width="14" Height="14"
-                                          Stroke="#E6FFFFFF" StrokeThickness="1.5"
-                                          StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
-                                          Data="M3 6 h18 M8 6 V4 a1 1 0 0 1 1 -1 h6 a1 1 0 0 1 1 1 v2
-                                                M19 6 v14 a2 2 0 0 1 -2 2 H7 a2 2 0 0 1 -2 -2 V6
-                                                M10 11 v6 M14 11 v6"/>
-                                </Button>
-                            </StackPanel>
+
+                            <!-- Removing is the X in the picture now, so only ONE button is left
+                                 under it - the trash can was a second way to say the same thing in a
+                                 different place. -->
+                            <Button Grid.Row="2" Classes="tag-ghost" Content="Change..." Padding="10,6"
+                                    Margin="0,6,0,0" Click="OnChangeCover" HorizontalAlignment="Center"/>
                         </Grid>
 
                         <!-- Four fields, and the cover measures itself against them. ALBUM ARTIST is
                              up here rather than in a row of its own because that is the fourth line
                              the cover needs - and it belongs with the other three names anyway. -->
                         <StackPanel Grid.Column="2" Spacing="9">
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="TITLE" Classes="tag-label"/>
-                                <TextBox Classes="tag-field" Text="{Binding Title}"/>
-                            </StackPanel>
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="ARTIST" Classes="tag-label"/>
-                                <TextBox Classes="tag-field" Text="{Binding Artist}"/>
-                            </StackPanel>
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="ALBUM" Classes="tag-label"/>
-                                <TextBox Classes="tag-field" Text="{Binding Album}"/>
-                            </StackPanel>
-                            <StackPanel Spacing="3">
-                                <TextBlock Text="ALBUM ARTIST" Classes="tag-label"/>
-                                <TextBox Classes="tag-field" Text="{Binding AlbumArtist}"/>
-                            </StackPanel>
+                            <controls:TagFieldBox Label="TITLE" ShowTick="{Binding IsMulti}"
+                                                  Text="{Binding Title, Mode=TwoWay}"
+                                                  Ticked="{Binding WriteTitle, Mode=TwoWay}"
+                                                  Hint="{Binding TitleHint}"/>
+                            <controls:TagFieldBox Label="ARTIST" ShowTick="{Binding IsMulti}"
+                                                  Text="{Binding Artist, Mode=TwoWay}"
+                                                  Ticked="{Binding WriteArtist, Mode=TwoWay}"
+                                                  Hint="{Binding ArtistHint}"/>
+                            <controls:TagFieldBox Label="ALBUM" ShowTick="{Binding IsMulti}"
+                                                  Text="{Binding Album, Mode=TwoWay}"
+                                                  Ticked="{Binding WriteAlbum, Mode=TwoWay}"
+                                                  Hint="{Binding AlbumHint}"/>
+                            <controls:TagFieldBox Label="ALBUM ARTIST" ShowTick="{Binding IsMulti}"
+                                                  Text="{Binding AlbumArtist, Mode=TwoWay}"
+                                                  Ticked="{Binding WriteAlbumArtist, Mode=TwoWay}"
+                                                  Hint="{Binding AlbumArtistHint}"/>
                         </StackPanel>
                     </Grid>
 
@@ -300,28 +285,26 @@
                          first), then a fallback vocabulary - so the same style stops being spelled
                          four ways. Free text is always accepted; this never restricts. -->
                     <Grid ColumnDefinitions="2*,12,*,12,*">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="GENRE" Classes="tag-label"/>
-                            <AutoCompleteBox Classes="tag-field" Text="{Binding Genre}"
-                                             ItemsSource="{Binding GenreSuggestions}"
-                                             FilterMode="Contains" MinimumPrefixLength="1"
-                                             MaxDropDownHeight="220"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="3">
-                            <TextBlock Text="YEAR" Classes="tag-label"/>
-                            <TextBox Classes="tag-field" Text="{Binding Year}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="4" Spacing="3">
-                            <TextBlock Text="TRACK #" Classes="tag-label"/>
-                            <TextBox Classes="tag-field" Text="{Binding Track}"/>
-                        </StackPanel>
+                        <controls:TagFieldBox Grid.Column="0" Label="GENRE" ShowTick="{Binding IsMulti}"
+                                              Text="{Binding Genre, Mode=TwoWay}"
+                                              Ticked="{Binding WriteGenre, Mode=TwoWay}"
+                                              Hint="{Binding GenreHint}"
+                                              Suggestions="{Binding GenreSuggestions}"/>
+                        <controls:TagFieldBox Grid.Column="2" Label="YEAR" ShowTick="{Binding IsMulti}"
+                                              Text="{Binding Year, Mode=TwoWay}"
+                                              Ticked="{Binding WriteYear, Mode=TwoWay}"
+                                              Hint="{Binding YearHint}"/>
+                        <controls:TagFieldBox Grid.Column="4" Label="TRACK #" ShowTick="{Binding IsMulti}"
+                                              Text="{Binding Track, Mode=TwoWay}"
+                                              Ticked="{Binding WriteTrack, Mode=TwoWay}"
+                                              Hint="{Binding TrackHint}"/>
                     </Grid>
 
-                    <StackPanel Spacing="3">
-                        <TextBlock Text="COMMENT" Classes="tag-label"/>
-                        <TextBox Classes="tag-field" Text="{Binding Comment}"
-                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="54"/>
-                    </StackPanel>
+                    <controls:TagFieldBox Label="COMMENT" ShowTick="{Binding IsMulti}" Multiline="True"
+                                          MinHeight="72"
+                                          Text="{Binding Comment, Mode=TwoWay}"
+                                          Ticked="{Binding WriteComment, Mode=TwoWay}"
+                                          Hint="{Binding CommentHint}"/>
 
                     <!-- == ANALYSIS - hand-correctable ========================================
                          These three are OUR measurements, so correcting one is a statement about
@@ -329,21 +312,25 @@
                          underneath, so the correction is made against a number instead of blind. -->
                     <Border Height="1" Background="#14FFFFFF" Margin="0,2,0,0"/>
 
+                    <!-- (!) These three get a tick like everything else, with no special case: across
+                         a selection they essentially never agree, so their tick starts OFF by the
+                         same rule that governs every other field. The guard is the rule, not an
+                         exception to it. -->
                     <Grid ColumnDefinitions="*,10,*,10,*">
-                        <StackPanel Grid.Column="0" Spacing="3">
-                            <TextBlock Text="BPM" Classes="tag-label"/>
-                            <TextBox Classes="tag-field" Text="{Binding BpmText}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Spacing="3">
-                            <TextBlock Text="KEY" Classes="tag-label"/>
-                            <TextBox Classes="tag-field" Text="{Binding KeyText}"
-                                     ToolTip.Tip="Am, F#m, 8A - Camelot works too"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="4" Spacing="3">
-                            <TextBlock Text="ENERGY" Classes="tag-label"/>
-                            <TextBox Classes="tag-field" Text="{Binding EnergyText}"
-                                     ToolTip.Tip="1 to 10"/>
-                        </StackPanel>
+                        <controls:TagFieldBox Grid.Column="0" Label="BPM" ShowTick="{Binding IsMulti}"
+                                              Text="{Binding BpmText, Mode=TwoWay}"
+                                              Ticked="{Binding WriteBpm, Mode=TwoWay}"
+                                              Hint="{Binding BpmHint}"/>
+                        <controls:TagFieldBox Grid.Column="2" Label="KEY" ShowTick="{Binding IsMulti}"
+                                              Text="{Binding KeyText, Mode=TwoWay}"
+                                              Ticked="{Binding WriteKey, Mode=TwoWay}"
+                                              Hint="{Binding KeyHint}"
+                                              Tip="Am, F#m, 8A - Camelot works too"/>
+                        <controls:TagFieldBox Grid.Column="4" Label="ENERGY" ShowTick="{Binding IsMulti}"
+                                              Text="{Binding EnergyText, Mode=TwoWay}"
+                                              Ticked="{Binding WriteEnergy, Mode=TwoWay}"
+                                              Hint="{Binding EnergyHint}"
+                                              Tip="1 to 10"/>
                     </Grid>
 
                     <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasDetected}">
@@ -363,13 +350,77 @@
 
                     <StackPanel Spacing="3">
                         <TextBlock Text="FILE NAME" Classes="tag-label"/>
-                        <!-- The chevron belongs to the NAME BOX, not to the section: it offers ways
+
+                        <!-- == A SELECTION: a PATTERN, not a name ==============================
+                             There is no one name that fits 37 files, so the box becomes a picker of
+                             patterns, resolved per file against that file's own tags. It wears the
+                             same tick as every other field, in the same place, and the eye beside it
+                             shows every old -> new before anything moves - which is where the two
+                             ways this goes wrong (two files landing on one name, a name already
+                             taken) get caught, rather than being discovered afterwards. -->
+                        <Border Classes="fieldbox" IsVisible="{Binding IsMulti}">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <!-- (!) The tick hangs off HasRenameMask. Without a pattern there is
+                                     nothing to tick INTO: it would say "these get renamed" and then
+                                     rename nothing, because the plan has no mask to run. Picking a
+                                     pattern ticks this by itself, so the only way in is the way that
+                                     works. -->
+                                <ToggleButton Grid.Column="0" Classes="fieldtick" Margin="0,0,8,0"
+                                              IsChecked="{Binding WriteName, Mode=TwoWay}"
+                                              IsEnabled="{Binding HasRenameMask}"
+                                              ToolTip.Tip="{Binding RenameTickTip}"/>
+
+                                <Button Grid.Column="1" Classes="maskpick"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding RenameMaskLabel}"
+                                                   FontSize="13" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <controls:JustIcon Grid.Column="1" Kind="ChevronDown"
+                                                           Width="11" Height="11" Margin="8,0,0,0"
+                                                           Foreground="#8CFFFFFF"
+                                                           VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="Artist - Title"
+                                                      Tag="%artist% - %title%" Click="OnPickMask"/>
+                                            <MenuItem Header="Title - Artist"
+                                                      Tag="%title% - %artist%" Click="OnPickMask"/>
+                                            <MenuItem Header="Artist - Title (Album)"
+                                                      Tag="%artist% - %title% (%album%)" Click="OnPickMask"/>
+                                            <MenuItem Header="Track - Artist - Title"
+                                                      Tag="%track% - %artist% - %title%" Click="OnPickMask"/>
+                                            <Separator/>
+                                            <MenuItem Header="Leave names alone" Click="OnPickMask"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+
+                                <!-- No Width/Height override: an in-field control that is taller than
+                                     the text line beside it starts driving the row's height, and this
+                                     row has to sit level with the fields above it. -->
+                                <Button Grid.Column="2" Classes="fieldclear"
+                                        Margin="6,0,0,0" Click="OnPreviewNames"
+                                        IsEnabled="{Binding HasRenameMask}"
+                                        ToolTip.Tip="{Binding RenamePreviewTip}">
+                                    <controls:JustIcon Kind="Eye" Width="12" Height="12"
+                                                       Foreground="#D9FFFFFF"/>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- == ONE FILE: the name itself =====================================
+                             The pencil belongs to the NAME BOX, not to the section: it offers ways
                              to fill that one field, so it sits at its right end like any picker
                              (Chloe 2026-08-05 - "logischer und optisch sauber"). The extension stays
                              between them, outside the box, and is carried over verbatim so a typo
                              cannot make the file unplayable. -->
-                        <Grid ColumnDefinitions="*,Auto,Auto">
-                            <TextBox Grid.Column="0" Classes="tag-field" Text="{Binding BaseName}"/>
+                        <Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding !IsMulti}">
+                            <Border Grid.Column="0" Classes="fieldbox">
+                                <TextBox Classes="bare" Text="{Binding BaseName}"/>
+                            </Border>
                             <TextBlock Grid.Column="1" Text="{Binding Extension}" Classes="tag-ext"/>
                             <Button Grid.Column="2" Classes="tag-ghost" Padding="8,6" Margin="7,0,0,0"
                                     ToolTip.Tip="Rename file from tag - nothing is renamed until you save">

@@ -62,7 +62,7 @@ public sealed record Measurement(string Label, string Text, double Bar, string? 
 /// <para>Hand-rolled <see cref="INotifyPropertyChanged"/> on purpose - the shared UI library stays
 /// free of a MVVM-toolkit dependency (same rule as <see cref="Logging.LogViewModel"/>).</para>
 /// </summary>
-public sealed class TagEditorViewModel : INotifyPropertyChanged
+public sealed partial class TagEditorViewModel : INotifyPropertyChanged
 {
     private readonly IMetadataReader _reader;
     private readonly IMetadataWriter _writer;
@@ -114,7 +114,9 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     private string _fileInfo = "";
     public string FileInfo { get => _fileInfo; private set => Set(ref _fileInfo, value); }
 
-    public bool HasFile => FilePath is not null;
+    /// <summary>The panel has something to show. A selection counts - it has no single
+    /// <see cref="FilePath"/> on purpose, so that nothing can quietly act on "the" file.</summary>
+    public bool HasFile => FilePath is not null || IsMulti;
 
     // -- The file NAME, editable (Chloe 2026-08-03: "dateiname mit reinpacken und aenderbar machen") -
     //
@@ -345,7 +347,11 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     // -- Cover -----------------------------------------------------------------------------------
 
     private Bitmap? _cover;
-    public Bitmap? Cover { get => _cover; private set { Set(ref _cover, value); Raise(nameof(HasCover)); } }
+    public Bitmap? Cover
+    {
+        get => _cover;
+        private set { Set(ref _cover, value); Raise(nameof(HasCover)); Raise(nameof(ShowNoCover)); }
+    }
 
     public bool HasCover => Cover is not null;
 
@@ -387,6 +393,13 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public void Load(string path)
     {
         _loading = true;
+        CancelCoverCompare();
+        _targets = [];
+        _paths = null;
+        _write = TagField.All;          // one file: every field takes part, as it always has
+        _uniform = TagField.None;
+        _renameMask = null;
+        CoverState = CoverPlan.Same;
         try
         {
             var m = _reader.Read(path);
@@ -434,6 +447,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         {
             _loading = false;
             Raise(nameof(HasFile));
+            RaiseMultiState();
         }
     }
 
@@ -441,6 +455,13 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     public void Clear()
     {
         _loading = true;
+        CancelCoverCompare();
+        _targets = [];
+        _paths = null;
+        _write = TagField.All;          // single-file meaning: every field takes part
+        _uniform = TagField.None;
+        _renameMask = null;
+        CoverState = CoverPlan.Same;
         FilePath = null; _loaded = null;
         FileName = ""; FileInfo = "";
         Extension = ""; BaseName = null; _baselineBaseName = null;
@@ -456,6 +477,7 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
         Status = "";
         Raise(nameof(HasFile));
         Raise(nameof(HasDetected));
+        RaiseMultiState();
     }
 
     /// <summary>Throw the edits away and show the file as it is on disk again.</summary>
@@ -471,15 +493,20 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     {
         SetCoverBytes(bytes, mime);
         _coverAction = CoverAction.Replace;
+        // Choosing a picture IS the decision to write it, so it ticks its own box - the same way the
+        // X does for a text field. Unticking is then the way back out.
+        if (IsMulti) { CoverState = CoverPlan.Replace; Tick(TagField.Cover, true, nameof(WriteCover)); }
         MarkDirty();
         Status = "Cover replaced - not saved yet";
     }
 
+    /// <summary>Empty the cover slot - the picture's version of the X every other field carries.</summary>
     public void RemoveCover()
     {
         if (!HasFile) return;
         SetCoverBytes(null, null);
         _coverAction = CoverAction.Remove;
+        if (IsMulti) { CoverState = CoverPlan.Remove; Tick(TagField.Cover, true, nameof(WriteCover)); }
         MarkDirty();
         Status = "Cover removed - not saved yet";
     }
@@ -493,6 +520,10 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     /// </summary>
     public bool Save()
     {
+        // A selection has its own save (SaveManyAsync): it reads each file before writing it, which
+        // this path deliberately does not. Guarded rather than assumed - FilePath is null in multi,
+        // so the mistake would silently do nothing instead of loudly failing.
+        if (IsMulti) return false;
         if (FilePath is not { } path || _loaded is null) return false;
 
         var now = Snapshot.From(this);
@@ -710,9 +741,15 @@ public sealed class TagEditorViewModel : INotifyPropertyChanged
     private void MarkDirty()
     {
         if (_loading) return;
-        IsDirty = Snapshot.From(this).Differs(_baseline)
-               || _coverAction != CoverAction.Keep
-               || WillRename;
+
+        // Across a selection, "dirty" is not "a box changed" but "Save would DO something" - a tick
+        // you turned off, or a value you typed back to what it already was, leaves nothing to write
+        // and must not raise the unsaved-changes prompt.
+        IsDirty = IsMulti
+            ? BuildPlan().HasWork
+            : Snapshot.From(this).Differs(_baseline)
+              || _coverAction != CoverAction.Keep
+              || WillRename;
     }
 
     /// <summary>The editable values at one moment - the yardstick behind <see cref="IsDirty"/> and

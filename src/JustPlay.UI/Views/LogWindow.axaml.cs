@@ -22,7 +22,8 @@ public partial class LogWindow : Window
 
         // Edge/corner resize for the borderless card (same shared behaviour as the finder / main window),
         // so long error lines can be widened instead of scrolled. Chloe 2026-07-08.
-        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!);
+        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!,
+                                      this.FindControl<Border>("DialogCard"));
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();

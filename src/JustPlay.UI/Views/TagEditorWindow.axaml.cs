@@ -46,7 +46,8 @@ public partial class TagEditorWindow : Window
             "The tag editor needs its view model; the parameterless ctor exists for the previewer only.");
 
         DataContext = Editor;
-        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!);
+        FramelessResizeBehavior.Attach(this, this.FindControl<Grid>("ResizeGrips")!,
+                                      this.FindControl<Border>("DialogCard"));
         // ".v2" retires the sizes remembered while the height was hard-coded - those were never a
         // choice, they were a wrong default that got persisted, and keeping them would mean the
         // measure-once below never runs on the machines that need it most. From here on, a size in

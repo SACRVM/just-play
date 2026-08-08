@@ -53,6 +53,13 @@ public enum IconKind
 
     /// <summary>Drop target - "put something here" (the empty-queue hint).</summary>
     ArrowDown,
+
+    /// <summary>Opens a list of choices. Honest here and nowhere else: a chevron promises "pick one
+    /// of these", so it belongs on a picker and not on a button that DOES something.</summary>
+    ChevronDown,
+
+    /// <summary>Look, do not touch - a preview of what an action would do, before it runs.</summary>
+    Eye,
 }
 
 /// <summary>
@@ -196,6 +203,15 @@ public class JustIcon : Control
         // 56 px - a FONT glyph pretending to be an arrow, and one that read as a giant lowercase v.
         [IconKind.ArrowDown] = new(Geometry.Parse(
             "M12 2.6 V21.4 M4.6 14 L12 21.4 L19.4 14"), Stroke: 2),
+
+        [IconKind.ChevronDown] = new(Geometry.Parse("M3.4 8 L12 16.6 L20.6 8"), Stroke: 2.2),
+
+        // Almond plus pupil, drawn as two subpaths of one stroke: the eye of every preview in the
+        // suite. Wider than tall on purpose - a round one reads as a target, not an eye.
+        [IconKind.Eye] = new(Geometry.Parse(
+            "M2.2 12 C5 6.6 8.5 4.4 12 4.4 C15.5 4.4 19 6.6 21.8 12 " +
+            "C19 17.4 15.5 19.6 12 19.6 C8.5 19.6 5 17.4 2.2 12 Z " +
+            "M8.6 12 A3.4 3.4 0 1 0 15.4 12 A3.4 3.4 0 1 0 8.6 12"), Stroke: 1.9),
 
         [IconKind.Play] = new(Geometry.Parse("M6.5 4 L19.5 12 L6.5 20 Z")),
 

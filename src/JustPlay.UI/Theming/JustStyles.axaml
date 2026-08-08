@@ -912,6 +912,170 @@
     -->
 
     <!--
+      ========================================================================
+      EDITABLE FIELD - the frosted box, its tick and its clear button
+      ========================================================================
+      The LOOK of an input, one definition for the suite. TagFieldBox composes it (caption, tick,
+      input, X) and the tag editor's file-name row reuses the same three classes for its mask picker,
+      so a ComboBox in a field position is the same object as a TextBox in one.
+
+      It lives here rather than inside TagFieldBox because two different controls wear it. The values
+      were written out TWICE before this (once for a plain TextBox, once for the inner TextBox of an
+      AutoCompleteBox, which has no InnerLeftContent slot to hang a tick on - verified against
+      Avalonia 12.0.3) and that duplication is what this replaces.
+    -->
+    <!--
+      (!) THE VERTICAL PADDING IS 8/5, NOT 5/5, AND IT IS THE SUITE'S NUMBER - not a taste.
+
+      A standard TextBox in this suite carries Padding 11,8,11,5 (see "Shared TextBox optical-centering
+      padding" above): 13 px of vertical chrome plus 2 px of border on a ~15.6 px line box = ~30.6 px.
+      The tag editor's fields sat at 5/5 and so came out ~27.6 - a THIRD field height in the same
+      window, and one that also threw away the optical centring the shared style exists for (our
+      fields rarely hold descenders, so mathematically-centred text reads as floating high).
+
+      Matching it means there is one field height in the app. The horizontal 8 stays: the editor is a
+      narrow pane and 11 costs it real room, which the vertical number does not.
+    -->
+    <Style Selector="Border.fieldbox">
+        <Setter Property="Background" Value="#14FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="7"/>
+        <Setter Property="Padding" Value="8,8,8,5"/>
+    </Style>
+    <Style Selector="Border.fieldbox:pointerover">
+        <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+    </Style>
+    <!-- focus-WITHIN, not focus: the element that takes the caret is the input INSIDE the border
+         (and, for the genre box, inside AutoCompleteBox's template), so :focus would never fire on
+         the border itself. Both pseudo-classes verified in Avalonia 12.0.3,
+         src/Avalonia.Base/Input/InputElement.cs. -->
+    <Style Selector="Border.fieldbox:focus-within">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
+    </Style>
+    <!-- Not part of the save. The box says so by going quiet rather than by growing a second label. -->
+    <Style Selector="Border.fieldbox.locked">
+        <Setter Property="Opacity" Value="0.55"/>
+    </Style>
+
+    <!--
+      The tick that puts a field in the save. Our own template with the shipped Check vector: the
+      stock CheckBox is 32 px tall and would set the height of every field in the panel.
+    -->
+    <Style Selector="ToggleButton.fieldtick">
+        <Setter Property="Width" Value="15"/>
+        <Setter Property="Height" Value="15"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Name="Tick" CornerRadius="4" BorderThickness="1"
+                        Background="#0FFFFFFF" BorderBrush="#33FFFFFF">
+                    <controls:JustIcon Name="TickMark" Kind="Check" Width="10" Height="10"
+                                       Foreground="White" Opacity="0"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <!-- State-dependent, so OUTSIDE the template - an inline value has LocalValue precedence and
+         would beat these (see "Styles in App.axaml" in CLAUDE.md). -->
+    <Style Selector="ToggleButton.fieldtick:pointerover /template/ Border#Tick">
+        <Setter Property="BorderBrush" Value="#59FFFFFF"/>
+    </Style>
+    <Style Selector="ToggleButton.fieldtick:checked /template/ Border#Tick">
+        <Setter Property="Background" Value="{DynamicResource AccentBBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBBrush}"/>
+    </Style>
+    <Style Selector="ToggleButton.fieldtick:checked /template/ controls|JustIcon#TickMark">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <!--
+      The input that goes INSIDE a fieldbox, stripped of its own chrome - the Border around it is the
+      field now. Two shapes, because the genre box needs suggestions and the rest do not; both end up
+      looking like one thing, which is the point.
+    -->
+    <Style Selector="TextBox.bare">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="#ECFFFFFF"/>
+        <Setter Property="SelectionBrush" Value="#448a5fff"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource AccentBBrush}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBox.bare /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+
+    <Style Selector="AutoCompleteBox.bare">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+    </Style>
+    <Style Selector="AutoCompleteBox.bare /template/ TextBox">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="#ECFFFFFF"/>
+        <Setter Property="SelectionBrush" Value="#448a5fff"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource AccentBBrush}"/>
+    </Style>
+    <!-- The suggestion list - never left in stock chrome. -->
+    <Style Selector="AutoCompleteBox.bare /template/ ListBox">
+        <Setter Property="Background" Value="#F01a1828"/>
+        <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="MaxHeight" Value="220"/>
+    </Style>
+    <Style Selector="AutoCompleteBox.bare /template/ ListBox ListBoxItem">
+        <Setter Property="Foreground" Value="#D9FFFFFF"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="FontSize" Value="12.5"/>
+    </Style>
+
+    <!--
+      The X inside a field: empty it. Same mark as every other close in the suite, at field size.
+
+      (!) 15, like the tick, and that is a CONSTRAINT rather than a taste: nothing inside a field may
+      be taller than the text line beside it, or the control starts driving the field's height. At 17
+      it did - a 13 px line box is about 15.6 px, so every ticked field came out ~1.4 px taller than
+      the rest of the panel (Chloe 2026-08-08: "einen ticken hoeher"). Keep new in-field controls at
+      or under 15.
+    -->
+    <Style Selector="Button.fieldclear">
+        <Setter Property="Width" Value="15"/>
+        <Setter Property="Height" Value="15"/>
+        <Setter Property="MinWidth" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="5"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.fieldclear /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.fieldclear:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#1AFFFFFF"/>
+    </Style>
+
+    <!--
       TAG-EDITOR tab pill (TAGS | ANALYSIS, EDITOR | ANALYSIS | FILTER). A pill rather than an
       underline: these headers are narrow and sit inside rounded cards, where an underline reads as a
       stray rule. Shared because the switch belongs to each HOST's header now, not to the panel.

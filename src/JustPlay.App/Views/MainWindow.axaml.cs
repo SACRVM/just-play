@@ -10,6 +10,7 @@ using Avalonia.Platform.Storage;
 using JustPlay.App.ViewModels;
 using JustPlay.UI;
 using JustPlay.UI.Behaviors;
+using JustPlay.UI.Controls;
 
 namespace JustPlay.App.Views;
 
@@ -43,6 +44,12 @@ public partial class MainWindow : Window, IFramelessWindow
 
         // Don't persist bounds while in mini mode (fixed compact size, not a "restorable" layout).
         WindowPlacement.Track(this, "JustPlay.Main", () => ViewModel is not { IsMini: true });
+
+        // The SHARED edge/corner resize - see the note further down for what this replaced. Mini mode
+        // is a fixed compact size, so it is gated out; maximized needs no gate, because the card's
+        // margin goes to 0 and the grip band follows it.
+        FramelessResizeBehavior.Attach(this, ResizeGrips, this.FindControl<Border>("RootCard"),
+                                       () => !IsMaximized && ViewModel is not { IsMini: true });
 
         // The suite's custom maximize (shared). Mini mode hides the resize grips for its own reason,
         // so that condition is handed in rather than baked into the behaviour.
@@ -136,56 +143,17 @@ public partial class MainWindow : Window, IFramelessWindow
 
     private void UpdateChromeForState() => _maximize.Apply();
 
-    // -- Custom edge/corner resize (manual; the borderless window has no OS resize frame) --
-    private bool _resizing, _wEdge, _eEdge, _nEdge, _sEdge;
-    private PixelPoint _pointerStart, _posStart;   // screen px, window-pos px
-    private double _wStartPx, _hStartPx;           // window size px
-
-    private void OnResizePressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (IsMaximized || (ViewModel?.IsMini ?? false)) return;
-        if (sender is not Border { Tag: string name }) return;
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
-        _wEdge = name.Contains("West"); _eEdge = name.Contains("East");
-        _nEdge = name.Contains("North"); _sEdge = name.Contains("South");
-        _posStart = Position;
-        _wStartPx = Width * RenderScaling;
-        _hStartPx = Height * RenderScaling;
-        _pointerStart = this.PointToScreen(e.GetPosition(this));
-        _resizing = true;
-        e.Pointer.Capture((Border)sender);
-        e.Handled = true;
-    }
-
-    private void OnResizeMoved(object? sender, PointerEventArgs e)
-    {
-        if (!_resizing) return;
-        var p = this.PointToScreen(e.GetPosition(this));
-        double dx = p.X - _pointerStart.X, dy = p.Y - _pointerStart.Y;
-        double scale = RenderScaling, minW = MinWidth * scale, minH = MinHeight * scale;
-
-        double newW = _wStartPx, newH = _hStartPx;
-        int newX = _posStart.X, newY = _posStart.Y;
-
-        if (_eEdge) newW = Math.Max(minW, _wStartPx + dx);
-        if (_sEdge) newH = Math.Max(minH, _hStartPx + dy);
-        if (_wEdge) { newW = Math.Max(minW, _wStartPx - dx); newX = _posStart.X + (int)(_wStartPx - newW); }
-        if (_nEdge) { newH = Math.Max(minH, _hStartPx - dy); newY = _posStart.Y + (int)(_hStartPx - newH); }
-
-        Position = new PixelPoint(newX, newY);
-        Width = newW / scale;
-        Height = newH / scale;
-        e.Handled = true;
-    }
-
-    private void OnResizeReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        if (!_resizing) return;
-        _resizing = false;
-        e.Pointer.Capture(null);
-        e.Handled = true;
-        Console.WriteLine($"[Resize] released -> {Width:0}x{Height:0}");
-    }
+    // -- Edge/corner resize ----------------------------------------------------------------------
+    //
+    // (!) This window used to carry its OWN copy of the pointer maths - a byte-for-byte duplicate of
+    // FramelessResizeBehavior, which had been extracted FROM here so every JUST window would resize
+    // identically, and which this window then never adopted. Six windows used the shared one, this
+    // one used its twin, and the twin is where a stray debug Console.WriteLine had been sitting on
+    // every mouse-up. Deleted in favour of the shared behaviour (Chloe 2026-08-08).
+    //
+    // The grip band comes from RootCard's own margin now, so it ends exactly where the card begins
+    // instead of at a hand-typed 20 - see FramelessResizeBehavior. Maximizing zeroes that margin and
+    // the grips go with it; MINI mode does not, so it still needs the gate below.
 
     private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
 

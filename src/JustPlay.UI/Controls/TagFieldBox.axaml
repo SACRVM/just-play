@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:JustPlay.UI.Controls"
+             x:Class="JustPlay.UI.Controls.TagFieldBox">
+
+    <!--
+      ONE editable field in the tag editor: a caption, and under it a frosted box holding
+
+          [ tick ]   the input   [ X ]
+
+      The tick and the X only appear when the editor is pointed at MORE THAN ONE file, and they mean
+      the same thing on every field: the tick says "this field takes part in the save", the X empties
+      it (and ticks it, because emptying is a decision to write). Ticked and empty therefore means
+      "clear this on all of them" - for text and for the picture alike.
+
+      (!) WHY THIS CONTROL EXISTS AT ALL rather than a style on TextBox: GENRE is an AutoCompleteBox,
+      and AutoCompleteBox has no InnerLeftContent / InnerRightContent (verified against Avalonia
+      12.0.3, src/Avalonia.Controls/AutoCompleteBox/AutoCompleteBox.cs) - so the two controls could
+      never have carried the tick the same way. Drawing the box HERE and putting a chromeless input
+      inside it makes the input's type irrelevant, and collapses the frosted-box values that used to
+      be written out twice (once for TextBox.tag-field, once for the AutoCompleteBox's inner TextBox)
+      into this one definition.
+    -->
+
+    <!-- (!) This control carries NO styles of its own. The frosted box, the tick, the X and the
+         chromeless input all live in Theming/JustStyles.axaml under "EDITABLE FIELD": the tag
+         editor's file-name row wears the same classes on a picker instead of a text box, so a
+         dropdown in a field position is literally the same object as a box in one. -->
+
+
+    <StackPanel Spacing="3">
+        <TextBlock Text="{Binding $parent[controls:TagFieldBox].Label}"
+                   FontSize="10" FontWeight="Bold" LetterSpacing="2" Foreground="#73FFFFFF"/>
+
+        <Border Name="Box" Classes="fieldbox"
+                Classes.locked="{Binding $parent[controls:TagFieldBox].IsLocked}"
+                ToolTip.Tip="{Binding $parent[controls:TagFieldBox].Tip}">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <!-- TICK - takes part in the save. Top-aligned in the multi-line box, so it sits on
+                     the first line of the comment rather than floating in the middle of it. -->
+                <ToggleButton Grid.Column="0" Classes="fieldtick" Margin="0,0,8,0"
+                              VerticalAlignment="{Binding $parent[controls:TagFieldBox].TickAlignment}"
+                              IsVisible="{Binding $parent[controls:TagFieldBox].ShowTick}"
+                              IsChecked="{Binding $parent[controls:TagFieldBox].Ticked, Mode=TwoWay}"
+                              ToolTip.Tip="Include this field when saving"/>
+
+                <Panel Grid.Column="1">
+                    <TextBox Classes="bare"
+                             IsVisible="{Binding !$parent[controls:TagFieldBox].HasSuggestions}"
+                             IsReadOnly="{Binding $parent[controls:TagFieldBox].IsLocked}"
+                             AcceptsReturn="{Binding $parent[controls:TagFieldBox].Multiline}"
+                             TextWrapping="{Binding $parent[controls:TagFieldBox].Wrapping}"
+                             Text="{Binding $parent[controls:TagFieldBox].Text, Mode=TwoWay}"/>
+
+                    <AutoCompleteBox Classes="bare"
+                                     IsVisible="{Binding $parent[controls:TagFieldBox].HasSuggestions}"
+                                     IsEnabled="{Binding !$parent[controls:TagFieldBox].IsLocked}"
+                                     ItemsSource="{Binding $parent[controls:TagFieldBox].Suggestions}"
+                                     FilterMode="Contains" MinimumPrefixLength="1"
+                                     MaxDropDownHeight="220"
+                                     Text="{Binding $parent[controls:TagFieldBox].Text, Mode=TwoWay}"/>
+
+                    <!-- What an EMPTY box means, in words, and only while nothing is going to happen
+                         to it: the line shows solely when the tick is off. Tick it and the box is
+                         plainly empty - because from that moment empty is a value that gets written.
+                         Drawn here rather than as a Watermark because AutoCompleteBox has none. -->
+                    <TextBlock Text="{Binding $parent[controls:TagFieldBox].Hint}"
+                               IsVisible="{Binding $parent[controls:TagFieldBox].ShowHint}"
+                               FontSize="12.5" FontStyle="Italic" Foreground="#59FFFFFF"
+                               VerticalAlignment="Top" IsHitTestVisible="False"/>
+                </Panel>
+
+                <!-- X - empty it. Ticks the field on the way, because clearing a field you were not
+                     going to write is not a thing anyone means. -->
+                <Button Grid.Column="2" Classes="fieldclear" Margin="6,0,0,0" Click="OnClear"
+                        VerticalAlignment="{Binding $parent[controls:TagFieldBox].TickAlignment}"
+                        IsVisible="{Binding $parent[controls:TagFieldBox].ShowTick}"
+                        ToolTip.Tip="Clear this field on every selected file">
+                    <controls:JustIcon Kind="Close" Width="9" Height="9" Foreground="#A6FFFFFF"/>
+                </Button>
+            </Grid>
+        </Border>
+    </StackPanel>
+</UserControl>
