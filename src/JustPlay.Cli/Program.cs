@@ -1,11 +1,13 @@
 using JustPlay.Analysis;
 using JustPlay.Cli.Commands;
+using static JustPlay.Cli.CliArgs;
 
 // -- Just Sort CLI -------------------------------------------------------------
 // Usage:
 //   justplay scan    <root> [--json <out>]
 //   justplay dedup   <root> [--json <out>]
 //   justplay analyze <root> --index <path> [--threads N] [--limit N]
+//   justplay analyze --playlist <m3u> --index <path> [--root <dir>] [--threads N] [--limit N]
 //   justplay stats   --index <path> [--json <out>]
 //   justplay tag write --index <path> [--root <dir>] [--apply]
 //   justplay promote --index <path> --root <dir> [--apply] [--backup-dir <dir>]
@@ -70,20 +72,17 @@ static int RunDedup(string[] args)
 // -- Analyze -----------------------------------------------------------------
 static int RunAnalyze(string[] args)
 {
-    if (args.Length == 0)
-        return Fail("analyze requires a <root> directory.");
+    // Both input forms and their validation live in AnalyzeArgs so they are testable.
+    if (AnalyzeArgs.Parse(args, out var error) is not { } a)
+        return Fail(error ?? "analyze: bad arguments.");
 
-    var root      = args[0];
-    var indexPath = ParseStringFlag(args[1..], "--index");
-    if (indexPath is null)
-        return Fail("analyze requires --index <path>.");
-    var threads   = ParseIntFlag(args[1..], "--threads", Environment.ProcessorCount);
-    var limit     = ParseIntFlag(args[1..], "--limit", int.MaxValue);
-    var dbPath    = ParseStringFlag(args[1..], "--db");
-    var noDb      = args[1..].Contains("--no-db");
-    var force     = args[1..].Contains("--force");
-
-    return AnalyzeCommand.Run(root, indexPath, threads, limit, dbPath, noDb, force);
+    // --playlist wins over a root when both are given (same precedence as tag clean / squeeze);
+    // the root then only picks the library database.
+    return a.UsesPlaylist
+        ? AnalyzeCommand.RunPlaylist(a.Playlist!, a.Root, a.IndexPath, a.Threads, a.Limit,
+                                     a.DbPath, a.NoDb, a.Force)
+        : AnalyzeCommand.Run(a.Root!, a.IndexPath, a.Threads, a.Limit,
+                             a.DbPath, a.NoDb, a.Force);
 }
 
 // -- Stats --------------------------------------------------------------------
@@ -218,31 +217,8 @@ static int Fail(string msg)
     return 1;
 }
 
-static string? ParseStringFlag(string[] args, string flag)
-{
-    for (var i = 0; i < args.Length - 1; i++)
-        if (args[i].Equals(flag, StringComparison.OrdinalIgnoreCase))
-            return args[i + 1];
-    return null;
-}
-
-static int ParseIntFlag(string[] args, string flag, int defaultValue)
-{
-    var s = ParseStringFlag(args, flag);
-    return s is not null && int.TryParse(s, out var v) && v > 0 ? v : defaultValue;
-}
-
-static bool ParseBoolFlag(string[] args, string flag)
-    => args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
-
-static double ParseDoubleFlag(string[] args, string flag, double defaultValue)
-{
-    var s = ParseStringFlag(args, flag);
-    return s is not null && double.TryParse(s,
-        System.Globalization.NumberStyles.Float,
-        System.Globalization.CultureInfo.InvariantCulture,
-        out var v) ? v : defaultValue;
-}
+// ParseStringFlag / ParseIntFlag / ParseBoolFlag / ParseDoubleFlag live in CliArgs (pulled in by
+// the "using static" above) - a command that owns its own argument rules has to reach them too.
 
 static void PrintHelp()
 {
@@ -263,6 +239,8 @@ static void PrintHelp()
               READ-ONLY. Optionally writes JSON to <out>.
 
           analyze <root> --index <path> [--threads N] [--limit N] [--db <path>|--no-db] [--force]
+          analyze --playlist <m3u> --index <path> [--root <dir>] [--threads N] [--limit N]
+                  [--db <path>|--no-db] [--force]
               Phase 1 - full resumable analysis pass.
               Runs BPM / key / energy / loudness / beat-fingerprint / RhythmPattern
               on every audio file and writes results to the sidecar index at <path>
@@ -277,6 +255,19 @@ static void PrintHelp()
               Files are hashed only when they are actually analysed (hashing reads every
               byte, i.e. the whole library over the network).
 
+              --playlist <m3u>  Analyse EXACTLY the files an .m3u/.m3u8 lists, instead of a
+                                <root> tree - the form for re-running a known subset (say the
+                                files a decoder fix invalidated) without touching the rest of
+                                the library. Relative entries resolve against the .m3u's folder;
+                                absolute / UNC entries are used verbatim. Every listed file that
+                                is no longer on disk is NAMED in the output and counted
+                                separately from failures - nothing is dropped in silence.
+              --root <dir>      The directory form's <root>, spelled as a flag. With --playlist
+                                it does not select files; it only says which library database to
+                                update. Without it, the registered root that contains every
+                                listed file is used, and if there is none the run writes the
+                                index only. A playlist run NEVER creates a database or registers
+                                a root - point the directory form at a folder to do that.
               --threads N     Degree of parallelism (default: CPU count).
               --limit N       Process at most N files (smoke-test mode).
               --db <path>     Use this database file instead of the default for <root>.
@@ -320,6 +311,8 @@ static void PrintHelp()
           justplay dedup \\nas\music\SETS --json C:\tmp\dedup.json
           justplay analyze \\nas\music\SETS --index C:\tmp\sets.index.json --threads 4
           justplay analyze \\nas\music\SETS --index C:\tmp\sets.index.json --limit 3
+          justplay analyze --playlist C:\tmp\redo-957.m3u --index C:\tmp\genres.index.json --force
+          justplay analyze --playlist C:\tmp\redo-957.m3u --root \\nas\music\GENRES --index C:\tmp\genres.index.json --force
           justplay stats --index C:\tmp\sets.index.json --json C:\tmp\stats.json
           justplay tag write --index C:\tmp\sets.index.json
           justplay tag write --index C:\tmp\sets.index.json --root \\nas\music\SETS\Techno --apply

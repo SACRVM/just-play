@@ -28,7 +28,7 @@ public static class M3uPlaylist
     /// <summary>Write an extended M3U8 (UTF-8, no BOM, CRLF) listing the entries in order. Paths are
     /// ALWAYS written RELATIVE with FORWARD slashes whenever the track shares a root with the playlist -
     /// INCLUDING climbing out with "../" (a set in SETS/ references its tracks in the sibling GENRES/ as
-    /// ../GENRES/...). This is the format Chloe's Mac/Traktor needs (see the traktor-playlist-format note):
+    /// ../GENRES/...). This is the format the Mac/Traktor setup needs (see the traktor-playlist-format note):
     /// relative + forward-slash so the set resolves on any machine/mount. Only a track on a DIFFERENT
     /// drive/root (no relative path possible) stays absolute. ReadPaths resolves relatives against the
     /// playlist's own folder, so this round-trips.</summary>
@@ -75,6 +75,27 @@ public static class M3uPlaylist
     public static List<string> ReadPaths(string playlistPath)
     {
         var result = new List<string>();
+        foreach (var path in ResolvePaths(playlistPath))
+            if (File.Exists(path)) result.Add(path);
+        return result;
+    }
+
+    /// <summary>
+    /// Every path the playlist REFERENCES - resolved to absolute (relative entries against the
+    /// playlist's own folder), de-duplicated, order preserved - WITHOUT checking whether the file
+    /// is still on disk. Directive / comment lines (#...) are skipped; a malformed path is skipped.
+    ///
+    /// <para>The existence filter is deliberately NOT applied here so the caller can choose its
+    /// policy. <see cref="ReadPaths"/> drops what is gone (right for "open this set"); a batch job
+    /// that must never leave a song behind - <c>analyze --playlist</c> - keeps the gone ones and
+    /// REPORTS them by name. Both read the file through this one parser.</para>
+    ///
+    /// <para>An already-rooted line is kept VERBATIM, which is what preserves a UNC path
+    /// (<c>\\host\share\...</c>) exactly as the playlist spelled it.</para>
+    /// </summary>
+    public static List<string> ResolvePaths(string playlistPath)
+    {
+        var result = new List<string>();
         if (!File.Exists(playlistPath)) return result;
 
         var baseDir = Path.GetDirectoryName(Path.GetFullPath(playlistPath)) ?? string.Empty;
@@ -95,7 +116,7 @@ public static class M3uPlaylist
                 continue; // malformed path - skip, never break the import
             }
 
-            if (File.Exists(full) && seen.Add(full)) result.Add(full);
+            if (seen.Add(full)) result.Add(full);
         }
         return result;
     }

@@ -47,6 +47,18 @@ THE COMMANDS
           This is the ONLY command that does real DSP — it is CPU-heavy and can
           take hours on a big library. Everything else reads the index.
 
+  analyze --playlist set.m3u --index lib.json [--root <dir>] [--force]
+          The same pass over EXACTLY the files an .m3u lists, instead of a whole
+          tree — use it to re-run a known subset (e.g. the tracks one bug fix
+          invalidated) without redoing the rest of the library. Relative entries
+          resolve against the .m3u's folder; absolute / UNC entries are used as
+          written. Any listed file that is no longer on disk is NAMED in the
+          output and counted separately from failures.
+          --root only says which library database to update (a scattered list has
+          no root of its own); without it the registered root containing every
+          listed file is used, else the index alone is written. This form never
+          creates a database or registers a root.
+
   stats   --index lib.json [--json out.json]
           Summarise an analysed library: BPM / key / energy distributions, etc.
 

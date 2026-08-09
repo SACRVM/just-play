@@ -13,7 +13,7 @@ namespace JustPlay.Cli.Commands;
 ///   - BeatType (from RhythmPattern, if populated)
 ///   - Rhythm scalar averages (FourOnFloor, OffbeatEnergy, Swing, Syncopation, HalfTimeFeel)
 ///
-/// This is the data Chloe uses to tune the beat-type bucket thresholds before the apply phase.
+/// This is the data used to tune the beat-type bucket thresholds before the apply phase.
 /// </summary>
 internal static class StatsCommand
 {
