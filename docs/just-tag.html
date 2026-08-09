@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JUST TAG — how it works</title>
+<meta name="description" content="How JUST TAG works — browse a folder, edit one file or three hundred, rename from tags and read tags out of names, and see for yourself that your Serato, Traktor and Mixed In Key frames came back byte for byte.">
+<meta name="theme-color" content="#060310">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2300e8ff'/%3E%3Cstop offset='1' stop-color='%23ff2ab8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='24' fill='url(%23g)'/%3E%3Cg fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' transform='translate(20 20) scale(2.5)'%3E%3Cpath d='M12.586 2.586 A2 2 0 0 0 11.172 2 H4 a2 2 0 0 0 -2 2 v7.172 a2 2 0 0 0 .586 1.414 l8.704 8.704 a2.426 2.426 0 0 0 3.42 0 l6.58 -6.58 a2.426 2.426 0 0 0 0 -3.42 Z'/%3E%3Cpath d='M6.3 7.5 A1.2 1.2 0 1 0 8.7 7.5 A1.2 1.2 0 1 0 6.3 7.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html">JustPlay</a>
+    <div class="nav-links">
+      <a href="just-play.html">JUST PLAY</a>
+      <a href="just-stream.html">JUST STREAM</a>
+      <a href="just-tag.html" class="active">JUST TAG</a>
+      <a href="cli.html">CLI</a>
+      <a href="https://github.com/chloe-dream/just-play">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="doc-hero wrap">
+  <p class="kicker">The tagger · how it works</p>
+  <h1>JUST <span class="grad">TAG</span></h1>
+  <p class="lead">
+    The tag editor for a folder that just finished downloading — and for a DJ library that already has
+    cue points in it. Browse, listen, fix, and see for yourself what the save did to the file.
+  </p>
+</header>
+
+<main class="wrap">
+
+  <section class="doc-section prose">
+    <h2>What it does</h2>
+    <p>
+      JUST TAG opens a folder on disk, lists the audio files in it, and docks a tag editor next to them.
+      You fix one file or three hundred, rename from the tags or pull tags out of the names, move
+      things where they belong — and hear the track while you do it.
+    </p>
+    <p>
+      It reads and writes <code>.mp3</code>, <code>.wav</code>, <code>.flac</code>, <code>.aif</code>,
+      <code>.aiff</code>, <code>.m4a</code>, <code>.aac</code>, <code>.ogg</code>, <code>.opus</code>
+      and <code>.wma</code> — the same list every other tool in the suite uses, so JUST TAG and the
+      Pre-Cue Finder can never disagree about what is in a folder.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Your Serato and Traktor data comes back byte for byte</h2>
+    <p>
+      This is the part that matters if you have ever had a tagger eat a night's work, and it is the one
+      claim on this page that was <b>measured</b> rather than assumed.
+    </p>
+    <p>
+      On 2026-07-31 we ran 128 real writes — 16 write scenarios across 8 MP3s carrying
+      <code>GEOB:Serato Markers2</code>, an 85,166-byte <code>PRIV:TRAKTOR4</code> blob, Mixed In Key's
+      fields and a <code>POPM</code> rating — through the writer JustPlay actually ships, and diffed
+      the files frame by frame with a hand-written ID3v2 walker.
+    </p>
+    <div class="callout">
+      <b>787 of 787 vendor frame payloads survived byte-identically. Zero bytes lost.</b> The audio
+      stream was byte-identical in 128 of 128 writes, and running the same write two or three times
+      over produced bit-identical files from the second one on.
+    </div>
+    <p>
+      On the same files, another widely used tagging library had earlier been measured cutting
+      <code>GEOB:Serato Markers2</code> from 470 bytes to 356, taking 515 bytes off the Traktor blob,
+      renaming Mixed In Key's frames so MIK could no longer find them, wiping the <code>POPM</code>
+      user string and force-upgrading ID3v2.3 tags to v2.4. Ours changed none of that.
+    </p>
+
+    <h3>What we do write</h3>
+    <p>
+      The editorial fields — title, artist, album, album artist, genre, year, track number, comment —
+      and, separately, the three measurements you can correct by hand: BPM, key and energy. They are
+      two different writes on purpose, and each one runs only if that half actually changed, so
+      correcting a key cannot disturb a cover and fixing a title cannot disturb a Serato frame.
+      Everything else in the file is re-emitted exactly as it was.
+    </p>
+
+    <h3>What this does not prove</h3>
+    <p>
+      Honest limits, because a page that names its own is worth more than a bold one:
+    </p>
+    <ul>
+      <li>The measurement is <b>MP3 with ID3v2 tags only</b>. FLAC, AIFF, WAV and MP4 were not tested.</li>
+      <li>
+        There is <b>one known residual risk</b>, and it is reachable only from JUST TAG: converting a
+        file's ID3v2 version re-serialises the whole tag, which re-encodes the <i>labels</i> on GEOB
+        frames. No vendor byte is lost — but Serato and Mixed In Key look their data up by that label,
+        so the data can become unfindable while nothing looks broken. See
+        <a href="#write-format">the write-format setting</a> below: the default converts nothing, and
+        the raw-tags window warns you when a conversion would actually affect a file.
+      </li>
+      <li>
+        <b>We preserve bytes; we do not read them.</b> We do not decode Serato's cue points, loops or
+        beatgrids, and nothing in JUST TAG will ever claim to. A row says
+        <code>GEOB:Serato Markers2 — 470 bytes</code>, which is a measurement. "Cue 3 at 2:14" would be
+        a claim we cannot stand behind.
+      </li>
+      <li>
+        Byte preservation is a property of the tag library's current behaviour, not a promise it makes.
+        The corpus is kept as a regression test so a library upgrade has to re-earn the number.
+      </li>
+    </ul>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>It browses the disk, not a library</h2>
+    <p>
+      Folders on the left, the files in them in the middle, the editor on the right. That is deliberate:
+      this is the tool you reach for when a download just landed somewhere no index has ever seen. A
+      playlist shows up in the folder pane as a folder you can step into, and a folder with nothing
+      below it opens its files without descending, so you never land in a pane containing only "..".
+    </p>
+    <p>
+      When the folder <i>does</i> sit inside an indexed library root, JUST TAG fills the table from the
+      machine's local index instead of opening every file — and says so under the file count
+      (<i>"412 from the library index — 6 read from disk"</i>), so "why was this folder instant and
+      that one slow" is answered on screen rather than guessed at. Nothing is written next to your
+      music either way.
+    </p>
+    <p>
+      It opens where you left off, or on the folder you launched it on, or on your library root — and
+      an unmounted share falls through to the next candidate instead of turning into an error at
+      startup.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>The track table — the same one, everywhere</h2>
+    <p>
+      The file list is the shared suite table: the same rows, the same widths, the same key pill and
+      the same click-to-sort headers as the JUST PLAY queue and the Pre-Cue Finder, with JUST TAG's own
+      columns switched on. <b>Right-click the header</b> to choose them.
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <h3>AN — the analysis light</h3>
+        <p>
+          Grey: no JustPlay analysis in the file. Yellow: analysed with an older detector — the values
+          are real, just older. Green: current. It is a report, never an instruction; nothing
+          re-analyses on its own.
+        </p>
+      </div>
+      <div class="card">
+        <h3>COV — is there a cover</h3>
+        <p>
+          A tick per file. A wrong or missing cover is invisible in a list of text, which is why it has
+          a column of its own.
+        </p>
+      </div>
+      <div class="card">
+        <h3>ID3 version</h3>
+        <p>
+          What the file actually carries — 2.3, 2.4, or nothing at all. The one file fact that decides
+          whether a car stereo reads your tags, and it is not visible anywhere else.
+        </p>
+      </div>
+      <div class="card">
+        <h3>The rest</h3>
+        <p>
+          Artist, album, album artist, genre, year, track number, comment, BPM, key, energy, file type,
+          length and the file name. Your choice is remembered.
+        </p>
+      </div>
+    </div>
+
+    <p>
+      JUST TAG shows analysis; it does not run it. Detecting BPM, key and energy is
+      <a href="just-play.html">JUST PLAY</a>'s job and the <a href="cli.html">CLI</a>'s — one tool, one
+      job, and this one carries no audio analysis at all.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Find the damage — the search</h2>
+    <p>
+      One search, not two. It starts on <b>All fields</b>, so typing something just works; pick a single
+      field when you need to be exact. Sixteen fields — every editable tag, plus the ones you cannot see
+      by looking at a name: whether there is a cover at all, which ID3 version the file carries, and the
+      file type.
+    </p>
+    <p>
+      Seven ways to compare: contains, does not contain, is, is not, starts with, <b>is empty</b> and
+      <b>is not empty</b>. "Genre is empty" is the one that finds the damage; "ID3 version is not 2.3"
+      is the one that needs no query language. A second condition can be switched on and joined with
+      AND or OR when one is not enough, and <b>Include subfolders</b> widens the search to everything
+      below the folder you are standing in.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>One file, or three hundred</h2>
+    <p>
+      Select more than one file and the editor keeps its shape — every field just grows two controls
+      inside the box: a <b>tick</b> on the left and an <b>X</b> on the right.
+    </p>
+    <ul>
+      <li>The tick means <i>this field takes part in the save</i>. Untick it and the box is read-only,
+          because a box that cannot be written should not invite typing into it.</li>
+      <li>The X empties the field — and emptying is an intent, so the X ticks the field itself.</li>
+      <li>One rule covers everything, the cover picture included: <b>ticked and empty means "clear this
+          on all of them"</b>.</li>
+    </ul>
+    <p>
+      A field the whole selection already agrees on starts ticked and shows that shared value, editable
+      in one go. A field where they differ starts unticked and empty, so nothing gets flattened by
+      accident.
+    </p>
+
+    <h3>Look before you leap</h3>
+    <p>
+      A multi-file save shows you what it is about to do first, as a list: this field, set to this
+      value, on every selected file — plus a line each for the cover, the rename pattern and any fields
+      being filled from file names. "Write to 37 files?" is a question nobody can answer; the list of
+      fields and values is the thing you are actually agreeing to.
+    </p>
+    <p>
+      Values that are being <i>cleared</i> are called out separately, because emptying a field is the
+      one setting that loses data outright.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Names and tags, one language, both directions</h2>
+    <p>
+      <code>%artist% - %title%</code> read one way builds a file name out of the tags. Read the other
+      way it pulls tags out of the file name. It is one pattern language with one definition, because a
+      placeholder that means "artist" while renaming must not mean something else while parsing.
+    </p>
+    <p>
+      A pattern can reach into the folders as well — <code>%album%/%track% - %title%</code> — which
+      matters for a library filed as <code>.../Hard Techno/Perc - Gob.mp3</code>, where the genre lives
+      in the path and nowhere else. <code>%dummy%</code> matches something and throws it away, for the
+      track number you do not want. A <b>cheat sheet</b> window lists the whole language with worked
+      examples, one keystroke from the box.
+    </p>
+
+    <h3>Tags from names — it tells you how many fit</h3>
+    <p>
+      As you type the pattern, JUST TAG counts your selection against it and says
+      <i>"fits all 37"</i> or <i>"fits 24 of 37"</i>. Files whose names do not fit the pattern are
+      <b>left exactly as they are</b> — never filled with whatever a loose pattern happened to capture.
+    </p>
+    <p>
+      Matching is strict first and forgiving second: the exact form gets first refusal, and only a name
+      that does not fit at all is offered the tolerant pass, where a hyphen may also be an en or em
+      dash and an underscore may be a space. That order is what reads <code>AC-DC - Highway</code>
+      correctly instead of making the artist "AC".
+    </p>
+
+    <h3>Renaming — previewed line by line</h3>
+    <p>
+      The rename preview shows every file as it is called now and as the pattern would call it, and
+      names the problems in plain words: <i>two files would get this name</i>, <i>that name is already
+      taken here</i>, <i>the tags this pattern needs are blank</i>, <i>this name does not fit the
+      pattern — left alone</i>. Nothing is renamed until you save, so the result is visible and
+      editable first — and one click puts the file's real name back if you change your mind, without
+      throwing away the tag edits you already made.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Transform — fixing the text that is already there</h2>
+    <p>
+      The multi-file editor sets a field to <i>one</i> value. Transform changes the value each file
+      <i>already has</i>: <b>Replace</b> (take the site name out of every comment), <b>lowercase</b>,
+      <b>UPPERCASE</b>, <b>Title Case</b>, <b>Sentence case</b>, and <b>Tidy</b> — which collapses runs
+      of whitespace into one plain space and trims the ends, catching the tabs and non-breaking spaces
+      a copy-and-paste out of a web page leaves behind.
+    </p>
+    <p>
+      Nothing happens until Apply, and Apply cannot be reached without the preview. The preview lists
+      one line per file <i>per field</i> — before and after — so a pass that touches both the artist and
+      the title of the same file cannot hide half of what it is doing. Files that would not change are
+      not listed at all, and the count line says so: "37 selected, 14 change" is one sentence rather
+      than something to count. There is no undo, which is exactly why the preview is not optional.
+    </p>
+    <div class="callout">
+      <b>Title Case is deliberately dumb.</b> Every letter is lowercased, then capitalised when it
+      starts a word. No dictionary of exceptions, no acronym guessing. So <code>PERC - GOB</code>
+      becomes <code>Perc - Gob</code> (the case it exists for), <code>don't</code> survives, and
+      <code>VIP</code> comes back as <code>Vip</code>. The way back is the operation sitting next to it:
+      Title Case, then Replace <code>Vip</code> with <code>VIP</code>. Two passes, both previewed, both
+      predictable — better than clever in a way you cannot predict across 400 files.
+    </div>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Move, copy, delete — and never overwrite</h2>
+    <p>
+      Tagging a folder usually ends with putting the files somewhere. <b>Move to…</b>, <b>Copy to…</b>
+      and <b>Delete…</b> all work from the row, and all three show a plan before anything happens: how
+      many files run, how many megabytes, how many are left alone and why.
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <h3>There is no overwrite</h3>
+        <p>
+          Not a default, not an option. A destination that already holds the name is a collision: it is
+          named in the preview, and the answer is either to leave both files alone (the default) or to
+          keep both under a free name. Overwriting a track is unrecoverable, and a DJ finds out on a
+          Friday night.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Delete means the recycle bin</h3>
+        <p>
+          Always. On a system with no reachable recycle bin, delete refuses rather than removing a
+          track for good.
+        </p>
+      </div>
+      <div class="card">
+        <h3>A move across drives is verified</h3>
+        <p>
+          Copy, verify, then remove — in that order. The copy lands under a temporary name with no
+          audio extension, is checked against the original with a SHA-256 digest and its length, and is
+          only then renamed into place. The original goes only once its bytes are confirmed at the
+          other end.
+        </p>
+      </div>
+      <div class="card">
+        <h3>A failure never stops the run</h3>
+        <p>
+          The file is recorded by name and the next one starts. A cancelled run still reports what it
+          did — "8 of 40 moved" is information you need. Whatever had already finished stays finished.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Raw tags — see what is really in the file</h2>
+    <p>
+      <b>Raw tags…</b> opens every frame and field a file carries, exactly as it sits on disk: not the
+      handful a tagger maps onto boxes, but all of it — including the frames that belong to other
+      tools. It is read-only by contract; the window cannot write, and a test proves the file's
+      SHA-256 is unchanged after it has been read.
+    </p>
+    <p>
+      Rows are addressed the way the DJ world already names them — <code>GEOB:Serato Markers2</code>,
+      <code>PRIV:TRAKTOR4</code>, <code>TXXX:EnergyLevel</code>. Text frames show their text; binary
+      frames show their size. Chips along the top count what each recognised vendor has in the file.
+      They are counts, not a green light: a count is a measurement, and this window is not in a
+      position to hand out verdicts.
+    </p>
+    <p>
+      This is the answer to "is my Serato data still in there after JustPlay touched it?" — you do not
+      have to take our measurement's word for it, you can look.
+    </p>
+  </section>
+
+  <section class="doc-section prose" id="write-format">
+    <h2>The ID3 write format — and why the default converts nothing</h2>
+    <p>
+      MP3s in the wild carry different ID3v2 versions and text encodings, and which one a file has
+      decides whether Windows Explorer, an old car stereo or a CDJ can read it. JUST TAG is the one
+      place in the suite that can change it.
+    </p>
+    <dl class="cmd-row">
+      <dt>Keep the file's version</dt>
+      <dd><b>The default.</b> Convert nothing: a file keeps the version and encodings it already has,
+          and only the fields you edited are touched. A file with no ID3v2 tag at all gets a fresh
+          v2.3 / UTF-16 one.</dd>
+
+      <dt>ID3v2.3 + UTF-16</dt>
+      <dd>Maximum compatibility — mp3tag's default, and the combination Windows, media players and
+          older car and DJ hardware read reliably.</dd>
+
+      <dt>ID3v2.3 + Latin-1</dt>
+      <dd>For the oldest gear that chokes on a UTF-16 byte-order mark. ASCII-safe text only.</dd>
+
+      <dt>ID3v2.4 + UTF-8</dt>
+      <dd>Modern and compact — only for software you know reads v2.4.</dd>
+    </dl>
+    <div class="callout warn">
+      <b>Converting is a decision, not a side effect of pressing Save.</b> The three converting modes
+      re-serialise the whole tag, which re-encodes the labels on GEOB frames. Serato and Mixed In Key
+      find their data by that label. The cue points stay in the file — those apps can stop finding
+      them. The raw-tags window raises this only when it genuinely applies: the chosen format has to
+      differ from that file's actual version <i>and</i> the file has to carry a frame that is addressed
+      by a label at all.
+    </div>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Listen while you tag</h2>
+    <p>
+      There is a small player at the bottom of the panel: load, play, pause, seek, volume. Most taggers
+      have no playback at all and hand the file to whatever the operating system has registered, which
+      means leaving the tagger to hear the track you are tagging. We already have an engine, so the ear
+      lives in the pane.
+    </p>
+    <p>
+      It stays a preview — no queue, no crossfade, no DSP rack.
+      <a href="just-play.html">JUST PLAY</a> is the player. And a file being previewed is a file with an
+      open handle, so the preview releases it by itself when a save needs it: saving never has to be
+      explained away.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Reading a big folder</h2>
+    <p>
+      Tags are read in the background as soon as a listing lands, several files at once, and the rows
+      you are looking at fill first — a row scrolling into view jumps the queue, so you are not staring
+      at blank cells while the tail of a 1,200-file folder catches up. Each file is read exactly once.
+    </p>
+    <p>
+      <b>Navigation always wins.</b> Switching folders cuts in immediately and drops whatever the
+      previous one still had in flight. A progress line says "reading tags… 900 of 1,200" while it runs,
+      and sorting and searching wait for the last row rather than quietly answering from the half that
+      happened to be loaded. How many files are read at once is a setting — the same control, range and
+      default as JUST PLAY's analysis threads, because reading tags waits on the network rather than on
+      a core.
+    </p>
+    <p>
+      A listing's order is decided once, when it opens, and never changes under you a second later. A
+      playlist is never auto-sorted at all: the sequence is the work.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
+    <h2>Part of the suite</h2>
+    <p>
+      JUST TAG is a J.U.S.T. app, so it is the same window, the same six themes and the same track
+      table you already know — and the editor docked on its right is literally the same editor that
+      floats over the <a href="just-play.html">JUST PLAY</a> queue and the Pre-Cue Finder. Written once,
+      so the two cannot drift apart.
+    </p>
+    <p>
+      It installs alongside <a href="just-play.html">JUST PLAY</a>,
+      <a href="just-stream.html">JUST STREAM</a> and the headless <a href="cli.html">CLI</a>, sharing
+      one copy of the runtime.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="foot-brand">Just Useful Sound Tools.</p>
+    <p class="foot-links">
+      <a href="index.html">Home</a> · <a href="just-play.html">JUST PLAY</a> ·
+      <a href="just-stream.html">JUST STREAM</a> · <a href="just-tag.html">JUST TAG</a> ·
+      <a href="cli.html">CLI</a> ·
+      <a href="https://github.com/chloe-dream/just-play">GitHub</a>
+    </p>
+    <p class="foot-note">Part of J.U.S.T. — Just Useful Sound Tools. Made by Chloe Dream. MIT-licensed.</p>
+  </div>
+</footer>
+
+</body>
+</html>

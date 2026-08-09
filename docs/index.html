@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JustPlay — the music player for DJs and music lovers</title>
-<meta name="description" content="JustPlay — drop tracks in, double-click to play: automatic Camelot key, BPM &amp; energy, harmonic sort, a live DSP rack and tag writing, plus a Pre-Cue Finder to audition your next track on headphones. Ships with JUST STREAM, a broadcaster that streams any single app to Icecast. Free, no library, no nag. v0.5.0.">
+<meta name="description" content="JustPlay — drop tracks in, double-click to play: automatic Camelot key, BPM &amp; energy, harmonic sort, a live DSP rack and tag writing, plus a Pre-Cue Finder to audition your next track on headphones. One install, four tools: the player, JUST STREAM (broadcast a single app to Icecast), JUST TAG (the tag editor that leaves Serato and Traktor frames byte-identical) and a headless CLI. Free, no library, no nag.">
 <meta name="theme-color" content="#060310">
 
 <meta property="og:type" content="website">
@@ -582,6 +582,8 @@ footer {
         <span class="sep">|</span>
         <a href="just-stream.html">JUST STREAM</a>
         <span class="sep">|</span>
+        <a href="just-tag.html">JUST TAG</a>
+        <span class="sep">|</span>
         <a href="cli.html">CLI</a>
       </span>
     </div>
@@ -610,7 +612,7 @@ footer {
     <p class="hero-lead">Drop tracks in, double-click to play — no library, no sign-in, no nag. The analysis a DJ needs. The beauty everyone deserves.</p>
 
     <p class="hero-family"><b>One growing family of sound tools.</b><br>
-      <span class="fam-app">JUST PLAY</span> &nbsp;·&nbsp; <span class="fam-app">JUST STREAM</span> &nbsp;·&nbsp; <span class="fam-app">JustPlay CLI</span> <span class="soon">&nbsp;·&nbsp; more coming</span></p>
+      <span class="fam-app">JUST PLAY</span> &nbsp;·&nbsp; <span class="fam-app">JUST STREAM</span> &nbsp;·&nbsp; <span class="fam-app">JUST TAG</span> &nbsp;·&nbsp; <span class="fam-app">JustPlay CLI</span> <span class="soon">&nbsp;·&nbsp; more coming</span></p>
 
     <p class="hero-meta"><b>v0.5.0</b> &nbsp;·&nbsp; Free &nbsp;·&nbsp; Windows &nbsp;·&nbsp; MIT &nbsp;·&nbsp; no data leaves your machine</p>
 
@@ -771,6 +773,96 @@ footer {
   </div>
 </section>
 
+<!-- ── JUST TAG ────────────────────────────────────────── -->
+<section class="section wrap">
+  <p class="eyebrow">A third app in the same install</p>
+  <h2 class="section-title">Meet <span class="grad">JUST TAG</span></h2>
+  <p style="margin:-32px 0 28px; max-width:660px; color:var(--muted); font-size:15.5px;">
+    The tag editor for a folder that just finished downloading — and for a DJ library that already has
+    cue points in it. Browse a folder, fix one file or three hundred, rename from the tags or pull tags
+    out of the file names, move things where they belong, and hear the track while you do it. Every
+    bulk operation shows you what it is about to do before it does it.
+  </p>
+
+  <div class="rack-shell" style="margin-bottom:28px;">
+    <p class="rack-note" style="margin-top:0;">
+      <b>Measured, not claimed: 787 of 787 vendor frame payloads came back byte-identical.</b>
+      128 real writes across MP3s carrying Serato's <code>GEOB</code> markers, an 85,166-byte Traktor
+      blob and Mixed In Key's fields — diffed frame by frame. Zero bytes lost, the audio stream
+      untouched in all 128. Another widely used tagging library, measured on the same files, truncated
+      the Serato blob, renamed Mixed In Key's frames and wiped the rating.
+      <br><br>
+      The honest limits, because they matter: that measurement is <b>MP3 with ID3v2 only</b> — FLAC,
+      AIFF, WAV and MP4 are untested — and we preserve <b>bytes</b>. We do not decode Serato's cue
+      points and never will claim to. <a href="just-tag.html" style="color:var(--cyan-dim);">The full
+      method, and the one residual risk, are on the JUST TAG page.</a>
+    </p>
+  </div>
+
+  <p style="max-width:660px; color:var(--dim); font-size:13.5px; font-family:var(--font-m); margin-bottom:28px;">
+    Heads up: JUST TAG landed after v0.5.0 was tagged. The installer already packages it, so it comes
+    with the next build.
+  </p>
+
+  <div class="features-grid">
+
+    <div class="feat-card">
+      <div class="ab ab-grad"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>
+      </div>
+      <h3>One file, or three hundred</h3>
+      <p>Select a folder's worth and every field grows a tick and an X. Ticked and empty means "clear this on all of them" — the cover included. Fields the selection already agrees on start ticked; fields where they differ start off, so nothing gets flattened by accident.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-cyan"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+      </div>
+      <h3>Names and tags, one language</h3>
+      <p><code>%artist% - %title%</code> builds a file name out of the tags, or pulls tags out of a name — one pattern language, both directions, folders included. It counts your selection as you type ("fits 24 of 37"), and a file that doesn't fit is left exactly as it was.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-purple"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M4 7V5h10v2"/><path d="M7 19h4"/><path d="M9 5v14"/><path d="M14 13h6"/><path d="M17 10v6"/></svg>
+      </div>
+      <h3>Transform, previewed</h3>
+      <p>Fix the text that's already there: replace, Title Case, Sentence case, tidy the whitespace a web copy-paste left behind. Apply can't be reached without the preview — one line per file per field, before and after, and unchanged files aren't listed at all.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-red"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>
+      </div>
+      <h3>Move, copy, delete — never overwrite</h3>
+      <p>There is no overwrite. Not a default, not an option: a name that's taken is a collision, named in the preview, and the answer is "leave both alone" or "keep both". Delete goes to the recycle bin, and a move across drives is copy, verify, then remove.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-cyan"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <h3>Raw tags — look for yourself</h3>
+      <p>Every frame a file carries, exactly as it sits on disk, including other tools' frames — <code>GEOB:Serato Markers2</code>, <code>PRIV:TRAKTOR4</code>, <code>TXXX:EnergyLevel</code>. Read-only by contract. You don't have to take our measurement's word for it.</p>
+    </div>
+
+    <div class="feat-card">
+      <div class="ab ab-pink"></div>
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <h3>A tagger you can hear</h3>
+      <p>Load, play, pause, seek — right in the panel. Most taggers have no playback at all and hand the file to whatever the OS has registered, which means leaving the tagger to hear what you're tagging. It releases the file by itself when a save needs it.</p>
+    </div>
+
+  </div>
+</section>
+
 <!-- ── Features ────────────────────────────────────────── -->
 <section class="section wrap">
   <p class="eyebrow">What it does</p>
@@ -821,7 +913,7 @@ footer {
         <svg viewBox="0 0 24 24"><path d="M20.6 8.6 12 17.2l-3.8-3.8"/><path d="M3 7l4-4 4 4"/><path d="M7 3v12"/></svg>
       </div>
       <h3>Tag Your Files</h3>
-      <p>Detected key, BPM and energy can be saved into each file's metadata — so the analysis travels with the track and every other app can read it. Only when you ask. Every change undoable.</p>
+      <p>Detected key, BPM and energy can be saved into each file's metadata — so the analysis travels with the track and every other app can read it. Only when you ask. Every change undoable. For a whole folder at a time, that's <a href="just-tag.html" style="color:var(--cyan-dim);">JUST TAG</a>'s job.</p>
     </div>
 
     <div class="feat-card">
@@ -979,6 +1071,7 @@ footer {
         <li><span class="mark">✓</span>Full DSP rack — EQ, AutoTilt, Punch, Limiter</li>
         <li><span class="mark">✓</span>Live Icecast streaming — player or JUST STREAM</li>
         <li><span class="mark">✓</span>Capture &amp; stream a single app, cue kept private</li>
+        <li><span class="mark">✓</span>Tag a whole folder — Serato &amp; Traktor bytes untouched</li>
         <li><span class="mark">✓</span>Six themes — Aurora to Onyx to Hardcore</li>
         <li><span class="mark">✓</span>Instant drop &amp; play, no install ceremony</li>
       </ul>
@@ -988,6 +1081,7 @@ footer {
       <ul class="check-list dont">
         <li><span class="mark">✕</span>A library to scan or manage</li>
         <li><span class="mark">✕</span>Your files touched without your say-so</li>
+        <li><span class="mark">✕</span>A file overwritten, or a track deleted for good</li>
         <li><span class="mark">✕</span>An account or a sign-in</li>
         <li><span class="mark">✕</span>Tracking, ads, or anything phoning home</li>
         <li><span class="mark">✕</span>Cloud AI or a GPU requirement</li>
@@ -1027,7 +1121,8 @@ footer {
     <p class="footer-note">
       Part of <strong>J.U.S.T.</strong> — Just Useful Sound Tools.
       <strong>From DJs to DJs</strong> — built and gig-tested by a working DJ. The installer ships
-      <strong>JUST PLAY</strong> and <strong>JUST STREAM</strong> side by side, both
+      <strong>JUST PLAY</strong>, <strong>JUST STREAM</strong>, <strong>JUST TAG</strong> and the
+      headless <strong>CLI</strong> side by side on one shared runtime, all
       <a href="https://github.com/chloe-dream/just-play/blob/main/LICENSE">MIT-licensed</a>.
       It bundles BASS audio libraries from <a href="https://www.un4seen.com/" rel="noopener noreferrer">un4seen.com</a>,
       free for personal / non-commercial use — see the repository for licence details.
