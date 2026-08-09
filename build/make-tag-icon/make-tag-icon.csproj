@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build tool (NOT shipped, NOT part of JustPlay.slnx): regenerates the JUST TAG exe icon
+       src/JustPlay.Tag/Assets/justtag.ico from the REAL BrandGlyphs.Tag glyph + the Aurora theme
+       accents, via SkiaSharp. Sibling of build/make-stream-icon (JUST STREAM's radio-tower icon) -
+       the tag glyph also has arcs (the punch-hole), so it needs SkiaSharp's SVG-path parser the
+       same way, not GDI+ (see build/make-icon.ps1, JUST PLAY's play-triangle generator, which has
+       no arcs to worry about). Re-run only if the TAG brand mark changes
+       (cd build/make-tag-icon, then: dotnet run -c Release). NOTE the CLI project flag is
+       omitted above on purpose: a literal double-hyphen inside an XML comment fails MSB4025. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="2.88.9" />
+  </ItemGroup>
+</Project>

@@ -3,9 +3,10 @@
 ; Per-user install (no UAC / admin): drops the self-contained single-file app plus its
 ; native sidecars (Avalonia Skia/HarfBuzz + BASS / BASS_FX / BASSmix / BASSenc) into
 ; %LOCALAPPDATA%\Programs\JustPlay, adds Start-menu (+ optional desktop) shortcuts, and
-; registers a clean uninstaller. JUST STREAM (JustStream.exe) and the headless JustPlayCLI.exe
-; ship in the SAME folder — they share the app's runtime, BASS natives, ONNX runtime and
-; keymodel.onnx (one copy each; the CLI is for agent/power-user library tagging+sorting).
+; registers a clean uninstaller. JUST STREAM (JustStream.exe), JUST TAG (JustTag.exe) and the
+; headless JustPlayCLI.exe ship in the SAME folder — they share the app's runtime, BASS natives,
+; ONNX runtime and keymodel.onnx (one copy each; the CLI is for agent/power-user library
+; tagging+sorting).
 ;
 ; Build it via build\publish-installer.ps1 (publishes the app, then runs ISCC with the
 ; version from Directory.Build.props). AppVersion can be overridden on the command line:
@@ -19,6 +20,7 @@
 #define AppPublisher "Chloe Dream"
 #define AppExe "JustPlay.exe"
 #define StreamExe "JustStream.exe"
+#define TagExe "JustTag.exe"
 
 [Setup]
 ; AppId must stay STABLE across versions so upgrades replace in place (never change it).
@@ -52,6 +54,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon";        Description: "JUST PLAY desktop shortcut";   GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "desktopicon_stream"; Description: "JUST STREAM desktop shortcut"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon_tag";    Description: "JUST TAG desktop shortcut";    GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 ; File associations — one individually-checkable box per format. Double-clicking an
 ; associated file opens it in JustPlay (added to the running queue, not a new window).
@@ -75,9 +78,9 @@ Type: files; Name: "{app}\JustPlay.App.exe"
 
 [Files]
 ; The entire self-contained suite drop, shipped verbatim into one folder: JustPlay.exe +
-; JustStream.exe + JustPlayCLI.exe (+ JustPlayCLI.howto.txt) sharing ONE copy of the .NET runtime, the
-; Avalonia natives (libSkiaSharp / av_libglesv2 / libHarfBuzzSharp), the BASS natives, the
-; ONNX runtime and keymodel.onnx. build\publish-win-x64.ps1 produces this folder.
+; JustStream.exe + JustTag.exe + JustPlayCLI.exe (+ JustPlayCLI.howto.txt) sharing ONE copy of
+; the .NET runtime, the Avalonia natives (libSkiaSharp / av_libglesv2 / libHarfBuzzSharp), the
+; BASS natives, the ONNX runtime and keymodel.onnx. build\publish-win-x64.ps1 produces this folder.
 Source: "..\publish\win-x64\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Registry]
@@ -124,9 +127,11 @@ Root: HKCU; Subkey: "Software\Classes\.m3u"; ValueType: string; ValueData: "Just
 [Icons]
 Name: "{group}\JUST PLAY";   Filename: "{app}\{#AppExe}"
 Name: "{group}\JUST STREAM"; Filename: "{app}\{#StreamExe}"
+Name: "{group}\JUST TAG";    Filename: "{app}\{#TagExe}"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\JUST PLAY";   Filename: "{app}\{#AppExe}";    Tasks: desktopicon
 Name: "{userdesktop}\JUST STREAM"; Filename: "{app}\{#StreamExe}"; Tasks: desktopicon_stream
+Name: "{userdesktop}\JUST TAG";    Filename: "{app}\{#TagExe}";    Tasks: desktopicon_tag
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent

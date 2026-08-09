@@ -3,8 +3,9 @@
        src/JustPlay.Stream/Assets/juststream.ico from the REAL BrandGlyphs.RadioTower glyph + the
        Aurora theme accents, via SkiaSharp. The sibling of build/make-icon.ps1 (which does JUST PLAY's
        play-triangle in GDI+); the radio-tower glyph is a Lucide arc path GDI+ can't cleanly draw, so
-       this uses SkiaSharp's SVG-path parser instead. Re-run only if the STREAM brand mark changes:
-         dotnet run --project build/make-stream-icon -c Release -->
+       this uses SkiaSharp's SVG-path parser instead. Re-run only if the STREAM brand mark changes
+       (cd build/make-stream-icon, then: dotnet run -c Release). NOTE the CLI project flag is
+       omitted above on purpose: a literal double-hyphen inside an XML comment fails MSB4025. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>

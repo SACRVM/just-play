@@ -1,5 +1,6 @@
 # Publishes the JustPlay SUITE — JustPlay.exe (GUI player) + JustStream.exe (streaming app)
-# + the headless JustPlayCLI tool — into ONE shared folder for Windows x64.
+# + JustTag.exe (tag editor) + the headless JustPlayCLI tool — into ONE shared folder for
+# Windows x64.
 #
 # Why one flat folder (not single-file, not subfolders): the exes SHARE their DLLs —
 # one copy of the .NET runtime, the BASS natives, the ONNX runtime, and keymodel.onnx
@@ -14,6 +15,7 @@
 # Output: <repo>\publish\win-x64\  (wiped clean each run for a deterministic drop)
 #   JustPlay.exe       — the GUI player
 #   JustStream.exe     — the streaming app (shares the engine + bus DSP + BASS natives)
+#   JustTag.exe        — the tag editor (shares TagLib# + the shared UI + a BASS preview engine)
 #   JustPlayCLI.exe    — the headless library tool (same analysis engine as the app)
 #   JustPlayCLI.howto.txt
 #   shared, single copy: the .NET runtime DLLs, the Avalonia natives
@@ -26,6 +28,7 @@ $root    = Split-Path -Parent $PSScriptRoot
 $proj       = Join-Path $root "src\JustPlay.App"
 $cliProj    = Join-Path $root "src\JustPlay.Cli"
 $streamProj = Join-Path $root "src\JustPlay.Stream"
+$tagProj    = Join-Path $root "src\JustPlay.Tag"
 $out        = Join-Path $root "publish\win-x64"
 
 # Always start from an empty folder — incremental publishes into a dirty dir
@@ -53,6 +56,14 @@ dotnet publish $streamProj -c Release -r win-x64 --self-contained -o $out `
     -p:DebugType=none `
     -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) { throw "STREAM publish failed ($LASTEXITCODE)" }
+
+# 4. JUST TAG — the sibling tag editor, into the SAME folder. Shares the .NET runtime +
+#    Avalonia natives + BASS natives (preview playback only) with the app; only JustTag.exe /
+#    .dll / its deps.json + a few Tag-only managed DLLs are net-new.
+dotnet publish $tagProj -c Release -r win-x64 --self-contained -o $out `
+    -p:DebugType=none `
+    -p:DebugSymbols=false
+if ($LASTEXITCODE -ne 0) { throw "TAG publish failed ($LASTEXITCODE)" }
 
 # Drop debug symbols that third-party native NuGets (SkiaSharp/HarfBuzz) drag in —
 # ~100 MB of .pdb that have no place in a release drop.

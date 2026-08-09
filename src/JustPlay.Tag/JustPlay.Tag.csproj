@@ -9,6 +9,10 @@
     <AssemblyTitle>JUST TAG</AssemblyTitle>
     <Product>JUST TAG</Product>
     <Company>Chloe Dream</Company>
+    <!-- Static Win32 exe icon (Explorer / shortcuts) = the JUST TAG brand mark, Aurora theme +
+         tag glyph. Generated from BrandGlyphs.Tag via build/make-tag-icon (SkiaSharp).
+         The live taskbar/title-bar icon is still rendered per-theme by ThemedWindowIcon at runtime. -->
+    <ApplicationIcon>Assets\justtag.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>

@@ -1,9 +1,9 @@
 #!/bin/zsh
 # ─────────────────────────────────────────────────────────────────────────────
 # publish-osx.sh — build distributable macOS .app bundles + DMGs for the JUST
-# suite (JUST PLAY + JUST STREAM), Intel and Apple Silicon.
+# suite (JUST PLAY + JUST STREAM + JUST TAG), Intel and Apple Silicon.
 #
-#   ./build/publish-osx.sh                     # both apps, both archs, ad-hoc signed
+#   ./build/publish-osx.sh                     # all apps, both archs, ad-hoc signed
 #   ./build/publish-osx.sh justplay arm64      # one app, one arch
 #   SIGN_ID="Developer ID Application: …" NOTARY_PROFILE=justsuite \
 #       ./build/publish-osx.sh                 # signed + notarized release build
@@ -33,8 +33,8 @@ SIGN_ID=${SIGN_ID:--}                    # "-" = ad-hoc
 NOTARY_PROFILE=${NOTARY_PROFILE:-}
 ENTITLEMENTS="$ROOT/build/osx-entitlements.plist"
 
-APPS=(${=1:-justplay juststream})   # ${=…} forces word-splitting under zsh
-[[ "${1:-}" == "all" ]] && APPS=(justplay juststream)
+APPS=(${=1:-justplay juststream justtag})   # ${=…} forces word-splitting under zsh
+[[ "${1:-}" == "all" ]] && APPS=(justplay juststream justtag)
 ARCHS=(${=2:-x64 arm64})
 
 # ── per-app metadata ─────────────────────────────────────────────────────────
@@ -48,7 +48,11 @@ app_meta() {  # $1 = app key → sets NAME PROJ EXE ICO IDENT MIC DOCTYPES
             NAME="Just Stream"; PROJ="src/JustPlay.Stream/JustPlay.Stream.csproj"
             EXE="JustStream";   ICO="src/JustPlay.Stream/Assets/juststream.ico"
             IDENT="tools.justsuite.juststream"; MIC=1; DOCTYPES=0 ;;
-        *) echo "unknown app '$1' (justplay|juststream)"; exit 2 ;;
+        justtag)
+            NAME="Just Tag";   PROJ="src/JustPlay.Tag/JustPlay.Tag.csproj"
+            EXE="JustTag";     ICO="src/JustPlay.Tag/Assets/justtag.ico"
+            IDENT="tools.justsuite.justtag";    MIC=0; DOCTYPES=0 ;;
+        *) echo "unknown app '$1' (justplay|juststream|justtag)"; exit 2 ;;
     esac
 }
 
