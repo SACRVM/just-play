@@ -81,7 +81,27 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
     /// rounding-error gap.
     ///
     /// <para>Our pipeline re-runs all detectors, so this re-measures key/BPM too - wasteful but
-    /// correct. It is the rule that finally pays the debt off in the background instead of by hand.</para>
+    /// correct.</para>
+    ///
+    /// <para><b>(!!) It does NOT find the existing debt, and it is not the mechanism that pays it
+    /// off.</b> Measured 2026-08-07: against the real 18,009-row index this rule reports <b>0</b>,
+    /// which is a FALSE clean. The rows were stamped with their IMPORT moment, not with the moment
+    /// the DSP ran, because the blob carried no timestamp of its own back then; the import happened
+    /// AFTER the cutoff, so every affected row reads as freshly analysed. The
+    /// <see cref="TrackIndexEntry.UnknownAnalysedAt"/> sentinel that makes "we don't know" read as
+    /// stale arrived later - and a normal re-sync can never deliver it to these rows, because
+    /// <c>LibrarySync</c> skips a file whose size and mtime are unchanged, which is exactly what
+    /// these files are. So this rule is sound for rows indexed from the sentinel onward and blind
+    /// on every row imported before it.</para>
+    ///
+    /// <para>The 957 affected paths were therefore enumerated once, by hand, and a batch is pointed
+    /// at that LIST rather than at this rule. Do not read a 0 here as "the debt is paid".</para>
+    ///
+    /// <para>The cause underneath is worth naming, because it is general: c687d46 changed what the
+    /// analyzers COMPUTE without bumping <c>TrackAnalysisState.CurrentVersion</c>. Detection version
+    /// is the one field that survives a sync skip, so it is the only thing that could have told the
+    /// two v9s apart - and it was left identical. An analyzer golden test now pins that invariant,
+    /// so an output change fails the build instead of going unnoticed for a month.</para>
     /// </summary>
     public static StaleRule FlacMonoDecodeBug() =>
         AnalysedBefore(
@@ -93,7 +113,8 @@ public sealed record StaleRule(string Reason, Func<TrackIndexEntry, bool> Matche
 /// <summary>
 /// The set of <see cref="StaleRule"/>s a scan applies. Empty = trust every existing entry, which
 /// is the library's default posture: a stale blob is trusted as-is and never silently re-analysed
-/// (analysis-tag-persistence design). Re-analysis is something a rule - or Chloe - asks for.
+/// (analysis-tag-persistence design). Re-analysis is something a rule - or an explicit request -
+/// asks for.
 /// </summary>
 public sealed class StalenessPolicy
 {

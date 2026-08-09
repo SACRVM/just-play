@@ -21,7 +21,7 @@ namespace JustPlay.Library;
 /// <para><b>The rule for a folder that is not under any registered root:</b> it is UNINDEXED, and the
 /// caller must treat it exactly as it would with no index at all - read from disk. That is not a
 /// degradation, it is the whole point of JUST TAG: it is the tool you point at a download that no index
-/// has ever seen (Chloe 2026-08-05).</para>
+/// has ever seen.</para>
 ///
 /// <para>Registration happens where a root is actually INDEXED (JUST PLAY's index service, the CLI's
 /// analyze command), never on a mere read - so simply browsing can not conjure an index into existence.

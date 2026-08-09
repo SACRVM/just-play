@@ -10,7 +10,7 @@ namespace JustPlay.Core.Models;
 /// (not ML) that groups tracks by beat character - four-on-floor driving, groovy house,
 /// offbeat-bass, breakbeat, or half-time. Thresholds that drive the labelling are
 /// named constants in <c>RhythmPatternDetector.Thresholds</c> and are intentionally
-/// tuned on Chloe's ear rather than a ground-truth corpus.
+/// ear-tuned rather than fit to a ground-truth corpus.
 /// </para>
 ///
 /// <para>Platform-agnostic: no Avalonia, no ManagedBass, reflection-free, trim-/AOT-safe.</para>

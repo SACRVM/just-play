@@ -8,7 +8,7 @@ namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// Vertical limiter gain-reduction meter - shows how hard the output limiter is pulling peaks down
-/// right now (the "where does it flatten" readout, Chloe 2026-06-28). Fed each render frame via
+/// right now (the "where does it flatten" readout). Fed each render frame via
 /// <see cref="Value"/> (non-negative dB; 0 = not limiting). The bar fills from the TOP downward (more
 /// reduction = more fill), warms amber->red as it bites harder, and a peak-hold tick marks the recent
 /// maximum. A "-X.X dB" numeric sits at the bottom. Self-contained: no engine reference (the window

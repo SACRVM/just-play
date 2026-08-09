@@ -51,7 +51,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // -- N27: locked-file tag-write retry queue ----------------------------------------------
     // DoWrite's write can hit a file locked by something OTHER than our own main engine's current
     // track (WithFileReleased only defers for that ONE case) - the PRE-CUE finder engine holding a
-    // different file, or an EXTERNAL app (Chloe's verified trigger: Windows Media Player had the
+    // different file, or an EXTERNAL app (the verified trigger: Windows Media Player had the
     // file open). Before this fix that IOException was logged once and dropped: no JUSTPLAY blob
     // ever landed, so "write auto tags" silently never took and the track re-analyzed forever.
     // _tagWriteRetryQueue (JustPlay.Core.Playback.PendingTagWriteQueue) is a SEPARATE queue from
@@ -70,7 +70,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     // -- Pre-cue v2: saved-by-NAME headphone device (auto-reconnect "CLOU") ---------------------
     // Independent of the live SelectedHeadphoneDevice binding, which drops to null the moment the
-    // device disappears (e.g. Chloe's Bluetooth headphones going idle) - if we persisted THAT, the
+    // device disappears (e.g. a Bluetooth headphone device going idle) - if we persisted THAT, the
     // saved name would be wiped the instant the device vanished, defeating the whole point of
     // remembering it. This field is set only on an explicit/successful bind (never cleared to null
     // just because the live selection drops out) and is what PollPreCueDeviceRebind + PersistSettings
@@ -434,7 +434,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Manual drag-reorder from the queue list - the set-building gesture (Chloe 2026-07-11).
+    /// Manual drag-reorder from the queue list - the set-building gesture.
     /// Moves <paramref name="items"/> as one block (kept in their current visual order) so it sits at
     /// <paramref name="insertIndex"/>, the index in <see cref="Tracks"/> BEFORE removal (as computed
     /// by the drop indicator); items above the target are compensated here.
@@ -600,7 +600,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
             // Surface the radio/broadcast lifecycle in the event log (like JUST STREAM does) - the
             // "nothing lands in the log" fix: connect / fail (with the real reason, e.g. mount busy) /
-            // reconnect / disconnect. Chloe 2026-07-08.
+            // reconnect / disconnect.
             switch (state)
             {
                 case BroadcastState.Connected:
@@ -1382,7 +1382,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Pre-cue v2 auto-reconnect "CLOU": while the PRE-CUE tab is open (gated in <see cref="Tick"/>
     /// by <see cref="IsPreCueTab"/>), poll for the saved-by-name headphone device reappearing (e.g.
-    /// Chloe's Bluetooth headphones waking up) and bind it automatically - no Settings detour.
+    /// a Bluetooth headphone device waking up) and bind it automatically - no Settings detour.
     /// Never overrides an already-bound device, and never falls back to the system default (cue
     /// audio must never land on the speakers) - see <see cref="PreCueTransport.TryAutoRebind"/>.
     /// </summary>
@@ -1434,7 +1434,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         // routing OutputDevice = -1 here frees the cue mixer + source, so a PLAYING cue stops and then
         // can't be restarted (its source is gone - only loading a different track rebuilds it). The cue
         // mixer is meant to persist for the process lifetime; a real "stop" goes through Unload, not a
-        // null device. Chloe 2026-07-08: refresh-while-cueing killed the current cue.
+        // null device (refresh-while-cueing killed the current cue - found 2026-07-08).
         if (value is null) return;
 
         _preListen.OutputDevice = value.Index;
@@ -1527,8 +1527,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         => Dispatcher.UIThread.Post(() =>
         {
             // Single-slot v2: just stop - no auto-advance (there's nothing queued to advance to).
-            // The slot stays loaded (PreCueCurrent unchanged) so Chloe can still Add/Kick it or
-            // scrub back in with +/-30s; only Kick clears the slot.
+            // The slot stays loaded (PreCueCurrent unchanged), so it can still be Added, Kicked, or
+            // scrubbed back into with +/-30s; only Kick clears the slot.
             PreCueState = PlaybackState.Stopped;
         });
 
@@ -1553,10 +1553,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // -- Pre-cue commands (v2: single slot, autoplay, no pause) -----------------
 
     /// <summary>Load ONE file into the pre-cue slot and autoplay it immediately - replaces whatever
-    /// was cued before ("es muss schnell gehen": no confirmation, no pause). Entry point is the
+    /// was cued before. The action must be instant: no confirmation, no pause. Entry point is the
     /// track-row context menu ("Pre-cue on headphones") via <see cref="TrackViewModel.PlayInPreCueCommand"/>
     /// (wired in <see cref="AddPathsAsync"/>) - you cue from the list, not a file picker
-    /// (Chloe 2026-07-03: the "Load track..." picker was removed, nobody works like that).</summary>
+    /// (the "Load track..." picker was removed - nobody works from a file picker, they cue from the list).</summary>
     public async Task LoadPreCueTrackAsync(string filePath)
     {
         // Cueing from a row should land the eye on the slot - flip the right column to PRE-CUE.
@@ -1605,8 +1605,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
     private void CueJumpBack() => JumpPreCue(TimeSpan.FromSeconds(-30));
 
-    /// <summary>"Add": append the cued track to the MAIN queue. Does not clear the slot - Chloe can
-    /// still Kick it, jump around, or Add it again.</summary>
+    /// <summary>"Add": append the cued track to the MAIN queue. Does not clear the slot - kicking,
+    /// jumping around, or adding it again all remain available.</summary>
     [RelayCommand(CanExecute = nameof(HasPreCueCurrent))]
     private void CueAdd()
     {
@@ -2110,7 +2110,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// Playback is never interrupted. The deferred action re-reads the tags so the row reflects the new
     /// values + decisions once it lands.
     /// <para>
-    /// N27: a LOCKED file (the pre-cue engine holding a different track, or an EXTERNAL app - Chloe's
+    /// N27: a LOCKED file (the pre-cue engine holding a different track, or an EXTERNAL app - the
     /// verified trigger was Windows Media Player) used to throw <see cref="IOException"/>, get logged
     /// once, and drop the write forever - no JUSTPLAY blob ever landed, so the track re-analyzed on
     /// every load despite "write auto tags" being on. <see cref="_tagWriteRetryQueue"/> now retries it
@@ -2355,8 +2355,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     /// <summary>Analyse tracks that live OUTSIDE the queue (the PRE CUE FINDER's rows) through the very
     /// same bounded pipeline as the queue's Re-analyze - the AnalysisThreads cap, the Running->Done row
-    /// refresh, the ANALYZING badge, and the auto-write-on-analyse consent (Chloe 2026-07-07 chose "respect
-    /// the app's toggle", so the finder never writes a file unless that setting is already on). Reusing the
+    /// refresh, the ANALYZING badge, and the auto-write-on-analyse consent (this respects the app's existing
+    /// write-on-analyse toggle rather than adding a second one, so the finder never writes a file unless that
+    /// setting is already on). Reusing the
     /// one pipeline keeps analysis behaviour identical everywhere instead of forking a second copy.</summary>
     internal Task AnalyzeExternalAsync(IReadOnlyList<TrackViewModel> tracks) => AnalyzeTracksAsync(tracks);
 

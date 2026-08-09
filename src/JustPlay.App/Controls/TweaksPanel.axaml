@@ -264,7 +264,7 @@
                             IsVisible="{Binding TweaksTab, Converter={StaticResource StringEquals}, ConverterParameter=Sound}">
                     <!-- One-click bus presets - set the whole Sound chain at once. "Hard" = the validated
                          correction for harsh hard techno / hardstyle (AutoTilt + high-shelf cut + soft
-                         limiter, measured on Chloe's library). "Neutral" = all flat/off.
+                         limiter, measured on a real library). "Neutral" = all flat/off.
                          Below the built-ins: the user's own saved presets (additive) + a "Save current..."
                          affordance. Saved presets capture the six Sound fields and re-apply with one click. -->
                     <StackPanel Classes="tweakgroup">
@@ -536,7 +536,7 @@
                                IsVisible="{Binding HasNoOutputDevices}"
                                Margin="0,2,0,0"/>
 
-                    <!-- PRE-CUE HEADPHONES device picker was removed here (Chloe 2026-07-07): the pre-cue
+                    <!-- PRE-CUE HEADPHONES device picker was removed here: the pre-cue
                          device + volume now live in the Pre-Cue Finder's own settings flyout, so a second
                          copy in the main Settings is redundant. The VM keeps HeadphoneDevices /
                          SelectedHeadphoneDevice + the auto-rebind poll - the finder binds them there. -->

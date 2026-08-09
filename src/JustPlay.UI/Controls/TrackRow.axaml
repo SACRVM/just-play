@@ -11,8 +11,8 @@
          Cell content binds the TrackViewModel DataContext; each cell's visibility reads the shared
          TrackColumns via $parent[TrackRow].Columns. Styling is the JUST PLAY (MaxView) reference. -->
     <!-- Title-priority layout: NAME is a * column with a MinWidth so the title stays readable; the data columns
-         live in an Auto column that CLIPS off the right edge when the row gets too narrow (Chloe 2026-07-08 -
-         never lose the title). ClipToBounds hides that overflow. The queue HEADER + finder HEADER mirror this
+         live in an Auto column that CLIPS off the right edge when the row gets too narrow (never lose
+         the title). ClipToBounds hides that overflow. The queue HEADER + finder HEADER mirror this
          exact Grid so header <-> row stay aligned as they clip. The 150 MinWidth is repeated in those two headers
          (a Grid ColumnDefinition can't read a DynamicResource) - keep the three in sync. -->
     <Grid ClipToBounds="True">
@@ -23,11 +23,11 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
 
             <!-- ARTIST - a finder-only SORTABLE column (the queue stacks the artist under the title instead;
-                 gated by ShowArtist, which the queue never enables). Chloe 2026-07-08. -->
+                 gated by ShowArtist, which the queue never enables). -->
             <!-- (!) The text columns are sized from CONTENT, not from a ColW* constant: their width comes
                  from Columns.Widths, which the table re-measures per listing (P90 of the characters
-                 actually in the column, then the leftover space shared proportionally - Chloe
-                 2026-08-06). Only the numbers and marks below keep a fixed ColW*. -->
+                 actually in the column, then the leftover space shared proportionally). Only the
+                 numbers and marks below keep a fixed ColW*. -->
             <TextBlock Width="{Binding $parent[controls:TrackRow].Columns.Widths.Artist}" Text="{Binding Artist}" FontSize="12" Foreground="#B3FFFFFF"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                        IsVisible="{Binding $parent[controls:TrackRow].Columns.ShowArtist}"/>
@@ -136,8 +136,8 @@
                          IsVisible="{Binding IsAnalysisMissing}"/>
             </Panel>
 
-            <!-- COV - one fact, one tick: does this song have a cover. Not a thumbnail (Chloe
-                 2026-08-05: "ich will kein mini mini preview haben"), so the row never decodes an
+            <!-- COV - one fact, one tick: does this song have a cover. Not a thumbnail - no mini
+                 preview wanted, just this tick - so the row never decodes an
                  image to show it 22 pixels wide. Nothing at all when there is none - an empty cell in
                  a column of ticks reads as "missing" without needing its own symbol. -->
             <Panel Width="{DynamicResource ColWCover}" VerticalAlignment="Center"
@@ -183,9 +183,8 @@
         <!-- NAME - the * column with MinWidth, so it holds a readable width and the data columns clip
              instead. Shared TrackNameMargin.
 
-             The artist sits UNDER the title exactly when it does not have a column of its own
-             (Chloe 2026-08-05: "habe ich artist als eigene spalte gewaehlt wird dieser unter dem song
-             ausgeblendet"). One rule, decided by the row itself: no host can forget it, the artist is
+             The artist sits UNDER the title exactly when it does not have a column of its own.
+             One rule, decided by the row itself: no host can forget it, the artist is
              never shown twice, and it is never missing either - switching the column off puts the line
              back. That is why there is no ArtistUnderName flag any more. -->
         <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">

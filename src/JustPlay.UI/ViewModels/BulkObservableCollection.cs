@@ -11,9 +11,9 @@ namespace JustPlay.UI.ViewModels;
 /// <para>Why it exists: replacing the contents the ordinary way - <c>Clear()</c> then <c>Add</c> per
 /// item - raises one CollectionChanged per row, and every one of those invalidates the bound list's
 /// layout. At a few hundred rows nobody notices. At the ~15,000 files under a library root it is
-/// seconds of frozen UI on top of whatever the disk cost (Chloe 2026-08-06: "waehle links den ordner
-/// GENRES und baemmm... app ist tot und non responding"). <see cref="Reset"/> mutates the backing list
-/// directly and raises a single Reset, which the list handles as one rebuild.</para>
+/// seconds of frozen UI on top of whatever the disk cost - picking the GENRES folder in the left
+/// pane made the app freeze solid and go non-responding. <see cref="Reset"/> mutates the backing
+/// list directly and raises a single Reset, which the list handles as one rebuild.</para>
 ///
 /// <para>Reset is the right shape here rather than a diff: the callers are "show this folder" and
 /// "show what the search matched", and both are wholesale replacements. A Reset does lose the

@@ -11,7 +11,7 @@ namespace JustPlay.UI.Rendering;
 ///
 /// <para><b>Why not a <c>DispatcherTimer</c>:</b> a free-running timer ticks on its own clock, unrelated to
 /// when Avalonia actually paints a frame. The two drift, so the painted value lands late and beats against
-/// vsync - visible judder, and a picture drawn from a stale position (Chloe saw exactly this on STREAM's
+/// vsync - visible judder, and a picture drawn from a stale position (this showed up on STREAM's
 /// meter and BOOTLEG's playhead; JUST BEAT's playhead ran on a 50 ms / 20 fps timer and lagged the sound by
 /// up to a frame-and-a-half). <c>RequestAnimationFrame</c> runs the callback at the START of each rendered
 /// frame, at the display's refresh rate - the update lands ON the frame, every frame.</para>

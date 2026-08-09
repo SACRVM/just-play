@@ -13,9 +13,9 @@ public enum RecordingFormat
     /// <summary>
     /// Mirror the active stream profile's codec + bitrate. The self-check default: the file
     /// contains the same artifacts your listeners hear - encode at 128 kbps and you get the
-    /// 128 kbps truth on disk (Chloe, 2026-07-04: "wie soll man sonst erfahren wie
-    /// beschissen man live klingt?"). Note this mirrors CODEC quality, not connection
-    /// quality - network dropouts the audience heard are not in the file.
+    /// 128 kbps truth on disk. The only way to actually hear how bad (or good) you sound live
+    /// is to record exactly what the audience hears, not a cleaned-up version. Note this mirrors
+    /// CODEC quality, not connection quality - network dropouts the audience heard are not in the file.
     /// </summary>
     SameAsStream = 0,
 
@@ -50,8 +50,8 @@ public enum RecordingCodec
 /// <see cref="RecordingCodec.Opus"/>; ignored (0) for the lossless codecs.</param>
 /// <param name="FilePath">Full target path including the file name and extension.</param>
 /// <param name="TrimSilence">Auto-trim (default ON): don't WRITE silence instead of cutting it
-/// afterwards. The typical gig order is "go on air first, start the music later" (Chloe,
-/// 2026-07-04) - so REC only ARMS the recorder. A look-behind buffer feeds the encoder: the
+/// afterwards. The typical gig order is "go on air first, start the music later" - so REC
+/// only ARMS the recorder. A look-behind buffer feeds the encoder: the
 /// file starts on the first beat and ends on the last with ZERO dead air at either end; short
 /// breaks (<=30 s) are preserved 1:1, longer gaps are cut. No post-processing, identical for
 /// every codec.</param>

@@ -68,7 +68,7 @@ public partial class MaxView : UserControl
         this.FindControl<ListBox>("TrackList")?.AddHandler(
             InputElement.KeyDownEvent, OnTrackListKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
-        // Row drag, combined mode (Chloe 2026-07-11, option A): drag INSIDE the list = hand-reorder
+        // Row drag, combined mode (option A): drag INSIDE the list = hand-reorder
         // the queue (the set-building gesture - accent insertion line, edge autoscroll, multi-select
         // moves the block); drag OUT sideways = the OS file-copy drag to Explorer/Traktor/an
         // AI-agent chat (N24). See RowDragBehavior for the Avalonia-12-source-verified mechanics.
@@ -81,9 +81,9 @@ public partial class MaxView : UserControl
                 {
                     Indicator = dropIndicator,
                     // Dragging while a column sort is active is allowed and ADOPTS the sorted order
-                    // as the new hand order (sort glyph clears - MoveTracks handles it). Chloe
-                    // 2026-07-11: implicit beats a dead gesture ("rafft es jemand?"); sort-then-
-                    // hand-tune is a real set-building flow.
+                    // as the new hand order (sort glyph clears - MoveTracks handles it). Implicit
+                    // beats a dead gesture - a hidden interaction nobody would find on their own;
+                    // sort-then-hand-tune is a real set-building flow.
                     Move = (items, insertIndex) =>
                     {
                         if (DataContext is MainWindowViewModel vm)
@@ -168,7 +168,7 @@ public partial class MaxView : UserControl
 
         // The tag editor follows the CURSOR. Deliberately only here: auto-advance at the end of a
         // track changes what is PLAYING, not what is selected, and must never retarget the editor
-        // mid-edit (Chloe 2026-08-02). Multi-select points it at the row the cursor landed on.
+        // mid-edit. Multi-select points it at the row the cursor landed on.
         if (_tagEditor is not null)
             _ = _tagEditor.SetTargetAsync((lb.SelectedItem as TrackViewModel)?.Model.FilePath);
     }

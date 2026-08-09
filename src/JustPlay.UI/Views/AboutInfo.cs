@@ -15,7 +15,7 @@ namespace JustPlay.UI.Views;
 /// <param name="By">Author credit line.</param>
 /// <param name="Copyright">Copyright line.</param>
 /// <param name="SuiteLine">The shared J.U.S.T. suite line.</param>
-/// <param name="Motto">The maker credo, shared by every JUST app - Chloe's wording, verbatim.</param>
+/// <param name="Motto">The maker credo, shared by every JUST app - fixed wording, kept verbatim.</param>
 public sealed record AboutInfo(
     string AppName,
     string Tagline,

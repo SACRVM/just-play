@@ -24,7 +24,7 @@ namespace JustPlay.App;
 /// Decode is the only operation performed.</para>
 ///
 /// <para>This is the P1 data-collection tool for the mix-compatibility north star.
-/// The output (which pairs score high/low) feeds into daytime weight-tuning with Chloe's ear.
+/// The output (which pairs score high/low) feeds into daytime weight-tuning by ear.
 /// Do NOT add weight blending here - that's out of scope for N8.
 /// [northstar-harmonic-sort.md Sec.P1; rhythm-similarity.md Sec.Concrete recommendation]</para>
 /// </summary>

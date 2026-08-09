@@ -6,7 +6,7 @@ namespace JustPlay.UI;
 /// <summary>
 /// Cross-platform "keep the display awake" guard for the on-air/recording session. DJ software
 /// gets controller input only - the OS sees an idle keyboard/mouse and blanks the screen or
-/// locks the box mid-set (Traktor famously doesn't suppress this; Chloe 2026-07-15). While a
+/// locks the box mid-set (Traktor famously doesn't suppress this - observed 2026-07-15). While a
 /// JUST app is on air or recording, this holds a display-sleep assertion; released, the normal
 /// screensaver/energy policy applies again.
 ///

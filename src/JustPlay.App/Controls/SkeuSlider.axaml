@@ -23,7 +23,7 @@
              Height MUST stay even: the slider grid is 22 px tall, so an even-height
              child centres on an integer pixel (y=11, same as the 6 px rail). An odd
              height (was 3) lands the fill on a half-pixel -> it renders ~1 px out of the
-             rail's centre - the offset Chloe spotted. 4 keeps it pixel-aligned. -->
+             rail's centre - the offset this fixes. 4 keeps it pixel-aligned. -->
         <!-- BoxShadow (inset bevel + outer accent glow) is bound in code-behind to the
              theme-driven SkeuSlider*FillGlow resource, picked by IsChrome. -->
         <Border Name="Fill" Height="4" CornerRadius="2"

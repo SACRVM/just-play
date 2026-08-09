@@ -25,7 +25,7 @@
          style in JustStyles.axaml - a dialog floats above the app, a window does not. -->
     <!-- (!) Shadow values and the card margin are a PAIR. Setting Margin here would be a LocalValue and
          would beat the style, which is how the old "0 18 54 0" literal at Margin 14 ended up clipping
-         hard at the window edge (Chloe 2026-07-05). -->
+         hard at the window edge. -->
     <Border Name="DialogCard" ClipToBounds="True"
             PointerPressed="OnCardPressed">
         <Panel>
@@ -43,8 +43,7 @@
               the WHOLE window - and WindowImpl.SetTransparencyAcrylicBlur turns the per-pixel-alpha
               path off (SetLegacyTransparency(false)). Every JUST window is a rounded card inside a
               20/22 transparent margin that the drop shadow blooms into, so the blur filled that
-              margin and the dialog came up inside a hard box (Chloe: "ich sehe deutlich drum herum
-              einen harten kasten mit fehlender transparenz").
+              margin and the dialog came up inside a hard box.
 
               So on Win32 it is one or the other: a transparent shadow margin, or window backdrop
               blur. The suite chrome is not negotiable, so the dialog keeps the window recipe and
@@ -67,7 +66,7 @@
                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14,12,0,0"/>
 
             <StackPanel Margin="30,34,30,28" Spacing="0" HorizontalAlignment="Center">
-                <!-- Brand mark: NO chip background - just the app's white glyph (Chloe 2026-06-30).
+                <!-- Brand mark: NO chip background - just the app's white glyph.
                      The glyph (GlyphHost.Content) is built in code-behind from AboutInfo.Glyph, sized to
                      fill the area the gradient chip used to occupy. -->
                 <Border Width="74" Height="74"

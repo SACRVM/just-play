@@ -25,8 +25,7 @@ namespace JustPlay.Tag.ViewModels;
 ///
 /// <para>A folder with nothing to browse into (no sub-folders, no playlists of its own) does NOT
 /// descend when activated: it shows its tracks in the file pane and leaves the folder pane where it
-/// is, exactly like a playlist (Chloe 2026-08-06: "ordner ohne subfolder so behandeln wie
-/// playlisten"). Descending would leave you staring at a pane containing nothing but "..". That is
+/// is, exactly like a playlist. Descending would leave you staring at a pane containing nothing but "..". That is
 /// decided when the row is ACTIVATED, not stored here - see MainWindow.ActivateFolder.</para>
 /// </summary>
 public sealed record FolderRow(string Name, string Path, bool IsUp, bool IsPlaylist = false)
@@ -184,8 +183,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// <summary>
     /// Which tab the right pane shows. Three, not two: the shared editor panel used to carry its own
     /// TAGS | ANALYSIS switch, which put a second row of tabs directly under this header. The switch
-    /// belongs to the HOST, so all three live on one line - EDITOR | ANALYSIS | FILTER (Chloe
-    /// 2026-08-05). Same shape as the Finder's INFO | FILTER, one entry wider.
+    /// belongs to the HOST, so all three live on one line - EDITOR | ANALYSIS | FILTER.
+    /// Same shape as the Finder's INFO | FILTER, one entry wider.
     /// </summary>
     public TagPane Pane
     {
@@ -277,7 +276,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         //   2. where you were last.
         //   3. the machine's library root. If nothing has ever told JUST TAG where to go, the music
         //      is the obvious place, and the library layer already knows where that is - the same
-        //      registry that decides whether a folder is indexed (Chloe 2026-08-05).
+        //      registry that decides whether a folder is indexed.
         StartFile = startup.SelectFile;
         var start = FirstExisting(startup.Folder, settings.Current.LastFolder, FirstLibraryRoot());
         // GoTo, not Open: the remembered folder has to be entered by the SAME rule a click
@@ -351,7 +350,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     // one that actually finds the damage, "genre is empty" gets asked. A second condition can be
     // switched on and joined with AND / OR when that is not enough.
     //
-    // Chloe 2026-08-05: "think simple and allow complex things ... doppelt suchen verwirrt nur".
+    // Think simple and allow complex things - a second, separate search box would only confuse.
 
     public IReadOnlyList<FieldChoice> Fields { get; } =
     [
@@ -407,7 +406,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
     /// <summary>What the search box suggests - it follows the FIELD, because "title, artist, genre or
     /// file name..." under a box that is about to compare ID3 versions is not a hint, it is a wrong
-    /// statement. Chloe 2026-08-05.</summary>
+    /// statement.</summary>
     public string Hint1 => HintFor(_field);
 
     public string Hint2 => HintFor(_field2);
@@ -503,7 +502,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
     /// <summary>A search is narrowing the list right now - what the FILTER tab reads in the accent,
     /// so the state is visible from the other two tabs and not only from the second number in the
-    /// FILES count (Chloe 2026-08-06).</summary>
+    /// FILES count.</summary>
     public bool IsFiltering => Filtering;
 
     /// <summary>Everything back to "show the folder".</summary>
@@ -542,8 +541,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         // editor out from under whatever you had already started typing into.
         if (!shown.SequenceEqual(Files)) Files.Reset(shown);
 
-        // Size the text columns to what is ACTUALLY on screen - this list, not the library (Chloe
-        // 2026-08-06 "pro Ansicht"; measured 2026-08-07 that a column's P90 moves 50-130 % from one
+        // Size the text columns to what is ACTUALLY on screen - this list, not the library, per view
+        // (measured 2026-08-06; measured 2026-08-07 that a column's P90 moves 50-130 % from one
         // folder to the next). Here rather than in Open(), because a filter changes the visible set
         // just as much as a folder change does, and it is one pass over strings already in memory.
         Columns.Widths.Measure(shown.Select(r => r.Track).ToList());
@@ -562,11 +561,9 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     ///
     /// <para>(!!) NOTHING may re-order a listing after it is on screen. It used to: sorting was locked
     /// until every row had been read, so a folder appeared in disk order and then jumped into your
-    /// saved sort a second later, every single time. "Es ergibt null Sinn, dass du wo reingehst und
-    /// innerhalb 1 Sekunde aendert sich die Sortierung - sei dir vorher im Klaren darueber oder lass
-    /// es" (2026-08-07). So we are clear beforehand: if the data a sort needs is not there at the
-    /// moment the listing opens, the listing simply is not sorted, and it stays that way until you
-    /// ask for a sort yourself.</para>
+    /// saved sort a second later, every single time. So we are clear beforehand: if the data a sort
+    /// needs is not there at the moment the listing opens, the listing simply is not sorted, and it
+    /// stays that way until you ask for a sort yourself.</para>
     ///
     /// <para>A PLAYLIST is never auto-sorted at all - the sequence IS the work, and last week's "by
     /// BPM" would destroy exactly the thing you built. (OpenPlaylist's own doc has promised this
@@ -686,7 +683,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                 // handful of workers is both safe and the whole win on a network share. Rows the index
                 // already filled are CLAIMED and skipped here - and a row that scrolls into view is
                 // read by HydrateVisible first, so what you are looking at fills before the tail of a
-                // 1,200-file folder does (Chloe 2026-08-05: "und nicht erst das sichtbare?").
+                // 1,200-file folder does.
                 Parallel.ForEach(rows,
                     new ParallelOptions { MaxDegreeOfParallelism = Threads, CancellationToken = ct },
                     row => Hydrate(row, ct));
@@ -706,7 +703,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// library INDEX has its tags but knows nothing about artwork (the index stores tags, not
     /// pictures) and nothing about its ID3 version - both cost a file open and are fetched on demand.
     /// Returning early on <c>Tagged</c> alone is what left the COV column empty on an indexed folder
-    /// while the editor happily showed the cover for the same file (Chloe 2026-08-06). So the
+    /// while the editor happily showed the cover for the same file. So the
     /// visible row also tops up whatever the visible COLUMNS are actually asking for. That closes the
     /// hole for good: what you can SEE is filled by the thing that put it on screen, not by a bulk
     /// pass someone has to remember to trigger.</para>
@@ -738,7 +735,9 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         RunJob(() =>
         {
             bool? cover = wantCover ? CoverProbe.Has(row.Path) : null;
-            var id3 = wantId3 ? (Id3VersionProbe.Read(row.Path) is { } major ? $"2.{major}" : null) : null;
+            var id3 = wantId3 && Id3VersionProbe.Read(row.Path) is { } major
+                ? Id3VersionProbe.ShortName(major)
+                : null;
             if (ct.IsCancellationRequested) return;
 
             if (cover is { } c) row.Track.Artwork = c;
@@ -783,8 +782,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                 }
 
                 // The COV tick and the ID3 version, straight off the row - no file is opened for
-                // either any more (Chloe 2026-08-07: "null live zugriffe, ergo kommt alles in den
-                // index rein"). They used to be a SECOND and THIRD open per visible row, which on a
+                // either any more - zero live file accesses at display time, everything a row can show
+                // must already be sitting in the index. They used to be a SECOND and THIRD open per visible row, which on a
                 // share threw away the whole point of the index: the tags came back in ~0 ms and then
                 // 1,200 SMB opens queued up behind them.
                 //
@@ -872,9 +871,9 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
     // -- Getting results onto the screen without owning the UI thread -----------------------------
     //
-    // (!)(!) NAVIGATION ALWAYS WINS. Everything in this section exists to keep that true (Chloe
-    // 2026-08-06: "navigation muss immer gewinnen - der rest als hintergrund prozess ... und das
-    // muss auch unterbrechbar sein wenn ich wilde ordner wechsel vornehme").
+    // (!)(!) NAVIGATION ALWAYS WINS. Everything in this section exists to keep that true: navigation
+    // always takes priority, everything else runs as a lower-priority background process, and that
+    // background work has to be interruptible when you are jumping between folders quickly.
     //
     // What used to break it: one Dispatcher.Post PER ROW. On a folder of 30 that is invisible; on a
     // library root it is 15,000 callbacks queued ahead of your click, and the window stops answering.
@@ -1007,8 +1006,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     // -- Workers ---------------------------------------------------------------------------------
 
     /// <summary>
-    /// How many files to read at once - JUST PLAY's "Analysis threads" control, ported (Chloe
-    /// 2026-08-07). Reading tags waits on the NETWORK rather than on a core, so this is what decides
+    /// How many files to read at once - JUST PLAY's "Analysis threads" control, ported.
+    /// Reading tags waits on the NETWORK rather than on a core, so this is what decides
     /// whether a 1,200-file folder fills in seconds or in a minute.
     ///
     /// <para>Clamped to 1..<see cref="JustPlay.Library.AnalysisBatchOptions.MaxSupportedConcurrency"/>
@@ -1091,7 +1090,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// <summary>
     /// The same FALLBACK for the ID3 version - see <see cref="EnsureCover"/> for why it survives.
     /// The index carries the version now, and the disk path gets it from the tag read, so the 1,200
-    /// SMB opens this used to cause (the stall Chloe hit 2026-08-05) no longer happen on any indexed
+    /// SMB opens this used to cause (the stall hit 2026-08-05) no longer happen on any indexed
     /// folder at all.
     /// </summary>
     private void EnsureId3()
@@ -1111,7 +1110,9 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                     new ParallelOptions { MaxDegreeOfParallelism = Threads, CancellationToken = ct },
                     row =>
                     {
-                        var v = Id3VersionProbe.Read(row.Path) is { } major ? $"2.{major}" : null;
+                        var v = Id3VersionProbe.Read(row.Path) is { } major
+                            ? Id3VersionProbe.ShortName(major)
+                            : null;
                         if (v is null || ct.IsCancellationRequested) return;
                         row.Id3 = v;
                         Touched(row);
@@ -1131,7 +1132,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         : $"reading tags... {_hydrated} of {_hydrateTotal}";
 
     /// <summary>Sorting and searching both need EVERY row, so both wait - and say so rather than
-    /// quietly answering from the half that happens to be loaded (Chloe 2026-08-05).</summary>
+    /// quietly answering from the half that happens to be loaded.</summary>
     public bool CanFilter => Ready;
 
     /// <summary>Called once per DRAIN tick (~10x/s), not once per row - the drain already batches, so
@@ -1153,9 +1154,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
             // (!) There used to be a "a load started -> leave the FILTER tab" rule here, and it was wrong
             // in the one case that matters: "Include subfolders" LIVES on the filter tab and re-reads
-            // the listing by design, so ticking it threw you off the tab you were standing on
-            // (Chloe 2026-08-06: "ich klick auf include sub folders und er macht ne art refresh und
-            // ich lande im editor - wtf"). Leaving a tab is a NAVIGATION decision, so it belongs to
+            // the listing by design, so ticking it threw you off the tab you were standing on.
+            // Leaving a tab is a NAVIGATION decision, so it belongs to
             // navigation - see Open(), which only does it when the FOLDER actually changes. Staying
             // put is also safe: the search reruns when the read finishes (Finish -> ApplyFilter), and
             // "Reading tags..." says so while it is happening.
@@ -1206,9 +1206,9 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// its header and draws a far brighter selected row, so "where am I" is answered by colour rather
     /// than by remembering what was clicked last.
     ///
-    /// <para>The EDITOR / ANALYSIS / FILTER pane counts as a third one (Chloe 2026-08-06: "mach ich was
-    /// rechts ... dann sollte logisch der header fokus von den dateien zu dem rechten side panel
-    /// springen"). It was left out originally, which made the cue lie - the FILES header stayed lit
+    /// <para>The EDITOR / ANALYSIS / FILTER pane counts as a third one - working in a field on the
+    /// right should move the header focus there too, not leave it pinned on the files. It was left
+    /// out originally, which made the cue lie - the FILES header stayed lit
     /// while the keyboard was in a text box on the other side of the window.</para>
     /// </summary>
     public bool FoldersActive => _active == FocusPane.Folders;
@@ -1235,7 +1235,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// theory that one enumeration beats two. On a network share that is catastrophic: Exists is a
     /// STAT ROUND TRIP PER ENTRY, so a sub-folder holding 700 tracks cost 700 round trips to conclude
     /// "no directories" - times every sub-folder in the listing. Opening \\nas\music\GENRES took the
-    /// app out completely (Chloe 2026-08-06: "ui haengt voellig bei genres"). EnumerateDirectories and
+    /// app out completely. EnumerateDirectories and
     /// a pattern-filtered EnumerateFiles are each ONE call the server answers itself, and the first
     /// one usually settles it. Two cheap calls beat one expensive walk.</para>
     ///
@@ -1273,8 +1273,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
     private bool _settingsOpen;
 
-    /// <summary>Whether the settings panel is showing. It is a slide-in PANEL, not a window (Chloe
-    /// 2026-08-06) - same surface and same gesture as the JUST PLAY tweaks sidebar.</summary>
+    /// <summary>Whether the settings panel is showing. It is a slide-in PANEL, not a window
+    /// - same surface and same gesture as the JUST PLAY tweaks sidebar.</summary>
     public bool IsSettingsOpen { get => _settingsOpen; private set => Set(ref _settingsOpen, value); }
 
     public void ToggleSettings() => IsSettingsOpen = !IsSettingsOpen;
@@ -1368,7 +1368,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// Every other way of reaching a folder called <see cref="Open"/> raw and simply went in, and
     /// <see cref="Open"/> is what records LastFolder. So dropping a leaf folder on the window put you
     /// inside it AND remembered it, and the next start reopened it: a state you cannot reach by
-    /// clicking, but that the app could put you in and keep you in (Chloe 2026-08-08). The rule is
+    /// clicking, but that the app could put you in and keep you in. The rule is
     /// here now, so a rule stated once is applied everywhere.</para>
     ///
     /// <para>The check is one directory probe and runs off the UI thread - on a share it is a round
@@ -1434,8 +1434,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
 
         // (!) THE LISTING RUNS OFF THE UI THREAD. It used to run right here, and on a local folder
         // nobody could tell. On \\nas\music\GENRES with "include subfolders" on it is a recursive
-        // SMB walk over ~15,000 files, and the window was simply gone for the duration (Chloe
-        // 2026-08-06: "waehle links den ordner GENRES und baemmm... app ist tot und non responding").
+        // SMB walk over ~15,000 files, and the window was simply gone for the duration.
         // Directory.Exists is a single stat and stays here so a vanished folder answers instantly.
         _listCts?.Cancel();
         var cts = _listCts = new CancellationTokenSource();
@@ -1454,9 +1453,8 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         // the same file is still in the listing, instead of being rebuilt: re-reading a folder used
         // to mean new FileRow objects for every path, which threw away every tag already read AND
         // made the collection differ from itself - so the list cleared and refilled, the sort dropped
-        // to folder order while the re-read ran, and it visibly built itself twice (Chloe 2026-08-06:
-        // "warum zuckt die files liste ... es gibt keine subfolder, trotzdem ... baut sie sich 2x neu
-        // auf"). Matching on the absolute path is always safe: same path, same file, same facts.
+        // to folder order while the re-read ran, and it visibly built itself twice.
+        // Matching on the absolute path is always safe: same path, same file, same facts.
         var kept = _all.GroupBy(r => r.Path, StringComparer.OrdinalIgnoreCase)
                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
@@ -1504,8 +1502,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                 // (!) The walk is CANCELLED MID-STREAM, not only checked when it finishes. Under a
                 // library root it is a 15,000-file SMB enumeration; clicking three folders in a row
                 // has to abandon the first two immediately, not queue three full walks behind each
-                // other (Chloe 2026-08-06: "das muss auch unterbrechbar sein wenn ich wilde ordner
-                // wechsel vornehme").
+                // other.
                 var paths = new List<string>();
                 foreach (var s in AudioFiles.EnumerateWithKeys(full, recursive: recursive))
                 {
@@ -1534,8 +1531,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                     _all = rows;
                     // (!) "no audio files" alone is TRUE and useless. \\nas\music\GENRES holds no loose
                     // tracks at all - everything is one level down - so a bare "no audio files" reads
-                    // as "this app cannot see your music" (Chloe 2026-08-06: "no audio files haha -
-                    // luege"). When there is nothing here but there IS something below, say that
+                    // as "this app cannot see your music". When there is nothing here but there IS something below, say that
                     // instead; the answer is "look one level down", not "there is nothing".
                     var below = folders.Count(f => !f.IsUp);
                     _countText = rows.Count switch
@@ -1652,8 +1648,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// <summary>
     /// Show a LEAF folder's tracks in the file pane without going into it. Same shape as
     /// <see cref="OpenPlaylist"/>, and for the same reason: a folder with nothing to browse into is
-    /// not a place you navigate to, it is a list of songs (Chloe 2026-08-06: "ordner ohne subfolder
-    /// so behandeln wie playlisten"). Descending would replace the sibling folders with a pane
+    /// not a place you navigate to, it is a list of songs. Descending would replace the sibling folders with a pane
     /// containing nothing but "..".
     ///
     /// <para>Not recursive - a leaf has no sub-folders by definition, so there is nothing below it.</para>
@@ -1741,7 +1736,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// playlist, or a LEAF folder opened as a list. Null means "this folder", the ordinary case.
     ///
     /// <para>It was called <c>Playlist</c> until leaf folders started using the same mechanism
-    /// (Chloe 2026-08-06). Two states with one meaning get one name; two names for one meaning is how
+    /// Two states with one meaning get one name; two names for one meaning is how
     /// the second one quietly stops being handled.</para>
     /// </summary>
     public string? ListSource

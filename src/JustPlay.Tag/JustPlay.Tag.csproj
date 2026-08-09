@@ -37,7 +37,9 @@
   <!-- JUST TAG = a single-file tag editor. Platform-agnostic Core (models/abstractions) +
        JustPlay.Metadata (TagLib# read/write — all tag logic lives there, never in the app) +
        JustPlay.UI (shared suite chrome, caption buttons, themed icon, theme engine, About).
-       Deliberately NO BASS / Analysis reference — no playback, no DSP; this is a tagger. -->
+       NO Analysis reference: JUST TAG REPORTS what analysis a file already carries, it never runs
+       a detector - that stays JUST PLAY's and the CLI's job. (Playback is a different story, see
+       the BASS reference below - it used to be excluded here too.) -->
   <ItemGroup>
     <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
     <ProjectReference Include="..\JustPlay.Metadata\JustPlay.Metadata.csproj" />
@@ -45,12 +47,11 @@
     <!-- For AudioFiles ONLY — the suite's single definition of "what counts as a track". A private
          extension list here would let JUST TAG and the Finder disagree about the same folder. -->
     <ProjectReference Include="..\JustPlay.Library\JustPlay.Library.csproj" />
-    <!-- ⚠ Reverses this project's original "deliberately no BASS" rule, on purpose and out loud
-         (Chloe 2026-08-05: "ja dann machen wir anhören eben besser - muss ja auch sein als
-         konkurrenz"). mp3tag has NO playback at all — it hands the file to the OS player — so a
-         preview you can actually hear inside the tagger is a straight win. It stays a PREVIEW: no
-         queue, no crossfade, no DSP rack; the engine is used for Load/Play/Pause/Seek and nothing
-         else. The native BASS libraries come along with this reference. -->
+    <!-- (!) This REVERSES the project's original "deliberately no BASS" rule, on purpose and out
+         loud. mp3tag has no playback at all - it hands the file to the OS player - so being able to
+         hear the track inside the tagger is a straight win over it. It stays a PREVIEW: no queue,
+         no crossfade, no DSP rack; the engine is used for Load/Play/Pause/Seek and nothing else.
+         The native BASS libraries come along with this reference. -->
     <ProjectReference Include="..\JustPlay.Audio.Bass\JustPlay.Audio.Bass.csproj" />
   </ItemGroup>
 </Project>

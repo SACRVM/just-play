@@ -100,15 +100,13 @@
       THE LIFTED SURFACE - dialogs and slide-in panels (shared, one recipe)
       ========================================================================
       A dialog or a sidebar has to read as its OWN object sitting on the app, not as
-      another window with the same skin (Chloe 2026-08-05: "die sehen ja identisch zu
-      den main fenstern aus - aber heben sich dadurch kaum ab"). Ruled out up front:
+      another window with the same skin. Ruled out up front:
       no blur, no dimming scrim - most JUST dialogs are NOT modal, so darkening what
       is behind them would be a lie.
 
       (!)(!) THE SURFACE IS FLAT ON PURPOSE - do not "give it back the app's gradients".
-      That was tried on 2026-08-06 and it failed on a hard technical limit, not on taste
-      (Chloe, on the very first look: "ich erkenne nun deutlich scan lines - der
-      farbverlauf ist nicht fluessig - ich sehe streifen"). A gradient down the dark half
+      That was tried on 2026-08-06 and it failed on a hard technical limit, not on taste -
+      the gradient banded visibly into scan lines instead of rendering smoothly. A gradient down the dark half
       of the ramp is a LOW-CONTRAST ramp - Aurora's BgVia -> BgTo is #251347 -> #120a26 -
       and stretched down a ~700 px tall, ~370 px wide panel that is only a handful of
       distinguishable 8-bit steps, so it BANDS. Stacking a second shallow white ramp on
@@ -124,15 +122,15 @@
       What this still fixes: the flat slab is now written ONCE and consumed only through
       controls:SurfaceCard, so a dialog and a sidebar cannot drift apart.
 
-      (!) Open, and deliberately not changed under Chloe's feet: SurfaceFill is the tweaks
+      (!) Open, and deliberately left alone for now: SurfaceFill is the tweaks
       panel's original hard-coded value, a blue-grey slate that does NOT follow the theme
-      (it is off-key in Hardcore's red/black). Theming it is a visible change to a look
-      she has approved - her call, not a silent cleanup.
+      (it is off-key in Hardcore's red/black). Theming it would be a visible change to
+      an already-approved look, not a silent cleanup.
     -->
     <SolidColorBrush x:Key="SurfaceFill" Color="#F01a1828"/>   <!-- slate, alpha .94 -->
     <SolidColorBrush x:Key="SurfaceEdge" Color="#1FFFFFFF"/>   <!-- white .12 hairline -->
 
-    <!-- Text ramp - muted ladder lifted one notch 2026-07-05 (Chloe: explainer texts were
+    <!-- Text ramp - muted ladder lifted one notch 2026-07-05 (explainer texts were
          hard to read against the glow, worst on the green theme): .65->.75, .45->.50, .25->.35. -->
     <SolidColorBrush x:Key="TextBrush" Color="White"/>
     <SolidColorBrush x:Key="MutedBrush" Color="#BFFFFFFF"/>        <!-- white .75 -->
@@ -188,7 +186,7 @@
     <!--
       CheckBox + RadioButton - the SAME leak the ToggleSwitch above had, and it surfaced the same way:
       a ticked "Include subfolders" in JUST TAG came up RED, because FluentTheme binds these to
-      SystemAccentColor and Chloe's Windows accent is red (2026-08-06). Nothing in a JUST app should
+      SystemAccentColor, and a red Windows accent color surfaced it (2026-08-06). Nothing in a JUST app should
       take its colour from the OS - the palette decides, always.
 
       Key names verified against Avalonia release/12.0.3, Avalonia.Themes.Fluent/Controls/CheckBox.xaml
@@ -224,7 +222,7 @@
     <SolidColorBrush x:Key="RadioButtonCheckGlyphFillDisabled"               Color="#80FFFFFF"/>
 
     <!--
-      Per-theme palette-preview swatches MOVED OUT of this dictionary (Chloe 2026-06-29). They used to
+      Per-theme palette-preview swatches MOVED OUT of this dictionary. They used to
       be hand-painted here and drifted from the app-icon gradient - different stop counts and even
       different colours per theme (only Onyx happened to match). Now both the icon (ThemedWindowIcon)
       AND the swatch chip (`{theming:ThemeSwatch <Name>}`) derive from ONE source -

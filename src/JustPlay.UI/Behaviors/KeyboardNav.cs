@@ -20,8 +20,8 @@ namespace JustPlay.UI.Behaviors;
 ///
 /// Enabled suite-wide via a <c>:is(Window)</c> style in JustStyles. A view that REPURPOSES Tab (e.g.
 /// the PRE CUE FINDER's folders/files switch) opts out with <c>beh:KeyboardNav.SuppressTab="False"</c>
-/// and handles Tab in its own handler. Chloe 2026-07-06: "default Tab raus - aus allen Apps / Sichten
-/// - komplett unterbinden."
+/// and handles Tab in its own handler. The default posture is Tab suppressed completely - across
+/// every app and every view.
 /// </summary>
 public static class KeyboardNav
 {

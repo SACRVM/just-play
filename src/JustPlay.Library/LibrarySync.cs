@@ -14,7 +14,7 @@ namespace JustPlay.Library;
 ///
 /// <para><b>Why it needs no DSP.</b> The analysis lives in the file's JUSTPLAY tag. Whichever
 /// machine analysed a track first wrote it there, so the other machine imports the full
-/// <see cref="Core.Models.AnalysisResult"/> with a tag read and runs nothing. On Chloe's library
+/// <see cref="Core.Models.AnalysisResult"/> with a tag read and runs nothing. On a real library,
 /// that covered 400/400 sampled files. Files with no blob are RETURNED for analysis rather than
 /// analysed here - DSP needs the BASS adapter, and this project stays platform-agnostic.</para>
 ///
@@ -81,8 +81,9 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
 
         // (!) READ IN PARALLEL, WRITE ON ONE THREAD. A tag read is I/O-bound - it waits on SMB latency,
         // not on a core - so N of them overlap almost perfectly, and a full library pass goes from
-        // hours to minutes (Chloe 2026-08-07: "wozu hat man zig prozessorkerne?!"). The DATABASE stays
-        // single-threaded on purpose: SQLite is serialised behind LibraryDb's own lock anyway, and
+        // hours to minutes - leaving most CPU cores idle during a single-threaded pass would be
+        // wasteful. The DATABASE stays single-threaded on purpose: SQLite is serialised behind
+        // LibraryDb's own lock anyway, and
         // batching from one thread keeps one transaction per BatchSize instead of contending per row.
         // TagLibMetadataReader is stateless, so it is safe to call from many threads (same reasoning
         // the finder's parallel hydration already relies on).
@@ -191,7 +192,7 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     /// Checks ONE folder against the index and repairs it if it drifted - the background half of
     /// painting a directory from the index.
     ///
-    /// <para>The early-out is Chloe's fingerprint (2026-07-30): the file count plus the newest
+    /// <para>The early-out is a fingerprint (2026-07-30): the file count plus the newest
     /// modification time among the folder's tracks. It moves for an added, deleted, renamed OR
     /// retagged file, which the folder's own timestamp does not - measured, <c>GENRES\Bass_House</c>
     /// held a file modified 07-29 while the directory still read 07-17. When it matches, this

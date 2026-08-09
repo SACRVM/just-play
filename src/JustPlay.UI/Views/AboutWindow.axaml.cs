@@ -30,7 +30,7 @@ public partial class AboutWindow : Window
     }
 
     /// <summary>
-    /// Build the white brand glyph for the About card. No chip background anymore (Chloe 2026-06-30) -
+    /// Build the white brand glyph for the About card. No chip background anymore -
     /// just the graphic, enlarged to fill the area the gradient chip used to occupy. Same render
     /// approach as <see cref="ThemedWindowIcon"/> (Stretch.Uniform, stroke thickness as a fraction of
     /// the box) so the glyph shape itself stays identical to the taskbar mark.
@@ -72,7 +72,7 @@ public partial class AboutWindow : Window
         // stretch-limiting axis the stroke pokes half-its-thickness past the Path's layout bounds.
         // A DropShadowEffect rasterises its target to a layer sized to those layout bounds and
         // clips that overflow - which sliced STREAM's wider-than-tall radio-tower glyph on the left
-        // and right in the About card (Chloe 2026-07-06). The taskbar icon dodges it only because
+        // and right in the About card. The taskbar icon dodges it only because
         // its glyph sits with far more slack in a 512px chip. Host the glyph in a padded container
         // and hang the shadow THERE, so the effect layer is always larger than the stroke.
         return new Border

@@ -228,7 +228,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
         string.IsNullOrWhiteSpace(RecordingFolder) ? DefaultRecordingFolder : RecordingFolder!;
 
     // -- Interface ---------------------------------------------------------
-    /// <summary>Show the bottom keyboard-hint bar. Off = pros hide it (Settings -> Look). Chloe 2026-07-06.</summary>
+    /// <summary>Show the bottom keyboard-hint bar. Off = pros hide it (Settings -> Look).</summary>
     [ObservableProperty] private bool _showKeyHints = true;
 
     /// <summary>The keyboard-hint bar entries - rendered by the shared <see cref="KeyLegend"/> (the SAME
@@ -281,7 +281,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
     // -- Input-signal presence (drives the chrome spectrum-glyph pulse) ----
     // True while audio is actually ARRIVING from the source - independent of whether we're on air. The
     // glyph reads as "we're receiving music", which is what a DJ expects even before hitting CONNECT
-    // (Chloe 2026-07-02: the old on-air-only pulse fooled her). Computed per frame in PumpFrame.
+    // - the old on-air-only pulse gave a false read. Computed per frame in PumpFrame.
     [ObservableProperty] private bool _hasInputSignal;
 
     // -- Sample rate (RATE dropdown) ---------------------------------------
@@ -888,7 +888,7 @@ public sealed partial class StreamViewModel : ObservableObject, IDisposable
 
     // -- Recording --------------------------------------------------------
     // A SECOND, independent encoder on the same post-DSP master bus the broadcast taps -
-    // NOT a tee of the cast encoder (design: Chloe 2026-07-04). So: record off-air, survive
+    // NOT a tee of the cast encoder. So: record off-air, survive
     // stream reconnects, choose your own format. "Same as stream" mirrors the live codec +
     // bitrate for the honest self-check. Its failure NEVER touches the broadcast.
 

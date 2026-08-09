@@ -2,8 +2,8 @@ namespace JustPlay.Library;
 
 /// <summary>
 /// A folder boiled down to two numbers: how many tracks it holds, and the newest modification time
-/// among them. Chloe's check (2026-07-30): <i>"dateien sortierend nach aenderung abfragen und top 1
-/// nehmen"</i>.
+/// among them - the check (2026-07-30): sort the folder's files by modification time and take the
+/// newest one.
 ///
 /// <para>Why those two and not the FOLDER's own timestamp: a directory's mtime moves when an entry
 /// is created, deleted or renamed, but NOT when a file's contents change - so it would miss every

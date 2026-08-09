@@ -11,7 +11,7 @@ namespace JustPlay.UI.Behaviors;
 /// (<c>WindowDecorations="None"</c>) with a drop shadow blooming into a transparent margin. Windows'
 /// own <c>WindowState.Maximized</c> on such a window keeps that margin and the rounded corners - so
 /// "maximized" left a transparent frame around the screen and the card still had corners cut off it.
-/// Full screen means FILLING THE SCREEN (Chloe 2026-08-05). So we size the window to the screen's work
+/// Full screen means FILLING THE SCREEN. So we size the window to the screen's work
 /// area ourselves (respecting the taskbar) and square the card off through the <c>maximized</c> class.</para>
 ///
 /// <para><b>Why it is shared.</b> This logic existed three times - JUST PLAY's main window, the PRE CUE
@@ -46,7 +46,7 @@ public sealed class FramelessMaximize
         // WINDOWS can maximize us too - Win+^, a snap, the taskbar, a double-click on the chrome -
         // and none of that goes through our button. Without this watcher the card kept its margin and
         // its corners on every one of those routes. (JUST PLAY's XAML has claimed a "WindowState
-        // watcher" in a comment since it was written; there wasn't one. Chloe 2026-08-05.)
+        // watcher" in a comment since it was written; there wasn't one. Verified 2026-08-05.)
         window.PropertyChanged += (_, e) =>
         {
             if (e.Property != Window.WindowStateProperty) return;
@@ -67,8 +67,7 @@ public sealed class FramelessMaximize
     ///
     /// <para>Why it exists: the shared caption button drew a plain square in every state, so a
     /// maximized JUST window still offered "maximize" - Windows draws two overlapping rectangles
-    /// (restore) there, and we did not (Chloe 2026-08-06: "ist die app im fullscreen mode ist das
-    /// icon falsch ... wir machen das falsch"). The state lived here and was told to nobody.</para>
+    /// (restore) there, and we did not. The state lived here and was told to nobody.</para>
     ///
     /// <para>Attached rather than an interface member on purpose: our maximize is custom, so
     /// <c>Window.WindowState</c> never changes and there is nothing else to observe - and this way

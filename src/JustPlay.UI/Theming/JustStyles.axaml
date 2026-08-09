@@ -39,7 +39,8 @@
       e.Handled, so we suppress it via the KeyboardNav behavior (restores focus on Tab -> no-op).
       A view that REPURPOSES Tab (the PRE CUE FINDER's folders/files switch) opts out with
       beh:KeyboardNav.SuppressTab="False". :is(Window) so it also matches every derived window
-      (MainWindow, dialogs, ...). Chloe 2026-07-06: "default Tab raus, aus allen Apps/Sichten."
+      (MainWindow, dialogs, ...) so default Tab focus/ring is suppressed everywhere, across every
+      app and view.
     -->
     <Style Selector=":is(Window)">
         <Setter Property="(beh:KeyboardNav.SuppressTab)" Value="True"/>
@@ -118,8 +119,7 @@
       BindingPriority.LocalValue = 0, which beats StyleTrigger - verified against Avalonia
       release/12.0.3, src/Avalonia.Base/Data/BindingPriority.cs. So the .maximized setters below
       could never win, in ANY of the four windows, and maximizing left the transparent frame and
-      the rounded corners exactly where they were (Chloe 2026-08-05: "gleiches verhalten wie
-      vorher"). It is the same precedence trap CLAUDE.md already records for BoxShadow inside a
+      the rounded corners exactly where they were. It is the same precedence trap CLAUDE.md already records for BoxShadow inside a
       ControlTemplate. With both states at style priority, the class selector wins because it comes
       later and is more specific.
 
@@ -159,8 +159,7 @@
       PANEL CLOSE (x) - the corner of a slide-in panel, shared
       ========================================================================
       Both slide-in panels - JUST PLAY's TWEAKS and JUST TAG's SETTINGS - close from a x in their
-      top-right corner, and the two did NOT look the same (Chloe 2026-08-06: "das settings panel bei
-      just tag hat nen anderen close button als just play oder taeusche ich mich?").
+      top-right corner, and the two did NOT look the same.
 
       (!) The cause is worth knowing, because it is still live elsewhere: both were written as
       Classes="ghost", but `Button.ghost` is declared SEPARATELY in each app's App.axaml and the two
@@ -239,6 +238,50 @@
             </ControlTemplate>
         </Setter>
     </Style>
+
+    <!--
+      ========================================================================
+      CAUTION NOTE - a legitimate choice with a consequence worth naming
+      ========================================================================
+      The frosted-card vocabulary (radius 9, hairline edge) in the warm sand of the Caution*
+      tokens. NOT red - the thing being flagged is a setting somebody meant to choose, not an
+      error; NOT the accent - the accent means "selected/active" here, and a caution borrowing
+      it would read as a chosen state.
+
+      Three users today, all saying the SAME fact in the same words (see
+      ViewModels/Id3ConversionNotice): the ID3 write-format card in JUST TAG's settings, the
+      per-file notice above Save in the shared TagEditorPanel, and the RAW TAGS window.
+
+      (!) It lived in JUST TAG's own App.axaml, which the shared library cannot see - so
+      RawTagsWindow had to repeat all five setters inline, and the notice could not be shared at
+      all. Its Caution* COLOURS had already moved into JustPalette; the style follows them here so
+      the last per-app copy is gone.
+    -->
+    <Style Selector="Border.caution">
+        <Setter Property="Background" Value="{DynamicResource CautionSurfaceBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource CautionEdgeBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="9"/>
+        <Setter Property="Padding" Value="13,11"/>
+    </Style>
+    <Style Selector="TextBlock.cautiontitle">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{DynamicResource CautionBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <!-- Body + the "how to avoid it" line: plain muted text, so the tone stays calm. -->
+    <Style Selector="TextBlock.cautionbody">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style Selector="TextBlock.cautionfix">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedDimBrush}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+
     <!--
       Frameless-window CHROME - square 36x36 caption buttons (pair with the shared
       WindowControls), transparent until hovered, dark grey on hover, Close goes red.
@@ -304,8 +347,8 @@
     <!-- (!) MAXIMIZED: these MUST come AFTER the rules above. Avalonia has no CSS specificity -
          among styles of equal priority the LAST matching setter wins, so a "more specific"
          selector placed earlier loses to a plainer one placed later. That is exactly how the
-         close button stayed rounded in full screen after the card itself had been squared off
-         (Chloe 2026-08-05: "sagte ich doch bereits"). Maximized there is no corner left to match,
+         close button stayed rounded in full screen after the card itself had been squared off.
+         Maximized there is no corner left to match,
          so the button and its hover/pressed fills - which carry their own radius on the templated
          ContentPresenter - all square off. -->
     <Style Selector="Border#RootCard.maximized Button.cap.close">
@@ -417,7 +460,7 @@
       Shared fader look - used by JUST PLAY (EQ + Revive sliders in TweaksPanel) and JUST STREAM
       (EQ + AutoTilt + Punch + Gain + Monitor faders). Lifted verbatim from TweaksPanel so the two
       products share one implementation. WHITE thumb - theme-independent, not the OS SystemAccent
-      which rendered wrong (red) on Chloe's Midnight theme. AccentABrush fills the value side
+      which rendered wrong (red) on the Midnight theme. AccentABrush fills the value side
       (PART_DecreaseButton); a faint groove sits past the thumb (PART_IncreaseButton). Selectors
       no-op when a part is absent (i.e., the opposite orientation's template parts are simply missing).
 
@@ -513,7 +556,7 @@
       highlight colour (BorderBrush set inline per swatch via {theming:ThemeAccent <Name>}): the active
       theme shows it persistently; every other swatch shows it only on hover. The ring is toggled by
       growing BorderThickness 0->2 (the colour is the inline per-theme accent), so each swatch lights in
-      ITS theme's highlight, not the globally-active one. (Chloe 2026-06-30.)
+      ITS theme's highlight, not the globally-active one.
     -->
     <Style Selector="Border.swatch">
         <Setter Property="Width" Value="46"/>
@@ -617,8 +660,7 @@
       Fluent gives a FOCUSED TextBox a bold accent border (TextControlBorderBrushFocused) - which on
       the red-accent Hardcore theme reads as a harsh RED outline - and an ERRORED one a hard red border
       (SystemControlErrorTextForegroundBrush). Both clash with our calm hairline fields. Replace them,
-      suite-wide, with a subtle brighter hairline that just lifts a touch on focus (Chloe 2026-07-05:
-      "focus suchfeld - roter rand" - UI is mine to own). Part verified = PART_BorderElement against the
+      suite-wide, with a subtle brighter hairline that just lifts a touch on focus. Part verified = PART_BorderElement against the
       Avalonia 12.0.3 Fluent TextBox template.
     -->
     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
@@ -671,7 +713,7 @@
       Pitfalls that bit earlier cuts: (1) a DropShadowEffect on the control rasterised it offscreen ->
       aliased edges + the glow vanished - use BoxShadow on the unclipped sibling instead; (2) a stroke-less
       Rectangle as the bg field measures to ~0 and renders NOTHING (black void) - use a Border.Background.
-      (Chloe 2026-06-30.)
+      (2026-06-30.)
     -->
     <Style Selector="theming|ThemeSwatchChip">
         <Setter Property="Width" Value="46"/>
@@ -705,8 +747,8 @@
 
     <!-- === Hint / explainer text (shared) ===
          The small description paragraphs under settings controls. A subtle 1-px drop shadow
-         lifts the text off the aurora glow - readability fix for the bright/green themes
-         (Chloe 2026-07-05: "mehr weiss, weniger durchsichtig + text drop shadow"). -->
+         lifts the text off the aurora glow - readability fix for the bright/green themes, which
+         also called for whiter, less transparent hint text. -->
     <Style Selector="TextBlock.hint">
         <Setter Property="FontSize" Value="11"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
@@ -719,8 +761,7 @@
 
     <!-- === Keyboard-hint chip + label (shared) ===
          The little key-cap + its action label, used by the shared KeyLegend bar (PRE CUE FINDER +
-         JUST STREAM) and the finder's F1 help overlay. Lifted here so there's ONE definition
-         (Chloe 2026-07-06: "ein Guss - reused funktionality"). -->
+         JUST STREAM) and the finder's F1 help overlay. Lifted here so there's ONE definition. -->
     <Style Selector="Border.kbd">
         <Setter Property="Background" Value="#14FFFFFF"/>
         <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
@@ -743,8 +784,7 @@
       === Vertical scrollbar - the SUITE pill (shared) ===
       The JUST PLAY queue scrollbar, lifted VERBATIM from MaxView so every JUST window (the
       queue, the PRE CUE FINDER, JUST STREAM's log/settings) shows the identical thin white
-      pill instead of the fat grey Fluent bar (Chloe 2026-07-05: "einfach wie die liste in
-      JUST PLAY ... immer so machen wie immer"). FULL CUSTOM TEMPLATE because `/template/`
+      pill instead of the fat grey Fluent bar. FULL CUSTOM TEMPLATE because `/template/`
       overrides of the Fluent scrollbar didn't win reliably (dark track, square thumb, line
       buttons all slipped through). With our own ControlTemplate we own the tree end-to-end:
 
@@ -765,8 +805,8 @@
         <Setter Property="Width" Value="6"/>
         <Setter Property="MinWidth" Value="6"/>
         <Setter Property="Margin" Value="0,4,0,4"/>
-        <!-- Hidden by default; fades in only while the scroll area is hovered OR holds focus (Chloe
-             2026-07-07). Our own opacity-driven hide (the two selectors below), NOT Avalonia's AllowAutoHide,
+        <!-- Hidden by default; fades in only while the scroll area is hovered OR holds focus.
+             Our own opacity-driven hide (the two selectors below), NOT Avalonia's AllowAutoHide,
              so it works with this fully-custom template. -->
         <Setter Property="Opacity" Value="0"/>
         <Setter Property="Transitions">
@@ -829,8 +869,7 @@
     <!-- (!) And the bar's OWN hover, which is what keeps it alive while you DRAG it. The rule above
          alone loses the bar mid-drag: the pill is 6 px flush at the right edge, so sliding a few
          pixels sideways while holding the thumb takes the pointer out of the ScrollViewer, the
-         condition goes false, and the thing you are holding fades away under your hand (Chloe
-         2026-07-31: "pack ich die scrollbar und drag scrolle - verschwindet diese"). During a drag
+         condition goes false, and the thing you are holding fades away under your hand. During a drag
          the Thumb holds pointer CAPTURE, so the ScrollBar stays pointer-over wherever the mouse
          goes - this selector is true for the whole drag, off-edge included. -->
     <Style Selector="ScrollBar:vertical:pointerover">
@@ -841,7 +880,7 @@
     </Style>
 
     <!-- Horizontal bar - same slim pill as vertical, laid on its side (Height 6, Orientation Horizontal,
-         Thumb MinWidth). Shows in no-wrap scroll areas like the Event Log. Chloe 2026-07-08. -->
+         Thumb MinWidth). Shows in no-wrap scroll areas like the Event Log. -->
     <Style Selector="ScrollBar:horizontal">
         <Setter Property="Height" Value="6"/>
         <Setter Property="MinHeight" Value="6"/>
@@ -1028,7 +1067,7 @@
       (!!) AND the ERROR ADORNER, which is a different thing again. DataValidationErrors wraps the
       box INSIDE its template and draws Fluent's own red (SystemControlErrorTextForegroundBrush)
       around it - outside PART_BorderElement, so neutralising that border does not touch it. That is
-      the red that kept flashing through a field while it was being typed in (Chloe 2026-08-09).
+      the red that kept flashing through a field while it was being typed in.
 
       It is given an empty template rather than a recoloured one on purpose: a field inside a
       fieldbox has its own way of saying something is wrong (the panel says it in words, next to the
@@ -1082,7 +1121,7 @@
       (!) 15, like the tick, and that is a CONSTRAINT rather than a taste: nothing inside a field may
       be taller than the text line beside it, or the control starts driving the field's height. At 17
       it did - a 13 px line box is about 15.6 px, so every ticked field came out ~1.4 px taller than
-      the rest of the panel (Chloe 2026-08-08: "einen ticken hoeher"). Keep new in-field controls at
+      the rest of the panel. Keep new in-field controls at
       or under 15.
     -->
     <Style Selector="Button.fieldclear">

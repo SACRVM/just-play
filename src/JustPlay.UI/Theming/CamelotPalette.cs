@@ -6,7 +6,7 @@ namespace JustPlay.UI.Theming;
 /// <summary>
 /// The single source of truth for Camelot key colours - the 12-hue mixing-wheel palette, shared by the
 /// <see cref="Controls.KeyWheel"/> and the key-badge converter so the wheel and every "8A" pill can never
-/// drift apart again (Chloe 2026-07-07). Same number = same hue (evenly around the circle of fifths);
+/// drift apart again. Same number = same hue (evenly around the circle of fifths);
 /// A/minor sits a touch darker than B/major, matching the wheel's inner/outer rings.
 /// </summary>
 public static class CamelotPalette

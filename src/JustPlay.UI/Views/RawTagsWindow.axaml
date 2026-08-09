@@ -254,28 +254,24 @@
                           re-serialises the tag and re-encodes GEOB descriptors. No vendor byte is lost;
                           the LABEL Serato and MIK search by is what changes. JUST TAG's write-format
                           setting is the only thing in the suite that can trigger it.
-                          Copy and colour are L8's, not a new vocabulary: the same sentence the write-format
-                          caution card uses, on the same warm-sand Caution* tokens (JustPalette.axaml).
-                          The Border repeats those setters inline rather than borrowing JUST TAG's local
-                          Border.caution style, which the shared library cannot see; when L8's per-file
-                          notice is ported into the shared TagEditorPanel, that style should move into
-                          JustStyles.axaml and this Border should adopt it.
+
+                          THIS WINDOW KEEPS ITS COPY even though the tag editor now carries one above
+                          Save, because the two answer different questions and this one is stricter: it
+                          also requires the file to actually hold a Serato / Mixed In Key GEOB. Without
+                          it the vendor chips right above would stand as an unqualified "your cues are
+                          here" while a save is about to relabel them. It is also reachable from any
+                          selection in JUST TAG's file list, with the editor pointed somewhere else.
+                          Both surfaces render Id3ConversionNotice, so it is one sentence, not two.
                         -->
-                        <Border IsVisible="{Binding HasVersionNotice}"
-                                Background="{DynamicResource CautionSurfaceBrush}"
-                                BorderBrush="{DynamicResource CautionEdgeBrush}"
-                                BorderThickness="1" CornerRadius="9" Padding="13,11">
+                        <Border Classes="caution" IsVisible="{Binding HasVersionNotice}">
                             <Grid ColumnDefinitions="Auto,11,*">
                                 <uic:JustIcon Grid.Column="0" Kind="Warning" Width="14" Height="14"
                                               VerticalAlignment="Top" Margin="0,1,0,0"
                                               Foreground="{DynamicResource CautionBrush}"/>
                                 <StackPanel Grid.Column="2" Spacing="4">
-                                    <TextBlock Text="{Binding VersionNotice}" FontSize="12"
-                                               FontWeight="SemiBold" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource CautionBrush}"/>
-                                    <TextBlock Text="{x:Static vm:RawTagsViewModel.VersionNoticeBody}"
-                                               FontSize="11" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource MutedBrush}"/>
+                                    <TextBlock Classes="cautiontitle" Text="{Binding VersionNotice}"/>
+                                    <TextBlock Classes="cautionbody"
+                                               Text="{x:Static vm:Id3ConversionNotice.Body}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

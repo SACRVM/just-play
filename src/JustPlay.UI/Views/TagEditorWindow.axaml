@@ -15,8 +15,7 @@
         WindowDecorations="None">
 
     <!--
-      The floating tag editor - ALWAYS ON TOP (Chloe 2026-08-02: "wir machen nen tag edit window -
-      was immer im vordergrund bleibt"). Same frameless rounded card as the rest of the suite; the
+      The floating tag editor - ALWAYS ON TOP. Same frameless rounded card as the rest of the suite; the
       body is the SHARED TagEditorPanel, which JUST TAG will dock as its sidebar unchanged.
 
       ShowInTaskbar=False: this is a tool window belonging to the app that opened it, not a second
@@ -25,7 +24,7 @@
       WindowStartupLocation=CenterOwner is the FIRST-open rule. WindowPlacement only sets a
       position when it has a remembered one, so without this the very first open is a Manual
       window placed wherever the OS likes - which on two monitors is not the one you are
-      working on (Chloe 2026-08-09). From the second open on, the remembered spot wins.
+      working on. From the second open on, the remembered spot wins.
     -->
 
     <Panel>
@@ -85,7 +84,7 @@
                             <!-- TAGS | ANALYSIS - the panel's two halves, switched from the CHROME.
                                  The switch used to live inside TagEditorPanel; it moved out so a host
                                  with its own pane header (JUST TAG) does not end up with two rows of
-                                 tabs (Chloe 2026-08-05). Here the chrome IS the header, so this is
+                                 tabs. Here the chrome IS the header, so this is
                                  where it belongs. -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3"
                                         HorizontalAlignment="Center" VerticalAlignment="Center"

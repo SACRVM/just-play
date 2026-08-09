@@ -68,7 +68,7 @@ public partial class SettingsWindow : Window
         {
             if (DataContext is not SettingsViewModel vm) return;
 
-            // Start the picker where the setting currently POINTS (Chloe 2026-07-05). The
+            // Start the picker where the setting currently POINTS. The
             // recordings folder itself is created lazily on the first record start, so it may
             // not exist yet - walk up to the nearest EXISTING ancestor (typically Music)
             // instead of letting the OS drop us at some unrelated last-used location.

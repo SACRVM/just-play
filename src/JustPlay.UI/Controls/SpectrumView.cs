@@ -71,7 +71,7 @@ public sealed class SpectrumView : Control
 
         // -- plot rect (margins for labels) --
         // mT clears the 36px chrome bar above (the plot GRID + labels sit below it); over-ceiling
-        // PEAKS spill above this line, over the SPECTRUM title, up to the window edge (Chloe 2026-07-05).
+        // PEAKS spill above this line, over the SPECTRUM title, up to the window edge.
         double mL = 40, mR = 12, mT = 44, mB = 26;
         double pX = mL, pY = mT, pW = b.Width - mL - mR, pH = b.Height - mT - mB;
         if (pW <= 4 || pH <= 4) return;
@@ -143,8 +143,7 @@ public sealed class SpectrumView : Control
         double wetAnchor = MidMean(wetDb);
 
         // Let the over-ceiling peaks spill OVER the top plot border and rise ALL THE WAY to the
-        // window's top edge - painting straight over the SPECTRUM title - clipping ONLY there
-        // (Chloe 2026-07-05: "ueber den titel bis zum fensterrand malen ... sieht cool aus"). The clip
+        // window's top edge - painting straight over the SPECTRUM title - clipping ONLY there. The clip
         // runs from y=0 (control top = card top) to the plot bottom, so peaks reach the edge and cut
         // clean, while the freq/dB labels below stay protected. No opacity fade - a hard edge cut.
         using (ctx.PushClip(new Rect(pX, 0, pW, pY2)))

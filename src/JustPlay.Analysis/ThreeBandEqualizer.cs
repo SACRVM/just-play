@@ -14,8 +14,8 @@ namespace JustPlay.Analysis;
 ///
 /// <para><b>Why NOT the Linkwitz-Riley 3-way isolator (the previous version):</b> a 3-way LR crossover
 /// does not reconstruct perfectly flat - its phase summation colours the mids/highs, so the moment ANY
-/// band leaves unity the whole sound goes slightly dull. Measured/heard 2026-06-15 (Chloe: "raise LOW
-/// and it kills the highs, dumpf"). A hardware EQ reconstructs flat; series shelves match that. The
+/// band leaves unity the whole sound goes slightly dull. Measured/heard 2026-06-15: raising LOW kills
+/// the highs - the sound goes dull/muddy. A hardware EQ reconstructs flat; series shelves match that. The
 /// trade is that a band "kill" is now a deep CUT (-24 dB), not -inf - but the isolator's kill wasn't
 /// clean either, and natural boost/cut matters far more here. (Full history in Sec.6.5.)</para>
 ///

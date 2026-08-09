@@ -70,7 +70,7 @@ public partial class MainWindow : Window, IFramelessWindow
 
         // (!) JUST TAG carried the .maximized STYLE from the day it was built, but nothing ever set the
         // class - so its maximize left the transparent shadow frame and the rounded corners in place
-        // (Chloe 2026-08-05: "fullscreen heisst bildschirmfuellend"). It implements IFramelessWindow now,
+        // instead of filling the screen the way "maximized" should. It implements IFramelessWindow now,
         // through the SHARED behaviour, so it cannot drift from its siblings again.
         _maximize = FramelessMaximize.Attach(this);
 
@@ -83,8 +83,7 @@ public partial class MainWindow : Window, IFramelessWindow
         // mechanic, verbatim).
         FileList.ContainerPrepared += OnFileContainerPrepared;
 
-        // OS file-copy drag-OUT, the same gesture every other JUST list has (Chloe 2026-08-06: "drag
-        // and drop aus just tag geht nicht - wieso? wir haben das aktiv ueberall"). It was missing
+        // OS file-copy drag-OUT, the same gesture every other JUST list has. It was missing
         // because RowDragBehavior lived inside JustPlay.App and this app simply could not see it; it
         // is in JustPlay.UI now, so the three lists share ONE implementation instead of two copies.
         // Multi-select is already handled inside: dragging any row of a multi-row selection takes the
@@ -146,8 +145,7 @@ public partial class MainWindow : Window, IFramelessWindow
     private void OnFolderTapped(object? sender, TappedEventArgs e)
     {
         // A CLICK does not move the keyboard. You are working on the left with the mouse; taking the
-        // pane focus to the right would dim the pane under your pointer (Chloe 2026-08-06: "wenn ich
-        // links nen ordner waehle warum fokusierst du dann die files? hab ich das je gesagt?" - no).
+        // pane focus to the right would dim the pane under your pointer.
         if (sender is not ListBox { SelectedItem: FolderRow row }) return;
         ActivateFolder(row, moveFocus: false);
     }
@@ -188,8 +186,8 @@ public partial class MainWindow : Window, IFramelessWindow
     //
     // JUST TAG is meant to be driveable without the mouse, exactly like the PRE CUE FINDER - the
     // shell was copied from it and the BEHAVIOUR was not, which left a browser you could look at but
-    // not walk through (Chloe 2026-08-06: "just tag soll bitte nicht weniger koennen als pre cue
-    // finder was navigation und suche angeht ... ergibt null sinn oder?"). It does not.
+    // not walk through. Parity with the Finder is the bar - JUST TAG's navigation and search cannot
+    // be a lesser version of the Finder's, since the two share the same browsing model. It does not.
     //
     // Routed on the TUNNEL phase with handledEventsToo, for the reason the Finder documents: a
     // ListBoxItem marks the plain arrow/Enter keys handled before a bubble handler would ever see
@@ -274,7 +272,7 @@ public partial class MainWindow : Window, IFramelessWindow
             case Key.Enter:
                 // Windows' meaning of Enter is "open the thing under the cursor". In the folder pane
                 // that is going there; in the file pane, opening a song is playing it - so Enter is
-                // play/pause on the selected row (Chloe 2026-08-06).
+                // play/pause on the selected row.
                 if (inFolders) ActivateFolderRow();
                 else PreviewSelected();
                 e.Handled = true;
@@ -350,7 +348,7 @@ public partial class MainWindow : Window, IFramelessWindow
     /// <summary>
     /// One rule for the folder row, so a click and Enter can never disagree. ".." goes up. A playlist
     /// AND a leaf folder fill the FILE pane and hand it the keyboard - they are lists of songs, not
-    /// places (Chloe 2026-08-06). Anything else descends.
+    /// places. Anything else descends.
     ///
     /// <para>Leaf-ness is decided when the folder is LISTED, not here, so this needs no round trip
     /// and the glyph on the row has already told you which of the two it is.</para>
@@ -366,7 +364,7 @@ public partial class MainWindow : Window, IFramelessWindow
         // Leaf or not is decided in the VIEW MODEL now, by the same GoTo every other way into a
         // folder goes through - startup, a drop, the picker, a crumb. It used to be decided right
         // here, and only here, which is exactly how a dropped leaf folder could be entered and then
-        // remembered as the folder to reopen (Chloe 2026-08-08). alreadyInParent, because the folder
+        // remembered as the folder to reopen. alreadyInParent, because the folder
         // pane is already listing this row's parent: a leaf only has to fill the file pane.
         vm.GoTo(row.Path, alreadyInParent: true,
                 whenShownAsList: moveFocus ? HandFocusToFiles : null);
@@ -398,7 +396,7 @@ public partial class MainWindow : Window, IFramelessWindow
     // The focused pane owns the header highlight, and GotFocus (which bubbles up from whatever inside
     // the pane actually took focus) is the single source of truth - so a click, TAB and a programmatic
     // focus all keep the cue honest. The EDITOR / ANALYSIS / FILTER side is a pane like the other two:
-    // typing in a tag field lights ITS header, not the file list's (Chloe 2026-08-06).
+    // typing in a tag field lights ITS header, not the file list's.
     private void OnFoldersGotFocus(object? sender, RoutedEventArgs e) =>
         Vm?.Activate(TaggerViewModel.FocusPane.Folders);
 

@@ -29,7 +29,8 @@ namespace JustPlay.Metadata;
 /// notice gives, or two screens would contradict each other about one file. Re-deriving it inside
 /// <see cref="TagLibMetadataReader"/> would NOT do - TagLib also finds an ID3v2 tag inside an AIFF/WAV
 /// <c>ID3 </c> chunk, which this deliberately does not (see the scope note above). Same code, one
-/// answer. Chloe 2026-08-07: "null live zugriffe, ergo kommt alles in den index rein".
+/// answer: zero live file accesses at display time - everything a row can show must already be
+/// sitting in the index.
 /// </para>
 /// </summary>
 public static class Id3VersionProbe
@@ -68,6 +69,15 @@ public static class Id3VersionProbe
         _ => 3,
     };
 
-    /// <summary>Display name for a major version, e.g. <c>"ID3v2.3"</c>.</summary>
-    public static string Name(int major) => $"ID3v2.{major}";
+    /// <summary>
+    /// The SHORT form of a major version - <c>"2.3"</c>. This is the shape
+    /// <see cref="TrackMetadata.Id3Version"/> carries, which is what the library index stores and the
+    /// ID3 column shows, so a caller that wants to COMPARE against a file's recorded version must
+    /// build its target with this and nothing else.
+    /// </summary>
+    public static string ShortName(int major) => $"2.{major}";
+
+    /// <summary>Display name for a major version, e.g. <c>"ID3v2.3"</c> - the raw-tag reader's
+    /// container label.</summary>
+    public static string Name(int major) => "ID3v" + ShortName(major);
 }

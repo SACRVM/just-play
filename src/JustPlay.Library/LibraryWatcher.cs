@@ -4,7 +4,7 @@ namespace JustPlay.Library;
 /// Keeps one machine's library index fresh while the app runs (milestone 0.6, P4 - "the observer").
 ///
 /// <para><b>The periodic sweep is the truth; the watcher is only an accelerator.</b> Measured
-/// 2026-07-30 on Chloe's real library (see <c>.claude/milestone-0.6-scope.md</c>, "Measured: what a
+/// 2026-07-30 on a real 14,186-file library (see <c>.claude/milestone-0.6-scope.md</c>, "Measured: what a
 /// sync pass costs over SMB"): enumerating all 14,186 files with size+mtime costs 3.2 s total, while
 /// opening a file to read its tags costs 57.5 ms. A sweep is therefore cheap enough to run on a
 /// timer regardless of what the watcher saw; the <see cref="System.IO.FileSystemWatcher"/> only

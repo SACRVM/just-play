@@ -71,7 +71,7 @@ public sealed class AppChannelsLabelConverter : IValueConverter
 /// <summary>
 /// Maps a <see cref="RecordingFormat"/> to its friendly label for the Settings -> Recording
 /// FORMAT ComboBox. "Same as stream" is the self-check default: the file mirrors the live
-/// codec + bitrate, artifacts included (Chloe, 2026-07-04).
+/// codec + bitrate, artifacts included.
 /// </summary>
 public sealed class RecordingFormatLabelConverter : IValueConverter
 {

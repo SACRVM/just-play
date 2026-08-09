@@ -11,8 +11,8 @@ namespace JustPlay.UI.Theming;
 /// (<see cref="ThemedWindowIcon"/>) and the theme-picker swatch chips, so the two can never
 /// diverge again. (Previously the swatches were hand-painted brushes in JustPalette.axaml that
 /// drifted from the icon: different stop counts, and for some themes entirely different colours -
-/// only Onyx happened to match. Chloe 2026-06-29: "das ist wild - bitte sortiere das mal
-/// auseinander".)
+/// only Onyx happened to match. The drift between the icon and the swatch colours was confusing
+/// and needed consolidating into one source of truth.)
 /// </summary>
 public static class ThemeBrushes
 {
@@ -21,7 +21,7 @@ public static class ThemeBrushes
     /// theme's two HIGHLIGHT accents (<c>AccentB->AccentA</c>), matching the CD-cover placeholder
     /// (Vinyl.axaml). Deliberately 2 colours and NOT the dark <c>AccentC</c> in the middle: AccentC is a
     /// background-bloom tone (dark on Midnight/Onyx), so a 3-stop B->C->A gradient banded dark across the
-    /// diagonal there (Chloe 2026-06-30). This is the ONE definition - the OS app icon
+    /// diagonal there. This is the ONE definition - the OS app icon
     /// (<see cref="ThemedWindowIcon"/>) and the theme-picker swatch markup-extension both call it, so
     /// they can never diverge. (Note: a theme's IconFrom/IconTo override is intentionally NOT consulted
     /// here - icons stay colourful for every theme, including the dark ones.)
@@ -41,16 +41,16 @@ public static class ThemeBrushes
     /// <summary>
     /// The theme's BACKGROUND gradient (<c>BgFrom->BgVia->BgTo</c>, same diagonal as the app window's
     /// BgLinear). Used by <see cref="ThemeSwatchChip"/>'s lower-right triangle so a swatch honestly
-    /// previews the theme's surface (dark for Onyx/Midnight), not just its bright accents
-    /// (Chloe 2026-06-30).
+    /// previews the theme's surface (dark for Onyx/Midnight), not just its bright accents.
     /// </summary>
     public static LinearGradientBrush BackgroundGradient(Theme theme)
     {
         // BgTo (the DARKEST stop) at the top-left, fading to BgFrom (the theme's lightest / most
         // recognisable background tone) at the bottom-right. This matters because the chip only SHOWS
         // this brush in its lower-right triangle - a plain BgFrom->BgTo diagonal would land the darkest
-        // stop exactly in that corner, so every theme's field read as a near-black blob ("repraesentiert
-        // NICHT den background", Chloe 2026-06-30). Flipped, the corner shows the theme's actual bg colour.
+        // stop exactly in that corner, so every theme's field read as a near-black blob that did not
+        // honestly represent the theme's actual background colour. Flipped, the corner shows the
+        // theme's actual bg colour.
         var brush = new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),

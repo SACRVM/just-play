@@ -96,9 +96,9 @@ public sealed record StreamServerProfile
     public StreamFormat Format { get; init; } = StreamFormat.Mp3;
 
     /// <summary>
-    /// Encoder bitrate in kbps. For MP3 CBR: 128 / 192 / 256 / 320. Default 320 kbps
-    /// (Chloe's call, 2026-06-04 - "loud and clean, sound-first"; bandwidth is cheap for
-    /// a club stream, so max out quality). See streaming-broadcast.md Sec.2.2.
+    /// Encoder bitrate in kbps. For MP3 CBR: 128 / 192 / 256 / 320. Default 320 kbps -
+    /// loud and clean, sound-first; bandwidth is cheap for a club stream, so quality is
+    /// maxed out. See streaming-broadcast.md Sec.2.2.
     /// </summary>
     public int BitrateKbps { get; init; } = 320;
 

@@ -11,8 +11,8 @@ namespace JustPlay.UI.Behaviors;
 /// <summary>
 /// Suite-wide smooth wheel scrolling: a mouse notch GLIDES the list instead of teleporting it.
 ///
-/// <para>Why (Chloe 2026-07-31): <i>"ich glaube das scrollen ist gar nicht zu langsam sondern schlicht
-/// zu abgehackt"</i>. She is right, and it is not a frame-rate problem - a wheel notch moves a
+/// <para>Why: the scrolling wasn't too slow, it was too choppy - not a frame-rate problem. A wheel
+/// notch moves a
 /// <see cref="ScrollViewer"/> by a fixed chunk in ONE step, so at 30-px rows the list jumps three
 /// rows at a time. Every jump reads as a stutter no matter how many frames per second we draw
 /// around it. Frames were never the issue; the missing thing was motion BETWEEN the two positions.</para>

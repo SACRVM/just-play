@@ -157,7 +157,7 @@ public partial class TagEditorWindow : Window
 
     // TAGS | ANALYSIS. The switch lives in the CHROME here, because in this window the chrome IS the
     // pane header - the panel stopped drawing its own tab bar so that a docked host (JUST TAG) does
-    // not end up with two rows of tabs (Chloe 2026-08-05).
+    // not end up with two rows of tabs.
     private void OnShowTags(object? sender, RoutedEventArgs e) => Panel.ShowAnalysis = false;
 
     private void OnShowAnalysis(object? sender, RoutedEventArgs e) => Panel.ShowAnalysis = true;

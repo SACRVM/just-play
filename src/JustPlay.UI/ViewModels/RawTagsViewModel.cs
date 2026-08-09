@@ -231,16 +231,15 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
     /// descriptor at all (a GEOB belonging to Serato or Mixed In Key). A file with no such frame loses
     /// nothing findable by converting, and telling it otherwise would spend the warning's credibility
     /// on nothing.</para>
+    ///
+    /// <para>The WORDS are <see cref="Id3ConversionNotice"/>'s, shared with the tag editor's notice
+    /// above Save. That editor notice is gated only on the version, because it is about the save you
+    /// are one click from making; this one is stricter because it is about a file you are reading.
+    /// Different gates, one sentence.</para>
     /// </summary>
     public string? VersionNotice { get; private set; }
 
     public bool HasVersionNotice => VersionNotice is not null;
-
-    /// <summary>The consequence, in L8's own words - the copy JUST TAG's write-format caution already
-    /// uses, so the same fact does not get two voices in one product.</summary>
-    public const string VersionNoticeBody =
-        "Serato and Mixed In Key find their data by the frame label, and the conversion rewrites those " +
-        "labels. The cue points stay in the file - those apps can stop finding them.";
 
     // -- Text out --------------------------------------------------------------------------------
 
@@ -363,7 +362,7 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         var addressed = id3.Entries.Any(e =>
             e.Id == "GEOB" && e.Vendor is RawTagVendor.Serato or RawTagVendor.MixedInKey);
 
-        return addressed ? $"This file is {id3.Label}. Saving converts it to {_convertsToLabel}." : null;
+        return addressed ? Id3ConversionNotice.Headline(id3.Label, _convertsToLabel) : null;
     }
 
     private string BuildListing(string path)
@@ -385,7 +384,7 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         {
             sb.AppendLine();
             sb.AppendLine(notice);
-            sb.AppendLine(VersionNoticeBody);
+            sb.AppendLine(Id3ConversionNotice.Body);
         }
 
         foreach (var section in Sections)

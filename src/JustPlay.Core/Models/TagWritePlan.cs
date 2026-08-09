@@ -11,8 +11,8 @@ public enum TagWriteAction
 
     /// <summary>
     /// A different, non-empty value already occupies the field - writing would replace it. This
-    /// is the case Chloe specifically wants surfaced ("...und machen drauf aufmerksam welche tags
-    /// wir schreiben und ggf ueberschreiben").
+    /// is the case that needs surfacing: which tags are about to be written and, if applicable,
+    /// overwritten.
     /// </summary>
     Overwrite,
 
@@ -71,7 +71,7 @@ public sealed record TagWritePlan
 
     /// <summary>
     /// True if applying the candidate write would replace at least one existing, different value -
-    /// the case Chloe wants surfaced prominently in the (future) UI.
+    /// the case that needs surfacing prominently in the (future) UI.
     /// </summary>
     public bool HasOverwrites => Fields.Any(f => f.Action == TagWriteAction.Overwrite);
 }

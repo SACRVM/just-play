@@ -5,8 +5,8 @@ namespace JustPlay.Core.Models;
 /// doesn't have: leave the file's own version alone.
 /// <para>
 /// The default is <see cref="KeepFileVersion"/>. The three explicit modes CONVERT - that is their
-/// point, and it is a deliberate act, not a side effect of pressing Save (Chloe 2026-08-04: "wir
-/// wollten die tags nur sanft anpacken - ausser in just tag selbst, dann mit konvertierung"). A
+/// point, and it is a deliberate act, not a side effect of pressing Save. The rule is to touch
+/// tags gently everywhere, except inside JUST TAG itself, where an explicit conversion is allowed. A
 /// conversion re-serialises the whole tag and re-encodes the GEOB <i>descriptors</i> Serato and
 /// Mixed In Key look their cue points up by (measured 2026-07-31, 128 writes / 787 vendor frames).
 /// </para>

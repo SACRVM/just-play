@@ -9,7 +9,7 @@ namespace JustPlay.Library;
 /// interrupted analyze run does not corrupt it.
 ///
 /// <para>0.6 (THE LIBRARY): moved here from <c>JustPlay.Cli.Index</c> with the schema UNCHANGED.
-/// That is deliberate - every index Chloe already has on disk keeps loading, and the CLI keeps
+/// That is deliberate - every index already on disk keeps loading, and the CLI keeps
 /// reading and writing the same format the app does. One format, or the divergence is back.</para>
 ///
 /// <para>Resumability: a scan skips any file whose entry still matches on the cheap key

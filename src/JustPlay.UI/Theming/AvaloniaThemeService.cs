@@ -121,7 +121,7 @@ public sealed class AvaloniaThemeService : IThemeService
         app.Resources["OnAirWashBottom"]   = WithAlpha(accentB, 0x14);
 
         // AccentA-derived (the cyan highlight - used by the PRE CUE FINDER's focused-pane header wash
-        // and its selected-row accent bar so BOTH accents actually earn their keep there. Chloe 2026-07-06).
+        // and its selected-row accent bar so BOTH accents actually earn their keep there).
         app.Resources["AccentARow"]        = WithAlpha(accentA, 0x22);
         app.Resources["AccentARowStrong"]  = WithAlpha(accentA, 0x40);
 
@@ -158,7 +158,8 @@ public sealed class AvaloniaThemeService : IThemeService
 
         // ON-AIR band halo (JUST STREAM): the SAME strong two-layer glow the old green had (outer bloom
         // alpha 0x66 blur 28 + inset alpha 0x40 blur 18) - just in the THEME ACCENT instead of a clashing green.
-        // Chloe liked the punch; only the colour was the problem.
+        // The strong two-layer glow worked well as-is; only the colour clashed with the theme, so it
+        // moved to the theme accent.
         app.Resources["OnAirHalo"] = new BoxShadows(
             new BoxShadow { OffsetX = 0, OffsetY = 0, Blur = 28, Spread = -2, Color = WithAlpha(accentB, 0x66) },
             new BoxShadow[] {
@@ -183,9 +184,9 @@ public sealed class AvaloniaThemeService : IThemeService
 
         // DIALOG card shadow - the same three layers as WindowOuter, with more gravity. A dialog sits
         // ABOVE a window, and until now it cast exactly the same shadow, so it read as lying on the
-        // same plane (Chloe 2026-08-06: "ist mehr drop shadow drin? damit sie mehr ueber dem fenster
-        // schweben?" - the answer was no). Deeper drop (14 vs 10), wider blur (32 vs 22), darker
-        // (0xA6 vs 0x80). The numbers are bounded by the card's transparent margin: with spread -8 a
+        // same plane. Deeper drop (14 vs 10), wider blur (32 vs 22), darker
+        // (0xA6 vs 0x80) - not to make the dialog look more elevated or float higher above the window,
+        // but because the numbers are bounded by the card's transparent margin: with spread -8 a
         // 32-blur reaches 8 px past the edge, plus the 14 offset = 22 px below, and the haze layer
         // reaches 21 - both inside the 26 px bottom margin Border#DialogCard sets. Grow one and the
         // shadow clips at the window edge instead of fading out.

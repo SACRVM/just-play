@@ -94,7 +94,7 @@
             <!-- MAXIMIZE / RESTORE - the mark tracks the state, which is the Windows convention and
                  what we got wrong: a single square OFFERS maximize, two overlapping rectangles offer
                  RESTORE. We drew the square in both states, so a full-screen window still said
-                 "maximize" (Chloe 2026-08-06). The flag comes from the shared FramelessMaximize,
+                 "maximize". The flag comes from the shared FramelessMaximize,
                  attached to the window - our maximize is custom, so WindowState never moves. -->
             <Button Classes="cap" Click="OnMaximizeClick"
                     ToolTip.Tip="{Binding $parent[c:WindowControls].MaximizeTip}"

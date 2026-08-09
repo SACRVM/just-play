@@ -23,10 +23,10 @@
     -->
 
     <Window.Resources>
-        <!-- Bottom soft-fade for the folder + file lists - no hard cut at the bottom edge (Chloe 2026-07-07,
-             "unten 10-15px ausfaden"). Applied via an OpacityMask on a WRAPPER Border, NEVER on the ListBox:
-             masking the virtualising ListBox directly composites the whole list to transparent in Avalonia
-             12.0.3 (the same trap the JUST PLAY queue documents). ~3.5% of the list height ~ 10-15px tall. -->
+        <!-- Bottom soft-fade for the folder + file lists - no hard cut at the bottom edge. Applied via an
+             OpacityMask on a WRAPPER Border, NEVER on the ListBox: masking the virtualising ListBox directly
+             composites the whole list to transparent in Avalonia 12.0.3 (the same trap the JUST PLAY queue
+             documents). ~3.5% of the list height ~ 10-15px tall. -->
         <LinearGradientBrush x:Key="FinderBottomFade" StartPoint="0%,0%" EndPoint="0%,100%">
             <GradientStop Offset="0.0"   Color="White"/>
             <GradientStop Offset="0.965" Color="White"/>
@@ -51,7 +51,7 @@
         </Style>
         <!-- SELECTED row in the INACTIVE pane: a subtle wash, no accent bar - the dual-pane cue is that
              the hot pane's cursor is far brighter (below). Keyboard-first: the selection IS the cursor,
-             so it must never be "sehr schwer erkennbar" (Chloe 2026-07-06). -->
+             so it must never be barely visible. -->
         <Style Selector="ListBox.finder-list ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
@@ -65,7 +65,7 @@
         </Style>
         <!-- SELECTED row in the ACTIVE pane (Classes.pane-active bound to Folders/FilesActive): the keyboard
              cursor. A much stronger cyan->pink fill (both highlight colours) reads instantly which pane the
-             keyboard drives - NO left indent bar, colour alone is the cue (Chloe 2026-07-07). -->
+             keyboard drives - NO left indent bar, colour alone is the cue. -->
         <Style Selector="ListBox.finder-list.pane-active ListBoxItem:selected /template/ ContentPresenter">
             <Setter Property="Background">
                 <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
@@ -99,7 +99,7 @@
 
         <!-- Pane header row (LIBRARY - file columns - INFO) - all three sit at the SAME height with
              top+bottom hairlines. The two interactive panes light their header with the accent swipe
-             when focused (TAB / click), so it's obvious which pane the keyboard drives. Chloe 2026-07-05. -->
+             when focused (TAB / click), so it's obvious which pane the keyboard drives. -->
         <Style Selector="Border.pane-head">
             <Setter Property="BorderBrush" Value="{DynamicResource HairlineBrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,1"/>
@@ -107,8 +107,8 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
         <!-- Focused pane header: a clearly-coloured AccentA (cyan) -> AccentB (pink) wash - the finder now
-             actually USES both highlight colours (Chloe 2026-07-06: "wir haben zwei und setzen sie nicht
-             wirklich ein"). Plus a bright accent underline so the hot pane's header really pops. -->
+             actually USES both highlight colours, which used to be defined but not really put to use.
+             Plus a bright accent underline so the hot pane's header really pops. -->
         <Style Selector="Border.pane-head.active">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentABrush}"/>
             <Setter Property="BorderThickness" Value="0,1,0,2"/>
@@ -158,10 +158,9 @@
 
         <!-- (!) The bottom fade goes on the SCROLLED CONTENT, not on a wrapper around the whole list -
              a wrapper contains the scrollbar too, so the pill faded out along with the last rows and
-             looked broken (Chloe 2026-07-31: "wir blenden unten aus - das wollte ich ja so explizit
-             haben - wir sollten dann aber die scrollbar nicht ausblenden - das sieht komisch aus").
-             The ScrollContentPresenter holds exactly the rows; the ScrollBar is its SIBLING in the
-             ScrollViewer's template and stays at full opacity.
+             looked broken. The bottom fade itself is deliberate; fading the scrollbar along with it is
+             the bug it fixes. The ScrollContentPresenter holds exactly the rows; the ScrollBar is its
+             SIBLING in the ScrollViewer's template and stays at full opacity.
              (!!) Still do NOT put the mask on the ListBox itself - that composites the whole
              virtualising list to transparent (documented with the brush below). -->
         <Style Selector="ListBox.finder-list /template/ ScrollViewer /template/ ScrollContentPresenter">
@@ -285,14 +284,14 @@
                 <Border Classes="cardedge" BorderBrush="#1FFFFFFF" BorderThickness="1"/>
 
                 <!-- Margin 0 so the CHROME is flush to the card edges (window icons in the corner,
-                     no phantom padding - Chloe 2026-07-05). Each content section below carries its own
+                     no phantom padding). Each content section below carries its own
                      16px horizontal inset instead, exactly like the main window. -->
                 <DockPanel Margin="0">
 
                     <!-- == Chrome bar - the SAME recipe as the main window (MaxView): brand mark (white
                          play glyph + name, opens the shared About) on the left; drawn cap-button glyphs +
-                         the shared WindowControls on the right. Chloe 2026-07-05: the Finder must look
-                         exactly like the main window, chrome to settings overlay. -->
+                         the shared WindowControls on the right. The Finder must look exactly like the
+                         main window, chrome to settings overlay. -->
                     <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto"
                           Height="36" Background="Transparent"
                           PointerPressed="OnChromePressed">
@@ -319,8 +318,7 @@
                         </Button>
                         </StackPanel>
 
-                        <!-- Clickable breadcrumb, right of the brand (Chloe 2026-07-05: "der pfad rechts
-                             neben PRE CUE FINDER ... jedes segment anklickbar um mehrere ebenen hoch"). Each
+                        <!-- Clickable breadcrumb, right of the brand. Each
                              folder segment jumps straight to that level; clipped to its column so it can
                              never overrun the caption buttons. -->
                         <ItemsControl Name="Breadcrumb" Grid.Column="1" ItemsSource="{Binding BreadcrumbSegments}"
@@ -394,7 +392,7 @@
                     <uic:KeyLegend DockPanel.Dock="Bottom" Margin="16,8,16,12"
                                    Hints="{Binding KeyHints}"/>
 
-                    <!-- == Player bar (the FUVI-clan reference, adapted to JUST, Chloe 2026-07-07): transport +
+                    <!-- == Player bar (the FUVI-clan reference, adapted to JUST): transport +
                          add buttons - title/artist - a big CLICKABLE waveform - time. No download buttons.
                          The waveform is a shared control (WaveformView) the JUST SPIN decks will reuse - peaks
                          in, progress in, a seek fraction out. == -->
@@ -435,7 +433,7 @@
                                 <!-- Centred like its seek/play siblings: a SQUARE box tight to the 12x12 glyph + explicit
                                      Center alignment, so it needs NO translate nudge. The "+" is pushed into the bottom-right
                                      corner and line 3 is trimmed short, leaving a deliberate ~1.6px moat between the plus and
-                                     every list line (they used to merge at the corner). Chloe 2026-07-08. -->
+                                     every list line (they used to merge at the corner). -->
                                 <Path Stretch="Uniform" Width="14" Height="14"
                                       HorizontalAlignment="Center" VerticalAlignment="Center"
                                       Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="1.6"
@@ -469,7 +467,7 @@
 
                             <!-- Time. PositionText is a FIXED-width, right-aligned cell: proportional digits
                                  otherwise re-widen this Auto column as the number counts up / jumps on a seek,
-                                 which resizes the waveform's * column and visibly shifts its bars (Chloe 2026-07-07). -->
+                                 which resizes the waveform's * column and visibly shifts its bars. -->
                             <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="3"
                                         VerticalAlignment="Center" Margin="10,0,0,0">
                                 <TextBlock Text="{Binding PositionText}" FontSize="11" Width="42" TextAlignment="Right"
@@ -486,7 +484,7 @@
                          NAME...TIME - INFO). No visible dividers - breathing room instead; the folder<->files
                          gap is a DRAGGABLE GridSplitter (transparent, resize cursor is the affordance).
                          The two interactive panes light their header when focused. Norton-Commander flat
-                         folders + playlists-as-virtual-folders, columns mirror JUST PLAY (Chloe 2026-07-05/06). == -->
+                         folders + playlists-as-virtual-folders, columns mirror JUST PLAY. == -->
                     <Grid Margin="16,4,16,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="216" MinWidth="150"/> <!-- FOLDERS (drag-resizable) -->
@@ -498,10 +496,9 @@
 
                         <!-- FOLDERS (left) - flat list: ".." + sub-folders (folder) + playlists (list). -->
                         <DockPanel Grid.Column="0">
-                            <!-- (!) "+ SUBFOLDERS" used to hang here, on the folder tree - wrong, and
-                                 Chloe said so plainly (2026-07-31): "ich sagte BEI DER SUCHE
-                                 subfolders einschliessen - nun haengt es links am verzeichnisbaum -
-                                 NEIN". It is a property of the SEARCH, so it now lives on the
+                            <!-- (!) "+ SUBFOLDERS" used to hang here, on the folder tree - wrong: including
+                                 subfolders is a property of the SEARCH, not of the folder tree, and it had
+                                 been wired to the wrong control. It now lives on the
                                  SEARCH header in the FILTER tab. The tree just shows folders. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding FoldersActive}" Margin="0,0,0,3">
@@ -509,8 +506,8 @@
                                            Margin="8,0,0,0" VerticalAlignment="Center"/>
                             </Border>
                             <!-- Single click OPENS (activate): a click descends a container folder or opens a
-                                 leaf/playlist's tracks - "ein Mausklick ist wie Cursor hin + ENTER" (Chloe
-                                 2026-07-06). A double-click raises DoubleTapped (not a 2nd Tapped), so it
+                                 leaf/playlist's tracks, behaving exactly like moving the cursor there and
+                                 pressing Enter. A double-click raises DoubleTapped (not a 2nd Tapped), so it
                                  activates exactly once. pane-active drives the bright cursor highlight. -->
                             <Border Name="FolderListFade">
                             <ListBox Name="FolderList" Classes="finder-list"
@@ -542,7 +539,7 @@
                                     <DataTemplate x:DataType="vm:FinderEntryViewModel">
                                         <!-- Grid (not StackPanel): the name lives in a * column so it's
                                              width-constrained and TextTrimming actually ellipsises a long
-                                             folder/playlist name instead of hard-clipping (Chloe 2026-07-06). -->
+                                             folder/playlist name instead of hard-clipping. -->
                                         <Grid ColumnDefinitions="Auto,*" Margin="8,0,10,0">
                                             <!-- Shipped vector, not a character (CLAUDE.md rule 5).
                                                  JUST TAG's folder pane uses this same control with the
@@ -560,9 +557,9 @@
                             </Border>
                         </DockPanel>
 
-                        <!-- Draggable divider between FOLDERS and FILES - transparent (no visible line, as
-                             she asked earlier); the <-> resize cursor on hover is the affordance. Resizes the
-                             folders pane against the files * column; INFO stays put. Chloe 2026-07-06. -->
+                        <!-- Draggable divider between FOLDERS and FILES - transparent (no visible line);
+                             the <-> resize cursor on hover is the affordance. Resizes the
+                             folders pane against the files * column; INFO stays put. -->
                         <GridSplitter Grid.Column="1" Background="Transparent"
                                       ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
                                       HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
@@ -668,8 +665,8 @@
 
                                 <!-- Index on, never scanned, but this folder HAS songs - so the centred
                                      offer stays out (it owns the EMPTY pane) and the news arrives as a slim
-                                     strip instead. Chloe 2026-07-31: "wenn lib scan an ist und noch kein
-                                     initialer scan angestossen wurde, dann auch melden". Without it, flipping
+                                     strip instead. Even when indexing is on but no initial scan has run yet,
+                                     that state needs to be surfaced too - without it, flipping
                                      the switch on and landing in a populated folder looks like nothing
                                      happened at all. It names the CONSEQUENCE (disk reads, subfolder search
                                      locked), not just the fact, and carries the action that clears it - so it
@@ -703,7 +700,7 @@
                                          click builds a set), then right-click for the bulk actions. Two entries only:
                                          add the whole selection to the queue, and run the analyzer over it (through
                                          the shell's shared pipeline - respects the write-on-analyse consent). "(N)"
-                                         appears when more than one row is selected. Chloe 2026-07-07. -->
+                                         appears when more than one row is selected. -->
                                     <ListBox.ContextMenu>
                                         <ContextMenu x:DataType="vm:PreCueFinderViewModel">
                                             <MenuItem Header="{Binding AddSelectionHeader}"
@@ -733,7 +730,7 @@
                                                     <!-- > / pause as VECTOR paths with the SAME 9x10 bounding box + same
                                                          Width/Height + Stretch=Uniform, so they render at exactly the
                                                          same size (text glyphs of these two chars don't - different
-                                                         fonts/metrics; Chloe 2026-07-07). -->
+                                                         fonts/metrics). -->
                                                     <Path Data="M0,0 L0,10 L9,5 Z" Stretch="Uniform" Width="10" Height="11"
                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
                                                           Fill="{DynamicResource AccentABrush}"
@@ -821,9 +818,9 @@
                         </Panel>
 
                         <!-- == INFO (right): everything the analyzer stored (v9 blob). Its header sits on
-                             the SAME line as LIBRARY + the file columns (Chloe 2026-07-05). == -->
+                             the SAME line as LIBRARY + the file columns. == -->
                         <DockPanel Grid.Column="4">
-                            <!-- INFO | FILTER share this pane via a header tab switch (Chloe 2026-07-07). The
+                            <!-- INFO | FILTER share this pane via a header tab switch. The
                                  FILTER tab carries a dot when a filter is narrowing the view. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head" Margin="0,0,0,3">
                                 <StackPanel Orientation="Horizontal" Spacing="16" Margin="2,0,0,0">
@@ -856,7 +853,7 @@
                             <ScrollViewer IsVisible="{Binding ShowDetail}"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <!-- Left edge aligns with the INFO header label (Margin left 2), with a bit
-                                     more breathing room on top (Chloe 2026-07-06). -->
+                                     more breathing room on top. -->
                                 <StackPanel Margin="2,10,4,2" Spacing="4">
                                     <TextBlock Text="{Binding Selected.Track.Title, FallbackValue=''}"
                                                FontSize="14.5" FontWeight="SemiBold"
@@ -944,7 +941,7 @@
                                         </Grid>
 
                                         <!-- Same tight label->value grouping as LUFS/GAIN (Spacing 2, label Margin 0),
-                                             value at 14/SemiBold to match them (Chloe 2026-07-07). -->
+                                             value at 14/SemiBold to match them. -->
                                         <StackPanel Spacing="2" Margin="0,6,0,0">
                                             <TextBlock Text="BEAT" Classes="finder-section" Margin="0"/>
                                             <TextBlock Text="{Binding Selected.Track.BeatTypeText, FallbackValue='-'}"
@@ -1029,7 +1026,7 @@
 
                             <!-- FILTER tab: name search + Camelot key wheel + numeric ranges over whatever
                                  the file pane currently holds - one folder (FOLDER scope) or the whole
-                                 library below it (LIBRARY scope, 0.6). Always in-memory. Chloe 2026-07-07. -->
+                                 library below it (LIBRARY scope, 0.6). Always in-memory. -->
                             <ScrollViewer IsVisible="{Binding FilterTabActive}"
                                           IsEnabled="{Binding AllHydrated}"
                                           HorizontalScrollBarVisibility="Disabled"
@@ -1078,9 +1075,8 @@
                                             </TextBox.InnerRightContent>
                                         </TextBox>
                                         <!-- A plain checkbox under the search field - what every search on
-                                             earth does, and what Chloe asked for twice (2026-07-31: "mach
-                                             einfach eine checkbox unter das suchfeld wo unterordner
-                                             eingeschlossen werden"). (!!) It was a header toggle before, first
+                                             earth does, and the form of this control actually requested,
+                                             twice. (!!) It was a header toggle before, first
                                              on the folder tree and then on the SEARCH label; both were my
                                              invention, neither was asked for. Do not turn it back into one.
                                              Disabled without a usable index, with the reason on the tooltip -
@@ -1125,7 +1121,7 @@
                                                         <TextBlock Text="{Binding Label}" FontSize="10.5"
                                                                    Foreground="{DynamicResource MutedBrush}"/>
                                                         <!-- min | histogram | max - fixed 34px flank labels so every
-                                                             row's bars start & end on the same x (Chloe 2026-07-07). -->
+                                                             row's bars start & end on the same x. -->
                                                         <Grid ColumnDefinitions="34,*,34">
                                                             <TextBlock Grid.Column="0" Classes="rangeval"
                                                                        Classes.active="{Binding IsActive}"
@@ -1170,7 +1166,7 @@
                 <!-- == Settings overlay - the SAME slide-in as the main window's Tweaks panel: a right-
                      docked themed panel (no dim backdrop), rounded on the outer edge only, with its OWN x
                      close in the header (the caption buttons sit behind it, exactly like Tweaks). The
-                     content (library root, cue device, volume, seek) is unchanged. Chloe 2026-07-05. -->
+                     content (library root, cue device, volume, seek) is unchanged. -->
                 <Panel IsVisible="{Binding SettingsOpen}">
                     <Border Width="370" HorizontalAlignment="Right" VerticalAlignment="Stretch"
                             Background="#F01a1828" CornerRadius="0,14,14,0"
@@ -1194,9 +1190,9 @@
                                     <Button DockPanel.Dock="Right" Classes="seg" Content="Browse..."
                                             Margin="6,0,0,0" Click="OnBrowseRoot"/>
                                     <!-- LostFocus commit: typing a path per-keystroke would fire the setter
-                                         -> RebuildTree on every partial (invalid) path, so it felt like it
-                                         "greift nicht". Now it applies once, when you leave the field (or via
-                                         Browse). Chloe 2026-07-05. -->
+                                         -> RebuildTree on every partial (invalid) path, so it felt like the
+                                         field was not responding. Now it applies once, when you leave the field
+                                         (or via Browse). -->
                                     <TextBox Text="{Binding LibraryRoot, UpdateSourceTrigger=LostFocus}"
                                              Background="#14FFFFFF" BorderBrush="#1FFFFFFF"
                                              BorderThickness="1" CornerRadius="6"
@@ -1204,8 +1200,8 @@
                                              PlaceholderText="Your music library folder"/>
                                 </DockPanel>
 
-                                <!-- (!!) The indexing opt-in sits directly under the root it belongs to
-                                     (Chloe 2026-07-30) - the index IS per library root, so putting it
+                                <!-- (!!) The indexing opt-in sits directly under the root it belongs to -
+                                     the index IS per library root, so putting it
                                      in a section of its own further down invited the question "which
                                      library?". Off by default: with it off the finder reads every
                                      listing from disk exactly like 0.5 and no index file is ever

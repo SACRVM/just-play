@@ -38,11 +38,10 @@
     </Window.Resources>
 
     <Window.Styles>
-        <!-- Maximized: card fills the screen - no shadow margin, no rounding (MainWindow pattern). -->
-<!-- (!) Row look COPIED VERBATIM from the PRE CUE FINDER (finder-list), not re-derived: the
+        <!-- (!) Row look COPIED VERBATIM from the PRE CUE FINDER (finder-list), not re-derived: the
              hover/selected accent-gradient swipe, the brighter cursor in the pane that has focus,
              the header wash, the bottom fade. Writing my own flat-grey version is exactly how two
-             JUST windows start looking like two different products (Chloe 2026-08-05). -->
+             JUST windows start looking like two different products. -->
         <Style Selector="ListBox.tag-list">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -159,15 +158,14 @@
         </Style>
         <!--
           A tab whose pane has something GOING ON reads in the accent, whether or not you are standing
-          on it (Chloe 2026-08-06: "wir aendern die farbe vom FILTER und EDITOR tab und machen sie in
-          accent color - damit man sieht hier ist was aktiv"). Two states were invisible until now: a
+          on it. Two states were invisible until now: a
           search is filtering the list, and the editor holds unsaved edits - both easy to walk away
           from without noticing.
 
           (!) Order matters: this comes AFTER .active, so a tab that is BOTH shown and live reads as
           live. Avalonia has no specificity - among equal-priority styles the later one wins.
           Deliberately the accent COLOUR and not a dot: an unlabelled dot got thrown out once already
-          for saying nothing anyone could decode (Chloe 2026-08-05).
+          for saying nothing anyone could decode.
         -->
         <Style Selector="Button.tabhead.live TextBlock.panehead">
             <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
@@ -239,7 +237,7 @@
 
                         <!-- Right-click the path (or anywhere on the bar) to switch folders - the
                              chrome IS where the current folder is stated, so it is where changing
-                             it belongs (Chloe 2026-08-05). -->
+                             it belongs. -->
                         <Grid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Browse folder..." Click="OnPickFolder"/>
@@ -385,8 +383,8 @@
                                     <!-- While the folder is being read: how far it has got. It replaces
                                          the index note rather than sitting next to it, because during a
                                          load "reading tags... 412 of 1203" is the only fact that matters
-                                         (Chloe 2026-08-05: "irgendwo muss man sehen dass der ordner noch
-                                         laedt"). Both vanish when there is nothing to say. -->
+                                         - there has to be a visible signal that the folder listing is
+                                         still loading. Both vanish when there is nothing to say. -->
                                     <TextBlock Grid.Column="3" Text="{Binding LoadingText}" FontSize="11"
                                                IsVisible="{Binding !Ready}"
                                                Foreground="{DynamicResource CautionBrush}"
@@ -484,8 +482,8 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <!-- TrackNameMargin, the SAME resource the row's name cell uses. Without
-                                         it the header sat 4 px left of the titles under it (Chloe
-                                         2026-08-06) - the outer Grid margins already matched, this inner
+                                         it the header sat 4 px left of the titles under it
+                                         - the outer Grid margins already matched, this inner
                                          one was the one that did not. The queue header does exactly this
                                          (MaxView), so all three tables line up from one definition. -->
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
@@ -512,7 +510,7 @@
                                 <!-- Multiple, not Single: a tagger works on RUNS of files - shift for a
                                      block, ctrl to pick. It is also what makes dragging a selection out
                                      to another app mean the whole selection (RowDragBehavior reads
-                                     SelectedItems). Chloe 2026-08-06.
+                                     SelectedItems).
                                      (!) "Multiple" IS the ctrl/shift behaviour here - Avalonia's
                                      SelectionMode has no Extended member (Single/Multiple/Toggle/
                                      AlwaysSelected); Toggle is the one that makes a plain click add.
@@ -603,7 +601,7 @@
                                 </ListBox>
 
                                 <!-- ONE way in, and it is HERE - not a button parked in the pane
-                                     header (Chloe 2026-08-05). Dropping a folder on the window and
+                                     header. Dropping a folder on the window and
                                      right-clicking the path in the chrome do the same thing. -->
                                 <StackPanel IsVisible="{Binding !HasFolder}" Spacing="10"
                                             HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -632,12 +630,13 @@
                         <!-- GotFocus on the WHOLE column, not on each field: anything inside that takes
                              focus - a tag box, a combo, the FILTER checkbox - bubbles up here and lights
                              THIS header instead of leaving FILES lit while the keyboard is over here
-                             (Chloe 2026-08-06: "das panel wird aber nicht hervorgehoben"). -->
+                             - the panel needs the same highlight-when-focused treatment as the other
+                             panes. -->
                         <DockPanel Grid.Column="4" GotFocus="OnPanelGotFocus">
                             <!-- EDITOR | ANALYSIS | FILTER - the Finder's INFO | FILTER pane, adapted.
                                  ANALYSIS sits HERE, on the one tab row, and not inside the shared
                                  panel: a panel that carries its own TAGS|ANALYSIS switch puts a second
-                                 row of tabs directly under this one (Chloe 2026-08-05). All three use
+                                 row of tabs directly under this one. All three use
                                  the Finder's tabhead recipe. -->
                             <Border DockPanel.Dock="Top" Classes="pane-head"
                                     Classes.active="{Binding PanelActive}" Margin="0,0,0,3">
@@ -690,7 +689,7 @@
 
                             <!-- == PLAYER (light) ==================================================
                                  Docked at the BOTTOM of the right column, always present, fixed
-                                 height (Chloe 2026-08-06: "nen player light"). It used to sit under
+                                 height. It used to sit under
                                  the file list, which cost the working surface height and only
                                  appeared once something was loaded.
 
@@ -716,8 +715,8 @@
                                   Opacity="{Binding Preview.Dim}">
                                 <!--
                                   (!) WHY THESE THREE RESOURCES ARE HERE - the sliders did not sit on the
-                                  same optical line as the play button and the times (Chloe 2026-08-06:
-                                  "das sieht ein blinder mit nem krueckstock"), and no nudge could ever
+                                  same optical line as the play button and the times - the misalignment
+                                  was obvious at a glance, and no nudge could ever
                                   have fixed it, because it is geometry.
 
                                   FluentTheme's horizontal Slider is a three-row Grid -
@@ -783,8 +782,7 @@
 
                             <!-- It is a PANE, so it wears a pane head like FOLDER / FILES / EDITOR do -
                                  same hairlines above and below, same label. A strip without one read
-                                 as a stray control (Chloe 2026-08-06: "hat nicht einen schicken header
-                                 - wo sind die doppelinien?"). The playing file's name sits IN the
+                                 as a stray control. The playing file's name sits IN the
                                  header, next to the label, exactly like FILES puts its count there. -->
                             <Border DockPanel.Dock="Bottom" Classes="pane-head" Margin="0,10,0,3">
                                 <Grid ColumnDefinitions="Auto,*">
@@ -839,11 +837,11 @@
 
                                         <!-- ONE search. The field starts at "All fields", so typing
                                              a word is the whole interaction; narrowing to a single
-                                             field is a choice, not a second box (Chloe 2026-08-05:
-                                             "think simple and allow complex things"). -->
+                                             field is a choice, not a second box - think simple and
+                                             allow complex things. -->
                                         <!-- Reading order = SENTENCE order: WHAT you search in, HOW it
-                                             compares, then the VALUE - "Genre - contains - hard techno"
-                                             (Chloe 2026-08-05). The simple case is untouched by it: both
+                                             compares, then the VALUE - "Genre - contains - hard techno".
+                                             The simple case is untouched by it: both
                                              pickers already stand on "All fields" / "contains", so
                                              typing in the box below is still the whole interaction. -->
                                         <StackPanel Spacing="5">
@@ -955,16 +953,15 @@
                     </Grid>
                 </DockPanel>
 
-                <!-- SETTINGS - a slide-in PANEL on the right, not a separate window (Chloe
-                     2026-08-06: "in just tag haette ich die settings auch gerne als overlay panel
-                     rechts"). Placed AFTER the body so it overlays it, exactly like JUST PLAY's
+                <!-- SETTINGS - a slide-in PANEL on the right, not a separate window.
+                     Placed AFTER the body so it overlays it, exactly like JUST PLAY's
                      tweaks sidebar. Its DataContext is the DI SettingsViewModel, assigned in
                      code-behind - the window's own DataContext is the tagger. -->
                 <!-- (!) IsVisible goes through $parent[Window], NOT a plain {Binding IsSettingsOpen}.
                      The code-behind assigns THIS element's DataContext (the settings view model), so a
                      plain binding would look for IsSettingsOpen on the SettingsViewModel, not find it,
                      and leave IsVisible at its default - which is why the panel was simply always
-                     there (Chloe 2026-08-06). $parent walks the tree and is independent of
+                     there. $parent walks the tree and is independent of
                      DataContext; it is the pattern CLAUDE.md already records for reusable controls,
                      and the TagEditorPanel two panes down uses the identical form. -->
                 <controls:SettingsPanel Name="Settings"

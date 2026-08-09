@@ -12,7 +12,7 @@ namespace JustPlay.Tag.ViewModels;
 
 /// <summary>
 /// JUST TAG settings - theme picker + ID3 write mode. A separate window (like JUST STREAM's) because the
-/// theme switcher couldn't size reliably at the editor's bottom edge (Chloe 2026-06-30). Singleton so it
+/// theme switcher couldn't size reliably at the editor's bottom edge. Singleton so it
 /// reflects + persists the one shared <see cref="IThemeService"/> / <see cref="TagSettingsService"/> state.
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject

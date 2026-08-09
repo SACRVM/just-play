@@ -12,7 +12,7 @@ namespace JustPlay.UI.Controls;
 /// (a <see cref="TrackColumns"/>). So header <-> row <-> the other list can never drift on widths, order, alignment
 /// or sort state. The letter-spacing flush fix (<see cref="HeaderText"/>) is baked into the label style here, in
 /// one place. The host still owns the leading gutter (queue index / finder cue+codec) and the NAME cell, which
-/// dock around this control. Chloe 2026-07-08 - the shared-header step of the anti-drift refactor.
+/// dock around this control. This is the shared-header step of the anti-drift refactor.
 /// </summary>
 public partial class TrackDataHeader : UserControl
 {

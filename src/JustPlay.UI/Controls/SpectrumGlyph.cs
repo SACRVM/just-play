@@ -9,10 +9,9 @@ namespace JustPlay.UI.Controls;
 /// <summary>
 /// Tiny animated spectrum CURVE - the glyph on the "open analyzer" transport button (next to
 /// shuffle/repeat). While <see cref="Active"/> (music playing) the curve undulates like a live
-/// analyzer; when idle it rests as a still curve ("animieren - nur wenn Musik laeuft, sonst still",
-/// Chloe 2026-06-28). The motion is decorative ("so fake wie die Balken beim Playback") - a few
-/// phase-offset sines - so it needs no audio-engine hookup, and the timer stops once it settles so
-/// an idle button costs nothing.
+/// analyzer; when idle it rests as a still curve. The motion is decorative, as fake as the
+/// playback-level bars - a few phase-offset sines - so it needs no audio-engine hookup, and the
+/// timer stops once it settles so an idle button costs nothing.
 /// </summary>
 public sealed class SpectrumGlyph : Control
 {

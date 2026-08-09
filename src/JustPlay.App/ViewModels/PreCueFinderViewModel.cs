@@ -23,7 +23,7 @@ namespace JustPlay.App.ViewModels;
 /// <summary>
 /// PRE CUE FINDER - the keyboard-first library audition explorer (0.5.0 headline, queue N26).
 ///
-/// <para><b>P2 browse model (Chloe 2026-07-05):</b> two flat panes, Norton-Commander style -
+/// <para><b>P2 browse model:</b> two flat panes, Norton-Commander style -
 /// FOLDERS left, FILES right. The left pane lists the current folder's navigable children with no
 /// nesting: a ".." hop, each sub-folder (folder), and each playlist (list) treated as a VIRTUAL FOLDER
 /// (entering one loads its tracks into the file pane). TAB switches which pane has focus (the
@@ -165,7 +165,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         [
             new("bpm",      "BPM",      t => t.Bpm,                                     v => v.ToString("0"), RebuildView),
             new("nrg",      "Energy",   t => (double?)t.Energy,                          v => v.ToString("0"), RebuildView),
-            // No gain-dB / LUFS / length ranges - nobody filters a set by those (Chloe 2026-07-07). They stay
+            // No gain-dB / LUFS / length ranges - nobody filters a set by those. They stay
             // as sortable columns; only the vibe scores + BPM + energy + key earn a range slider here.
             new("dark",     "Dark",     t => t.HasAnalysis ? t.DarkScore : null,         v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
             new("hypnotic", "Hypnotic", t => t.HasAnalysis ? t.HypnoticScore : null,     v => v.ToString("0.00", CultureInfo.InvariantCulture), RebuildView),
@@ -239,7 +239,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Enter / single-click / double-click on a folder-pane row. ".." goes up; a playlist and a
     /// LEAF folder (no sub-folders or playlists of its own) open their tracks in the file pane and hand
     /// it focus - a leaf folder is treated exactly like a playlist, because descending into one would
-    /// show only ".." (Chloe 2026-07-06: "in einen Ordner ohne Unterordner geht man nicht rein"). A
+    /// show only "..". A
     /// folder that DOES have navigable children descends, keeping focus left so she can keep drilling.</summary>
     public void ActivateEntry()
     {
@@ -431,7 +431,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     ///
     /// <para>(!) Every centred hint in this pane must switch off while the progress disc is up. They
     /// share the pane's centre, so the disc covers the MIDDLE of a hint line and leaves both ends
-    /// sticking out past its rim - which is exactly what Chloe photographed on 2026-07-30 and took
+    /// sticking out past its rim - which is exactly what got photographed on 2026-07-30 and mistaken
     /// for rendering artefacts: the "N" of "Nothing to audition in this folder." on one side and
     /// the end of the sentence on the other.</para></summary>
     public bool ShowNoMatches =>
@@ -455,9 +455,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>The "+" / A key: add to the current queue. With a multi-selection (Ctrl/Shift-click) it
-    /// adds ALL selected rows at once - the whole point of finder multi-select ("viele zur PL hinzufuegen",
-    /// Chloe 2026-07-07). With a single cursor it adds that one row and advances, for fast one-handed queue
-    /// building. Chloe 2026-07-06: adding is "+", NOT Enter - Enter PLAYS (see <see cref="PlaySelected"/>).</summary>
+    /// adds ALL selected rows at once - the whole point of finder multi-select: adding many tracks to
+    /// the queue/playlist at once. With a single cursor it adds that one row and advances, for fast
+    /// one-handed queue building. Adding is "+", NOT Enter - Enter PLAYS (see <see cref="PlaySelected"/>).</summary>
     public void ActivateSelected()
     {
         if (SelectedItems.Count > 1) { AddSelectionToQueue(); return; }
@@ -495,8 +495,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Set by the window: clears the file ListBox's live (multi-)selection. Invoked right before
     /// <see cref="Items"/> is reset, because Avalonia's SelectionModel throws (ArgumentOutOfRangeException,
     /// enumerating SelectedItems against stale indices) when the bound source resets while a selection is
-    /// live - and setting <see cref="Selected"/>=null alone can't reach a Ctrl-click MULTI-selection.
-    /// Chloe 2026-07-08 (the KeyWheel-click crash).</summary>
+    /// live - and setting <see cref="Selected"/>=null alone can't reach a Ctrl-click MULTI-selection
+    /// (the KeyWheel-click crash, fixed 2026-07-08).</summary>
     public Action? ClearFileSelection { get; set; }
 
     public bool HasFileSelection => SelectedItems.Count > 0;
@@ -549,7 +549,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     // The finder already navigates INTO folders/playlists to audition; these two verbs act on a whole
     // ENTRY without entering it - the same two moves JUST PLAY already makes for external files
     // (a playlist REPLACES the queue; loose tracks are ADDED). Target is always the current queue -
-    // no new playlist is created, no file on disk is touched (Chloe 2026-07-22: "keine neue magie").
+    // no new playlist is created, no file on disk is touched - no new magic beyond what's already there.
 
     /// <summary>True when the (right-clicked) left-pane entry is a real folder/playlist, not the ".." hop
     /// - gates the "Add to list" context item.</summary>
@@ -580,7 +580,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>Context "Open playlist" on a playlist: open it like an Explorer double-click - REPLACE the
     /// queue with it (via the shell's LoadPlaylistAsync). Confirms first when the queue isn't empty, so a
-    /// live set is never wiped by accident (Chloe: "open nachfragen").</summary>
+    /// live set is never wiped by accident - always ask before opening.</summary>
     [RelayCommand]
     private async Task OpenPlaylist()
     {
@@ -603,7 +603,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// <summary>Context "Refresh": re-read the current view from disk - a NAS browser changes under you
     /// (tracks dropped, playlists added/removed). Reloads whatever is showing: a loaded playlist, a leaf
     /// folder's tracks, or the current folder's entries + files. Always available, so no menu is ever
-    /// empty (Chloe 2026-07-22: a refresh beats suppressing the empty ".." menu).</summary>
+    /// empty - a refresh beats suppressing the empty ".." menu.</summary>
     /// <summary>
     /// Reload what the file pane is showing - and, with an index in play, CHECK it for real rather
     /// than trusting the stored fingerprint. This is the escape hatch for the cases the cheap checks
@@ -668,9 +668,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
 
     /// <summary>
     /// List ONE folder. With a usable index the rows are painted from it IMMEDIATELY and the disk is
-    /// consulted afterwards, in the background - Chloe 2026-07-30: <i>"wir koennen gerne einen check
-    /// im hintergrund starten, ob das verzeichnis noch aktuell ist ... und bei abweichung scannen und
-    /// nachpflegen"</i>.
+    /// consulted afterwards, in the background - a check runs behind the scenes for whether the folder
+    /// is still current, rescanning and updating the index on any mismatch.
     ///
     /// <para>Measured why: enumerating a folder costs 0.12-0.25 ms per file - 18 ms for a normal
     /// folder but 276 ms for her 1,092-file one, and that would be paid on EVERY open, almost always
@@ -767,9 +766,9 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
                 return;
             }
             // Playlist ORDER is meaningful - do not re-sort. Rows come from the index, which already
-            // holds the newest thing we know about each track (Chloe 2026-07-30: "wir wissen welche
-            // songs in der playliste sind und wir haben alle songs in der DB ... wir haben also die
-            // neuste version"). No verification pass runs here on purpose: the tracks live in
+            // holds the newest thing we know about each track: the playlist tells us which songs it
+            // contains, and the index already has every song, so that is the freshest version
+            // available. No verification pass runs here on purpose: the tracks live in
             // folders, and those are what the fingerprint checks keep honest - re-checking the same
             // files a second time because they happen to be listed in an m3u is duplicated work.
             // Anything the index does not know still falls back to a tag read, per row, and
@@ -1049,8 +1048,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// cannot use the centred offer (that one owns the empty pane) and shows a slim strip above the
     /// list instead.
     ///
-    /// <para>Chloe 2026-07-31: <i>"wenn lib scan an ist und noch kein initialer scan angestossen
-    /// wurde, dann auch melden"</i>. Without this, switching the index on and then browsing a folder
+    /// <para>When the library scan is on but no initial scan has run yet, that needs to be surfaced
+    /// too. Without this, switching the index on and then browsing a folder
     /// that happens to have songs in it says NOTHING: the rows come from disk exactly as before, the
     /// subfolder toggle is locked with its reason buried in a tooltip, and the switch she just
     /// flipped looks like it did nothing at all.</para>
@@ -1464,14 +1463,14 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>Enter / double-click / (auto-play): play the SELECTED song on the cue device NOW - the
-    /// primary, explicit play action, no debounce (Chloe: "Return ist der default zum Abspielen").</summary>
+    /// primary, explicit play action, no debounce - Return is the default key for playing.</summary>
     public void PlaySelected()
     {
         if (Selected is { } item) LoadCue(item);
     }
 
     /// <summary>Space: the universal play/pause. Pauses the sounding audition, or resumes the loaded
-    /// song / starts the selected one. Chloe 2026-07-06 confirmed Space stays "unser Space Ding".</summary>
+    /// song / starts the selected one. Space stays the dedicated play/pause key.</summary>
     public void TogglePlayPause()
     {
         if (IsCuePlaying)
@@ -1737,7 +1736,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     // -- Add-on settings (finder.settings.json) -------------------------------
 
     /// <summary>The user's Music folder - the default library root when none has been picked yet.
-    /// Chloe 2026-07-05: don't ship a hardcoded NAS path; land in the home Music folder.</summary>
+    /// Don't ship a hardcoded NAS path; land in the home Music folder.</summary>
     public static string DefaultLibraryRoot { get; } =
         Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
 
@@ -1808,7 +1807,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     // -- Auto-play on select (finder.settings.json) ---------------------------
 
     /// <summary>Off by default: Enter plays the selected song. On: settling on a row auto-auditions it
-    /// after the debounce - the setting that "makes everyone happy" (Chloe 2026-07-06).</summary>
+    /// after the debounce - the setting that makes both workflows happy.</summary>
     public bool AutoPlayOnSelect
     {
         get => _settings.Current.AutoPlayOnSelect;
@@ -2061,7 +2060,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         // selection is live - it enumerates SelectedItems against now-stale indices (the crash report from
         // clicking a key on the wheel). Clearing against the still-valid OLD collection, then reselecting
         // in the NEW one, sidesteps it. Multi-selection collapses to the cursor on any filter/sort - fine,
-        // the old selection was over the old view anyway. Chloe 2026-07-07.
+        // the old selection was over the old view anyway.
         var keep = Selected;
         Selected = null;
         ClearFileSelection?.Invoke(); // clear the ListBox's FULL selection (multi included) before the Reset
@@ -2069,7 +2068,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         Selected = keep is not null && filtered.Contains(keep) ? keep : filtered.FirstOrDefault();
 
         // Size the text columns to THIS view's content - same call JUST TAG makes from its
-        // ApplyFilter, so the two tables size by one rule (Chloe 2026-08-06 "pro Ansicht").
+        // ApplyFilter, so the two tables size by one rule, per view.
         Columns.Widths.Measure(filtered.Select(i => i.Track).ToList());
 
         OnPropertyChanged(nameof(FilterMatchText));
@@ -2101,7 +2100,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
             if (min > max) { r.SetDomain(0, 0); continue; } // no values -> collapsed -> the row hides itself
 
             // Bucket the values into a normalised distribution (peak bucket = 1) the slider paints behind
-            // its track - "see the shape of the crate, then dial into the dense part" (Chloe 2026-07-07).
+            // its track - see the shape of the crate, then dial into the dense part.
             double[]? hist = null;
             if (max > min)
             {

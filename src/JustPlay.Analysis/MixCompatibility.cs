@@ -3,7 +3,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.Analysis;
 
 // ============================================================================
-// TUNE ON CHLOE'S EAR (Bradley-Terry, see harmonic-mixing.md Sec.Personalisation)
+// EAR-TUNED (Bradley-Terry, see harmonic-mixing.md Sec.Personalisation)
 //
 // These are provisional defaults derived from the DJ literature consensus:
 // - Kell & Tzanetakis ISMIR 2013: "timbre is the strongest predictor" of
@@ -14,7 +14,7 @@ namespace JustPlay.Analysis;
 //   in empirical EDM mix studies.
 // - Energy: smoothest set transitions stay within <=2 energy steps (DEAM data).
 //
-// TO RETUNE: gather >=20 "these mix well / these clash" track pairs from Chloe,
+// TO RETUNE: gather >=20 "these mix well / these clash" track pairs,
 // fit Bradley-Terry logistic regression on the four sub-score differences.
 // See harmonic-mixing.md Sec."Bradley-Terry = logistic regression on feature
 // differences" for the exact protocol.
@@ -153,7 +153,7 @@ public sealed record CompatResult(
 /// Weighted average with provisional defaults Beat 0.40, Tempo 0.30, Harmonic 0.20,
 /// Energy 0.10 (sum = 1.0). Missing inputs reduce the active term count;
 /// surviving weights are renormalised to maintain unit sum.
-/// Tune with Bradley-Terry logistic regression on Chloe's pairwise labels
+/// Tune with Bradley-Terry logistic regression on the pairwise labels
 /// (see harmonic-mixing.md Sec."Personalisation").
 ///
 /// <para>

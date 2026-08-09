@@ -10,8 +10,8 @@ namespace JustPlay.UI.Controls;
 /// <summary>
 /// The suite's progress indicator: a round, hand-drawn ring.
 ///
-/// <para>Replaces the 74x3 px bar the busy overlay used to carry (Chloe 2026-07-30: <i>"die bar ist
-/// viel zu schmal ... ich haette lieber was rundes modernes schickes"</i>). Determinate when
+/// <para>Replaces the 74x3 px bar the busy overlay used to carry - it was far too thin; something
+/// round and modern was wanted instead. Determinate when
 /// <see cref="Progress"/> has a value - a sweeping arc plus the percentage in the middle - and a
 /// travelling arc when it is null.</para>
 ///

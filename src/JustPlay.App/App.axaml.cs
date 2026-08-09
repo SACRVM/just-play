@@ -74,7 +74,7 @@ public partial class App : Application
             // Closing JUST PLAY's main window quits the whole app - and takes any independent top-level
             // (the PRE CUE FINDER) down with it (Avalonia's shutdown closes every remaining window, so the
             // finder's OnClosed cleanup still runs + WindowPlacement persists its bounds). Without this the
-            // default OnLastWindowClose would leave the app alive whenever the finder is open. Chloe 2026-07-07.
+            // default OnLastWindowClose would leave the app alive whenever the finder is open.
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
             // -- File-open intake (single-instance) ---------------------------

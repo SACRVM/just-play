@@ -35,7 +35,8 @@ public sealed class TagSettings
     /// How many files to read at once when filling the table. Same control, same range and the same
     /// default as JUST PLAY's "Analysis threads" (<see cref="JustPlay.Core.Models.UserSettings.AnalysisThreads"/>) -
     /// ported rather than re-invented, because a second dialect of the same knob is how two JUST
-    /// windows start behaving differently (Chloe 2026-08-07: "wozu hat man zig prozessorkerne?!").
+    /// windows start behaving differently. A machine with a dozen processor cores should be able to
+    /// put more than one of them to work.
     ///
     /// <para>Reading tags waits on the network, not on a core, so raising this shortens a big folder
     /// almost linearly. Clamped to 1..16 on load - the same ceiling

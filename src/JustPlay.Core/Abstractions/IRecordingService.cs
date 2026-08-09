@@ -26,7 +26,7 @@ public enum RecordingState
 /// Contract for "record your set" - encode the post-DSP/post-limiter master bus to a local
 /// file. Core-layer abstraction only; the BASS implementation lives in JustPlay.Audio.Bass.
 ///
-/// Design (Chloe, 2026-07-04): the recorder is a SECOND, fully independent encoder on the
+/// Design: the recorder is a SECOND, fully independent encoder on the
 /// same mixer output the broadcast encoder taps - NOT a tee of the cast encoder's bytes.
 /// That decouples recording from the Icecast connection (record off-air, survive
 /// reconnects, choose your own format) while still capturing exactly the signal listeners

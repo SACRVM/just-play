@@ -43,9 +43,10 @@ public sealed record TrackIndexEntry
     [JsonPropertyName("bitrateKbps")]    public int?     BitrateKbps { get; init; }
 
     // -- The rest of what a track table SHOWS (0.6.1) -------------------------
-    // Chloe 2026-08-07: "null live zugriffe, ergo kommt alles in den index rein". Measured the night
-    // before (C1): album artist and comment were not in the index at ALL, so every list that showed
-    // them read the tag off the NAS per row - ~12 minutes single-threaded for 2,000 files. Cover
+    // 2026-08-07: zero live file accesses at display time - everything a row can show must already
+    // be sitting in the index. Measured the night before (C1): album artist and comment were not in
+    // the index at ALL, so every list that showed them read the tag off the NAS per row - ~12
+    // minutes single-threaded for 2,000 files. Cover
     // presence and the ID3 version were worse: a second and third file open per visible row, through
     // CoverProbe.Has() and Id3VersionProbe.Read(). All five are now written once, at sync time, from
     // the one read the sync already does.

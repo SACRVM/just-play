@@ -5,7 +5,7 @@ namespace JustPlay.Tag.ViewModels;
 /// <summary>
 /// What the search actually DECIDES, as pure functions over one row and one condition.
 ///
-/// <para>It was private inside <see cref="TaggerViewModel"/> until Chloe reported the filter behaving
+/// <para>It was private inside <see cref="TaggerViewModel"/> until the filter was found behaving
 /// "inverted" (2026-08-05) - and a search whose behaviour can only be checked by clicking through the
 /// app is a search nobody can check. Every mode below is now pinned by a test, so a claim about what
 /// "is not" does is a fact and not a reading of the code.</para>
@@ -29,8 +29,8 @@ public static class TagSearch
     /// <summary>
     /// Whether a value box is needed for this FIELD + MODE pair. Artwork is the one field with nothing
     /// to type: it is present or it is not, so choosing it means choosing between the two emptiness
-    /// modes and the box goes away (Chloe 2026-08-05: "dann blendet man eben text feld aus wenn man
-    /// cover waehlt").
+    /// modes and the box goes away - the choice is to hide the text field when "cover" is selected,
+    /// instead of keeping a second, always-visible box.
     /// </summary>
     public static bool NeedsValue(TagField field, MatchMode? mode) =>
         field != TagField.Cover && NeedsValue(mode);

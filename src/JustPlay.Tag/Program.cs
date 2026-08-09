@@ -82,7 +82,7 @@ internal sealed class Program
         services.AddSingleton(sp =>
         {
             var preview = sp.GetRequiredService<PreviewViewModel>();
-            return new UI.ViewModels.TagEditorViewModel(
+            var editor = new UI.ViewModels.TagEditorViewModel(
                 sp.GetRequiredService<IMetadataReader>(),
                 sp.GetRequiredService<IMetadataWriter>(),
                 (path, write) =>
@@ -91,6 +91,25 @@ internal sealed class Program
                     write(path);
                     return UI.ViewModels.TagWriteOutcome.Written;
                 });
+
+            // The ID3-VERSION notice above Save. JUST TAG owns the only WRITE FORMAT setting in the
+            // suite, so it is the only app that ever fills this in; JUST PLAY, the PRE CUE FINDER and
+            // the CLI never convert and leave it null, and the notice can never appear there.
+            //
+            // A LABEL, not the enum: the shared editor lives in JustPlay.UI, which must not reference
+            // JustPlay.Metadata where the version table lives (CLAUDE.md, layering). It is built with
+            // the SAME probe call that stamps TrackMetadata.Id3Version, so the two strings the editor
+            // compares came out of one place and there is no second table to drift. Same seam as the
+            // RAW TAGS window, which takes its target the same way.
+            var settings = sp.GetRequiredService<Settings.TagSettingsService>();
+            editor.ConvertsToId3Version = ConvertsTo(settings);
+
+            // Both are singletons that live as long as the app, so no unsubscribe is needed. Without
+            // this the notice would go stale the moment the setting changed with a file open - and a
+            // stale safety notice is worse than none.
+            settings.WriteFormatChanged += (_, _) => editor.ConvertsToId3Version = ConvertsTo(settings);
+
+            return editor;
         });
 
         services.AddSingleton<TaggerViewModel>();
@@ -98,6 +117,16 @@ internal sealed class Program
 
         return services.BuildServiceProvider();
     }
+
+    /// <summary>
+    /// The ID3v2 version the configured write format would convert every saved MP3 TO, in the SHORT
+    /// form <c>TrackMetadata.Id3Version</c> carries - or null for the default, which converts nothing
+    /// and therefore has no target.
+    /// </summary>
+    private static string? ConvertsTo(Settings.TagSettingsService settings) =>
+        Id3VersionProbe.MajorFor(settings.WriteFormat) is { } major
+            ? Id3VersionProbe.ShortName(major)
+            : null;
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()

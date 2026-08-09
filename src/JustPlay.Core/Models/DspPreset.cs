@@ -67,7 +67,7 @@ public sealed record DspPreset
     /// <summary>"Hard" - the validated correction for structurally-bright hard genres (hard techno /
     /// hardstyle): a static High -3 dB shelf + golden-curve AutoTilt 0.65 tame the hot 2-16 kHz, and
     /// Limiter <b>Loud</b> pushes it loud/dense so it holds up in a club/stream (Soft = quiet -> you get
-    /// out-loudened). Measured 2026-06-17 on 35 of Chloe's tracks. [[hard-dance-headphone-mode]]</summary>
+    /// out-loudened). Measured 2026-06-17 on 35 tracks from a real library. [[hard-dance-headphone-mode]]</summary>
     public static DspPreset Hard => new()
     {
         Name = "Hard", EqHighGain = 0.72, AutoTiltStrength = 0.65, LimiterMode = "Loud",

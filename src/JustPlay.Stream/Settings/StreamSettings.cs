@@ -99,14 +99,14 @@ public sealed class StreamSettings
 
     /// <summary>Keep the display awake while on air / recording (default ON). DJ software gets
     /// controller input only - the OS sees an idle keyboard and blanks the screen mid-set;
-    /// Traktor doesn't suppress that itself (Chloe 2026-07-15). See <see cref="JustPlay.UI.KeepAwake"/>.</summary>
+    /// Traktor doesn't suppress that itself (verified 2026-07-15). See <see cref="JustPlay.UI.KeepAwake"/>.</summary>
     public bool KeepScreenAwake { get; set; } = true;
 
     /// <summary>Whether the bottom error-log strip is expanded.</summary>
     public bool LogVisible { get; set; } = false;
 
     /// <summary>Show the bottom keyboard-hint bar (C = on air / off air, R = record / stop). Default on;
-    /// pros switch it off once the keys are muscle memory (Chloe 2026-07-06).</summary>
+    /// pros switch it off once the keys are muscle memory.</summary>
     public bool ShowKeyHints { get; set; } = true;
 
     /// <summary>Name of the active theme palette (see <see cref="JustPlay.Core.Theming.Themes"/>). Defaults to Aurora.</summary>

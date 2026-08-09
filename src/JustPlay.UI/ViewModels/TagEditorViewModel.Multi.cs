@@ -141,7 +141,7 @@ public sealed partial class TagEditorViewModel
     //
     // That makes one rule cover everything: TICKED AND EMPTY MEANS "CLEAR THIS ON ALL OF THEM" -
     // for a text field and for the picture alike. The picture needed no vocabulary of its own; it
-    // needed the same two controls (Chloe 2026-08-07: "dann waere das verhalten gleich").
+    // needed the same two controls.
     //
     // The tick starts ON for a field the whole selection agrees on (the box shows that shared value,
     // editable in one go) and OFF for one where they differ (the box is empty and says so, and
@@ -621,7 +621,7 @@ public sealed partial class TagEditorViewModel
             // inconsistency - it is that this one has no tick to disarm. Picking it IS switching it
             // on, so carrying it into a selection you just made would make that selection dirty the
             // instant it appeared, and every click somewhere else would ask about unsaved changes you
-            // never made (Chloe 2026-08-09). Nothing that would WRITE survives a change of target.
+            // never made. Nothing that would WRITE survives a change of target.
             ClearTagFromName();
             Raise(nameof(RenameMaskLabel));
             Raise(nameof(HasRenameMask));
@@ -658,6 +658,11 @@ public sealed partial class TagEditorViewModel
     /// </summary>
     private void DeriveFields(IReadOnlyList<TrackMetadata?> tags)
     {
+        // The write-format notice counts across the whole selection, not just a first file - a bulk
+        // save converts every MP3 it writes. A file whose tags are not read yet contributes nothing
+        // here; the background pass re-runs this the moment it knows, and the count corrects itself.
+        SetId3Versions([.. tags.Select(t => t?.Id3Version)]);
+
         _uniform = TagField.None;
         Title       = Common(tags, m => m.Title, TagField.Title);
         Artist      = Common(tags, m => m.Artist, TagField.Artist);
@@ -1069,6 +1074,10 @@ public sealed partial class TagEditorViewModel
         int written = 0, unchanged = 0, deferred = 0, failed = 0, done = 0;
         string? firstError = null;
 
+        // Which files a write actually reached, per index - what the ID3-version notice needs to know
+        // afterwards. A skipped or failed file was NOT converted, and must keep its warning.
+        var didWrite = new bool[targets.Count];
+
         await Task.Run(() =>
         {
             for (var i = 0; i < targets.Count; i++)
@@ -1083,7 +1092,7 @@ public sealed partial class TagEditorViewModel
                     {
                         case null:                     unchanged++; break;
                         case TagWriteOutcome.Deferred: deferred++;  break;
-                        case TagWriteOutcome.Written:  written++;   break;
+                        case TagWriteOutcome.Written:  written++; didWrite[i] = true; break;
                         default:                       failed++;    break;
                     }
 
@@ -1111,6 +1120,7 @@ public sealed partial class TagEditorViewModel
         if (CoverState is CoverPlan.Remove or CoverPlan.Replace) CoverState = CoverPlan.Same;
         _uniform |= write;                       // what we just wrote, they now agree on
         IsDirty = false;
+        MarkId3Converted(didWrite);              // the files we wrote now carry the write format's version
 
         foreach (var t in targets) Saved?.Invoke(t.Path);
 

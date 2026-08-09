@@ -21,9 +21,9 @@ namespace JustPlay.App;
 ///
 /// <para>(!) Without that second part the fresh-install run is unusable: launching it while the real
 /// JUST PLAY is open makes the new process forward-and-exit, and you sit there looking at your real
-/// library wondering why nothing reset (Chloe 2026-07-31: "mein just play music lib ordner und index
-/// wurden nicht zurueck gesetzt - konnte die neue logik nicht testen"). The gate exists to keep ONE
-/// instance owning ONE queue and ONE settings file - two different data roots are not that case.</para>
+/// library wondering why nothing reset. Without the reset, a fresh-install test run reused the real
+/// library folder and index, so the new logic could never actually be tested. The gate exists to keep
+/// ONE instance owning ONE queue and ONE settings file - two different data roots are not that case.</para>
 /// </summary>
 public sealed class SingleInstance : IDisposable
 {

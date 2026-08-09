@@ -37,7 +37,7 @@
              the visible top/bottom inset is this ItemsPresenter margin resource (default
              0,4,0,4: vertical only; verified against Avalonia 12.0.3
              Themes.Fluent/Controls/MenuFlyoutPresenter.xaml). 0 = the first/last item's
-             hover highlight sits flush against the flyout edge (Chloe 2026-07-12, decided
+             hover highlight sits flush against the flyout edge (decided
              on JUST BOOTLEG's PROJECT menu - the suite's list menus stay identical). -->
         <Thickness x:Key="MenuFlyoutScrollerMargin">0</Thickness>
     </UserControl.Resources>
@@ -118,7 +118,7 @@
              panel can reuse them. The UP NEXT strip below still uses them unchanged (now global). -->
 
         <!-- (The headphone device ComboBox moved to TweaksPanel -> AUDIO - device setup lives in
-             Settings, not on the pre-cue tab. Chloe 2026-07-03. The duplicated precue-device-picker
+             Settings, not on the pre-cue tab. The duplicated precue-device-picker
              styles went with it; TweaksPanel's ComboBox.device-picker is the one source of truth.) -->
 
         <!--
@@ -284,7 +284,7 @@
                             VerticalAlignment="Center" ToolTip.Tip="About JustPlay">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                             <!-- TRANSPARENT chip - just the enlarged white play glyph filling the area
-                                 where the gradient chip was (Chloe 2026-06-30). -->
+                                 where the gradient chip was. -->
                             <Border Width="20" Height="20" Background="Transparent">
                                 <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="14" Height="14">
                                     <!-- Contrast shadow: white > on the bright accent chip, same soft
@@ -721,7 +721,7 @@
                                         <Border Classes="tabline"/>
                                     </Panel>
                                 </Button>
-                                <!-- PRE-CUE is a LAUNCHER, not a tab (Chloe 2026-07-05): a click opens the
+                                <!-- PRE-CUE is a LAUNCHER, not a tab: a click opens the
                                      dedicated Pre-Cue Finder window instead of switching the right column.
                                      Always visible now - the old experimental single-slot panel was retired.
                                      No active-underline (it never activates a panel); UP NEXT keeps the
@@ -776,8 +776,7 @@
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center" Margin="{DynamicResource TrackNameMargin}">
                                     <TextBlock Classes="colhead" Text="{Binding QueueTitle}" Tag="title"
                                                Tapped="OnHeaderTapped" Cursor="Hand"/>
-                                    <!-- The accent "dirty dot" that used to sit here is GONE (Chloe 2026-08-05:
-                                         "das rafft doch keiner - nicht mal ich - weg lassen"). It marked a loaded
+                                    <!-- The accent "dirty dot" that used to sit here is GONE. It marked a loaded
                                          playlist with unsaved edits, and it was read as a status light for the
                                          analyzer instead. A symbol that has to be explained is not an indicator.
                                          The STATE still exists (PlaylistDirty drives the Save command); it just no
@@ -816,8 +815,7 @@
                                  pointer, so rows never shift while dragging. Side margins match TrackRowMargin.
                                  Declared FIRST so the list renders above it is irrelevant: the line only shows
                                  during a drag and is never hit-testable. -->
-                            <!-- 1px hairline, flush with the row edges: side margins = TrackRowMargin (6/16)
-                                 (Chloe 2026-07-11: "duenner + linksbuendig mit der Liste"). -->
+                            <!-- 1px hairline, flush with the row edges: side margins = TrackRowMargin (6/16). -->
                             <Border Name="QueueDropIndicator" ZIndex="1"
                                     Height="1" Margin="6,0,16,0"
                                     VerticalAlignment="Top" HorizontalAlignment="Stretch"
@@ -860,8 +858,8 @@
                                 -->
                                 <ListBox.ContextMenu>
                                     <ContextMenu x:DataType="vm:MainWindowViewModel">
-                                        <!-- "Pre-cue on headphones" removed from the queue's right-click
-                                             (Chloe 2026-07-07): pre-cueing lives in the dedicated Pre-Cue
+                                        <!-- "Pre-cue on headphones" removed from the queue's right-click:
+                                             pre-cueing lives in the dedicated Pre-Cue
                                              Finder window now, not the main track list. -->
                                         <!-- Analyze first: the primary action - produces the values everything
                                              else writes. "Analyze" until done, then "Re-analyze". -->

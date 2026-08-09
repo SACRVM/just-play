@@ -22,7 +22,7 @@ namespace JustPlay.UI.Controls;
 /// <c>20,20,20,26</c> (Theming/JustStyles.axaml), while every window's grip grid was written out by
 /// hand as <c>20,*,20</c>. The bottom edge therefore had a dead strip between the visible card and
 /// the first pixel that resizes - 2 px in a window, 6 px in a dialog, which is what made sub-windows
-/// feel like they only resized "where the shadow ends" (Chloe 2026-08-08). Reading it off the card
+/// feel like they only resized "where the shadow ends". Reading it off the card
 /// makes the two agree by construction, in every window at once, and it keeps agreeing when the
 /// margin changes: maximizing sets it to 0, which collapses the grips to nothing - exactly the state
 /// a maximized window wants.</para>

@@ -30,7 +30,7 @@ namespace JustPlay.Library;
 /// lose a change" beats a precise but fragile reconstruction.</description></item>
 /// <item><description><b>Sweep scheduling.</b> <see cref="IsSweepDue"/> / <see cref="NoteSweepCompleted"/>
 /// track the periodic full-sweep interval - the mechanism the whole design leans on: measured
-/// 2026-07-30, enumerating all 14,186 files of Chloe's library costs 3.2 s total, so a full
+/// 2026-07-30: enumerating all 14,186 files costs 3.2 s total, so a full
 /// <c>Reconcile</c> is cheap enough to run on a timer as the SOURCE OF TRUTH, with the watcher only
 /// ever an accelerator that makes a new file show up sooner. "Is a sweep due" is exactly the same
 /// kind of clock-driven decision as "is this path ready to verify", so it lives in the same

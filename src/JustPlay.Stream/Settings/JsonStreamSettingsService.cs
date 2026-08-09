@@ -27,7 +27,7 @@ public sealed class JsonStreamSettingsService
     /// <summary>
     /// Invoked ONCE with a human message when a settings save fails (disk full, denied path) - so it
     /// surfaces in the log WINDOW instead of dying silently. Same "storage never crashes; worst case
-    /// log-window only" rule as <see cref="Logging.SessionLog"/> (Chloe 2026-07-05).
+    /// log-window only" rule as <see cref="Logging.SessionLog"/>.
     /// </summary>
     public Action<string>? OnSaveFailed { get; set; }
 

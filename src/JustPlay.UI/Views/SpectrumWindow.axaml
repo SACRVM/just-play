@@ -37,7 +37,7 @@
                      main window. One definition for every one of them. -->
                 <controls:SurfaceCard CornerRadius="14"/>
 
-                <!-- LAYERED (Chloe 2026-07-05): the spectrum fills the whole card and its peaks paint
+                <!-- LAYERED: the spectrum fills the whole card and its peaks paint
                      UP over the SPECTRUM title to the window edge, clipping only there. The chrome sits
                      BELOW the curves; the SpectrumView on top is IsHitTestVisible=False, so drag + the
                      legend + close still receive clicks straight through it. Order = chrome, then the

@@ -8,9 +8,9 @@ namespace JustPlay.Metadata;
 ///
 /// <para>It exists because the LIBRARY INDEX cannot answer it: the index stores tags, not pictures, so
 /// a row filled from it knows nothing about a cover. Reporting "no cover" for such a row is a lie, and
-/// it is the lie Chloe caught (2026-08-05: "es findet nur selten ART aber fast jeder song hat ein
-/// cover"). So the answer is fetched from the FILE, on demand, only when something actually asks -
-/// the same rule as the ID3 version.</para>
+/// it is the lie that got caught: cover detection was rarely finding artwork even though almost every
+/// song actually has one embedded. So the answer is fetched from the FILE, on demand, only when
+/// something actually asks - the same rule as the ID3 version.</para>
 ///
 /// <para>The picture SELECTION is shared with <see cref="TagLibMetadataReader"/> rather than copied:
 /// Serato and Mixed In Key put GEOB blobs into TagLib's <c>Pictures[]</c>, so "has a picture" is not

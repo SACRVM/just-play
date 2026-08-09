@@ -25,7 +25,7 @@
             PointerPressed="OnCardPressed">
         <Panel>
             <!-- The SHARED surface (JustPlay.UI SurfaceCard) - the ONE thing that makes a dialog
-                 read as its own object instead of a second main window (Chloe 2026-08-05/06). The
+                 read as its own object instead of a second main window. The
                  distinction is FLAT vs GRADIENT: windows carry the ramp plus two accent blooms, a
                  dialog carries a flat slab. Gradient and glass were both tried on this surface and
                  both failed for measured reasons - see JustPalette.axaml (banding) and

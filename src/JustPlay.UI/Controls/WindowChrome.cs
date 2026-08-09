@@ -18,7 +18,7 @@ public static class WindowChrome
     /// DOUBLE press maximizes or restores it, and a press that landed on a control does neither.
     ///
     /// <para>Double-click-to-maximize is what every title bar does, and this suite simply never had it
-    /// - all five windows went straight to <c>BeginMoveDrag</c> (Chloe 2026-08-05). It is written here
+    /// - all five windows went straight to <c>BeginMoveDrag</c>. It is written here
     /// rather than five times, because five copies is how three of them would end up with it.</para>
     ///
     /// <para>A window that is not an <see cref="IFramelessWindow"/> (a fixed-size dialog) simply does

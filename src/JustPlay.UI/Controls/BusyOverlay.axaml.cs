@@ -7,8 +7,8 @@ namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// Shared J.U.S.T. progress overlay - a floating "busy" pill for a card's OVERLAY layer, so showing
-/// progress never reflows the layout (Chloe 2026-07-15: an inline progress bar "schiebt unten alles
-/// rechts raus"; she asked for "ein generelles overlay was wir ueberall nutzen koennen"). One
+/// progress never reflows the layout: an inline progress bar used to push the layout below it
+/// around, which is bad, so this shared overlay - usable everywhere - was built instead. One
 /// implementation, one look, used across the suite. Drop it as the LAST child of a card's Panel,
 /// bind <see cref="IsActive"/> to a busy flag and (optionally) <see cref="Message"/> to a status
 /// line. It is <c>IsHitTestVisible=False</c>, so it is purely visual and never blocks a click.

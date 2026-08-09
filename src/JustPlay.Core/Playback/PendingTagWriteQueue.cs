@@ -14,7 +14,7 @@ namespace JustPlay.Core.Playback;
 /// the MAIN engine's <c>CurrentTrack</c> and flushes it on the next track change - but it only knows
 /// about that ONE lock. Two other lock sources are real and verified (2026-07-07, repro "Let It Be
 /// (remix)"): (a) the PRE-CUE finder's own engine holding a <i>different</i> file, and (b) an
-/// EXTERNAL app - Chloe's actual trigger was Windows Media Player having the file open. Neither of
+/// EXTERNAL app - the actual trigger was Windows Media Player having the file open. Neither of
 /// those is "the main current track", so re-adding a failed write to <c>_deferred</c> would busy-loop
 /// forever (the track-change event that flushes it may never fire for an unrelated lock) - hence a
 /// dedicated queue, polled on a timer instead of an event, so it self-heals once the external handle

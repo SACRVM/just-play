@@ -19,16 +19,14 @@ namespace JustPlay.UI.Behaviors;
 /// <para><b>Drag-out only</b> (<see cref="Attach(ListBox, Func{object?, string?})"/> - the finder's
 /// file list + folder tree): press a row, drag past a small threshold, and Windows' real OLE
 /// drag-drop takes over - dropping on Explorer/Traktor/an editor/an AI-agent chat window (anywhere
-/// that accepts CF_HDROP) hands over the actual file or folder path. Chloe 2026-07-08: "wichtig wenn
-/// man mal einen KI-Agenten auf ein file aufmerksam machen will."</para>
+/// that accepts CF_HDROP) hands over the actual file or folder path.</para>
 ///
 /// <para><b>Combined reorder + drag-out</b> (<see cref="Attach(ListBox, Func{object?, string?}, RowReorder)"/>
 /// - the queue): dragging INSIDE the list reorders rows (accent insertion line, edge autoscroll,
 /// multi-select moves the whole selection) - the set-building gesture, like every DJ software.
 /// Dragging OUT of the list SIDEWAYS converts the gesture into the OS file drag above. Vertical
 /// overshoot clamps the insertion point to the first/last row instead (so sorting to the very
-/// top/bottom can't accidentally become a file drag). Chloe 2026-07-11: "wie willst du ein set
-/// bauen wenn du es nicht bei hand sortieren kannst?"</para>
+/// top/bottom can't accidentally become a file drag).</para>
 /// </summary>
 /// <remarks>
 /// <para>
@@ -188,7 +186,7 @@ public static class RowDragBehavior
             // Combined list: threshold crossed -> reorder mode. Capture to the LIST so moves keep
             // arriving outside its bounds (see class remarks). Reordering a column-sorted list is
             // deliberately allowed: the commit adopts the sorted order as the new hand order and
-            // clears the sort (Chloe 2026-07-11 - implicit beats a dead gesture).
+            // clears the sort - implicit beats a dead gesture.
             state.Reordering = true;
             e.Pointer.Capture(list);
             StartAutoscroll(list, state, reorder);

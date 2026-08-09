@@ -24,7 +24,8 @@ public partial class App : Application
         themeSvc.Apply(Themes.ByNameOrDefault(settings.Current.Theme));
 
         // Apply the persisted MP3 write mode (ID3v2 version + encoding) to the TagLib# globals up front,
-        // so the very first Save uses the user's chosen format (default = mp3tag-compatible v2.3/UTF-16).
+        // so the very first Save uses the user's chosen format. The default converts nothing
+        // (Id3WriteFormat.KeepFileVersion); only the three explicit modes force a version.
         Program.Services.GetRequiredService<IMetadataWriter>().ConfigureId3WriteFormat(settings.WriteFormat);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

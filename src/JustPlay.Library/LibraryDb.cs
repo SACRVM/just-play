@@ -8,7 +8,7 @@ namespace JustPlay.Library;
 /// <summary>
 /// The per-machine library index: a local SQLite database over a library root.
 ///
-/// <para><b>Why local and not on the share (Chloe, 2026-07-30).</b> The music lives on
+/// <para><b>Why local and not on the share (2026-07-30).</b> The music lives on
 /// <c>\\nas\music</c> and two machines use it. A shared database file is not an option: SQLite's
 /// own documentation says <i>"WAL does not work over a network filesystem"</i> and <i>"All
 /// processes using a database must be on the same host computer"</i>, and for rollback mode over
@@ -54,7 +54,7 @@ public sealed class LibraryDb : IDisposable
             SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))[..8];
 
         // NOT Path.GetFileName: for a UNC share root like \\nas\music - exactly the shape of
-        // Chloe's library root - that returns "" (the share IS the root), and every library
+        // a UNC share library root - that returns "" (the share IS the root), and every library
         // would end up called "library-<hash>". Take the last non-empty segment instead.
         var lastSegment = normalized
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)

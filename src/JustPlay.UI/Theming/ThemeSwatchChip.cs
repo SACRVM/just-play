@@ -10,7 +10,7 @@ using JustPlay.Core.Theming;
 namespace JustPlay.UI.Theming;
 
 /// <summary>
-/// Theme-picker swatch chip (Chloe 2026-06-30). A square split DIAGONALLY from bottom-left -> top-right:
+/// Theme-picker swatch chip. A square split DIAGONALLY from bottom-left -> top-right:
 /// the UPPER-left triangle shows the theme's HIGHLIGHT/accent gradient (<see cref="ThemeBrushes.IconGradient"/>),
 /// the LOWER-right shows the theme's BACKGROUND gradient (<see cref="ThemeBrushes.BackgroundGradient"/>) -
 /// so dark themes (Onyx/Midnight) read dark and the chip honestly previews the theme, not just its bright

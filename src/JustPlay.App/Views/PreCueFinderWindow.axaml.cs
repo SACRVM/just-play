@@ -46,10 +46,9 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
         // OS file/folder-copy drag-out (drag-out-only mode of RowDragBehavior; the queue additionally
         // reorders): press-drag a FILE row or a FOLDER row past a small threshold and drop it on
-        // Explorer / an editor / an AI-agent chat window to hand over the real path - "einen KI-Agenten
-        // auf ein file aufmerksam machen" (Chloe 2026-07-08). The finder lists deliberately do NOT
-        // reorder: they are sorted browse views, not a hand-ordered set. A folder drags the whole
-        // folder; the ".." hop isn't draggable.
+        // Explorer / an editor / an AI-agent chat window to hand over the real path. The finder lists
+        // deliberately do NOT reorder: they are sorted browse views, not a hand-ordered set. A folder
+        // drags the whole folder; the ".." hop isn't draggable.
         if (this.FindControl<ListBox>("FinderList") is { } fileList)
             RowDragBehavior.Attach(fileList, dc => (dc as FinderItemViewModel)?.FullPath);
         if (this.FindControl<ListBox>("FolderList") is { } folderList)
@@ -60,7 +59,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
         // macOS: the left "PRE CUE FINDER" brand is hidden (XAML) and the chrome centre is
         // shared - at the library ROOT it shows the centered brand (MacBrand), one folder
-        // deeper the folder breadcrumb (both worlds, Chloe 2026-07-15). The settings gear
+        // deeper the folder breadcrumb (both worlds). The settings gear
         // owns the top-right corner, so its hover gets the card radius (Button.cap.corner).
         if (OperatingSystem.IsMacOS())
         {
@@ -85,13 +84,13 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         // TUNNEL + handledEventsToo so the finder's keys beat BOTH the focused ListBoxItem/Button
         // AND Avalonia's KeyboardNavigationHandler - which runs first in the tunnel and marks Tab
         // Handled (verified vs release/12.0.3). Without handledEventsToo our Tab handler would be
-        // skipped once KNH handled it, so the folders/files switch never ran (Chloe 2026-07-06).
+        // skipped once KNH handled it, so the folders/files switch never ran.
         // This window opts OUT of the suite-wide SuppressTab (it repurposes Tab) - see the XAML.
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
 
         // Avalonia's Button raises Click on Space KEYUP whenever it IsFocused (Button.OnKeyUp checks only
         // IsFocused, NOT our handled KeyDown - verified vs release/12.0.3), so a clicked caption/chrome
-        // button would ALSO fire on our Space ("space loest die Aktion auch aus", Chloe 2026-07-06). Two
+        // button would ALSO fire on our Space. Two
         // guards: swallow Space/Enter on KeyUp in the main view, and bounce keyboard focus off any
         // non-list control after a click so our keys never target a focused button in the first place.
         AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -262,9 +261,8 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
 #if DEBUG
         // -- Perf probes, Debug builds only ----------------------------------------------------
-        // Chloe 2026-07-31: "das scrollen im pre cue finder ist sehr traege ... man merkt auch wenn
-        // man mit der maus ueber die liste faehrt und das row highlighting ausloest dass es
-        // hinterherhinkt ... als waere die FPS im sack".
+        // The finder's scrolling felt sluggish; even row-highlight-on-hover visibly lagged, as if
+        // frame rate had collapsed.
         //
         // (!!) RULED OUT by measurement, do not re-litigate: the lists' bottom-fade OpacityMask. It
         // was the obvious suspect (a mask forces its subtree through an offscreen layer on every
@@ -276,8 +274,8 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         // BoxShadow on a ClipToBounds=False card and three full-window gradient rectangles. That
         // cost scales with WINDOW SIZE, not with track count, which matches "everything is slow".
         //
-        //   F9  - a readout you can actually READ. Avalonia's own FPS overlay was useless here
-        //         ("die fps anzeige ist fuer die tonne - ich kann da nix erkennen"), and an average
+        //   F9  - a readout you can actually READ. Avalonia's own FPS overlay was useless here -
+        //         unreadable, nothing to make out - and an average
         //         hides exactly what she feels anyway: it is the WORST frame gap that reads as lag,
         //         not the mean. So: big text, fps AND worst-frame-in-the-last-second, plus what
         //         transparency the OS actually granted (the hint is a wish list; the OS decides).
@@ -332,7 +330,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         if (vm.SettingsOpen || vm.HelpOpen || IsTextBoxFocused()) return;
 
         // Two panes, Norton-Commander style: FOLDERS left, FILES right. ^/v browse the active pane;
-        // Enter descends / adds; Backspace goes up but ONLY in the folders pane (Chloe 2026-07-05).
+        // Enter descends / adds; Backspace goes up but ONLY in the folders pane.
         var inFolders = vm.ActivePane == PreCueFinderViewModel.FinderPane.Folders;
 
         switch (e.Key)
@@ -353,7 +351,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
             case Key.Enter:
                 // ".." up / descend / open a leaf folder or playlist (the VM hands focus to the file
-                // pane itself); in the file pane Enter PLAYS the selected song (Chloe 2026-07-06).
+                // pane itself); in the file pane Enter PLAYS the selected song.
                 if (inFolders) vm.ActivateEntry();
                 else vm.PlaySelected();
                 e.Handled = true;
@@ -365,7 +363,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
                 // "+" adds the selected song(s) to the current list. A is a layout-safe alias: on French
                 // AZERTY / German QWERTZ the physical "+"/OemPlus key doesn't always map, and numpad + is
                 // absent on many laptops - the letter A is reachable without a modifier on every layout
-                // (Avalonia binds the letter, not the physical position). Chloe 2026-07-07.
+                // (Avalonia binds the letter, not the physical position).
                 if (!inFolders) vm.ActivateSelected();
                 e.Handled = true;
                 break;
@@ -550,11 +548,11 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
 
     // After any click that didn't land inside one of the two list panes (a caption / chrome / breadcrumb
     // button, the splitter...), hand keyboard focus back to the active pane - so a focused button can't keep
-    // focus and hijack Space/Enter (Chloe 2026-07-06: "space loest die Aktion auch aus").
+    // focus and hijack Space/Enter.
     private void OnWindowPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         // Only the LEFT button steals focus onto buttons; a right-click opens the row context menu and must
-        // not trigger the focus-bounce (which could fight the popup). Chloe 2026-07-07.
+        // not trigger the focus-bounce (which could fight the popup).
         if (e.InitialPressMouseButton != MouseButton.Left) return;
         if (ViewModel is not { } vm || vm.SettingsOpen || vm.HelpOpen) return;
         if (IsTextBoxFocused()) return; // clicked into the FILTER search - keep focus there, don't bounce it away
@@ -579,7 +577,7 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         if ((sender as Control)?.Tag is string col) ViewModel?.Columns.SortBy(col);
     }
 
-    // -- Player-bar transport buttons (mirror the keyboard shortcuts as real UI buttons - Chloe 2026-07-07).
+    // -- Player-bar transport buttons (mirror the keyboard shortcuts as real UI buttons).
     // After the click, OnWindowPointerReleased bounces focus back to the active pane, so Space/arrows keep
     // working (the button never keeps focus and hijacks the keys).
     private void OnCuePlayPause(object? sender, RoutedEventArgs e) => ViewModel?.TogglePlayPause();
@@ -615,8 +613,8 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         try
         {
             // Start the picker at the CURRENT root - or its nearest existing ancestor if that path is
-            // dead/offline (NAS) - instead of dumping the user somewhere random (Chloe 2026-07-05:
-            // "der klassiker beim folder picker"; same fix as the main window / JUST STREAM).
+            // dead/offline (NAS) - instead of dumping the user somewhere random (same fix as the main
+            // window / JUST STREAM).
             var start = ViewModel?.LibraryRoot;
             while (!string.IsNullOrEmpty(start) && !Directory.Exists(start))
                 start = Path.GetDirectoryName(start);

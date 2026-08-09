@@ -121,8 +121,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         // replace below. Swapping Servers[idx] removes the old record from the SHARED Profiles
         // collection, which makes the main-window ComboBox null its SelectedItem (-> SelectedProfile =
         // null) SYNCHRONOUSLY. Testing the condition afterwards would always see null and skip the
-        // restore - that's the "renaming the active profile deselects it in the main window" bug
-        // (Chloe 2026-07-05). Captured up front, we can put the selection back on the renamed record.
+        // restore - that's the "renaming the active profile deselects it in the main window" bug.
+        // Captured up front, we can put the selection back on the renamed record.
         var mainWindowFollows = Stream.SelectedProfile?.Id == updated.Id;
 
         // Guard the WHOLE mutation. Replacing Servers[idx] makes the ListBox re-evaluate its

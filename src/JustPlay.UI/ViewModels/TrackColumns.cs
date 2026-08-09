@@ -13,7 +13,7 @@ namespace JustPlay.UI.ViewModels;
 /// rows: the owning view-model keeps its own collection and re-sorts (via the shared <see cref="TrackSort"/>)
 /// when <see cref="SortRequested"/> fires. The shared <see cref="Controls.TrackRow"/> and header bind their
 /// cell visibility + sort glyphs straight to this object, so a new column is added in exactly one place.
-/// (Chloe 2026-07-07 - the anti-drift refactor; 2026-08-05 the tagging columns joined for JUST TAG.)
+/// (The anti-drift refactor landed 2026-07-07; the tagging columns joined 2026-08-05 for JUST TAG.)
 /// </summary>
 public sealed partial class TrackColumns : ObservableObject
 {
@@ -24,13 +24,13 @@ public sealed partial class TrackColumns : ObservableObject
         Gain = "gain", Lufs = "lufs", Dark = "dark", Hypnotic = "hypnotic", Groove = "groove",
         Punch = "punch", Harsh = "harsh", Comment = "comment", Duration = "duration", Like = "like";
 
-    // The tagging columns (JUST TAG's focus). "What you can filter on, you must be able to see" -
-    // Chloe 2026-08-05: the search can aim at a cover, an ID3 version or a file type, so the table has
-    // to be able to show those too, or a hit is a claim you cannot check.
+    // The tagging columns (JUST TAG's focus). What you can filter on, you must be able to see:
+    // the search can aim at a cover, an ID3 version or a file type, so the table has to be able
+    // to show those too, or a hit is a claim you cannot check.
     public const string Album = "album", AlbumArtist = "albumartist", Year = "year", TrackNo = "trackno",
         Cover = "cover", Id3 = "id3", FileType = "filetype", FileName = "filename",
         // The traffic light: is OUR analysis current, a version behind, or absent? JUST TAG is where
-        // you check and re-trigger it, so it earns a column of its own (Chloe 2026-08-05).
+        // you check and re-trigger it, so it earns a column of its own.
         Analysis = "analysis";
 
     private HashSet<string> _enabled;
@@ -44,7 +44,7 @@ public sealed partial class TrackColumns : ObservableObject
     /// <summary>
     /// The content-sized widths of the flexible TEXT columns for THIS table. It lives here because
     /// one table owns one <see cref="TrackColumns"/>, which is exactly the scope the sizing is meant
-    /// to have - per view, not per app (Chloe 2026-08-06). The row and header bind through it, so a
+    /// to have - per view, not per app. The row and header bind through it, so a
     /// host needs no extra plumbing; it only has to call
     /// <see cref="TrackColumnWidths.Measure"/> when its listing changes.
     /// </summary>

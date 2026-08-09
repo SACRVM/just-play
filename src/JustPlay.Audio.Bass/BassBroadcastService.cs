@@ -101,8 +101,8 @@ public sealed class BassBroadcastService : IBroadcastService
 
     // -- Auto-reconnect (the Advanced-tab promise, built 2026-07-05) -----------------------
     // When the cast connection (or the encoder feeding it) dies, we retry the LAST profile
-    // with exponential backoff - 2/4/8/16 s, then capped at 30 s (Chloe: 60 was too slow for
-    // the club case) - INDEFINITELY, until a retry succeeds or the user hits DISCONNECT. Between attempts the public state stays
+    // with exponential backoff - 2/4/8/16 s, then capped at 30 s (a 60 s cap was too slow to
+    // recover from a drop in a live club set) - INDEFINITELY, until a retry succeeds or the user hits DISCONNECT. Between attempts the public state stays
     // Reconnecting (no Error flicker); every attempt is visible in the console log. A running
     // set recording is a separate encoder on the mixer and is never touched by any of this.
     private StreamServerProfile? _lastProfile;

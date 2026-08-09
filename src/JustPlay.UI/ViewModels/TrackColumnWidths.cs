@@ -10,7 +10,7 @@ namespace JustPlay.UI.ViewModels;
 /// The width of every FLEXIBLE text column in one track table, sized to what that table is actually
 /// showing.
 ///
-/// <para><b>The idea</b> (Chloe 2026-08-06): a column should be as wide as its CONTENT needs, not as
+/// <para><b>The idea:</b> a column should be as wide as its CONTENT needs, not as
 /// wide as someone once typed into a resource dictionary. Measure the 90th percentile of each
 /// column's character count over the rows currently listed - 90th, so the one track with the
 /// 140-character title cannot dictate the whole table - then share the space left over after the
@@ -41,7 +41,7 @@ public sealed partial class TrackColumnWidths : ObservableObject
     private static readonly IReadOnlyDictionary<string, double> Floors =
         new Dictionary<string, double>(StringComparer.Ordinal)
         {
-            // "never lose the title" (Chloe 2026-07-08) - and 170 is what her real titles need.
+            // The title must never be lost - and 170 is what her real titles need.
             [TrackColumns.Title]       = 170,
             [TrackColumns.Artist]      = 85,
             [TrackColumns.Album]       = 90,
@@ -79,8 +79,8 @@ public sealed partial class TrackColumnWidths : ObservableObject
 
     /// <summary>
     /// Re-measure from the rows now listed. Cheap: one pass over the strings, no IO - every field it
-    /// reads comes off the row, which since schema v3 means off the index (Chloe 2026-08-07: "null
-    /// live zugriffe"). Call it when the listing changes, not per row.
+    /// reads comes off the row, which since schema v3 means off the index. Call it when the
+    /// listing changes, not per row.
     /// </summary>
     public void Measure(IReadOnlyList<TrackViewModel> rows)
     {

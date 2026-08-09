@@ -34,7 +34,7 @@ public partial class MainWindow : Window, IFramelessWindow
     private SpectrumWindow? _spectrum;
 
     // Compact view (mirrors JUST PLAY): narrower window, only server-select + ON-AIR + output level.
-    private const double MiniWidth = 750;   // Chloe: 450 too small, 700 still too narrow overall -> 750 (2026-07-05)
+    private const double MiniWidth = 750;   // 450 too small, 700 still too narrow overall -> 750 (2026-07-05)
     private const double MiniHeight = 350;  // compact, explicit. Budgets the bottom KeyLegend hint bar
                                             // (added 2026-07-06, after 320 was tuned) so it can't clip the
                                             // output meters. Any slack lands as a gap ABOVE the hint bar, not a clip.
@@ -62,8 +62,8 @@ public partial class MainWindow : Window, IFramelessWindow
         _meterL = this.FindControl<LevelMeter>("MeterL");
         _meterR = this.FindControl<LevelMeter>("MeterR");
 
-        // In-app keyboard hotkeys (Chloe/Torres 2026-07-06: keyboard-only broadcaster - you're already
-        // IN JUST STREAM to go on air, so this saves the reach for the mouse). TUNNEL so a focused
+        // In-app keyboard hotkeys (keyboard-only broadcaster shortcuts - you're already
+        // IN JUST STREAM to go on air, so this saves reaching for the mouse). TUNNEL so a focused
         // button/slider doesn't eat the key; the handler guards against the profile ComboBox's
         // type-ahead. C = on air / off air, R = record / stop (shown in the bottom hint bar).
         AddHandler(KeyDownEvent, OnHotkeyDown, RoutingStrategies.Tunnel);
@@ -163,7 +163,7 @@ public partial class MainWindow : Window, IFramelessWindow
         {
             _fullPosition = Position;
             // Mini is the SAME window, ONLY smaller + fewer rows shown. NO behaviour differs - no
-            // topmost, no transparency change. (Chloe: "der einzige Unterschied ist kleiner + es fehlen Dinge".)
+            // topmost, no transparency change.
             // Switch OFF auto-fit so the explicit compact height sticks (SizeToContent would re-grow it).
             SizeToContent = SizeToContent.Manual;
             // CRITICAL: the XAML mins (MinWidth=920, MinHeight=420) would CLAMP the mini size back up -

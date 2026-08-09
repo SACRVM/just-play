@@ -31,7 +31,7 @@ public partial class TagEditorPanel : UserControl
     /// not the view model - the view model is the file's state and is shared with whatever else a host
     /// wires to it, while "which half am I looking at" belongs to this panel.
     ///
-    /// <para>The panel no longer draws the switch itself (Chloe 2026-08-05): the HOST owns its pane
+    /// <para>The panel no longer draws the switch itself: the HOST owns its pane
     /// header, and a panel with its own tab bar produced a second row of tabs right under the first.
     /// Hosts bind this - JUST TAG from its EDITOR | ANALYSIS | FILTER header, the floating window from
     /// its chrome.</para>

@@ -149,7 +149,7 @@ public partial class MainWindow : Window, IFramelessWindow
     // FramelessResizeBehavior, which had been extracted FROM here so every JUST window would resize
     // identically, and which this window then never adopted. Six windows used the shared one, this
     // one used its twin, and the twin is where a stray debug Console.WriteLine had been sitting on
-    // every mouse-up. Deleted in favour of the shared behaviour (Chloe 2026-08-08).
+    // every mouse-up. Deleted in favour of the shared behaviour.
     //
     // The grip band comes from RootCard's own margin now, so it ends exactly where the card begins
     // instead of at a hand-typed 20 - see FramelessResizeBehavior. Maximizing zeroes that margin and

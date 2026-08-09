@@ -101,7 +101,7 @@ public readonly record struct AnalysisBatchProgress(
 ///
 /// <para><b>The gap it closes.</b> <see cref="LibrarySync.Reconcile"/> already returns
 /// <see cref="SyncReport.QueuedForAnalysis"/> - every indexed file with no analysis. Measured on
-/// Chloe's real index 2026-07-31: 18,009 rows, 14,994 analysed, <b>3,015 needing analysis</b>, 0
+/// a real index 2026-07-31: 18,009 rows, 14,994 analysed, <b>3,015 needing analysis</b>, 0
 /// failed. Today the app throws that list away. This is the queue that consumes it.</para>
 ///
 /// <para><b>Everything is a decision, nothing is an action.</b> <see cref="TryLease"/> is the single

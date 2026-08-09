@@ -10,7 +10,7 @@ namespace JustPlay.UI.Controls;
 
 /// <summary>
 /// Click-to-seek waveform scrubber - centred vertical bars (SoundCloud / FUVI look), the played portion
-/// in the accent colour, the rest dimmed, a playhead at the current position (Chloe 2026-07-07, from the
+/// in the accent colour, the rest dimmed, a playhead at the current position (from the
 /// FUVI clan reference). <see cref="Peaks"/> is a normalised 0..1 envelope (see <c>IWaveformService</c>);
 /// the control resamples it to its own pixel width, so it's resize-robust and independent of the compute
 /// resolution. Click or drag anywhere runs <see cref="SeekCommand"/> with the 0..1 fraction.
@@ -194,7 +194,7 @@ public sealed class WaveformView : Control
 
         // Full-bounds transparent layer FIRST: Avalonia's compositor hit-tests a control against its drawn
         // geometry, not its layout rect - without this, only the painted bars (a central band) catch clicks,
-        // so the empty top/bottom aren't seekable (Chloe 2026-07-07). This makes the whole height clickable.
+        // so the empty top/bottom aren't seekable. This makes the whole height clickable.
         ctx.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
 
         var played = PlayedBrush ?? Brushes.DeepSkyBlue;

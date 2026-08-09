@@ -1,14 +1,14 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:JustPlay.Tag.ViewModels"
+             xmlns:uivm="using:JustPlay.UI.ViewModels"
              xmlns:uic="using:JustPlay.UI.Controls"
              xmlns:theming="using:JustPlay.UI.Theming"
              x:Class="JustPlay.Tag.Controls.SettingsPanel"
              x:DataType="vm:SettingsViewModel">
 
     <!--
-      JUST TAG's settings as a SLIDE-IN PANEL on the right, not a separate window (Chloe 2026-08-06:
-      "in just tag haette ich die settings auch gerne als overlay panel rechts"). Same shape as JUST
+      JUST TAG's settings as a SLIDE-IN PANEL on the right, not a separate window. Same shape as JUST
       PLAY's tweaks sidebar - the suite's second window-less surface - so the two are siblings and not
       two ideas about what settings look like.
 
@@ -143,7 +143,8 @@
                 <!-- === WORKERS ===
                      JUST PLAY's "Analysis threads" control, PORTED - same range, same default, same
                      radio-button idiom, because a second dialect of one knob is how two JUST windows
-                     start behaving differently (Chloe 2026-08-07: "wozu hat man zig prozessorkerne?!").
+                     start behaving differently. A machine with a dozen processor cores should be able
+                     to put more than one of them to work.
                      Reading a tag waits on the NETWORK, not on a core, so this is close to a linear
                      speed-up on a big folder - it is not a CPU setting despite looking like one. -->
                 <StackPanel Spacing="10">
@@ -248,24 +249,26 @@
                     <!-- Measured 2026-07-31 (128 writes / 787 vendor frames): a version change
                          re-serialises the tag and re-encodes GEOB descriptors. Payloads survive
                          byte-for-byte; the LABEL Serato/MIK search by does not. Re-verified against
-                         the shipped writer: F_mik_armstrong.mp3 (v2.4) saved in the DEFAULT mode
-                         came back v2.3 with GEOB:CuePoints relabelled Latin-1 -> UTF-16+BOM. -->
+                         the shipped writer: an ID3v2.4 file saved in a CONVERT mode came back v2.3
+                         with GEOB:CuePoints relabelled Latin-1 -> UTF-16+BOM.
+
+                         The consequence sentence is the SHARED one (Id3ConversionNotice.Body) - the
+                         same words the editor's per-file notice and the RAW TAGS window use, so one
+                         fact does not get three voices in one product. The style and the caution mark
+                         are shared too (JustStyles Border.caution, JustIcon Warning); this card used
+                         to draw its own copy of the triangle. -->
                     <Border Classes="caution">
                         <Grid ColumnDefinitions="Auto,11,*">
-                            <!-- Lucide "triangle-alert". -->
-                            <Path Grid.Column="0" Stretch="Uniform" Width="15" Height="15"
-                                  VerticalAlignment="Top" Margin="0,1,0,0"
-                                  Stroke="{DynamicResource CautionBrush}" StrokeThickness="1.8"
-                                  StrokeLineCap="Round" StrokeJoin="Round" Fill="Transparent"
-                                  Data="M10.29 3.86 L1.82 18 a2 2 0 0 0 1.71 3 h16.94 a2 2 0 0 0 1.71 -3
-                                        L13.71 3.86 a2 2 0 0 0 -3.42 0 Z M12 9 v4 M12 17 h.01"/>
+                            <uic:JustIcon Grid.Column="0" Kind="Warning" Width="14" Height="14"
+                                          VerticalAlignment="Top" Margin="0,1,0,0"
+                                          Foreground="{DynamicResource CautionBrush}"/>
                             <StackPanel Grid.Column="2" Spacing="4">
                                 <TextBlock Classes="cautiontitle"
                                            Text="Converting rewrites Serato's frame labels"/>
                                 <TextBlock Classes="cautionbody"
-                                           Text="Serato and Mixed In Key find their cue points, key and energy by the frame label. Converting an MP3 to another ID3 version rewrites those labels, and they can stop finding the data."/>
+                                           Text="{x:Static uivm:Id3ConversionNotice.Body}"/>
                                 <TextBlock Classes="cautionfix"
-                                           Text="A convert option applies to every file you save, not only the ones that need it. JUST TAG warns you above Save when the open file would change."/>
+                                           Text="A convert option applies to every file you save, not only the ones that need it. JUST TAG warns you above Save whenever what you have open - one file or a whole selection - is not on the chosen version already."/>
                             </StackPanel>
                         </Grid>
                     </Border>

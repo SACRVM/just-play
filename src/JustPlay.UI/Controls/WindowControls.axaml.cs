@@ -43,7 +43,7 @@ public partial class WindowControls : UserControl
     ///
     /// <para>The maximize button swaps its mark on this: a single square means "maximize", two
     /// overlapping rectangles mean "restore". We drew the square in both states, which told a
-    /// maximized window's user to maximize it again (Chloe 2026-08-06).</para>
+    /// maximized window's user to maximize it again.</para>
     /// </summary>
     public static readonly StyledProperty<bool> IsMaximizedProperty =
         AvaloniaProperty.Register<WindowControls, bool>(nameof(IsMaximized));

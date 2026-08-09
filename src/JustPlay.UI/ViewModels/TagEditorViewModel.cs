@@ -49,7 +49,7 @@ public sealed record Measurement(string Label, string Text, double Bar, string? 
 /// JUST PLAY / the PRE CUE FINDER, and JUST TAG's docked sidebar. Written once so the two cannot
 /// drift (see memory <c>suite-unify-dont-patch-divergence</c>).
 ///
-/// <para><b>It follows the SELECTION, never playback</b> (Chloe 2026-08-02). If the editor retargeted
+/// <para><b>It follows the SELECTION, never playback</b>. If the editor retargeted
 /// itself when a track ended, you would be typing an artist name and get a save prompt triggered by
 /// an event you did not cause. The host pushes a target; auto-advance must not.</para>
 ///
@@ -118,7 +118,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     /// <see cref="FilePath"/> on purpose, so that nothing can quietly act on "the" file.</summary>
     public bool HasFile => FilePath is not null || IsMulti;
 
-    // -- The file NAME, editable (Chloe 2026-08-03: "dateiname mit reinpacken und aenderbar machen") -
+    // -- The file NAME, editable -
     //
     // Not a tag, but it is the thing you most want to fix while tidying up, and leaving it out would
     // mean switching tools for half the job. The EXTENSION is deliberately not editable: it is shown
@@ -188,7 +188,6 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// Put the name the file actually has on disk back in the box - the way OUT of a rename.
     /// Until this existed the only exit was Revert, which also throws the tag edits away
-    /// (Chloe 2026-08-05: "wie komm ich aus der file rename geschichte wieder raus?").
     /// Nothing else is touched, so a half-typed comment survives changing your mind about the name.
     /// </summary>
     public void RestoreOriginalName()
@@ -240,7 +239,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     private string? _comment;
     public string? Comment { get => _comment; set => SetField(ref _comment, value); }
 
-    // -- Analysis fields, hand-correctable (Chloe 2026-08-02: "ja bpm/key von hand korrigieren") --
+    // -- Analysis fields, hand-correctable --
     //
     // These are OUR measurements, so correcting one by hand is a statement, not a typo fix: it says
     // "the detector is wrong on this track". That is recorded as FieldDecision.Kept - the enum's
@@ -366,7 +365,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     /// The footer line - reserved for things that HAPPENED: a save, a rename preview, a value we
     /// could not parse. It is deliberately empty while nothing has happened, and it never repeats
     /// the file name: that already sits in the FILE NAME field and in whatever list the host is
-    /// showing behind this panel (Chloe 2026-08-05: "die info ist zig fach sonst in dem UI").
+    /// showing behind this panel.
     /// </summary>
     public string Status { get => _status; private set => Set(ref _status, value); }
 
@@ -401,6 +400,9 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         _renameMask = null;
         ClearTagFromName();
         CoverState = CoverPlan.Same;
+        // Drop the previous target's version FIRST: a read that throws below must not leave the
+        // write-format notice standing about a file that is no longer open.
+        SetId3Versions([]);
         try
         {
             var m = _reader.Read(path);
@@ -409,6 +411,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             FilePath = path;
             FileName = Path.GetFileName(path);
             FileInfo = BuildInfo(m, path);
+            SetId3Versions([m.Id3Version]);
 
             Extension = Path.GetExtension(path);
             _baselineBaseName = Path.GetFileNameWithoutExtension(path);
@@ -465,6 +468,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         ClearTagFromName();
         CoverState = CoverPlan.Same;
         FilePath = null; _loaded = null;
+        SetId3Versions([]);
         FileName = ""; FileInfo = "";
         Extension = ""; BaseName = null; _baselineBaseName = null;
         Title = Artist = Album = AlbumArtist = Genre = Year = Track = Comment = null;
@@ -488,7 +492,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     /// <para>(!) A SELECTION has no <see cref="FilePath"/> - deliberately, so nothing can quietly act
     /// on "the" file - so this used to walk straight past a multi-file edit and do nothing at all,
     /// while leaving <see cref="IsDirty"/> standing. Pressing Revert appeared to be ignored and the
-    /// next click still asked about unsaved changes (Chloe 2026-08-09).</para>
+    /// next click still asked about unsaved changes.</para>
     /// </summary>
     public void Revert()
     {
@@ -648,6 +652,10 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
                 _coverAction = CoverAction.Keep;      // what we just saved IS the file's cover now
                 _baseline = now;
                 IsDirty = false;
+                // The version notice was about THIS save. A write that actually reached the file has
+                // now done the conversion, so the warning clears; a rename-only save touched no tag
+                // and leaves it standing.
+                MarkId3Converted([editorialChanged || analysisChanged]);
                 // Plain words, no "ok": a status LINE is text, and a tick in it would be a font glyph,
             // which this suite does not ship (CLAUDE.md rule 5).
             Status = "Saved";

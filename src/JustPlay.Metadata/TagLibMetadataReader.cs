@@ -48,8 +48,10 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 CoverArt = FirstPicture(tag),
                 // Costs one 4-byte read of the file head, and only during a SYNC - so that the ID3
                 // column can be painted straight out of the index instead of probing every visible
-                // row at display time (Chloe 2026-08-07).
-                Id3Version = Id3VersionProbe.Read(filePath) is { } major ? $"2.{major}" : null,
+                // row at display time.
+                Id3Version = Id3VersionProbe.Read(filePath) is { } major
+                             ? Id3VersionProbe.ShortName(major)
+                             : null,
                 IsFavorite = ReadPopm(file),
             };
         }

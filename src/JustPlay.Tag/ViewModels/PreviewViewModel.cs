@@ -11,7 +11,7 @@ namespace JustPlay.Tag.ViewModels;
 ///
 /// <para><b>Why it exists:</b> mp3tag cannot play anything - it hands the file to whatever the OS
 /// has registered, which means leaving the tagger to hear the track you are tagging. We have an
-/// engine, so the preview lives in the pane (Chloe 2026-08-05).</para>
+/// engine, so the preview lives in the pane.</para>
 ///
 /// <para><b>What it deliberately is not:</b> a player. No queue, no crossfade, no DSP rack, no
 /// device picker - Load, Play, Pause, Seek. JUST PLAY is the player; this is the ear you need while
@@ -91,7 +91,7 @@ public sealed class PreviewViewModel : INotifyPropertyChanged, IDisposable
     /// <para>(!) Binding a Slider's Maximum straight to <see cref="Duration"/> is a trap: with nothing
     /// loaded that is 0, so Minimum == Maximum, and Avalonia has no ratio to place the thumb by - it
     /// parks it at the END. The empty player then showed a full progress bar next to "0:00"
-    /// (Chloe 2026-08-06). A floor of 1 keeps the thumb where "nothing has played yet" belongs.</para></summary>
+    /// A floor of 1 keeps the thumb where "nothing has played yet" belongs.</para></summary>
     public double SeekMax => _duration > 0 ? _duration : 1;
 
     public string Elapsed => Format(_position);
@@ -99,7 +99,7 @@ public sealed class PreviewViewModel : INotifyPropertyChanged, IDisposable
 
     /// <summary>What is loaded, in words. The transport lives on the far side of the window from the
     /// file list, and the cursor can move away from the playing file - so the player has to say what
-    /// it is playing rather than leave it to be inferred from a highlighted row (Chloe 2026-08-06).
+    /// it is playing rather than leave it to be inferred from a highlighted row.
     /// The file NAME, not the title tag: a tagger is often looking at files whose tags are wrong or
     /// missing, and the name is the thing that is always there.</summary>
     public string? TrackName =>
@@ -185,8 +185,7 @@ public sealed class PreviewViewModel : INotifyPropertyChanged, IDisposable
         var pos = _engine.Position.TotalSeconds;
 
         // (!) USER-SEEK RECONCILIATION - the "drags and it jumps back, then forward" bug, ported from
-        // MainWindowViewModel where it was solved once already (Chloe 2026-08-06: "alter bug neu
-        // erfunden ... das hatten wir frueher bei just play auch").
+        // MainWindowViewModel where it was solved once already.
         //
         // Dragging the thumb writes Position -> the native engine seeks. BASS needs a moment before it
         // reports the new position, so the very next 200 ms tick reads the OLD one and writes it back

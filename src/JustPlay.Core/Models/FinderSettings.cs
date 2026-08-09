@@ -26,8 +26,8 @@ public sealed record FinderSettings
     /// <summary>
     /// When true, moving the selection (arrow / click) auto-plays the song on the cue device
     /// after the ~1 s debounce; when false (the DEFAULT), browsing is silent and Enter plays the
-    /// selected song. Chloe 2026-07-06: "Return ist der default zum Abspielen ... in den Settings
-    /// gibt's aber ein auto play song Schalter - damit macht man alle gluecklich."
+    /// selected song. Enter-to-play is the default; a Settings toggle for auto-play-on-select
+    /// covers users who prefer that instead, so both preferences are satisfied.
     /// </summary>
     public bool AutoPlayOnSelect { get; init; } = false;
 
@@ -43,7 +43,7 @@ public sealed record FinderSettings
 
     /// <summary>
     /// Search depth: false = the selected folder only, true = it and everything below it.
-    /// Persisted because it is a habit, not a per-visit decision (Chloe 2026-07-30).
+    /// Persisted because it is a habit, not a per-visit decision.
     ///
     /// <para>Searching below the current folder is only possible when the rows come from the index -
     /// walking a subtree from disk would mean a tag read per file (~57 ms each, measured over SMB).

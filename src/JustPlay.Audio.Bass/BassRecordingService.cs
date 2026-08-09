@@ -57,9 +57,9 @@ public sealed class BassRecordingService : IRecordingService
     // as BassBroadcastService._notifyProc / BassAudioEngine._endSync).
     private EncodeNotifyProcedure? _notifyProc;
 
-    // -- Auto-trim silence gate (Chloe, 2026-07-04: "erst online, dann Musik - 10-15 min
-    // Stille am Anfang... und am Ende" + "diese Stille ist dann aufgezeichnet - ob wir wollen
-    // oder nicht") ------------------------------------------------------------------------
+    // -- Auto-trim silence gate (going on air happens before the music starts, so an untrimmed
+    // recording picks up 10-15 min of silence at the start - and again at the end - whether you
+    // want it or not) ------------------------------------------------------------------------
     // Silence is never WRITTEN - including the tail. The naive approach (pause the encoder
     // after N s of silence) still records those N s before the pause; her follow-up killed it.
     // Instead the encoder runs permanently PAUSED (= BASS never auto-feeds it) and we feed it

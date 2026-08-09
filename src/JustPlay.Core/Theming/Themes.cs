@@ -37,7 +37,7 @@ public static class Themes
         BottomBarTo:     "#d94a8a");
 
     /// <summary>
-    /// "Midnight" - a TRUE dark / night mode (Chloe 2026-06-29): black -> dark grey-blue background,
+    /// "Midnight" - a TRUE dark / night mode: black -> dark grey-blue background,
     /// calm steel/ice-blue accents (no neon, low strain - easy on the eyes, esp. for JUST STREAM's
     /// long sessions). This REPLACES the old JSX-port Midnight (a saturated navy with bright
     /// cyan/violet accents) - that one didn't read as "night mode". Background is desaturated
@@ -56,7 +56,7 @@ public static class Themes
         BottomBarTo:     "#6f9ed0");
 
     /// <summary>
-    /// "Onyx" - pitch black (Chloe 2026-06-29): a darker sibling of Midnight. Background goes to PURE
+    /// "Onyx" - pitch black: a darker sibling of Midnight. Background goes to PURE
     /// black at the bottom (OLED-true), with only the faintest cool breath at the top. A single crisp
     /// ice/azure accent that pops cleanly against the black without any warmth or neon. The blackest
     /// theme in the set; pairs naturally with JUST STREAM's night console.

@@ -35,7 +35,7 @@ namespace JustPlay.Analysis;
 ///
 /// <para><b>Anti-loudness-war guarantee:</b> the gain envelope is monotone downward (never &gt; 1.0);
 /// the limiter only ever reduces. No upward AGC, no "make the quiet bits loud" expansion - the
-/// thing Chloe explicitly vetoed for the VDJ-style cheap maximizer. [streaming-broadcast.md Sec.7.2]</para>
+/// thing this design explicitly avoids, unlike a VDJ-style cheap maximizer. [streaming-broadcast.md Sec.7.2]</para>
 ///
 /// <para><b>Honest scope vs. a commercial mastering limiter (FabFilter Pro-L2 / Ozone Maximizer):</b>
 /// detection and peak-safety here are spec-grade. The release is a two-stage (fast->slow) cascade,

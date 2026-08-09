@@ -58,12 +58,12 @@ public sealed class KeyWheel : Control
 
     // Ring radii as fractions of the outer radius. The A|B boundary gives the INNER A ring 60% of the
     // usable band and B 40% - a plain 50/50 shortchanges the inner ring (less circumference at a smaller
-    // radius), and the A keys sit there (Chloe 2026-07-07). MidFrac = InnerFrac + 0.60-(1 - InnerFrac).
+    // radius), and the A keys sit there. MidFrac = InnerFrac + 0.60-(1 - InnerFrac).
     private const double InnerFrac = 0.34;  // center hole
     private const double MidFrac = 0.736;   // A|B boundary - A gets the bigger (inner) share
     private const double GapDeg = 1.6;      // wedge separation (angular)
     private const double RingGapPx = 2.0;   // radial gap between the A and B rings - matches the wedge gaps
-                                            // so the grid reads uniformly (Chloe 2026-07-07); hit-test stays at MidFrac
+                                            // so the grid reads uniformly; hit-test stays at MidFrac
 
     // -- Click -> toggle the segment's Camelot code ----------------------------
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -148,7 +148,7 @@ public sealed class KeyWheel : Control
         ctx.DrawGeometry(fill, pen, Sector(c, ri, ro, a0, a1));
 
         // Label at the ring's mid radius, upright, with a dark shadow so white text stays legible on the
-        // bright hues (yellow/cyan/green) - drawn as a near-black copy offset behind the white (Chloe 2026-07-07).
+        // bright hues (yellow/cyan/green) - drawn as a near-black copy offset behind the white.
         var lr = (ri + ro) / 2;
         var ang = (a0 + a1) / 2 * Math.PI / 180.0;
         var lp = new Point(c.X + lr * Math.Cos(ang), c.Y + lr * Math.Sin(ang));

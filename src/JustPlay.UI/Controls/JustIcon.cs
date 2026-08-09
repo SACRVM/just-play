@@ -74,8 +74,8 @@ public enum IconKind
 /// from source lines with byte-identical UTF-16, came out BRIGHT YELLOW in JUST TAG and monochrome
 /// white in the PRE CUE FINDER: two processes, same Avalonia build, same <c>WithInterFont()</c>.
 /// On macOS it changes again, because Apple gives many symbols emoji presentation by default, so
-/// <c>heart ok (!) > stop</c> would come out coloured there. Chloe 2026-08-06: "wer weiss ob das dann ueberall
-/// gleich aussieht - vor allem auf Mac oder Linux". See CLAUDE.md, UI philosophy rule 5.</para>
+/// <c>heart ok (!) > stop</c> would come out coloured there - you can never be sure an emoji glyph
+/// renders identically everywhere, especially on Mac or Linux. See CLAUDE.md, UI philosophy rule 5.</para>
 ///
 /// <para>Being a vector also buys what a glyph cannot: it inherits <see cref="Foreground"/> through
 /// <see cref="TextElement"/>, so an icon tracks the live theme and the row it sits in with no wiring
@@ -153,7 +153,7 @@ public class JustIcon : Control
     /// <para>Filled or stroked is chosen per icon by what the shape IS: a heart, a play triangle and
     /// a folder are silhouettes; a tick, a cross and a refresh arrow are strokes. Getting that wrong
     /// is what makes a replacement read as a DIFFERENT icon rather than the same one - the complaint
-    /// that started this pass ("das sind definitiv zwei unterschiedliche icons", Chloe 2026-08-06).</para>
+    /// that started this pass.</para>
     /// <para><c>F0</c> selects the even-odd fill rule, which is how the lock gets its shackle hole and
     /// the warning triangle its exclamation mark.</para>
     /// </summary>
@@ -184,9 +184,9 @@ public class JustIcon : Control
         // -- Actions ---------------------------------------------------------------------------
         // (!) SPANS 2.6...21.4 - the SAME reach as the folder above, and that is not cosmetic bookkeeping:
         // every icon is scaled from this 24-box, so a mark drawn across only 58 % of it (which this
-        // cross was) comes out visibly smaller than its siblings at the same Width. That is exactly
-        // what Chloe caught on the About dialog ("das X close ist kleiner als es sein sollte"). Keep
-        // new icons in the same 2.6...21.4 reach unless there is a reason not to.
+        // cross was) comes out visibly smaller than its siblings at the same Width - exactly what
+        // showed up on the About dialog's close icon. Keep new icons in the same 2.6...21.4 reach
+        // unless there is a reason not to.
         // Stroke 2.4 -> ~1 px at the 12-px caption size, the hairline WindowControls' own cross uses.
         [IconKind.Close] = new(Geometry.Parse("M2.6 2.6 L21.4 21.4 M21.4 2.6 L2.6 21.4"), Stroke: 2.4),
 

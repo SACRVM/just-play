@@ -151,8 +151,8 @@
                        ClipToBounds="True">
 
                     <!-- AccentB -> AccentA cover base. 2 colours by design: the old middle stop was AccentC,
-                         a background-bloom tone that is DARK on Midnight/Onyx and banded the diagonal
-                         (Chloe 2026-06-30). Same band-free recipe as the app icon (ThemeBrushes.IconGradient). -->
+                         a background-bloom tone that is DARK on Midnight/Onyx and banded the diagonal.
+                         Same band-free recipe as the app icon (ThemeBrushes.IconGradient). -->
                     <Border>
                         <Border.Background>
                             <LinearGradientBrush StartPoint="10%,0%" EndPoint="90%,100%">

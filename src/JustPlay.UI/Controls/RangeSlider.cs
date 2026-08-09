@@ -9,8 +9,7 @@ using Avalonia.Media;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// A distribution-histogram range picker - deliberately NOT a classic slider (Chloe 2026-07-07: "die Slider
-/// selbst weg, wir machen die Bars klickbar"). It draws the folder's value distribution as bars; the bars
+/// A distribution-histogram range picker - deliberately NOT a classic slider. It draws the folder's value distribution as bars; the bars
 /// inside the chosen [<see cref="LowerValue"/>, <see cref="UpperValue"/>] band glow with
 /// <see cref="RangeBrush"/>, the rest stay dim so the selection reads at a glance. The BARS are the control:
 /// a plain click nudges the nearer edge to it; a click-drag paints a whole new band. Every bar carries a

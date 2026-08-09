@@ -13,7 +13,7 @@ namespace JustPlay.Core.Logging;
 /// is passed in.
 ///
 /// Retention: files older than <see cref="RetentionDays"/> are pruned on startup - scoped strictly to OUR
-/// folder and OUR <c>session-*.log</c> pattern, never anything else (Chloe 2026-07-05: 7 days).
+/// folder and OUR <c>session-*.log</c> pattern, never anything else (7 days).
 ///
 /// Robustness: every operation is wrapped so a logging failure (disk full, locked file, denied path) can
 /// NEVER take the app down - the show must go on even if it can't write its own log.

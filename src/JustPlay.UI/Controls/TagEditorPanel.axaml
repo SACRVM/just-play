@@ -150,7 +150,7 @@
             <!-- TAGS = what the file tells other tools, and therefore editable.
                  ANALYSIS = what WE heard, and therefore not. The split is by who reads a value,
                  not by how many fields there are.
-                 (!) The SWITCH between the two is NOT here any more (Chloe 2026-08-05): a panel that
+                 (!) The SWITCH between the two is NOT here any more: a panel that
                  carries its own tab bar gives its host a second row of tabs above the first. The host
                  owns the pane header and drives this panel through the ShowAnalysis property -
                  JUST TAG as EDITOR | ANALYSIS | FILTER, the floating window in its own chrome. -->
@@ -170,6 +170,36 @@
                 <Button Grid.Column="2" Classes="tag-save" Content="Save"
                         Click="OnSave" IsEnabled="{Binding IsDirty}"/>
             </Grid>
+
+            <!-- ID3 VERSION CONVERSION NOTICE. Docked AFTER the footer, so it lands directly ABOVE
+                 Save - the last thing read before an irreversible click - and the fields scroll
+                 behind both.
+
+                 It appears only when saving what is open would ALSO change its ID3v2 version, i.e.
+                 only when the host has put this editor on one of the three CONVERT write formats AND
+                 the open file (or a file in the selection) is not on that version already. The
+                 default keeps every file's own version, converts nothing, and never shows this.
+                 Measured 2026-07-31: the version change re-encodes GEOB descriptors, which is how
+                 Serato and Mixed In Key find their frames - see ViewModels/Id3ConversionNotice for
+                 the fact and the copy, which the RAW TAGS window shares word for word.
+
+                 The caution card is the SHARED vocabulary (JustStyles: Border.caution + the three
+                 TextBlock roles) on the shared Caution* tokens, and the mark is the shipped vector
+                 (JustIcon Warning), not a locally drawn Path - one triangle for the suite. -->
+            <Border DockPanel.Dock="Bottom" Classes="caution" Margin="0,10,0,0"
+                    IsVisible="{Binding HasId3Notice}">
+                <Grid ColumnDefinitions="Auto,11,*">
+                    <controls:JustIcon Grid.Column="0" Kind="Warning" Width="14" Height="14"
+                                       VerticalAlignment="Top" Margin="0,1,0,0"
+                                       Foreground="{DynamicResource CautionBrush}"/>
+                    <StackPanel Grid.Column="2" Spacing="4">
+                        <TextBlock Classes="cautiontitle" Text="{Binding Id3Notice}"/>
+                        <TextBlock Classes="cautionbody"
+                                   Text="{x:Static vm:Id3ConversionNotice.Body}"/>
+                        <TextBlock Classes="cautionfix" Text="{Binding Id3NoticeFix}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <Panel>
 
@@ -199,8 +229,8 @@
                     <!-- Cover + the four name fields.
                          (!) The cover is NOT given a height: its row is `*`, so the picture takes
                          exactly what the four fields beside it leave over and the buttons close
-                         flush with the last box (Chloe 2026-08-05: "perfekt mit 4 zeilen
-                         abschliessen"). A hard-coded height would drift apart from the fields the
+                         flush with the last box - it comes out flush with exactly four field rows.
+                         A hard-coded height would drift apart from the fields the
                          moment a font metric or a padding changes. The COLUMN is 158 so the box
                          comes out square at the window's own width. -->
                     <Grid ColumnDefinitions="158,14,*">
@@ -227,7 +257,7 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                                IsVisible="{Binding HasCoverHint}"/>
 
-                                    <!-- The tick and the X, drawn INTO the picture (Chloe 2026-08-07).
+                                    <!-- The tick and the X, drawn INTO the picture.
                                          The picture IS this field, so its two controls sit inside it
                                          exactly as they sit inside a text box - and they mean the
                                          same two things. The scrim keeps them legible on bright
@@ -349,8 +379,8 @@
 
                     <!-- == FILE NAME - LAST ===================================================
                          Not a tag: it renames the file on disk, which is the heaviest thing this
-                         panel can do. It sits at the END because the tags are what you came for
-                         (Chloe 2026-08-05: "datei namen aendern muss nach unten - letzter punkt").
+                         panel can do. It sits at the END because the tags are what you came for -
+                         renaming the file belongs last, as the heaviest action here.
                          The extension stays outside the box and is carried over verbatim, so a
                          typo cannot make the file unplayable. -->
                     <Border Height="1" Background="#14FFFFFF" Margin="0,2,0,0"/>
@@ -372,8 +402,7 @@
                     <StackPanel Spacing="3">
                         <TextBlock Text="TAGS FROM NAME" Classes="tag-label"/>
                         <!-- (!) TYPE IT. The presets are SUGGESTIONS in the drop-down, not the whole
-                             language: five canned patterns cover almost none of a real library
-                             (Chloe 2026-08-08 - "wird nur in ganz wenigen faellen wirklich greifen").
+                             language: five canned patterns cover almost none of a real library.
                              Real names carry label prefixes, vinyl sides, remix brackets, underscores
                              - and often the album or genre in the FOLDER, which a mask reaches with
                              a slash. The box is the same AutoCompleteBox the GENRE field is, so
@@ -396,7 +425,7 @@
 
                                 <!-- The vocabulary lives in a card you can park beside the editor,
                                      not in a line of grey text under the box: help you have read is
-                                     help that is in the way (Chloe 2026-08-08). -->
+                                     help that is in the way. -->
                                 <Button Grid.Column="2" Classes="fieldclear" Margin="6,0,0,0"
                                         Click="OnMaskHelp"
                                         ToolTip.Tip="What can go in a pattern">
@@ -483,8 +512,8 @@
 
                         <!-- == ONE FILE: the name itself =====================================
                              The pencil belongs to the NAME BOX, not to the section: it offers ways
-                             to fill that one field, so it sits at its right end like any picker
-                             (Chloe 2026-08-05 - "logischer und optisch sauber"). The extension stays
+                             to fill that one field, so it sits at its right end like any picker -
+                             that reads more logical and visually cleaner. The extension stays
                              between them, outside the box, and is carried over verbatim so a typo
                              cannot make the file unplayable. -->
                         <Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding !IsMulti}">

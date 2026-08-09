@@ -30,7 +30,7 @@
                         <ui:WindowControls IsVisible="{x:Static ui:Platform.IsMac}"/>
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                                     IsVisible="{x:Static ui:Platform.IsNotMac}">
-                            <!-- TRANSPARENT chip - just the enlarged white play glyph (Chloe 2026-06-30). -->
+                            <!-- TRANSPARENT chip - just the enlarged white play glyph. -->
                             <Border Width="18" Height="18" Background="Transparent">
                                 <Path Data="M 0,0 L 0,10 L 9,5 Z" Fill="White" Stretch="Uniform" Width="12.5" Height="12.5">
                                     <Path.Effect>

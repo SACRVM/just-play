@@ -20,7 +20,7 @@
          OS title bar, rounded card + drop shadow blooming into a transparent margin, custom caption
          buttons, drag from the chrome bar. Shadow = the shared theme-driven WindowOuter: the old
          "0 18 50 -12" literal (from the single-theme era) was LARGER than the transparent margin
-         and clipped hard at the window edge (Chloe 2026-07-05); WindowOuter is sized for exactly
+         and clipped hard at the window edge; WindowOuter is sized for exactly
          these 20/22 margins - proven in JUST PLAY. -->
     <Window.Styles>
         <!-- Maximized: square off card (margin/corners/shadow) + the inner aurora rectangles. -->
@@ -107,7 +107,7 @@
              after App.axaml) so .live re-states the cta red - same literals as Button.cta.live. -->
         <Style Selector="Button.cta.recbtn">
             <!-- 96 = just clears the widest label ("12:34:56" + dot) at the trimmed padding -
-                 Chloe 2026-07-05: REC + CONNECT ate ~50% of the mini bar, both narrowed. -->
+                 2026-07-05: REC + CONNECT ate ~50% of the mini bar, both narrowed. -->
             <Setter Property="Width" Value="96"/>
             <Setter Property="Padding" Value="6,11"/>
             <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}"/>
@@ -157,7 +157,7 @@
                                         IsVisible="{x:Static ui:Platform.IsNotMac}">
                                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <!-- TRANSPARENT chip - just the enlarged white Funkturm glyph filling
-                                             the area where the gradient chip was (Chloe 2026-06-30). -->
+                                             the area where the gradient chip was. -->
                                         <Border Width="20" Height="20" Background="Transparent">
                                             <!-- Lucide "radio-tower" (ISC) - the Funkturm mark. -->
                                             <Path Stretch="Uniform" Width="16" Height="16"
@@ -196,7 +196,7 @@
                                      "Mini player"/picture-in-picture, MiniView shows "Expand"/box). STREAM is one
                                      resizing window, so the single slot flips on IsMini. -->
                                 <!-- FULL -> go mini: Lucide picture-in-picture-2 -->
-                                <!-- Suite terminology (Chloe 2026-07-05): "Compact view" / "Expand to
+                                <!-- Suite terminology: "Compact view" / "Expand to
                                      full view" everywhere - "player" was wrong for STREAM (it broadcasts),
                                      so both apps share the neutral pair now. -->
                                 <Button Classes="cap" Command="{Binding ToggleViewModeCommand}" ToolTip.Tip="Compact view"
@@ -220,7 +220,7 @@
                                 <!-- Spectrum analyzer - opens the SHARED live spectrum window (JustPlay.UI)
                                      over the broadcast bus (DRY vs WET + limiter GR). OUT L/R column hidden:
                                      STREAM already shows its own output meter. Glyph pulses while a signal
-                                     is arriving (input present), NOT only on air (Chloe 2026-07-02).
+                                     is arriving (input present), NOT only on air.
                                      Stays visible in mini (separate window). -->
                                 <Button Classes="cap" Click="OnSpectrum" ToolTip.Tip="Spectrum analyzer">
                                     <ui:SpectrumGlyph Width="18" Height="14" Active="{Binding HasInputSignal}"
@@ -290,8 +290,8 @@
                         </Grid>
                     </Border>
 
-                    <!-- Keyboard-hint bar - the SHARED KeyLegend, the same control the PRE CUE FINDER uses
-                         (Chloe 2026-07-06: "ein Guss"). Docks to the BOTTOM so the body Grid stays the fill
+                    <!-- Keyboard-hint bar - the SHARED KeyLegend, the same control the PRE CUE FINDER uses -
+                         one shared implementation, reused everywhere. Docks to the BOTTOM so the body Grid stays the fill
                          child; hidden via Settings -> Look for pros (ShowKeyHints). -->
                     <Border DockPanel.Dock="Bottom" IsVisible="{Binding ShowKeyHints}" Padding="18,4,18,10">
                         <ui:KeyLegend Hints="{Binding KeyHints}" HorizontalAlignment="Center"/>
@@ -531,7 +531,7 @@
                                      Cue on ONE interface, e.g. Reloop Mixtour). "Full mix" downmixes
                                      everything (the Cue bleeds into the broadcast); "Master 1-2/3-4"
                                      captures the native channels and broadcasts only the Master pair.
-                                     Validated on Mixtour + Traktor (Chloe 2026-07-02). App mode only. -->
+                                     Validated on Mixtour + Traktor (2026-07-02). App mode only. -->
                                 <StackPanel IsVisible="{Binding IsAppSourceMode}" Spacing="4">
                                     <TextBlock Classes="label" Text="BROADCAST CHANNELS"/>
                                     <ComboBox x:CompileBindings="False" HorizontalAlignment="Stretch"
@@ -547,7 +547,7 @@
                                 <!-- ASIO / WASAPI-exclusive caveat. Per-process loopback taps the Windows
                                      shared audio engine; an app driving its card via ASIO or exclusive mode
                                      bypasses that engine, so it appears in the list but delivers silence.
-                                     Honest inline hint so a DJ knows WHY (Chloe 2026-07-02). -->
+                                     Honest inline hint so a DJ knows WHY. -->
                                 <TextBlock IsVisible="{Binding IsAppSourceMode}" Classes="hint"
                                            Text="No sound from an app? If it drives your DJ card via ASIO or WASAPI-exclusive it bypasses Windows and can't be captured here - set that app's output to a normal Windows device (shared mode), or use a Device source."/>
 

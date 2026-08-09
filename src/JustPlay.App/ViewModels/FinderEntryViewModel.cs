@@ -4,7 +4,7 @@ using JustPlay.UI.Controls;
 namespace JustPlay.App.ViewModels;
 
 /// <summary>What a left-pane row IS: a hop up, a real sub-folder, or a playlist treated as a
-/// virtual folder (N26 P2 - Norton-Commander flat navigation, Chloe 2026-07-05).</summary>
+/// virtual folder (N26 P2 - Norton-Commander flat navigation).</summary>
 public enum FinderEntryKind { Up, Folder, Playlist }
 
 /// <summary>
@@ -45,7 +45,7 @@ public sealed class FinderEntryViewModel
     public bool IsPlaylist => Kind == FinderEntryKind.Playlist;
 
     /// <summary>Norton-Commander row icon: ".." and real folders carry the folder icon; a playlist
-    /// gets the list icon (Chloe 2026-07-05: "ordner symbol + ein listen symbol fuer playlist").
+    /// gets the list icon.
     /// (!!) A SHIPPED VECTOR (controls:JustIcon), never a character - see CLAUDE.md rule 5. These two
     /// used to be the emoji "folder" / "list", and the identical source line rendered yellow in JUST TAG and
     /// white here, because the OS picks the font, not us.</summary>
@@ -59,6 +59,5 @@ public sealed class FinderEntryViewModel
 }
 
 /// <summary>One clickable segment of the breadcrumb path in the chrome bar. Clicking a folder
-/// segment jumps straight to that level (Chloe 2026-07-05: "jedes segment anklickbar um direkt
-/// mehrere ebenen hoch"). The playlist tail segment isn't navigable (FolderPath = null).</summary>
+/// segment jumps straight to that level. The playlist tail segment isn't navigable (FolderPath = null).</summary>
 public sealed record BreadcrumbSegment(string Name, string? FolderPath, bool IsPlaylist, bool IsLast);

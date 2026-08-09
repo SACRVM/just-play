@@ -15,7 +15,7 @@ namespace JustPlay.UI.Behaviors;
 public sealed record WindowBounds(int X, int Y, double W, double H);
 
 /// <summary>
-/// Suite-wide "smart reopening" (Chloe 2026-07-06): every non-dialog JUST window remembers its
+/// Suite-wide "smart reopening": every non-dialog JUST window remembers its
 /// position + size, and on reopen is validated against the CURRENT monitor set - if the saved spot is
 /// off-screen or bigger than the target screen (monitor unplugged, resolution changed, laptop docked),
 /// it's shrunk / nudged back onto a visible work area. One shared store,

@@ -32,7 +32,7 @@ public sealed partial class FinderItemViewModel : ObservableObject
     public int Order { get; set; }
 
     /// <summary>Short codec badge shown in the left gutter (FLAC/MP3/OGG/WAV...), so the row never has
-    /// a big empty status column - it's swapped for > while auditioning (Chloe 2026-07-06).</summary>
+    /// a big empty status column - it's swapped for > while auditioning.</summary>
     public string CodecLabel { get; }
 
     /// <summary>Lossless container (FLAC/WAV/AIFF) - tints the codec badge apart from lossy formats.</summary>
@@ -71,8 +71,8 @@ public sealed partial class FinderItemViewModel : ObservableObject
 
     /// <summary>
     /// The playlists this track appears in, when the pane is showing a folder's playlists together
-    /// (Chloe 2026-07-31: <i>"wenn die lib aktiv ist koennten wir doch auch ueber mehrere playlisten
-    /// hinweg filtern"</i>). A song that sits in five sets is ONE row - you are looking for the
+    /// (with the library index active, filtering/searching can also span multiple playlists at once,
+    /// not just one). A song that sits in five sets is ONE row - you are looking for the
     /// track, not for its occurrences - so where it came from has to live on the row instead.
     /// Empty for a plain folder listing.
     /// </summary>
@@ -107,7 +107,7 @@ public sealed partial class FinderItemViewModel : ObservableObject
     private bool _isCued;
 
     /// <summary>This (cued) row is paused (Space) rather than sounding - kept in sync by the VM so the
-    /// status glyph flips > <-> pause (Chloe 2026-07-06).</summary>
+    /// status glyph flips > <-> pause.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowCuePlaying))]
     [NotifyPropertyChangedFor(nameof(ShowCuePaused))]

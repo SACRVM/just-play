@@ -26,7 +26,7 @@ namespace JustPlay.Analysis;
 public static class RhythmPatternDetector
 {
     // =========================================================================
-    // Thresholds (named constants - tune these on Chloe's ear, not a corpus).
+    // Thresholds (named constants - tune these by ear, not against a corpus).
     // The BeatType label is entirely determined by these thresholds. Raise or
     // lower them in this one block; nothing else needs to change.
     // =========================================================================

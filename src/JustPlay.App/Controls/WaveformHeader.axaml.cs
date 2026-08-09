@@ -138,7 +138,7 @@ public partial class WaveformHeader : UserControl
         // 2-w-wide wave doesn't render into adjacent UI, but y is left wide
         // open so scaleY > 1 (loud passages) can grow past the 90-px control
         // height without being decapitated. A plain ClipToBounds=True would
-        // cut top AND bottom - the bug Chloe spotted on 2026-05-31.
+        // cut top AND bottom - the bug spotted on 2026-05-31.
         Clip = new RectangleGeometry(new Rect(0, -2000, _w, 4000));
         // Periods are INTEGER counts so the wave is exactly periodic with period _w
         // (y(x) = y(x + _w)). That's what makes the drift wrap seamless when the

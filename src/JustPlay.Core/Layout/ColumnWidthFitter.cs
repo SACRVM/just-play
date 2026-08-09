@@ -17,7 +17,7 @@ public readonly record struct ColumnDemand(string Key, double Weight, double Min
 /// <summary>
 /// Shares the space a track table has left over between its flexible TEXT columns.
 ///
-/// <para><b>The idea</b> (Chloe 2026-08-06): look at what is actually IN a column and size it to the
+/// <para><b>The idea</b>: look at what is actually IN a column and size it to the
 /// 90th percentile of its content - the width 90 % of the rows fit into. The 10 % outliers, the one
 /// track with the 140-character title, are deliberately ignored: sizing to the longest value lets a
 /// single row dictate the whole table. Then the space that is left after the fixed-width columns
@@ -32,7 +32,7 @@ public readonly record struct ColumnDemand(string Key, double Weight, double Min
 /// is pinned there and drops out of the split, and what it took is re-shared between the rest - the
 /// standard constrained-proportional allocation, iterated until nothing else hits its floor. This is
 /// what keeps the title column readable no matter how many columns are switched on ("never lose the
-/// title", Chloe 2026-07-08 - the same 150 px rule TrackRow's Grid has always carried). If even the
+/// title" - the same 150 px rule TrackRow's Grid has always carried). If even the
 /// floors do not fit, every column gets exactly its floor and the row's ClipToBounds does the rest,
 /// which is the behaviour the table had before this existed.</para>
 ///

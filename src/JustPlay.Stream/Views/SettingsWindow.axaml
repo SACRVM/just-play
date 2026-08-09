@@ -73,7 +73,7 @@
                                 <uic:WindowControls ShowMinimize="False" ShowMaximize="False"
                                                     IsVisible="{x:Static uic:Platform.IsMac}"
                                                     Margin="0,0,4,0"/>
-                                <!-- Tool-window chrome convention (Chloe 2026-07-05): each secondary
+                                <!-- Tool-window chrome convention: each secondary
                                      window leads with ITS OWN glyph, plain white on transparent - like
                                      SpectrumWindow (bars + "SPECTRUM") - NOT the app brand chip. Same
                                      gear path as the main chrome's settings button. -->
@@ -364,7 +364,7 @@
                             <Border Classes="sep"/>
                             <!-- Background=Transparent makes the WHOLE row a right-click target (a
                                  backgroundless panel doesn't hit-test its empty space). Mirrors the REC
-                                 button's "Open recordings folder" (Chloe 2026-07-05). -->
+                                 button's "Open recordings folder". -->
                             <StackPanel Spacing="3" Background="Transparent"
                                         ToolTip.Tip="Right-click to open this folder in Explorer">
                                 <StackPanel.ContextMenu>

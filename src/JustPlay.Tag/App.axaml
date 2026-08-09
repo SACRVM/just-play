@@ -59,33 +59,11 @@
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
         </Style>
 
-        <!-- === Caution note - the frosted-card vocabulary (radius 9, hairline edge) in the warm
-             caution tone. Used where a legitimate choice has a consequence worth naming: the ID3
-             version conversion (Settings) and the per-file conversion notice (editor). === -->
-        <Style Selector="Border.caution">
-            <Setter Property="Background" Value="{DynamicResource CautionSurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource CautionEdgeBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="9"/>
-            <Setter Property="Padding" Value="13,11"/>
-        </Style>
-        <Style Selector="TextBlock.cautiontitle">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource CautionBrush}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
-        <!-- Body + the "how to avoid it" line: plain muted text, so the tone stays calm. -->
-        <Style Selector="TextBlock.cautionbody">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
-        <Style Selector="TextBlock.cautionfix">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Foreground" Value="{StaticResource MutedDimBrush}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
+        <!-- The CAUTION note styles (Border.caution + the three TextBlock roles) moved into the
+             shared sheet, JustPlay.UI/Theming/JustStyles.axaml, following the Caution* colours that
+             went to JustPalette before them. They were the last per-app copy: the shared library
+             could not see them, so the RAW TAGS window had to repeat the setters inline and the tag
+             editor could not carry this notice at all. -->
 
         <!-- === Small inline pill (DEFAULT badge on the shipped write format). The label styling is
              set INLINE at the use site, not via a descendant selector - a selector that silently

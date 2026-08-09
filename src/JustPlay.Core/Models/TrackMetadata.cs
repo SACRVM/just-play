@@ -48,8 +48,8 @@ public sealed record TrackMetadata
     ///
     /// <para>It rides along on the metadata read so the LIBRARY INDEX can store it, which is the whole
     /// point: the ID3 column used to be a per-row live probe of every visible file, and the table must
-    /// not touch the disk to paint itself (Chloe 2026-08-07: "null live zugriffe, ergo kommt alles in
-    /// den index rein"). The reader fills it from the shared <c>Id3VersionProbe</c> - the SAME code the
+    /// not touch the disk to paint itself - zero live file accesses at display time, everything a row
+    /// can show must already be sitting in the index. The reader fills it from the shared <c>Id3VersionProbe</c> - the SAME code the
     /// tag editor's write-format notice uses, so the two can never disagree about one file.</para>
     /// </summary>
     public string? Id3Version { get; init; }

@@ -7,7 +7,7 @@ namespace JustPlay.UI.Controls;
 /// The final fix for Avalonia's trailing letter-spacing on header labels. Avalonia (like CSS)
 /// adds the letter-spacing gap AFTER the last glyph too, so a right- or centre-aligned *tracked*
 /// label sits ~LetterSpacing px short of its cell's right edge - visibly misaligned with the
-/// untracked numeric values in the rows below it. Chloe 2026-07-08.
+/// untracked numeric values in the rows below it.
 ///
 /// Setting <c>controls:HeaderText.FlushTrailing="True"</c> (once, in the .colhead / .finderhead
 /// style) reclaims exactly the element's OWN LetterSpacing from its right margin, so the visible

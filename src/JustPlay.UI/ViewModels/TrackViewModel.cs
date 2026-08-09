@@ -120,7 +120,7 @@ public sealed partial class TrackViewModel : ObservableObject
     ///
     /// <para>It exists because the library index stores tags and NOT pictures: a row filled from the
     /// index has metadata with no <c>CoverArt</c>, and reporting "no cover" for it would be a lie about
-    /// almost every file (Chloe 2026-08-05). Hosts that use the index fetch this separately, on demand,
+    /// almost every file. Hosts that use the index fetch this separately, on demand,
     /// via <c>CoverProbe</c>.</para>
     /// </summary>
     public bool? Artwork { get; set; }
@@ -148,7 +148,7 @@ public sealed partial class TrackViewModel : ObservableObject
     public string FileNameText => Path.GetFileName(Model.FilePath);
 
     // -- Analysis freshness - the traffic light -------------------------------
-    // Chloe 2026-08-05: JUST TAG is also where you CHECK and re-trigger our own analysis, so one
+    // JUST TAG is also where you CHECK and re-trigger our own analysis, so one
     // column has to answer "is this file's analysis current, stale, or missing" at a glance.
     // It reads the stored blob's VERSION, which is the only honest source: an old blob is trusted
     // as-is everywhere in the suite (we never silently re-analyse), so "stale" is a recommendation
@@ -336,7 +336,7 @@ public sealed partial class TrackViewModel : ObservableObject
     /// <c>analysis-tag-persistence-design</c>).</para>
     ///
     /// <para>Staleness is REPORTED instead, by <see cref="Freshness"/> - one job per thing: this one
-    /// hands over the values, that one says how old they are. (Chloe 2026-08-05.)</para>
+    /// hands over the values, that one says how old they are.</para>
     /// </summary>
     private TrackAnalysisState? StoredCurrent => Model.Metadata?.StoredAnalysis;
 
@@ -479,9 +479,9 @@ public sealed partial class TrackViewModel : ObservableObject
         }
     }
 
-    // A downscaled CoverThumb for the table cell used to live here. It is gone (Chloe 2026-08-05:
-    // "ich will kein mini mini preview haben - sondern nur die info hat der song ein cover oder
-    // nicht"). The column is a TICK, so the row never decodes an image it is not going to show.
+    // A downscaled CoverThumb for the table cell used to live here. It is gone - no thumbnail
+    // preview, just a single tick showing whether a cover exists. The column is a TICK, so the
+    // row never decodes an image it is not going to show.
 
     /// <summary>Re-evaluate all derived properties after the model gains metadata/analysis.</summary>
     public void Refresh()

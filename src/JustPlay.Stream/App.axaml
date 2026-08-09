@@ -195,7 +195,7 @@
         <Style Selector="Button.primary:pressed">
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
-        <!-- === CONNECT / DISCONNECT - ONE quiet-glass CTA, two colours (Chloe, 2026-06-29) ===
+        <!-- === CONNECT / DISCONNECT - ONE quiet-glass CTA, two colours ===
              Both states share the EXACT same shape + a FIXED width, so nothing jumps when the label
              changes (CONNECT <-> CONNECTING... <-> DISCONNECT). Only the COLOUR + glyph differ:
                offline = theme accent + > play mark   -   live = red + stop stop mark   (glyphs in ConnectLabel).
@@ -214,7 +214,7 @@
             <Setter Property="CornerRadius" Value="11"/>
             <Setter Property="Padding" Value="14,11"/>
             <!-- Fixed width = both states identical, no rumspringen. Sized to clear the longest label
-                 ("RECONNECTING..."); padding trimmed with it. 184->164: Chloe 2026-07-05 - REC + CONNECT
+                 ("RECONNECTING..."); padding trimmed with it. 184->164: 2026-07-05 - REC + CONNECT
                  ate ~50% of the mini bar. -->
             <Setter Property="Width" Value="164"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
