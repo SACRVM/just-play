@@ -55,6 +55,11 @@ internal sealed class Program
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
         services.AddSingleton<IMetadataWriter, TagLibMetadataWriter>();
 
+        // The RAW view: every frame a file carries, read-only. A separate reader from IMetadataReader
+        // on purpose - that one answers "what is this track", this one answers "what is in this file",
+        // and the second question has to include the frames we deliberately know nothing about.
+        services.AddSingleton<IRawTagReader, TagLibRawTagReader>();
+
         // Shared J.U.S.T. live-theme engine (JustPlay.UI) - same palettes/look as JUST PLAY / STREAM.
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
 

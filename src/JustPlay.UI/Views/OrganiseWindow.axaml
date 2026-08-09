@@ -1,0 +1,279 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:uic="using:JustPlay.UI.Controls"
+        xmlns:vm="using:JustPlay.UI.ViewModels"
+        x:Class="JustPlay.UI.Views.OrganiseWindow"
+        x:DataType="vm:OrganiseViewModel"
+        Title="Organise"
+        Width="620" Height="560"
+        MinWidth="460" MinHeight="340"
+        Topmost="True"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <!--
+      MOVE / COPY / DELETE, stated in full before a single byte moves.
+
+      It exists for the same reason the rename preview does: there is no undo in this repo by
+      design, so the protection goes in FRONT of the action. This window answers the four questions
+      that decide whether you press the button - how many files, out of where, into where, and what
+      happens to each one - and the button stays dead until there is an honest answer.
+
+      (!!) There is no overwrite and there is no option for one. A name the destination already
+      holds is a COLLISION: it is named in the list, and the default leaves both files alone. The
+      only other answer writes the arrival under a free name. Replacing a track cannot be undone,
+      and a DJ finds out on a Friday night.
+
+      A delete goes to the operating system's own bin - the window says so in words - and refuses
+      outright where there is no bin to reach.
+
+      The shell is the suite's, copied rather than re-invented: frameless rounded card, the shared
+      SurfaceCard, the 36 px drag bar, the shared resize grips, remembered placement.
+    -->
+
+    <Panel>
+        <Border Name="DialogCard" ClipToBounds="False" Background="#40000000">
+            <Panel>
+                <uic:SurfaceCard CornerRadius="14"/>
+
+                <DockPanel LastChildFill="True">
+
+                    <!-- === CHROME === -->
+                    <Border DockPanel.Dock="Top" Height="36" Background="Transparent"
+                            PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                        Margin="16,0,0,0" VerticalAlignment="Center">
+                                <uic:WindowControls ShowMinimize="False" ShowMaximize="False"
+                                                    IsVisible="{x:Static uic:Platform.IsMac}"
+                                                    Margin="0,0,4,0"/>
+                                <uic:JustIcon Kind="{Binding Icon}" Width="14" Height="14"
+                                              Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="2" Foreground="#D9FFFFFF"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Where the selection came OUT of. It belongs in the chrome next to
+                                 the verb, because "move these from here" is one thought. -->
+                            <TextBlock Grid.Column="1" Text="{Binding FromText}" FontSize="11"
+                                       Foreground="{DynamicResource MutedBrush}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Margin="12,0,8,0"
+                                       ToolTip.Tip="{Binding FromTip}"/>
+
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
+                                    IsVisible="{x:Static uic:Platform.IsNotMac}">
+                                <uic:JustIcon Kind="Close" Width="12" Height="12"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- === FOOTER: the verdict, and the two ways out ===
+                         The summary is the headline: "12 files are moved - 431 MB - 2 are left
+                         alone" is the one sentence that decides this. -->
+                    <Border DockPanel.Dock="Bottom" Margin="16,10,16,14">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Summary}" FontSize="12"
+                                       VerticalAlignment="Center" TextWrapping="Wrap"
+                                       Margin="0,0,12,0"
+                                       Foreground="{DynamicResource MutedBrush}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                <!-- A long copy over SMB has to be stoppable. Stopping leaves what
+                                     already landed alone - it is not a rollback, and saying so is
+                                     the honest label. -->
+                                <Button Classes="dialog-close ghost" Content="Stop" Click="OnStop"
+                                        IsVisible="{Binding IsBusy}"/>
+                                <Button Classes="dialog-close ghost" Content="Close" Click="OnClose"
+                                        IsVisible="{Binding IsIdle}"/>
+                                <Button Classes="dialog-close" Content="{Binding RunLabel}"
+                                        Click="OnRun" IsEnabled="{Binding CanRun}"
+                                        IsVisible="{Binding IsIdle}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- What happened, once it has. Kept above the footer so the counts and the
+                         named failures sit right under the list they refer to. -->
+                    <TextBlock DockPanel.Dock="Bottom" Margin="16,8,16,0" FontSize="11.5"
+                               TextWrapping="Wrap" Text="{Binding Result}"
+                               IsVisible="{Binding HasResult}"
+                               Foreground="{DynamicResource CautionBrush}"/>
+
+                    <!-- === WHERE IT GOES === -->
+                    <StackPanel DockPanel.Dock="Top" Margin="16,6,16,0" Spacing="8"
+                                IsVisible="{Binding ShowsDestination}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="0" Text="TO" FontSize="10" FontWeight="Bold"
+                                       LetterSpacing="2" Foreground="#73FFFFFF"
+                                       VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <!-- The folder NAME on top, the whole path under it. One trimmed line
+                                 would show the reach up to the share and cut off the leaf, which is
+                                 the only part that says where the files are actually going. -->
+                            <StackPanel Grid.Column="1" Spacing="1" Margin="0,0,12,0"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DestinationName}" FontSize="13"
+                                           Foreground="#ECFFFFFF"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding DestinationText}" FontSize="10.5"
+                                           Foreground="#59FFFFFF"
+                                           IsVisible="{Binding HasDestination}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding DestinationText}"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Classes="dialog-close ghost" Content="Browse..."
+                                    Click="OnBrowse" IsEnabled="{Binding IsIdle}"
+                                    VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- The last few destinations. Organising is repetitive - a folder that
+                             just landed is split across three homes - and each of those is five
+                             clicks deep in a picker. -->
+                        <ItemsControl ItemsSource="{Binding Recents}" IsVisible="{Binding HasRecents}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecentFolder">
+                                    <Button Classes="dialog-close ghost" Content="{Binding Name}"
+                                            Click="OnRecent" Tag="{Binding FullPath}"
+                                            Margin="0,0,6,6" FontSize="11"
+                                            ToolTip.Tip="{Binding FullPath}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- === A CONSEQUENCE WORTH NAMING ===
+                         The bin, or a move that has to copy and verify across volumes. It changes
+                         what she is agreeing to, so it is never folded away. -->
+                    <Border DockPanel.Dock="Top" Margin="16,10,16,0" Padding="10,8"
+                            CornerRadius="8" IsVisible="{Binding HasCaution}"
+                            Background="{DynamicResource CautionSurfaceBrush}"
+                            BorderBrush="{DynamicResource CautionEdgeBrush}" BorderThickness="1">
+                        <!-- (!) A Grid, not a horizontal StackPanel: a StackPanel measures its
+                             children with infinite width, so TextWrapping never fires and the
+                             sentence runs off the card. This one has to be readable - it is the
+                             line that says a delete goes to the bin. -->
+                        <Grid ColumnDefinitions="Auto,*">
+                            <uic:JustIcon Grid.Column="0" Kind="Warning" Width="13" Height="13"
+                                          VerticalAlignment="Top" Margin="0,1,8,0"
+                                          Foreground="{DynamicResource CautionBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Caution}" FontSize="11.5"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource CautionBrush}"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Plain information: no box, no mark, no alarm. -->
+                    <TextBlock DockPanel.Dock="Top" Margin="16,10,16,0" FontSize="11.5"
+                               TextWrapping="Wrap" Text="{Binding Notice}"
+                               IsVisible="{Binding HasNotice}"
+                               Foreground="{DynamicResource MutedDimBrush}"/>
+
+                    <!-- === THE COLLISION ANSWER ===
+                         Only shown when something actually collides. Two choices, and there will
+                         never be a third - see the header. -->
+                    <StackPanel DockPanel.Dock="Top" Margin="16,10,16,0" Orientation="Horizontal"
+                                Spacing="8" IsVisible="{Binding HasCollisions}">
+                        <!-- The suite's own tick (the shipped Check vector), not the stock 32 px
+                             CheckBox - same control the tag editor's field ticks use. -->
+                        <ToggleButton Classes="fieldtick" IsChecked="{Binding KeepBoth}"
+                                      IsEnabled="{Binding IsIdle}"
+                                      ToolTip.Tip="Write the arrival under a free name instead of leaving it behind. There is no replace."/>
+                        <TextBlock Text="Keep both" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="#ECFFFFFF"/>
+                        <TextBlock Text="{Binding CollisionText}" FontSize="11.5"
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource MutedBrush}"/>
+                    </StackPanel>
+
+                    <!-- === EVERY FILE, INCLUDING THE ONES THAT WILL BE LEFT ALONE ===
+                         A preview that dropped the skipped rows would answer "what happens to
+                         these 12" with a list of 10. -->
+                    <DockPanel Margin="16,10,16,0" LastChildFill="True">
+                        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource HairlineBrush}"
+                                BorderThickness="0,0,0,1" Padding="0,0,0,6" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="FILE" FontSize="10"
+                                           FontWeight="SemiBold" LetterSpacing="2" Foreground="#8CFFFFFF"/>
+                                <TextBlock Grid.Column="1" Text="WHAT HAPPENS" FontSize="10"
+                                           FontWeight="SemiBold" LetterSpacing="2" Foreground="#8CFFFFFF"/>
+                            </Grid>
+                        </Border>
+
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:OrganiseRow">
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+                                            <StackPanel Grid.Column="0" Spacing="1" Margin="0,0,10,0">
+                                                <!-- A file that is going reads BRIGHT and one that
+                                                     is being left alone reads dim: the question is
+                                                     what you are about to get. -->
+                                                <TextBlock Text="{Binding Name}" FontSize="12"
+                                                           Foreground="#ECFFFFFF"
+                                                           IsVisible="{Binding WillRun}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding SourcePath}"/>
+                                                <TextBlock Text="{Binding Name}" FontSize="12"
+                                                           Foreground="#73FFFFFF"
+                                                           IsVisible="{Binding !WillRun}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding SourcePath}"/>
+                                                <TextBlock Text="{Binding Folder}" FontSize="10.5"
+                                                           Foreground="#59FFFFFF"
+                                                           IsVisible="{Binding ShowFolder}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                        Spacing="5" VerticalAlignment="Center">
+                                                <uic:JustIcon Kind="Warning" Width="11" Height="11"
+                                                              IsVisible="{Binding IsProblem}"
+                                                              Foreground="{DynamicResource CautionBrush}"
+                                                              VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Issue}" FontSize="11"
+                                                           Foreground="{DynamicResource CautionBrush}"
+                                                           IsVisible="{Binding IsProblem}"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Issue}" FontSize="11"
+                                                           Foreground="{DynamicResource MutedDimBrush}"
+                                                           IsVisible="{Binding !IsProblem}"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </DockPanel>
+
+                <!-- The SHARED floating overlay - progress never reflows the layout underneath it,
+                     which matters here because the list behind it is what you are checking. -->
+                <uic:BusyOverlay IsActive="{Binding IsBusy}" Message="{Binding BusyText}"
+                                 Detail="{Binding BusyDetail}" Progress="{Binding BusyProgress}"/>
+            </Panel>
+        </Border>
+
+        <!-- Shared edge/corner grips: a frameless window gets no OS resize frame. -->
+        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+            <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="#01000000" Cursor="LeftSide"          Tag="West"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="#01000000" Cursor="RightSide"         Tag="East"/>
+            <Border Grid.Row="2" Grid.Column="0" Background="#01000000" Cursor="BottomLeftCorner"  Tag="SouthWest"/>
+            <Border Grid.Row="2" Grid.Column="1" Background="#01000000" Cursor="BottomSide"        Tag="South"/>
+            <Border Grid.Row="2" Grid.Column="2" Background="#01000000" Cursor="BottomRightCorner" Tag="SouthEast"/>
+        </Grid>
+    </Panel>
+</Window>

@@ -64,7 +64,11 @@
                     <!-- What an EMPTY box means, in words, and only while nothing is going to happen
                          to it: the line shows solely when the tick is off. Tick it and the box is
                          plainly empty - because from that moment empty is a value that gets written.
-                         Drawn here rather than as a Watermark because AutoCompleteBox has none. -->
+                         Drawn here rather than as PlaceholderText because a placeholder shows whenever
+                         the box is empty, and this line must show only while the tick is off - two
+                         different conditions. (AutoCompleteBox does have one: PlaceholderTextProperty
+                         is TextBox's, added as owner - verified in Avalonia 12.0.3. The obsolete
+                         Watermark is a pure alias for it.) -->
                     <TextBlock Text="{Binding $parent[controls:TagFieldBox].Hint}"
                                IsVisible="{Binding $parent[controls:TagFieldBox].ShowHint}"
                                FontSize="12.5" FontStyle="Italic" Foreground="#59FFFFFF"

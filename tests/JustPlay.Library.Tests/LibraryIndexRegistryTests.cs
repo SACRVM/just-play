@@ -12,6 +12,7 @@ namespace JustPlay.Library.Tests;
 /// path - <see cref="LibraryIndexRegistry.Location"/> is redirected in every test that writes, so a test
 /// run can never register a root into the real machine's registry.
 /// </summary>
+[Collection(RegistryCollection.Name)]
 public sealed class LibraryIndexRegistryTests : IDisposable
 {
     private readonly string _dir;

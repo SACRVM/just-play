@@ -546,11 +546,43 @@
                                                       Click="OnMenuPreview"
                                                       IsVisible="{Binding HasOneSelected}"/>
                                             <Separator IsVisible="{Binding HasOneSelected}"/>
+                                            <!-- The bulk edit that CHANGES what is there rather than
+                                                 setting it: fix the shouting, swap the underscores,
+                                                 take a site name out of every comment. It sits at
+                                                 the top because on a folder that just landed it is
+                                                 the first thing you do to it. -->
+                                            <MenuItem Header="{Binding TransformMenuHeader}"
+                                                      Click="OnMenuTransform"
+                                                      IsVisible="{Binding HasSelection}"/>
+                                            <Separator IsVisible="{Binding HasSelection}"/>
+                                            <!-- ORGANISE: tagging, renaming and previewing were
+                                                 already here; putting a track somewhere else was
+                                                 not, and that is half of what you do to a folder
+                                                 that just landed.
+
+                                                 All three open a preview first - none of them
+                                                 touches a file on the click. The ellipsis says so.
+                                                 Delete goes to the operating system's own bin, and
+                                                 its window says the words. -->
+                                            <MenuItem Header="Move to..." Click="OnMenuMove"
+                                                      IsVisible="{Binding HasSelection}"/>
+                                            <MenuItem Header="Copy to..." Click="OnMenuCopyTo"
+                                                      IsVisible="{Binding HasSelection}"/>
+                                            <MenuItem Header="Delete..." Click="OnMenuDelete"
+                                                      IsVisible="{Binding HasSelection}"/>
+                                            <Separator IsVisible="{Binding HasSelection}"/>
                                             <MenuItem Header="{Binding RevealMenuHeader}"
                                                       Click="OnMenuReveal"
                                                       IsVisible="{Binding HasOneSelected}"/>
                                             <MenuItem Header="{Binding CopyPathMenuHeader}"
                                                       Click="OnMenuCopyPath"
+                                                      IsVisible="{Binding HasSelection}"/>
+                                            <!-- RAW TAGS: every frame the file really carries, read
+                                                 only. It is here rather than in the editor because
+                                                 it is not editing - it is looking, and what it shows
+                                                 is mostly frames that belong to OTHER tools. It is
+                                                 the one screen that proves their data survived us. -->
+                                            <MenuItem Header="Raw tags..." Click="OnMenuRawTags"
                                                       IsVisible="{Binding HasSelection}"/>
                                             <Separator IsVisible="{Binding HasSelection}"/>
                                             <MenuItem Header="Refresh" Click="OnMenuRefresh"/>

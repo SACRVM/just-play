@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using JustPlay.UI.Controls;
 
 namespace JustPlay.App.Views;
 
@@ -15,19 +15,12 @@ public partial class OopsDialog : Window
 
     public OopsDialog(string report) : this() => Details.Text = report;
 
-    private async void OnCopy(object? sender, RoutedEventArgs e)
-    {
-        // Window is a TopLevel -> its Clipboard. Null on some headless setups; guard it.
-        // Avalonia 12 dropped IClipboard.SetTextAsync -> wrap the text in a DataTransfer (verified
-        // against release/12.0.3 source: DataTransferItem.CreateText + IClipboard.SetDataAsync).
-        if (Clipboard is { } cb)
-        {
-            var data = new DataTransfer();
-            data.Add(DataTransferItem.CreateText(Details.Text ?? string.Empty));
-            await cb.SetDataAsync(data);
-            CopiedHint.IsVisible = true;
-        }
-    }
+    // (!!) Of every clipboard call in the suite, THIS is the one that must not throw: it is the
+    // button on the dialog that is already showing you a crash. It used to call the clipboard
+    // straight out of an `async void` handler, so a clipboard the OS refused would have taken the
+    // process down while reporting that the process had a problem.
+    private async void OnCopy(object? sender, RoutedEventArgs e) =>
+        CopiedHint.IsVisible = await SystemClipboard.CopyTextAsync(this, Details.Text);
 
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
 

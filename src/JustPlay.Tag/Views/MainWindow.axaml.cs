@@ -15,6 +15,10 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using JustPlay.Core.Abstractions;
+using JustPlay.Core.Organise;
+using JustPlay.Library;
+using JustPlay.Metadata;
 using JustPlay.Tag.ViewModels;
 using JustPlay.UI;
 using JustPlay.UI.Behaviors;
@@ -546,25 +550,140 @@ public partial class MainWindow : Window, IFramelessWindow
     /// </summary>
     private async void OnMenuCopyPath(object? sender, RoutedEventArgs e)
     {
+        if (Vm is not { Selected.Count: > 0 } vm) return;
+
+        await SystemClipboard.CopyTextAsync(
+            this, string.Join(Environment.NewLine, vm.Selected.Select(r => r.Path)));
+    }
+
+    /// <summary>
+    /// RAW TAGS - every frame the selected files really carry, read only.
+    ///
+    /// <para>It is handed the version the WRITE FORMAT setting would convert to, so the window can
+    /// say when saving this particular file would rewrite the frame labels that Serato and Mixed In
+    /// Key look their data up by. A label rather than the enum: the shared window lives in
+    /// JustPlay.UI, which cannot see JustPlay.Metadata where the probe lives - and comparing the
+    /// probe's own string against the container name the reader produced WITH THE SAME PROBE is
+    /// exact by construction, instead of a second version table that can drift.</para>
+    /// </summary>
+    private async void OnMenuRawTags(object? sender, RoutedEventArgs e)
+    {
         try
         {
             if (Vm is not { Selected.Count: > 0 } vm) return;
-            if (Clipboard is not { } clipboard) return;
 
-            await clipboard.SetTextAsync(string.Join(Environment.NewLine,
-                                                     vm.Selected.Select(r => r.Path)));
+            var settings = Program.Services.GetRequiredService<JustPlay.Tag.Settings.TagSettingsService>();
+            var convertsTo = Id3VersionProbe.MajorFor(settings.WriteFormat) is { } major
+                ? Id3VersionProbe.Name(major)
+                : null;
+
+            await RawTagsWindow.ShowAsync(this,
+                                          Program.Services.GetRequiredService<IRawTagReader>(),
+                                          vm.Selected.Select(r => r.Path).ToList(),
+                                          convertsTo);
         }
         catch (Exception)
         {
-            // `async void` on an event handler must not let anything escape, and a clipboard the OS
-            // refuses to hand over is not worth a dialog.
+            // `async void` on an event handler must not let anything escape - and a window that
+            // could not open is not worth taking the app down for.
         }
     }
 
-    /// <summary>Re-read the folder from disk. Same entry the Finder's menu carries.</summary>
-    private void OnMenuRefresh(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// TRANSFORM: change the text that is ALREADY in the selected files' tags - the other kind of
+    /// bulk edit, and the one a freshly downloaded folder wants first.
+    ///
+    /// <para>The unsaved-edits question is asked FIRST, exactly as switching files asks it. Without
+    /// it the panel would still be holding the pre-transform values, ticked, and the next Save would
+    /// quietly write them back over what the transform just did.</para>
+    ///
+    /// <para>Afterwards the rows re-read their tags, and the editor is re-pointed at the same files
+    /// with no tags attached - which makes it read them off DISK rather than trust what it was
+    /// holding before the write.</para>
+    /// </summary>
+    private async void OnMenuTransform(object? sender, RoutedEventArgs e)
     {
-        if (Vm is { Folder: { Length: > 0 } here } vm) vm.Open(here);
+        try
+        {
+            if (Vm is not { Selected.Count: > 0 } vm) return;
+            if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
+
+            var rows = vm.Selected.ToList();
+            var transform = vm.Editor.Transform(
+                rows.Select(r => new TagTarget(r.Path, r.Meta)).ToList());
+
+            if (!await TransformWindow.ShowAsync(this, transform)) return;
+
+            vm.RefreshTagsFor(rows.Select(r => r.Path).ToList());
+            vm.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, null)).ToList());
+            vm.SyncAnalysisTab();
+        }
+        catch (Exception)
+        {
+            // `async void` on an event handler must not let anything escape - and a transform that
+            // could not open its window is not worth taking the app down for.
+        }
+    }
+
+    /// <summary>
+    /// Re-read from disk WHAT IS ON SCREEN - which is not always the folder. The pane also shows a
+    /// playlist's tracks, or the tracks of a leaf folder you did not navigate into; the view model
+    /// remembers which in its source path, and its own Refresh re-opens that.
+    ///
+    /// <para>This used to call <c>Open(Folder)</c>, and <c>Open</c> CLEARS the source path - so
+    /// refreshing while standing in a leaf folder's tracks re-opened the PARENT, which usually holds
+    /// no audio of its own, and the list came back empty. One refresh, one implementation.</para>
+    /// </summary>
+    private void OnMenuRefresh(object? sender, RoutedEventArgs e) => Vm?.Refresh();
+
+    private async void OnMenuMove(object? sender, RoutedEventArgs e) =>
+        await OrganiseAsync(OrganiseAction.Move);
+
+    private async void OnMenuCopyTo(object? sender, RoutedEventArgs e) =>
+        await OrganiseAsync(OrganiseAction.Copy);
+
+    private async void OnMenuDelete(object? sender, RoutedEventArgs e) =>
+        await OrganiseAsync(OrganiseAction.Delete);
+
+    /// <summary>
+    /// MOVE / COPY / DELETE the selection. Everything that decides anything is in the shared
+    /// window; this only hands it the three things that are JUST TAG's to supply.
+    ///
+    /// <para>The unsaved-edits question is asked FIRST, exactly as switching files and TRANSFORM ask
+    /// it - the panel would otherwise still be holding values for a file that is no longer there.
+    /// </para>
+    ///
+    /// <para><b>Releasing the preview</b> is the callback: a file JUST TAG is playing has an open
+    /// handle and Windows will not move or delete it. It runs on the UI thread, before a byte is
+    /// touched. (JUST TAG has no deferred tag-write queue to drain - it releases the file and writes
+    /// immediately, see the executor in <c>Program.ConfigureServices</c>.)</para>
+    ///
+    /// <para><b>The index</b> is reconciled afterwards so a moved track is never lost from the
+    /// library - and only for folders that are already indexed.</para>
+    /// </summary>
+    private async Task OrganiseAsync(OrganiseAction action)
+    {
+        try
+        {
+            if (Vm is not { Selected.Count: > 0 } vm) return;
+            if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
+
+            var organise = new OrganiseViewModel(
+                action,
+                [.. vm.Selected.Select(r => r.Path)],
+                SystemRecycleBin.Instance,
+                new LibraryOrganiseSync(Program.Services.GetRequiredService<IMetadataReader>()),
+                paths => { foreach (var path in paths) vm.Preview.ReleaseIfPlaying(path); });
+
+            // Only re-list when something actually happened on disk. Refresh (not Open) because the
+            // pane may be showing a playlist or a leaf folder's tracks - see OnMenuRefresh.
+            if (await OrganiseWindow.ShowAsync(this, organise)) vm.Refresh();
+        }
+        catch (Exception)
+        {
+            // `async void` on an event handler must not let anything escape - and an operation that
+            // could not open its window is not worth taking the app down for.
+        }
     }
 
     /// <summary>Point the list back at whatever the editor is actually holding.</summary>

@@ -31,16 +31,12 @@ public partial class LogWindow : Window
     private void OnClearClick(object? sender, RoutedEventArgs e) => (DataContext as LogViewModel)?.Clear();
 
     // Copy the WHOLE log to the clipboard. (Per-line copy = select text in the box + Ctrl+C.)
-    // Avalonia 12 dropped IClipboard.SetTextAsync -> wrap the text in a DataTransfer (same pattern as
-    // OopsDialog: DataTransferItem.CreateText + IClipboard.SetDataAsync).
+    // Through the shared helper: this used to call the clipboard directly out of an `async void`
+    // handler, and a clipboard the OS refuses raises from in there and takes the process down.
     private async void OnCopyAll(object? sender, RoutedEventArgs e)
     {
-        if (Clipboard is not { } cb) return;
-        var text = (DataContext as LogViewModel)?.Text ?? string.Empty;
-        var data = new DataTransfer();
-        data.Add(DataTransferItem.CreateText(text));
-        await cb.SetDataAsync(data);
-        CopiedHint.IsVisible = true;
+        var text = (DataContext as LogViewModel)?.Text;
+        CopiedHint.IsVisible = await SystemClipboard.CopyTextAsync(this, text);
     }
 
     // Frameless window: drag it by the card, but let button clicks through.

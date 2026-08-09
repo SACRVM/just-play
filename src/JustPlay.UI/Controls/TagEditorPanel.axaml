@@ -385,7 +385,7 @@
                                                  ItemsSource="{Binding TagMaskSuggestions}"
                                                  FilterMode="Contains" MinimumPrefixLength="0"
                                                  MaxDropDownHeight="240"
-                                                 Watermark="Leave tags alone"/>
+                                                 PlaceholderText="Leave tags alone"/>
 
                                 <!-- The dial. Without a number that moves while you type, a mask box
                                      is guess - open preview - close - adjust; with it you stop when

@@ -134,12 +134,10 @@ public static class AudioFiles
 
     /// <summary>
     /// Formats a byte count into a human-readable string (B / KB / MB / GB).
+    ///
+    /// <para>Delegates to <see cref="JustPlay.Core.ByteSize"/>: the organise preview needs the same
+    /// formatter and cannot see this project, so the definition moved down rather than being written
+    /// a second time. Kept here as the name three call sites already use.</para>
     /// </summary>
-    public static string FormatBytes(long bytes) => bytes switch
-    {
-        < 1024L                => $"{bytes} B",
-        < 1024L * 1024L        => $"{bytes / 1024.0:F1} KB",
-        < 1024L * 1024L * 1024L => $"{bytes / (1024.0 * 1024.0):F1} MB",
-        _                      => $"{bytes / (1024.0 * 1024.0 * 1024.0):F2} GB",
-    };
+    public static string FormatBytes(long bytes) => JustPlay.Core.ByteSize.Format(bytes);
 }

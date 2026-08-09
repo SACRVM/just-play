@@ -833,6 +833,20 @@ public sealed partial class TagEditorViewModel
         StartCoverCompare(_targets);
     }
 
+    // -- Transforming what is already there ------------------------------------------------------
+
+    /// <summary>
+    /// A TRANSFORM over <paramref name="targets"/> - the other kind of bulk edit. This panel sets a
+    /// field to ONE value across a selection; a transform changes the value that is already in each
+    /// file ("PERC - GOB" -> "Perc - Gob", "_" -> " ", a site name out of the comment).
+    ///
+    /// <para>Built HERE rather than by the host so it inherits this editor's reader, writer and
+    /// executor. The executor is the point: a write must reach the file by exactly the route a save
+    /// does, or a file that is playing would be deferred by one window and fail in the other.</para>
+    /// </summary>
+    public TagTransformViewModel Transform(IReadOnlyList<TagTarget> targets) =>
+        new(_reader, _writer, _execute, targets);
+
     // -- The plan --------------------------------------------------------------------------------
 
     /// <summary>
@@ -1139,16 +1153,10 @@ public sealed partial class TagEditorViewModel
                           is var t && t > 0 ? t : PickNum(write, TagField.Track, v.Track, current.TrackNumber),
         };
 
-        var editorialChanged =
-            !TextEquals(next.Title, Blank(current.Title)) ||
-            !TextEquals(next.Artist, Blank(current.Artist)) ||
-            !TextEquals(next.Album, Blank(current.Album)) ||
-            !TextEquals(next.AlbumArtist, Blank(current.AlbumArtist)) ||
-            !TextEquals(next.Genre, Blank(current.Genre)) ||
-            !TextEquals(next.Comment, Blank(current.Comment)) ||
-            next.Year != (current.Year ?? 0u) ||
-            next.TrackNumber != (current.TrackNumber ?? 0u) ||
-            coverAction != CoverAction.Keep;
+        // The "did this actually change anything" comparison is the SHARED one - see EditorialWrite,
+        // which the TRANSFORM window writes through as well. The cover is this method's own business:
+        // it is not an editorial field, and it rides along in the same call.
+        var editorialChanged = EditorialWrite.Changes(next, current) || coverAction != CoverAction.Keep;
 
         var analysisWrite = analysis is null ? null : analysis with
         {

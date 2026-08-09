@@ -60,6 +60,10 @@ public enum IconKind
 
     /// <summary>Look, do not touch - a preview of what an action would do, before it runs.</summary>
     Eye,
+
+    /// <summary>The operating system's bin. (!) It means "filed where you can get it back", never
+    /// "destroyed" - this suite has no permanent delete, so the mark must not read like one.</summary>
+    Trash,
 }
 
 /// <summary>
@@ -212,6 +216,15 @@ public class JustIcon : Control
             "M2.2 12 C5 6.6 8.5 4.4 12 4.4 C15.5 4.4 19 6.6 21.8 12 " +
             "C19 17.4 15.5 19.6 12 19.6 C8.5 19.6 5 17.4 2.2 12 Z " +
             "M8.6 12 A3.4 3.4 0 1 0 15.4 12 A3.4 3.4 0 1 0 8.6 12"), Stroke: 1.9),
+
+        // Bin: lid, tapered body, handle, two ribs - one stroke, five subpaths. Stroked rather than
+        // filled, like the pencil and the refresh arrow: it is an ACTION mark, not a silhouette, and
+        // a solid black bin reads as destruction where this one is a filing cabinet you can reopen.
+        // Lid spans the full 2.6...21.4 reach so it sits at the same visual weight as its siblings.
+        [IconKind.Trash] = new(Geometry.Parse(
+            "M2.6 6.2 H21.4 M5.9 6.2 L7 21.2 H17 L18.1 6.2 " +
+            "M9.4 6.2 V4.2 A1.4 1.4 0 0 1 10.8 2.8 H13.2 A1.4 1.4 0 0 1 14.6 4.2 V6.2 " +
+            "M10 10 V17.6 M14 10 V17.6"), Stroke: 2),
 
         [IconKind.Play] = new(Geometry.Parse("M6.5 4 L19.5 12 L6.5 20 Z")),
 

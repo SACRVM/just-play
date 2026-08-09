@@ -1326,6 +1326,12 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     public string CopyPathMenuHeader =>
         _selected.Count > 1 ? $"Copy paths ({_selected.Count})" : "Copy path";
 
+    /// <summary>TRANSFORM - the bulk edit that changes what is already in a field. Carries the count
+    /// for the same reason Copy path does: an entry that says how many files it is about to touch is
+    /// the cheapest protection there is.</summary>
+    public string TransformMenuHeader =>
+        _selected.Count > 1 ? $"Transform text ({_selected.Count})..." : "Transform text...";
+
     public void SetSelection(IEnumerable<FileRow>? rows)
     {
         var next = rows?.ToList() ?? [];
@@ -1338,6 +1344,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         Raise(nameof(HasOneSelected));
         Raise(nameof(PreviewMenuHeader));
         Raise(nameof(CopyPathMenuHeader));
+        Raise(nameof(TransformMenuHeader));
     }
 
     private string? _problem;
@@ -1750,6 +1757,42 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// definition - so "below this folder" has nothing to mean in either case. The checkbox greys out
     /// rather than lying.</summary>
     public bool CanIncludeSubfolders => ShowingFolder;
+
+    /// <summary>
+    /// Re-read THESE files' tags into the rows that show them.
+    ///
+    /// <para>A write that went around the editor - the TRANSFORM window - still has to land in the
+    /// list, and re-listing the whole folder to show six changed genres would throw the selection
+    /// away with it. Same drip as every other row update, so a 500-file transform repaints in chunks
+    /// instead of blocking the UI thread once.</para>
+    /// </summary>
+    public void RefreshTagsFor(IReadOnlyCollection<string> paths)
+    {
+        if (paths is not { Count: > 0 }) return;
+
+        var wanted = new HashSet<string>(paths, StringComparer.OrdinalIgnoreCase);
+        var rows = _all.Where(r => wanted.Contains(r.Path)).ToList();
+        if (rows.Count == 0) return;
+
+        RunJob(() =>
+        {
+            foreach (var row in rows)
+            {
+                try
+                {
+                    row.Meta = _reader.Read(row.Path);
+                    row.Id3 = row.Meta?.Id3Version;
+                    row.Track.Artwork = row.Meta?.CoverArt is { Length: > 0 };
+                }
+                catch (Exception)
+                {
+                    // An unreadable file keeps whatever the row already showed. Blanking it would be
+                    // losing a song in the listing over a transient share hiccup.
+                }
+                Touched(row);
+            }
+        });
+    }
 
     /// <summary>Read the current folder again - after a rename, or when something changed on disk
     /// behind our back.</summary>

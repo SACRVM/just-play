@@ -1,0 +1,284 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:uic="using:JustPlay.UI.Controls"
+        xmlns:vm="using:JustPlay.UI.ViewModels"
+        x:Class="JustPlay.UI.Views.TransformWindow"
+        x:DataType="vm:TagTransformViewModel"
+        Title="Transform text"
+        Width="860" Height="640"
+        MinWidth="620" MinHeight="420"
+        Topmost="True"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        RequestedThemeVariant="Dark"
+        Background="#00000000"
+        TransparencyLevelHint="Transparent,Mica,Blur"
+        WindowDecorations="None">
+
+    <!--
+      TRANSFORM: change the text that is already in the tags, across a whole selection.
+
+      The multi-file editor sets a field to ONE value. This is the other half, and the half a DJ
+      reaches for first on a folder that just finished downloading: "PERC - GOB" wants to read
+      "Perc - Gob", the underscores want to be spaces, and a site name wants to come out of every
+      comment. mp3tag's most-used feature, and until now the one thing JUST TAG could not do.
+
+      THE LIST BELOW IS THE SAFETY MODEL. There is no undo in this repo by design, so the protection
+      sits in FRONT of the action: every field that would change is on screen, with what it says now
+      and what it would say, before Apply is reachable at all. Apply is dead while the list is empty.
+      Files that would not change are not listed - and the count line says that in words, so an empty
+      row is never mistaken for a file that got missed.
+
+      The chrome is the suite's, copied from MaskHelpWindow verbatim: frameless rounded card,
+      SurfaceCard, the 36 px drag bar, the shared resize grips. A JUST window's shell is never
+      re-invented per window.
+    -->
+
+    <Window.Styles>
+        <!-- Section caption. Same values the other dialogs in this folder inline; named once here
+             because this window has five of them. -->
+        <Style Selector="TextBlock.caption">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="2"/>
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+        </Style>
+        <!-- The label beside a tick. Clicking the tick is the gesture; the word is what it means. -->
+        <Style Selector="TextBlock.ticklabel">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="#ECFFFFFF"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.cell">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <Border Name="DialogCard" ClipToBounds="False" Background="#40000000">
+            <Panel>
+                <uic:SurfaceCard CornerRadius="14"/>
+
+                <DockPanel LastChildFill="True">
+
+                    <!-- === CHROME === -->
+                    <Border DockPanel.Dock="Top" Height="36" Background="Transparent"
+                            PointerPressed="OnChromePressed">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                        Margin="16,0,0,0" VerticalAlignment="Center">
+                                <uic:WindowControls ShowMinimize="False" ShowMaximize="False"
+                                                    IsVisible="{x:Static uic:Platform.IsMac}"
+                                                    Margin="0,0,4,0"/>
+                                <uic:JustIcon Kind="Pencil" Width="13" Height="13"
+                                              Foreground="#D9FFFFFF" VerticalAlignment="Center"/>
+                                <TextBlock Text="TRANSFORM" FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="2" Foreground="#D9FFFFFF"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="1" Name="CountText" FontSize="11"
+                                       Foreground="{DynamicResource MutedBrush}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Margin="12,0,8,0"/>
+
+                            <Button Grid.Column="2" Classes="cap close" Click="OnClose" ToolTip.Tip="Close"
+                                    IsVisible="{x:Static uic:Platform.IsNotMac}">
+                                <uic:JustIcon Kind="Close" Width="12" Height="12"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- === FOOTER: the verdict, and the two ways out ===
+                         The count leads, because it is the sentence that decides whether you press
+                         Apply or go back to the boxes. Apply is disabled while nothing would change,
+                         so the button and the list can never disagree. -->
+                    <Border DockPanel.Dock="Bottom" Margin="16,10,16,14">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBlock Grid.Column="0" Name="SummaryText" Text="{Binding Summary}"
+                                       FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                                       Margin="0,0,14,0"
+                                       Foreground="{DynamicResource MutedBrush}"/>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                        VerticalAlignment="Center" Margin="0,0,14,0"
+                                        IsVisible="{Binding CanApply}">
+                                <uic:JustIcon Kind="Warning" Width="12" Height="12"
+                                              Foreground="{DynamicResource CautionBrush}"
+                                              VerticalAlignment="Center"/>
+                                <TextBlock Text="This cannot be undone." FontSize="11.5"
+                                           Foreground="{DynamicResource CautionBrush}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                                <Button Classes="dialog-close ghost" Content="Cancel" Click="OnClose"/>
+                                <Button Name="ApplyButton" Classes="dialog-close" Content="Apply"
+                                        Click="OnApply" IsEnabled="{Binding CanApply}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- === THE CONTROLS === -->
+                    <StackPanel DockPanel.Dock="Top" Margin="16,4,16,0" Spacing="10">
+
+                        <!-- WHICH FIELDS. Ticks, not a multi-select list: the answer is usually two
+                             of them and a list would make that two decisions plus a scroll. -->
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="FIELDS" Classes="caption"/>
+                            <WrapPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,20,4">
+                                    <ToggleButton Classes="fieldtick" IsChecked="{Binding DoArtist, Mode=TwoWay}"/>
+                                    <TextBlock Text="Artist" Classes="ticklabel"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,20,4">
+                                    <ToggleButton Classes="fieldtick" IsChecked="{Binding DoTitle, Mode=TwoWay}"/>
+                                    <TextBlock Text="Title" Classes="ticklabel"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,20,4">
+                                    <ToggleButton Classes="fieldtick" IsChecked="{Binding DoAlbum, Mode=TwoWay}"/>
+                                    <TextBlock Text="Album" Classes="ticklabel"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,20,4">
+                                    <ToggleButton Classes="fieldtick" IsChecked="{Binding DoAlbumArtist, Mode=TwoWay}"/>
+                                    <TextBlock Text="Album artist" Classes="ticklabel"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,20,4">
+                                    <ToggleButton Classes="fieldtick" IsChecked="{Binding DoGenre, Mode=TwoWay}"/>
+                                    <TextBlock Text="Genre" Classes="ticklabel"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,20,4">
+                                    <ToggleButton Classes="fieldtick" IsChecked="{Binding DoComment, Mode=TwoWay}"/>
+                                    <TextBlock Text="Comment" Classes="ticklabel"/>
+                                </StackPanel>
+                            </WrapPanel>
+                        </StackPanel>
+
+                        <Border Height="1" Background="#14FFFFFF"/>
+
+                        <!-- THE OPERATION. One picker, six entries - the case ones are spelled the
+                             way they behave, which is the shortest description there is. -->
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="OPERATION" Classes="caption"/>
+                            <ComboBox ItemsSource="{Binding Operations}"
+                                      SelectedItem="{Binding Operation, Mode=TwoWay}"
+                                      MinWidth="190" HorizontalAlignment="Left">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:OperationChoice">
+                                        <TextBlock Text="{Binding Label}" FontSize="12.5"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <!-- What it does to a word you did not think about. Title Case is the
+                                 one people guess wrong, so it says outright that nothing is kept. -->
+                            <TextBlock Text="{Binding Explanation}" FontSize="11.5" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedBrush}"/>
+                        </StackPanel>
+
+                        <!-- REPLACE's two boxes. Only there for Replace: an input that does nothing
+                             is worse than no input. -->
+                        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12"
+                              IsVisible="{Binding IsReplace}">
+                            <StackPanel Grid.Column="0" Spacing="5">
+                                <TextBlock Text="FIND" Classes="caption"/>
+                                <Border Classes="fieldbox">
+                                    <TextBox Name="FindBox" Classes="bare" Text="{Binding Find}"/>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="5">
+                                <TextBlock Text="REPLACE WITH" Classes="caption"/>
+                                <Border Classes="fieldbox">
+                                    <TextBox Classes="bare" Text="{Binding ReplaceWith}"/>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7"
+                                        VerticalAlignment="Bottom" Margin="0,0,0,7">
+                                <ToggleButton Classes="fieldtick" IsChecked="{Binding MatchCase, Mode=TwoWay}"/>
+                                <TextBlock Text="Match case" Classes="ticklabel"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- === THE PREVIEW ===
+                         One line per FIELD, not per file: a single pass can touch the artist and the
+                         title of the same file, and folding those together would hide half of it. -->
+                    <DockPanel Margin="16,12,16,0" LastChildFill="True">
+                        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource HairlineBrush}"
+                                BorderThickness="0,0,0,1" Padding="0,0,0,6" Margin="0,0,0,6">
+                            <Grid ColumnDefinitions="1.3*,92,*,18,*">
+                                <TextBlock Grid.Column="0" Text="FILE" FontSize="10"
+                                           FontWeight="SemiBold" LetterSpacing="2" Foreground="#8CFFFFFF"/>
+                                <TextBlock Grid.Column="1" Text="FIELD" FontSize="10"
+                                           FontWeight="SemiBold" LetterSpacing="2" Foreground="#8CFFFFFF"/>
+                                <TextBlock Grid.Column="2" Text="NOW" FontSize="10"
+                                           FontWeight="SemiBold" LetterSpacing="2" Foreground="#8CFFFFFF"/>
+                                <TextBlock Grid.Column="4" Text="AFTER" FontSize="10"
+                                           FontWeight="SemiBold" LetterSpacing="2" Foreground="#8CFFFFFF"/>
+                            </Grid>
+                        </Border>
+
+                        <Panel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <ItemsControl ItemsSource="{Binding Rows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:TextChangeRow">
+                                            <Grid ColumnDefinitions="1.3*,92,*,18,*" Margin="0,0,0,5">
+                                                <TextBlock Grid.Column="0" Classes="cell"
+                                                           Text="{Binding File}" Foreground="#73FFFFFF"
+                                                           ToolTip.Tip="{Binding File}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Field}"
+                                                           FontSize="10" FontWeight="Bold"
+                                                           LetterSpacing="1.4" Foreground="#73FFFFFF"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Classes="cell"
+                                                           Text="{Binding Before}" Foreground="#8CFFFFFF"
+                                                           ToolTip.Tip="{Binding Before}"/>
+                                                <TextBlock Grid.Column="3" Text="->" FontSize="11"
+                                                           Foreground="#59FFFFFF"
+                                                           VerticalAlignment="Center"/>
+                                                <!-- The AFTER reads bright: what you are about to get
+                                                     is the question this list answers. -->
+                                                <TextBlock Grid.Column="4" Classes="cell"
+                                                           Text="{Binding After}" Foreground="#ECFFFFFF"
+                                                           IsVisible="{Binding !Clears}"
+                                                           ToolTip.Tip="{Binding After}"/>
+                                                <TextBlock Grid.Column="4" Text="emptied" FontSize="12"
+                                                           FontStyle="Italic" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource CautionBrush}"
+                                                           IsVisible="{Binding Clears}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Nothing to show is an ANSWER, not an empty box. -->
+                            <TextBlock Text="Nothing would change." FontSize="12.5"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="#59FFFFFF" IsVisible="{Binding IsEmpty}"/>
+                        </Panel>
+                    </DockPanel>
+                </DockPanel>
+
+                <!-- The SHARED floating overlay - progress never reflows the layout underneath it. -->
+                <uic:BusyOverlay IsActive="{Binding IsBusy}" Message="{Binding BusyText}"
+                                 Detail="{Binding BusyDetail}" Progress="{Binding BusyProgress}"/>
+            </Panel>
+        </Border>
+
+        <!-- Shared edge/corner grips: a frameless window gets no OS resize frame. -->
+        <Grid Name="ResizeGrips" ColumnDefinitions="20,*,20" RowDefinitions="20,*,20">
+            <Border Grid.Row="0" Grid.Column="0" Background="#01000000" Cursor="TopLeftCorner"     Tag="NorthWest"/>
+            <Border Grid.Row="0" Grid.Column="1" Background="#01000000" Cursor="TopSide"           Tag="North"/>
+            <Border Grid.Row="0" Grid.Column="2" Background="#01000000" Cursor="TopRightCorner"    Tag="NorthEast"/>
+            <Border Grid.Row="1" Grid.Column="0" Background="#01000000" Cursor="LeftSide"          Tag="West"/>
+            <Border Grid.Row="1" Grid.Column="2" Background="#01000000" Cursor="RightSide"         Tag="East"/>
+            <Border Grid.Row="2" Grid.Column="0" Background="#01000000" Cursor="BottomLeftCorner"  Tag="SouthWest"/>
+            <Border Grid.Row="2" Grid.Column="1" Background="#01000000" Cursor="BottomSide"        Tag="South"/>
+            <Border Grid.Row="2" Grid.Column="2" Background="#01000000" Cursor="BottomRightCorner" Tag="SouthEast"/>
+        </Grid>
+    </Panel>
+</Window>
