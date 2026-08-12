@@ -414,8 +414,8 @@ does NOT grant you any rights to BASS itself. See https://www.un4seen.com/ for l
 
 ## Credits
 
-- Part of **J.U.S.T. — Just Useful Sound Tools**. **From DJs to DJs**: built and gig-tested
-  by a working DJ.
+- By **Marcus Wilhelm**. Part of **J.U.S.T. — Just Useful Sound Tools**, published under the
+  suite's name. **From DJs to DJs**: built and gig-tested by a working DJ.
 - UI faithfully ported from [Claude Design](https://claude.ai) mockups bundled in `.design/`.
 - Spinning-vinyl + glossy chrome inspired by the heyday of iTunes / Music.app, repainted
   with a 2026 aurora palette.
