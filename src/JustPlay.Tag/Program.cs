@@ -1,11 +1,15 @@
 using System;
 using System.IO;
 using Avalonia;
+using Avalonia.Threading;
+using JustPlay.Analysis;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Storage;
 using JustPlay.Metadata;
+using JustPlay.ML;
 using JustPlay.Tag.ViewModels;
 using JustPlay.UI.Theming;
+using JustPlay.UI.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace JustPlay.Tag;
@@ -63,6 +67,11 @@ internal sealed class Program
         // Shared J.U.S.T. live-theme engine (JustPlay.UI) - same palettes/look as JUST PLAY / STREAM.
         services.AddSingleton<IThemeService, AvaloniaThemeService>();
 
+        // The suite's "do not swallow errors silently" channel (the shared LogWindow's feed, which
+        // JUST PLAY and JUST STREAM already own). JUST TAG had none, so a batch that could not read
+        // three files had nowhere to name them - and a count without names is a dropped track.
+        services.AddSingleton<UI.Logging.LogViewModel>();
+
         // Persisted preferences (theme + ID3 write mode) -> %LOCALAPPDATA%\JustTag\settings.json.
         services.AddSingleton<Settings.TagSettingsService>();
 
@@ -71,26 +80,75 @@ internal sealed class Program
         services.AddSingleton<IAudioEngine, Audio.Bass.BassAudioEngine>();
         services.AddSingleton<PreviewViewModel>();
 
-        // THE editor is the shared one from JustPlay.UI - JUST TAG docks the same panel + view model
-        // that JUST PLAY and the PRE CUE FINDER float. It used to have its own copy; that copy was
-        // the divergence (memory suite-unify-dont-patch-divergence) and is gone.
+        // -- The analyzer -------------------------------------------------------------------------
         //
-        // The executor is what makes previewing safe: a file that is being played has an open
+        // (!!) THE SUITE'S ONE STACK, composed the same way in all three places that run it:
+        // JustPlay.App.Program.ConfigureServices, JustPlay.Cli.EngineComposer, and here. Same
+        // detectors, same orchestrator - so a track analysed in the tagger reads identically in the
+        // player, and there is no second dialect of "analyse this file" to keep in step.
+        //
+        // Key detection in particular is BestKeyDetector: the trained ONNX model when it loaded,
+        // else the DSP template, decided per track and with no user toggle. A tagger running the
+        // DSP-only detector while the player runs the model is exactly the mismatch that produces
+        // key-conflict dots on files nobody edited (memory unified-detector-and-suite-install).
+        services.AddSingleton<IBpmDetector, Audio.Bass.BassBpmDetector>();
+        services.AddSingleton<IAudioDecoder, Audio.Bass.BassAudioDecoder>();
+        services.AddSingleton<HpcpKeyDetector>();
+        services.AddSingleton<MlKeyDetector>();
+        services.AddSingleton<IKeyDetector>(sp => new BestKeyDetector(
+            sp.GetRequiredService<MlKeyDetector>(),
+            sp.GetRequiredService<HpcpKeyDetector>()));
+        services.AddSingleton<IEnergyDetector, SpectralEnergyDetector>();
+        services.AddSingleton<ILoudnessDetector, Bs1770LoudnessDetector>();
+        services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
+
+        // ONE executor for every write this app makes - the tag editor's saves AND the analyse
+        // action's. It is what makes previewing safe: a file that is being played has an open
         // handle, and a tag write on an open handle fails. JUST PLAY defers such a write to the
         // track change because it is performing; a tagger has no reason to wait - it lets go of the
         // file and writes immediately. Same abstraction, the answer each app can actually give.
-        services.AddSingleton(sp =>
+        //
+        // (!) Registered rather than built inline at the editor's call site: the moment a SECOND
+        // caller needed it, an inline lambda would have become two lambdas that have to agree about
+        // releasing the preview - and one of them would eventually not.
+        // (!!) The release goes through the DISPATCHER, and it BLOCKS until it has happened.
+        //
+        // Through the dispatcher because the editor's save calls this on the UI thread but the
+        // ANALYSE batch calls it from its worker threads, and PreviewViewModel.Stop() drives a
+        // DispatcherTimer and a fistful of bound properties - neither of which may be touched from
+        // anywhere else. The one time it bites is the one time it matters: analysing the very track
+        // you are auditioning, which is what you do when you hear something wrong.
+        //
+        // Blocking (Invoke, not Post) because the point of the call is that the handle is CLOSED
+        // before the write starts. Posting would let the write race the release and fail on a locked
+        // file. There is no deadlock in it: the UI thread awaits the batch, it never waits on a
+        // worker, and Invoke runs inline when we are already on the UI thread.
+        services.AddSingleton<TagWriteExecutor>(sp =>
         {
             var preview = sp.GetRequiredService<PreviewViewModel>();
-            var editor = new UI.ViewModels.TagEditorViewModel(
+            return (path, write) =>
+            {
+                Dispatcher.UIThread.Invoke(() => preview.ReleaseIfPlaying(path));
+                write(path);
+                return TagWriteOutcome.Written;
+            };
+        });
+
+        // THE editor is the shared one from JustPlay.UI - JUST TAG docks the same panel + view model
+        // that JUST PLAY and the PRE CUE FINDER float. It used to have its own copy; that copy was
+        // the divergence (memory suite-unify-dont-patch-divergence) and is gone.
+        services.AddSingleton(sp =>
+        {
+            var editor = new TagEditorViewModel(
                 sp.GetRequiredService<IMetadataReader>(),
                 sp.GetRequiredService<IMetadataWriter>(),
-                (path, write) =>
-                {
-                    preview.ReleaseIfPlaying(path);
-                    write(path);
-                    return UI.ViewModels.TagWriteOutcome.Written;
-                });
+                sp.GetRequiredService<TagWriteExecutor>(),
+                // No genre source: JUST TAG browses the disk, so there is no index to harvest the
+                // library's own spellings from - the editor falls back to its canned vocabulary.
+                genreSource: null,
+                // The RAW tab's reader. It reaches the editor HERE rather than through a window,
+                // because RAW is a tab of this panel now.
+                rawReader: sp.GetRequiredService<IRawTagReader>());
 
             // The ID3-VERSION notice above Save. JUST TAG owns the only WRITE FORMAT setting in the
             // suite, so it is the only app that ever fills this in; JUST PLAY, the PRE CUE FINDER and

@@ -16,6 +16,7 @@ using JustPlay.Library;
 using JustPlay.Metadata;
 using JustPlay.Tag.Settings;
 using JustPlay.UI.Controls;
+using JustPlay.UI.Logging;
 using JustPlay.UI.ViewModels;
 
 namespace JustPlay.Tag.ViewModels;
@@ -159,7 +160,7 @@ public sealed record Crumb(string Name, string Path, bool IsLast);
 /// <c>TagEditorPanel</c> - what the file tells other tools (editable) versus what we measured
 /// (read-only) - and FILTER is the search. One row of tabs, three entries.
 /// </summary>
-public enum TagPane { Editor, Analysis, Filter }
+public enum TagPane { Editor, Analysis, Raw, Filter }
 
 /// <summary>
 /// JUST TAG's browser: a folder on the left, its audio files in the middle, and the SHARED
@@ -173,7 +174,7 @@ public enum TagPane { Editor, Analysis, Filter }
 /// PLAY, the Finder and the CLI use. If JUST TAG grew its own extension list, two front-ends would
 /// disagree about the size of the same folder.</para>
 /// </summary>
-public sealed class TaggerViewModel : INotifyPropertyChanged
+public sealed partial class TaggerViewModel : INotifyPropertyChanged
 {
     private readonly TagSettingsService _settings;
     private readonly IMetadataReader _reader;
@@ -192,24 +193,26 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         private set
         {
             Set(ref _pane, value);
-            foreach (var n in (string[])[nameof(ShowEditor), nameof(ShowAnalysis), nameof(ShowFilter),
-                                         nameof(ShowPanel)])
+            foreach (var n in (string[])[nameof(ShowEditor), nameof(ShowAnalysis), nameof(ShowRaw),
+                                         nameof(ShowFilter), nameof(ShowPanel)])
                 Raise(n);
         }
     }
 
     public bool ShowEditor   => _pane == TagPane.Editor;
     public bool ShowAnalysis => _pane == TagPane.Analysis;
+    public bool ShowRaw      => _pane == TagPane.Raw;
     public bool ShowFilter   => _pane == TagPane.Filter;
 
-    /// <summary>EDITOR and ANALYSIS are two halves of the SAME panel, so the panel is visible for
-    /// both and only FILTER replaces it.</summary>
+    /// <summary>EDITOR, ANALYSIS and RAW are three views of the SAME panel, so the panel is visible
+    /// for all of them and only FILTER replaces it.</summary>
     public bool ShowPanel => _pane != TagPane.Filter;
 
     public void ShowTab(TagPane pane)
     {
         if (pane == TagPane.Filter && !CanFilter) return;   // still reading - the tab says so
         if (pane == TagPane.Analysis && !CanShowAnalysisTab) return;
+        if (pane == TagPane.Raw && !CanShowRawTab) return;
         Pane = pane;
     }
 
@@ -217,25 +220,37 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// the tab is not offered rather than offered and empty.</summary>
     public bool CanShowAnalysisTab => Editor.CanShowAnalysis;
 
+    /// <summary>RAW shows ONE file's frames as they sit on disk - same rule as ANALYSIS, and false
+    /// as well when no reader was handed to the editor at all.</summary>
+    public bool CanShowRawTab => Editor.CanShowRaw;
+
     /// <summary>
-    /// Call after the editor's target changes. If ANALYSIS just stopped being available and you were
-    /// standing on it, the pane falls back to EDITOR - a tab that vanishes under you must leave you
+    /// Call after the editor's target changes. If the tab you are standing on just stopped being
+    /// available, the pane falls back to EDITOR - a tab that vanishes under you must leave you
     /// somewhere, not on a blank half.
     /// </summary>
     public void SyncAnalysisTab()
     {
         Raise(nameof(CanShowAnalysisTab));
+        Raise(nameof(CanShowRawTab));
         if (!CanShowAnalysisTab && _pane == TagPane.Analysis) Pane = TagPane.Editor;
+        if (!CanShowRawTab && _pane == TagPane.Raw) Pane = TagPane.Editor;
     }
 
     public TaggerViewModel(TagEditorViewModel editor, PreviewViewModel preview,
                            IMetadataReader reader, TagSettingsService settings,
-                           StartupTarget startup)
+                           StartupTarget startup,
+                           ITrackAnalysisService analysis, IMetadataWriter writer,
+                           TagWriteExecutor execute, LogViewModel log)
     {
         Editor = editor;
         Preview = preview;
         _reader = reader;
         _settings = settings;
+        _analysis = analysis;
+        _writer = writer;
+        _execute = execute;
+        Log = log;
 
         // The SHARED column state (JustPlay.UI) - the same object the JUST PLAY queue and the Finder
         // use, with JUST TAG's own set switched on. Null means "never chosen", which is what makes a
@@ -548,6 +563,54 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         Columns.Widths.Measure(shown.Select(r => r.Track).ToList());
 
         FileCount = filtering ? $"{shown.Count} of {_all.Count}" : _countText;
+
+        // Every path that can leave the pane empty ends here, so this is the one place the empty
+        // note has to be announced from and no call site can forget it.
+        RaiseEmptyState();
+    }
+
+    // -- Nothing to show, and WHY ----------------------------------------------------------------
+    //
+    // (!) A blank pane with no explanation is read as a broken app - and was: a folder holding only
+    // SUB-folders (the shape of \\nas\music\GENRES) listed correctly, showed nothing, and said
+    // nothing about it. The pane states its reason now, in the PRE CUE FINDER's shape - a centred
+    // muted line, plus a button on the one state that has an action. The words are
+    // FilePaneEmptyState's, which is pure and pinned by tests.
+
+    private EmptyState Blank => FilePaneEmptyState.Describe(
+        hasFolder:    HasFolder,
+        busy:         !Ready,
+        hasProblem:   HasProblem,
+        shown:        Files.Count,
+        total:        _all.Count,
+        filtering:    Filtering,
+        foldersBelow: Folders.Count(f => !f.IsUp),
+        // A PLAYLIST, not just "not the current folder": a LEAF folder is shown the same way and is
+        // still a folder, so it must keep the folder wording - "this set has no tracks" over an
+        // empty folder would send you looking for a set you never opened.
+        isPlaylist:   _sourcePath is { Length: > 0 } src && M3uPlaylist.IsPlaylist(src));
+
+    /// <summary>Show the centred empty note. Off while a batch is running: the busy disc owns the
+    /// pane's centre, and a line under it would stick out past the rim on both sides (the Finder
+    /// documents the same rule for its hints).</summary>
+    public bool ShowEmptyNote => Blank.IsEmpty && !IsAnalysing;
+
+    /// <summary>The one calm line.</summary>
+    public string EmptyLine => Blank.Line;
+
+    /// <summary>The way out, when there is one.</summary>
+    public string? EmptyHint => Blank.Hint;
+
+    public bool HasEmptyHint => !string.IsNullOrEmpty(Blank.Hint);
+
+    /// <summary>The search is what is hiding the files - offer to clear it.</summary>
+    public bool ShowClearSearchOffer => ShowEmptyNote && Blank.OffersClear;
+
+    private void RaiseEmptyState()
+    {
+        foreach (var n in (string[])[nameof(ShowEmptyNote), nameof(EmptyLine), nameof(EmptyHint),
+                                     nameof(HasEmptyHint), nameof(ShowClearSearchOffer)])
+            Raise(n);
     }
 
     /// <summary>
@@ -828,9 +891,11 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// slow" is answered on screen rather than guessed at.</summary>
     public string? IndexNote { get => _indexNote; private set { Set(ref _indexNote, value); Raise(nameof(HasIndexNote)); } }
 
-    /// <summary>Shown only once the read is DONE - while it runs, the progress line occupies that spot
-    /// and two texts in one cell would overlap.</summary>
-    public bool HasIndexNote => !string.IsNullOrEmpty(_indexNote) && Ready;
+    /// <summary>Shown only once the read is DONE, and only while nothing else is claiming that spot -
+    /// the loading line during a read, the analysis summary after a run. They all live in the same
+    /// cell of the FILES header, and two texts in one cell overlap into mush.</summary>
+    public bool HasIndexNote =>
+        !string.IsNullOrEmpty(_indexNote) && Ready && !IsAnalysing && !HasAnalysisNote;
 
     /// <summary>Read ONE row off the UI thread and push it to its cells. Claimed once, so the viewport
     /// and the background pass never read the same file twice.</summary>
@@ -1151,6 +1216,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                                          nameof(LoadingText), nameof(CanFilter), nameof(Ready),
                                          nameof(HasIndexNote)])
                 Raise(n);
+            RaiseEmptyState();   // "still reading" and "there is nothing here" are different answers
 
             // (!) There used to be a "a load started -> leave the FILTER tab" rule here, and it was wrong
             // in the one case that matters: "Include subfolders" LIVES on the filter tab and re-reads
@@ -1345,12 +1411,18 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
         Raise(nameof(PreviewMenuHeader));
         Raise(nameof(CopyPathMenuHeader));
         Raise(nameof(TransformMenuHeader));
+        Raise(nameof(AnalyzeMenuHeader));
+        Raise(nameof(CanAnalyze));
     }
 
     private string? _problem;
     /// <summary>Why a folder could not be listed. Shown in place of the file list rather than thrown:
     /// a permission-denied folder is a normal thing to click on, not a crash.</summary>
-    public string? Problem { get => _problem; private set { Set(ref _problem, value); Raise(nameof(HasProblem)); } }
+    public string? Problem
+    {
+        get => _problem;
+        private set { Set(ref _problem, value); Raise(nameof(HasProblem)); RaiseEmptyState(); }
+    }
 
     public bool HasProblem => _problem is not null;
 
@@ -1591,6 +1663,7 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                                          nameof(LoadingText), nameof(CanFilter), nameof(Ready),
                                          nameof(HasIndexNote)])
                 Raise(n);
+            RaiseEmptyState();
         }
     }
 
@@ -1756,10 +1829,16 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
     /// <summary>
     /// Re-read THESE files' tags into the rows that show them.
     ///
-    /// <para>A write that went around the editor - the TRANSFORM window - still has to land in the
-    /// list, and re-listing the whole folder to show six changed genres would throw the selection
-    /// away with it. Same drip as every other row update, so a 500-file transform repaints in chunks
-    /// instead of blocking the UI thread once.</para>
+    /// <para>A write that went around the editor - the TRANSFORM window, the ANALYSE run - still has
+    /// to land in the list, and re-listing the whole folder to show six changed genres would throw
+    /// the selection away with it. Same drip as every other row update, so a 500-file transform
+    /// repaints in chunks instead of blocking the UI thread once.</para>
+    ///
+    /// <para>(!) It refreshes the ANALYSIS the row shows as well, not just the editable tags - the
+    /// same three assignments <see cref="Hydrate"/> makes. Without them a file that had just been
+    /// analysed came back with its new BPM and key (those are ordinary tags) but with the AN traffic
+    /// light still reading off the OLD blob, so the one column that says "this is current" was the
+    /// one column the analyse action did not update.</para>
     /// </summary>
     public void RefreshTagsFor(IReadOnlyCollection<string> paths)
     {
@@ -1778,6 +1857,12 @@ public sealed class TaggerViewModel : INotifyPropertyChanged
                     row.Meta = _reader.Read(row.Path);
                     row.Id3 = row.Meta?.Id3Version;
                     row.Track.Artwork = row.Meta?.CoverArt is { Length: > 0 };
+                    if (row.Meta?.StoredAnalysis is { } stored)
+                    {
+                        row.Track.Model.Analysis = stored.Detected;
+                        row.Track.Model.AnalysedAtUtc = stored.AnalysedAtUtc;
+                        row.Track.Model.AnalysisStatus = AnalysisStatus.Done;
+                    }
                 }
                 catch (Exception)
                 {

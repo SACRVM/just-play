@@ -222,6 +222,9 @@ sealed class Program
         services.AddSingleton<IPreListenEngine, BassPreListenEngine>();
         services.AddSingleton<IMetadataReader, TagLibMetadataReader>();
         services.AddSingleton<IMetadataWriter, TagLibMetadataWriter>();
+        // The RAW view of a file's tag containers - the editor's third tab. Registered here so JUST
+        // PLAY's floating editor and the PRE CUE FINDER's both get it from the one CreateTagEditor.
+        services.AddSingleton<IRawTagReader, TagLibRawTagReader>();
 
         // Analysis stack - BPM detector + the orchestrator that fans tracks
         // out to all registered detectors. Singletons so the BASS_FX side has

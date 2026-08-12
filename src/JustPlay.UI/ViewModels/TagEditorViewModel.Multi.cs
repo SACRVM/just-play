@@ -123,9 +123,21 @@ public sealed record TagSavePlan(
 /// <param name="Clears">The value is being emptied - the one setting that can lose data outright.</param>
 public sealed record TagSetting(string Field, string Value, bool Clears);
 
-/// <summary>How a multi-file save actually went.</summary>
+/// <summary>
+/// How a multi-file save actually went.
+///
+/// <para>A RENAME is counted on its own and never folded into <see cref="Failed"/>. The two are
+/// different pieces of news: the write puts the edits in the file, the rename changes what it is
+/// called, and a file whose tags landed but whose rename did not is a SAVED file with the wrong
+/// name - not a failed one. Folding them also counted such a file twice, once in each column, so
+/// "12 saved, 1 failed" could come out of 12 files.</para>
+/// </summary>
+/// <param name="RenamesFailed">Files whose tags landed and whose rename did not.</param>
+/// <param name="FirstRenameError">The first rename's reason, for the same "say why" as
+/// <paramref name="FirstError"/>.</param>
 public sealed record TagSaveReport(int Written, int Unchanged, int Deferred, int Failed,
-                                   string? FirstError);
+                                   string? FirstError,
+                                   int RenamesFailed = 0, string? FirstRenameError = null);
 
 public sealed partial class TagEditorViewModel
 {
@@ -159,9 +171,20 @@ public sealed partial class TagEditorViewModel
     /// <summary>How many files the editor is pointed at.</summary>
     public int FileCount => _targets.Count > 0 ? _targets.Count : FilePath is null ? 0 : 1;
 
-    /// <summary>ANALYSIS is a per-file measurement and has nothing to say about a selection, so the
-    /// hosts hide the tab rather than show an empty one.</summary>
-    public bool CanShowAnalysis => !IsMulti;
+    /// <summary>
+    /// Exactly ONE file is open - the state in which a per-file view has anything to show at all.
+    ///
+    /// <para>(!) Both per-file tabs hang off this ONE property, and that is the whole point. They used
+    /// to phrase the same condition differently - ANALYSIS as <c>!IsMulti</c>, RAW as
+    /// <c>!IsMulti &amp;&amp; FilePath is not null</c> - and the two disagree in exactly one state:
+    /// nothing selected. The strip then offered ANALYSIS and not RAW, a distinction that does not
+    /// exist. Anything else that is per-file goes through here too, rather than re-deriving it.</para>
+    /// </summary>
+    public bool IsSingleFile => FileCount == 1;
+
+    /// <summary>ANALYSIS is a per-file measurement and has nothing to say about a selection - or about
+    /// no selection - so the hosts hide the tab rather than show an empty one.</summary>
+    public bool CanShowAnalysis => IsSingleFile;
 
     /// <summary>The files the editor is holding, as a set - what a host compares against to tell
     /// whether a new selection is actually a different one.</summary>
@@ -712,7 +735,13 @@ public sealed partial class TagEditorViewModel
     {
         Raise(nameof(IsMulti));
         Raise(nameof(FileCount));
+        Raise(nameof(IsSingleFile));
         Raise(nameof(CanShowAnalysis));
+        Raise(nameof(CanShowRaw));
+        // The RAW listing belongs to whatever file is open now. This runs from every path that
+        // changes the target, and only after that path has finished settling FilePath - it is called
+        // from the `finally` of each one, and (for the background cover compare) on the UI thread.
+        RefreshRaw();
         Raise(nameof(RenameMask));
         Raise(nameof(RenameMaskLabel));
         Raise(nameof(HasRenameMask));
@@ -1072,7 +1101,9 @@ public sealed partial class TagEditorViewModel
         var coverMime  = coverAction == CoverAction.Replace ? _coverMime : null;
 
         int written = 0, unchanged = 0, deferred = 0, failed = 0, done = 0;
+        int renamesFailed = 0, renamesHeld = 0;
         string? firstError = null;
+        string? firstRenameError = null;
 
         // Which files a write actually reached, per index - what the ID3-version notice needs to know
         // afterwards. A skipped or failed file was NOT converted, and must keep its warning.
@@ -1085,35 +1116,59 @@ public sealed partial class TagEditorViewModel
                 token.ThrowIfCancellationRequested();
 
                 var path = targets[i].Path;
+
+                // What THIS file's write did, kept per item - the counters above are running totals
+                // and cannot answer "why was this one's rename not attempted?".
+                //
+                // The single-file path makes the same two calls for the same reasons: a write that
+                // FAILED must not also change the file's name (the edits are not in it), and a write
+                // that was DEFERRED cannot be renamed at all - the queued write is aimed at the old
+                // path and the engine is holding the handle.
+                var wroteOk = true;
+                var held = false;
+
                 try
                 {
                     switch (WriteOne(path, write, values, analysis, coverAction, coverBytes,
                                      coverMime, plan.TagFromNameMask))
                     {
                         case null:                     unchanged++; break;
-                        case TagWriteOutcome.Deferred: deferred++;  break;
+                        case TagWriteOutcome.Deferred: deferred++;  wroteOk = false; held = true; break;
                         case TagWriteOutcome.Written:  written++; didWrite[i] = true; break;
-                        default:                       failed++;    break;
+                        default:                       failed++;    wroteOk = false; break;
                     }
-
-                    if (plan.RenameMask is not null && i < renames.Count && renames[i].To.Length > 0)
-                        RenameOne(path, renames[i].To);
                 }
                 catch (Exception ex)
                 {
                     failed++;
+                    wroteOk = false;
                     firstError ??= ex.Message;
+                }
+
+                // Its OWN try and its own counters - see TagSaveReport for why a rename is not a
+                // write and must not be reported as one.
+                if (plan.RenameMask is not null && i < renames.Count && renames[i].To.Length > 0)
+                {
+                    if (held) renamesHeld++;
+                    else if (wroteOk)
+                    {
+                        try
+                        {
+                            RenameOne(path, renames[i].To);
+                        }
+                        catch (Exception ex)
+                        {
+                            renamesFailed++;
+                            firstRenameError ??= ex.Message;
+                        }
+                    }
                 }
 
                 progress?.Report(++done);
             }
         }, token).ConfigureAwait(true);
 
-        Status = failed > 0
-            ? $"Saved {written}, {failed} failed."
-            : deferred > 0
-                ? $"Saved {written} - {deferred} playing, they save at the track change."
-                : $"Saved {written}.";
+        Status = SaveStatus(written, deferred, failed, renamesHeld, renamesFailed);
 
         _baseline = Snapshot.From(this);
         _coverAction = CoverAction.Keep;
@@ -1124,7 +1179,41 @@ public sealed partial class TagEditorViewModel
 
         foreach (var t in targets) Saved?.Invoke(t.Path);
 
-        return new TagSaveReport(written, unchanged, deferred, failed, firstError);
+        return new TagSaveReport(written, unchanged, deferred, failed, firstError,
+                                 renamesFailed, firstRenameError);
+    }
+
+    /// <summary>
+    /// The one line a finished batch leaves on screen. Every outcome that happened is named and none
+    /// of them hides another: a rename that did not happen is said next to the saves that did, never
+    /// instead of them.
+    ///
+    /// <para>Pure and public so a test can assert on the WORDS - the same reason
+    /// <c>AnalysisRunText.Summarise</c> and <c>OrganiseText</c> are their own callable things. A
+    /// sentence built inline in a save loop is one that can only be checked from a screenshot, and
+    /// this one carries the part that must never be lost.</para>
+    /// </summary>
+    public static string SaveStatus(int written, int deferred, int failed,
+                                    int renamesHeld, int renamesFailed)
+    {
+        var parts = new List<string>(4) { $"Saved {written}" };
+
+        if (deferred > 0) parts.Add($"{deferred} playing, they save at the track change");
+        if (failed > 0) parts.Add($"{failed} failed");
+
+        // "the tags did land" is the half that would otherwise be lost - the same sentence the
+        // single-file path says as "Tags saved, rename failed".
+        if (renamesFailed > 0)
+            parts.Add(renamesFailed == 1
+                ? "1 rename failed, its tags did land"
+                : $"{renamesFailed} renames failed, their tags did land");
+
+        if (renamesHeld > 0)
+            parts.Add(renamesHeld == 1
+                ? "1 rename needs the track stopped"
+                : $"{renamesHeld} renames need the track stopped");
+
+        return string.Join(" - ", parts) + ".";
     }
 
     /// <summary>
@@ -1235,12 +1324,34 @@ public sealed partial class TagEditorViewModel
             : new TagWrite { Bpm = bpm, Key = key, Energy = energy };
     }
 
+    /// <summary>
+    /// Rename one file of a batch. Runs on a WORKER thread - the batch save is inside a
+    /// <c>Task.Run</c> - which is why the event does not go out from here directly.
+    ///
+    /// <para>(!!) <see cref="Renamed"/> is raised on the UI THREAD, always, from both the single-file
+    /// path and this one. A host handler moves rows in a bound collection and touches bound state; the
+    /// one in JUST PLAY already had to post half of itself to the dispatcher, which is the shape of a
+    /// contract that was not being kept. One thread for the event, decided here, is cheaper than every
+    /// host having to know which of the two paths it was called from.</para>
+    /// </summary>
     private void RenameOne(string path, string newName)
     {
         var to = Path.Combine(Path.GetDirectoryName(path) ?? "", newName);
-        if (string.Equals(to, path, StringComparison.OrdinalIgnoreCase)) return;
+
+        // (!!) Ordinal, NOT OrdinalIgnoreCase. The ignore-case form skipped a rename that only
+        // changes capitalisation - "track.mp3" -> "Track.mp3" did nothing and reported success -
+        // and on a library being tidied up that is the most common rename there is.
+        //
+        // The filesystem was never the obstacle: File.Move over a case-only difference is a plain
+        // rename in the same directory and succeeds on NTFS (measured), on a case-sensitive
+        // filesystem it is an ordinary rename, and on a case-insensitive one it is how Finder and
+        // Explorer do it too. Only an EXACTLY equal name is nothing to do. The preview agrees - it
+        // compares case-insensitively when looking for a name that is already TAKEN, so a file
+        // renaming itself is not flagged as colliding with itself.
+        if (string.Equals(to, path, StringComparison.Ordinal)) return;
 
         File.Move(path, to);
-        Renamed?.Invoke(path, to);
+
+        if (Renamed is { } handler) Dispatcher.UIThread.Post(() => handler(path, to));
     }
 }

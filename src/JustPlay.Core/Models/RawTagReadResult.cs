@@ -51,7 +51,12 @@ public sealed record RawTagReadResult
     /// in its summary line.</summary>
     public int TotalEntryCount => Containers.Sum(c => c.Entries.Count);
 
-    /// <summary>Every entry whose vendor is recognised - the "your cues are still here" proof.</summary>
+    /// <summary>Every entry whose owner the reader could name. Kept as a projection over the
+    /// containers rather than a second stored list, so it cannot drift from them.
+    /// <para>Nothing in the UI aggregates it any more - ownership is stated per row now, not summed
+    /// up above the table (see <see cref="Abstractions.IRawTagReader"/>). It stays because "which
+    /// entries did we attribute at all" is the question this reader is judged on, and the corpus
+    /// test that answers it asks it through here.</para></summary>
     public IEnumerable<RawTagEntry> VendorEntries =>
         Containers.SelectMany(c => c.Entries).Where(e => e.Vendor != RawTagVendor.Unknown);
 }

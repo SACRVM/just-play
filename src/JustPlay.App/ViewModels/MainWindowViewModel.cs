@@ -37,6 +37,10 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IAudioEngine _engine;
     private readonly IPreListenEngine _preListen;
     private readonly IMetadataReader _metadata;
+    /// <summary>Reads a file's tag containers as they sit on disk - what the editor's RAW tab shows.
+    /// A different question from <see cref="_metadata"/>: that one answers "what is this track", this
+    /// one "what is in this file", including the frames we deliberately know nothing about.</summary>
+    private readonly IRawTagReader? _rawTags;
     private readonly IMetadataWriter _writer;
     private readonly ITrackAnalysisService _analysis;
     private readonly ISettingsService _settings;
@@ -129,8 +133,12 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         IThemeService themes,
         IBroadcastService broadcast,
         ILibraryIndexService index,
-        UpdateViewModel update)
+        UpdateViewModel update,
+        // Optional so a host that has not registered one simply gets no RAW tab, and so every
+        // existing direct construction of this view model still compiles. DI fills it in.
+        IRawTagReader? rawTags = null)
     {
+        _rawTags = rawTags;
         _index = index;
         _controller = controller;
         _engine = engine;
@@ -1960,8 +1968,20 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // and kept the claimed value (Kept) - both stamp the JUSTPLAY blob so the picture survives
     // a restart and the field stops flagging. The pre-overwrite foreign value is stashed in
     // the blob's Original so a write is reversible. See memory analysis-tag-persistence-design.
+    //
+    // WHAT a write contains is not decided here: AnalysisTagWrite (JustPlay.Metadata) composes the
+    // blob + standard tags + the decision stamps, and JUST TAG's analyse action and the CLI's promote
+    // go through the same composition. This file decides WHICH fields and WHEN; that one decides what
+    // "our detected values" means, once, for the whole suite.
 
     private enum FieldAction { None, Write, Keep }
+
+    private static TagFieldAction Shared(FieldAction action) => action switch
+    {
+        FieldAction.Write => TagFieldAction.Write,
+        FieldAction.Keep  => TagFieldAction.Keep,
+        _                 => TagFieldAction.None,
+    };
 
     /// <summary>Write detected values for every selected track. <paramref name="fillMissingOnly"/>
     /// only touches fields the file doesn't already have (non-destructive); otherwise it overwrites.</summary>
@@ -2032,75 +2052,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Build the state + tag write for a track and persist it. Captures (and preserves)
-    /// the original foreign value for any field being overwritten so the write is reversible.</summary>
+    /// the original foreign value for any field being overwritten so the write is reversible.
+    /// <para>The composition itself is <see cref="AnalysisTagWrite"/>'s - the suite's ONE definition of
+    /// what our detected values put in a file, shared with JUST TAG's analyse action and the CLI's
+    /// promote. This method supplies the per-field decisions and hands the result to the deferred-write
+    /// machinery below.</para></summary>
     private void Persist(TrackViewModel tvm, FieldAction bpm, FieldAction key, FieldAction energy)
     {
-        if (bpm == FieldAction.None && key == FieldAction.None && energy == FieldAction.None)
-            return; // nothing to do (e.g. fill-missing on a fully-tagged track)
+        if (tvm.Model.Analysis is not { } a) return;
 
-        var a = tvm.Model.Analysis;
-        if (a is null) return;
-        var md = tvm.Model.Metadata;
-        var prev = md?.StoredAnalysis;
+        var write = AnalysisTagWrite.ForFields(
+            a, tvm.Model.Metadata,
+            Shared(bpm), Shared(key), Shared(energy),
+            tvm.Model.AnalysedAtUtc,
+            WriteDjComment);
 
-        FieldDecision Dec(FieldAction act, FieldDecision? prior) => act switch
-        {
-            FieldAction.Write => FieldDecision.Applied,
-            FieldAction.Keep => FieldDecision.Kept,
-            _ => prior ?? FieldDecision.Pending,
-        };
+        // Null = all three fields None (e.g. fill-missing on a fully-tagged track): nothing to do,
+        // and the file is not opened at all.
+        if (write is null) return;
 
-        // Stash the pre-overwrite foreign value the first time we overwrite a field; keep any
-        // already-stored original so a second write never loses the true origin.
-        double? origBpm = prev?.Original?.Bpm ?? (bpm == FieldAction.Write ? md?.TaggedBpm : null);
-        MusicalKey? origKey = prev?.Original?.Key ?? (key == FieldAction.Write ? MusicalKey.TryParse(md?.TaggedKey) : null);
-        int? origEnergy = prev?.Original?.Energy ?? (energy == FieldAction.Write ? md?.TaggedEnergy : null);
-        AnalysisResult? original = origBpm is null && origKey is null && origEnergy is null
-            ? null
-            : new AnalysisResult { Bpm = origBpm, Key = origKey, Energy = origEnergy };
-
-        var state = new TrackAnalysisState
-        {
-            Version = TrackAnalysisState.CurrentVersion,
-            Detected = a,
-            // WHEN the values in Detected were measured - never "now", which is merely when we are
-            // writing. Falls back to whatever the file already claimed, and stays null when nothing
-            // knows: a null reads as "unknown", which the staleness rules treat as stale rather than
-            // clean. Guessing a date here would re-create the exact blindness this fixed.
-            AnalysedAtUtc = tvm.Model.AnalysedAtUtc ?? prev?.AnalysedAtUtc,
-            Original = original,
-            BpmDecision = Dec(bpm, prev?.BpmDecision),
-            KeyDecision = Dec(key, prev?.KeyDecision),
-            EnergyDecision = Dec(energy, prev?.EnergyDecision),
-        };
-
-        // When "DJ Software compatible" comment is enabled, build the new comment value from the
-        // key/energy values as they will be in the tag after this write:
-        //   Write  -> the detected value from analysis
-        //   Keep   -> the existing tagged value (user confirmed it is correct)
-        //   None   -> the existing tagged value (field not touched by this write)
-        string? newComment = null;
-        if (WriteDjComment)
-        {
-            var effectiveKey = key == FieldAction.Write ? a.Key : MusicalKey.TryParse(md?.TaggedKey);
-            var effectiveEnergy = energy == FieldAction.Write ? a.Energy : md?.TaggedEnergy;
-            newComment = DjCommentBuilder.Build(effectiveKey, effectiveEnergy, md?.Comment);
-        }
-
-        var write = new TagWrite
-        {
-            Bpm = bpm == FieldAction.Write ? a.Bpm : null,
-            Key = key == FieldAction.Write ? a.Key : null,
-            Energy = energy == FieldAction.Write ? a.Energy : null,
-            // ReplayGain rides along with every write (it's the mp3gain/MIK replacement): the
-            // REPLAYGAIN_TRACK_GAIN/_PEAK fields are non-destructive standards that don't collide
-            // with BPM/key/energy, so they need no per-field Write/Keep decision - whenever we have
-            // a loudness measurement, stamp it. Null (un-analysed) simply writes nothing.
-            ReplayGainDb = a.ReplayGainDb,
-            Peak = a.Peak,
-            State = state,
-            Comment = newComment,
-        };
         DoWrite(tvm, write);
     }
 
@@ -2179,7 +2149,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     /// </summary>
     public TagEditorViewModel CreateTagEditor()
     {
-        var editor = new TagEditorViewModel(_metadata, _writer, ExecuteTagWrite, _index.Genres);
+        // One call feeds BOTH hosts in this app - the floating editor and the PRE CUE FINDER - so the
+        // RAW tab appears in both or in neither, and they cannot drift.
+        var editor = new TagEditorViewModel(_metadata, _writer, ExecuteTagWrite, _index.Genres, _rawTags);
         editor.Renamed += OnFileRenamed;
         return editor;
     }
@@ -2428,24 +2400,19 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         });
 
     /// <summary>Write all of a track's detected values into its tags (used by auto-write-on-analyse).
-    /// Goes through the same Persist path, so decisions are stamped Applied and the conflict flags
-    /// clear. Not wrapped in undo capture - auto-writes aren't a discrete user action.</summary>
+    /// Decisions are stamped Applied and the conflict flags clear; a field the user has KEPT is left
+    /// alone (<see cref="AnalysisTagWrite.ForDetected"/> owns that rule for the whole suite, so JUST
+    /// TAG's analyse action cannot undo a hand correction either). Not wrapped in undo capture -
+    /// auto-writes aren't a discrete user action.</summary>
     private void WriteDetected(TrackViewModel tvm)
     {
-        var a = tvm.Model.Analysis;
-        if (a is null) return;
+        if (tvm.Model.Analysis is not { } a) return;
 
-        // (!) A field the user has DECIDED is not ours to overwrite. FieldDecision.Kept means exactly
-        // "the user reviewed this and the tag stands" - set by Keep in the queue's context menu and
-        // by a hand correction in the shared tag editor. This auto-write used to ignore it and
-        // stamp our detected value over the top on the next analysis, so both gestures were silently
-        // undone: you fixed a wrong key, the track got re-analysed, and your fix was gone.
-        // An explicit Write / Fill-missing still overwrites - that is the user asking for it.
-        var prev = tvm.Model.Metadata?.StoredAnalysis;
-        Persist(tvm,
-            a.Bpm is > 0 && prev?.BpmDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None,
-            a.Key is not null && prev?.KeyDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None,
-            a.Energy is not null && prev?.EnergyDecision != FieldDecision.Kept ? FieldAction.Write : FieldAction.None);
+        var write = AnalysisTagWrite.ForDetected(
+            a, tvm.Model.Metadata, tvm.Model.AnalysedAtUtc, WriteDjComment);
+        if (write is null) return;   // nothing detected worth writing
+
+        DoWrite(tvm, write);
     }
 
     /// <summary>Remove the selected rows from the session queue. Does NOT delete files from disk,

@@ -12,21 +12,6 @@ using JustPlay.Core.Models;
 namespace JustPlay.UI.ViewModels;
 
 /// <summary>
-/// One recognised vendor's presence in the open file - the chips along the top of the raw-tags
-/// window. This IS the "your cues are still here" proof, so it leads: a DJ who opens this window
-/// after a save wants one glance, not a table walk.
-/// <para>Deliberately NOT a green "all good" light. A chip states a COUNT, which is a measurement;
-/// a traffic light would state a verdict, and this window is in no position to give one - the file
-/// may still be about to have its frame labels rewritten by a version change (see
-/// <see cref="RawTagsViewModel.VersionNotice"/>), and a green badge next to that notice would
-/// contradict it.</para>
-/// </summary>
-public sealed record RawTagVendorBadge(string Name, int Count)
-{
-    public string CountText => Count.ToString(CultureInfo.InvariantCulture);
-}
-
-/// <summary>
 /// One raw tag entry as a row: the HANDLE it is addressed by, what it holds, and whose it is.
 ///
 /// <para>The handle is <c>Id</c> and <c>Descriptor</c> joined with a colon - <c>GEOB:Serato Markers2</c>,
@@ -38,14 +23,42 @@ public sealed record RawTagVendorBadge(string Name, int Count)
 /// genuinely textual frame, and for a binary one its SIZE. "470 bytes" is a measurement we can stand
 /// behind; "Serato cue 3 at 2:14" would be a claim we cannot, because we do not parse those blobs and
 /// are not going to.</para>
+///
+/// <para><b>The vendor is not a column.</b> It was one, sitting between the handle and the value - and
+/// ten pixels to the left of a value it reads as the START of that value: a JustPlay frame rendered as
+/// "TXXX:JUSTPLAY | JUST PLAY | v9,bpm=148.7,..." and the name looked like part of the blob. It was
+/// also redundant exactly where it shouted loudest, because a handle like GEOB:Serato Markers2 or
+/// PRIV:TRAKTOR4 already IS the name; it only ever earned its place on a handle that hides its owner
+/// (TXXX:EnergyLevel). So the row keeps the COLOUR that separates an owned frame from an ordinary one
+/// (Button.rawrow.plain) and the word itself moved one hover away - see <see cref="Tip"/>.</para>
 /// </summary>
 public sealed record RawTagRow(string Handle, string Value, string Vendor)
 {
     public bool HasVendor => Vendor.Length > 0;
 
+    /// <summary>
+    /// The row on hover: the full handle, whose it is, the full value, and what a click does.
+    ///
+    /// <para>ONE tooltip for the whole row rather than one per column. Per-column tooltips made the
+    /// answer depend on which child the pointer happened to land on, and the vendor - which belongs to
+    /// the row, not to any one of its columns - had nowhere to live in that scheme.</para>
+    ///
+    /// <para>Newlines in the string are hard breaks: <c>TextLayout.CreateTextLines</c> formats one
+    /// TextLine per mandatory break and only stops at TextEndOfParagraph, independently of
+    /// TextWrapping (verified against release/12.0.3,
+    /// Avalonia.Base/Media/TextFormatting/TextLayout.cs).</para>
+    /// </summary>
+    public string Tip =>
+        Handle
+        + (HasVendor ? "\n" + Vendor : string.Empty)
+        + "\n" + Value
+        + "\n\nClick to copy this line";
+
     /// <summary>This row as one line of text - what a click on it puts on the clipboard, and what the
     /// whole-file listing is built from. Padded rather than tab-separated so a pasted block still
-    /// lines up in a chat window or an issue, neither of which honours tab stops.</summary>
+    /// lines up in a chat window or an issue, neither of which honours tab stops.
+    /// <para>The vendor stays INLINE here although the screen shows it only on hover: pasted text has
+    /// no pointer, so the bracketed name is the only way the owner survives a copy.</para></summary>
     public string Line =>
         Handle.PadRight(38) + (HasVendor ? $"[{Vendor}]" : string.Empty).PadRight(16) + Value;
 }
@@ -201,14 +214,6 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
     public bool HasFailure => FailureReason is not null;
     public bool HasContent => FailureReason is null;
 
-    public IReadOnlyList<RawTagVendorBadge> Badges { get; private set; } = [];
-    public bool HasBadges => Badges.Count > 0;
-
-    /// <summary>What stands in for the badge strip when nothing recognisable is in the file. It is a
-    /// real answer to a real question ("why does this one not load in Serato?"), so it gets said out
-    /// loud rather than left as an empty row.</summary>
-    public bool HasNoBadges => FailureReason is null && Badges.Count == 0;
-
     public IReadOnlyList<RawTagSection> Sections { get; private set; } = [];
 
     /// <summary>"2 containers, 41 entries" - the size of what is below, in one line.</summary>
@@ -259,7 +264,6 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         var result = ReadCached(_index);
 
         FailureReason = result?.FailureReason;
-        Badges = result is null ? [] : BuildBadges(result);
         Sections = result is null ? [] : [.. result.Containers.Select(BuildSection)];
         CountLine = result is null ? string.Empty : BuildCountLine(result);
         VersionNotice = result is null ? null : BuildVersionNotice(result);
@@ -276,7 +280,6 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         nameof(PositionText), nameof(CanPrev), nameof(CanNext),
         nameof(FileName), nameof(FolderPath),
         nameof(FailureReason), nameof(HasFailure), nameof(HasContent),
-        nameof(Badges), nameof(HasBadges), nameof(HasNoBadges),
         nameof(Sections), nameof(CountLine),
         nameof(VersionNotice), nameof(HasVersionNotice),
         nameof(ListingText),
@@ -288,22 +291,14 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         return _cache[index] ??= _reader.Read(_paths[index]);
     }
 
-    /// <summary>Foreign vendors first, ours last. The proof this window exists for is that ANOTHER
-    /// app's data survived OUR writes, so Serato leads and JUST PLAY brings up the rear.</summary>
-    private static readonly RawTagVendor[] BadgeOrder =
-    [
-        RawTagVendor.Serato, RawTagVendor.Traktor, RawTagVendor.MixedInKey,
-        RawTagVendor.Rekordbox, RawTagVendor.JustPlay,
-    ];
-
-    private static IReadOnlyList<RawTagVendorBadge> BuildBadges(RawTagReadResult result)
-    {
-        var counts = result.VendorEntries.GroupBy(e => e.Vendor)
-                           .ToDictionary(g => g.Key, g => g.Count());
-
-        return [.. BadgeOrder.Where(counts.ContainsKey)
-                             .Select(v => new RawTagVendorBadge(VendorName(v), counts[v]))];
-    }
+    // A sentence summarising who owns what in this file used to be built here - "8 frames from
+    // SERATO, 4 from MIXED IN KEY and 2 from JUST PLAY. No TRAKTOR data." It is gone, and with it
+    // the list of tools worth naming in prose and the and/or joiners that read it out loud.
+    //
+    // What killed it was the row tooltip: once every row names its own owner, a summary above the
+    // table says the same thing a second time, further from the frame it is about, and it has to
+    // invent language the table does not need ("frames from", "no ... data"). One of the two had to
+    // go and the row is the one being looked at. VendorName below still exists - it labels the row.
 
     private static RawTagSection BuildSection(RawTagContainer container)
     {
@@ -318,13 +313,14 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         return new RawTagSection(container.Label, CountText(container), container.UnsupportedReason, rows);
     }
 
-    /// <summary>Vendor-recognised frames first, ours next, the ordinary text frames last. A DJ opens
-    /// this window for the eight GEOBs, not for TIT2 - and the ordinary frames are the ones already
-    /// shown, decoded, in the editor next door.</summary>
+    /// <summary>Another tool's frames first, then the ones we can name without naming a tool (ours and
+    /// the ReplayGain standard), then the ordinary text frames. A DJ opens this tab for the eight
+    /// GEOBs, not for TIT2 - and the ordinary frames are the ones already shown, decoded, in the
+    /// editor next door.</summary>
     private static int Rank(RawTagEntry entry) => entry.Vendor switch
     {
         RawTagVendor.Unknown => 2,
-        RawTagVendor.JustPlay => 1,
+        RawTagVendor.JustPlay or RawTagVendor.ReplayGain => 1,
         _ => 0,
     };
 
@@ -377,9 +373,6 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
             return sb.ToString();
         }
 
-        if (Badges.Count > 0)
-            sb.AppendLine(string.Join(", ", Badges.Select(b => $"{b.Name} {b.CountText}")));
-
         if (VersionNotice is { } notice)
         {
             sb.AppendLine();
@@ -415,6 +408,7 @@ public sealed class RawTagsViewModel : INotifyPropertyChanged
         RawTagVendor.Traktor => "TRAKTOR",
         RawTagVendor.MixedInKey => "MIXED IN KEY",
         RawTagVendor.Rekordbox => "REKORDBOX",
+        RawTagVendor.ReplayGain => "REPLAYGAIN",
         RawTagVendor.JustPlay => "JUST PLAY",
         _ => string.Empty,
     };

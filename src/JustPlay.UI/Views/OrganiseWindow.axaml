@@ -28,8 +28,12 @@
       only other answer writes the arrival under a free name. Replacing a track cannot be undone,
       and a DJ finds out on a Friday night.
 
-      A delete goes to the operating system's own bin - the window says so in words - and refuses
-      outright where there is no bin to reach.
+      A delete goes to the operating system's own bin, and the window says so in words. Where the
+      platform has no bin the delete still happens - permanently - and the window says THAT instead,
+      in a headline, in the caution box, and in the words on the button being pressed. There is no
+      second dialog on top: the preview is the confirmation here, so the difference belongs inside
+      it. Refusing was the old rule and it was the wrong one - it left someone with no way to do a
+      thing this window offers, and no explanation they could act on.
 
       The shell is the suite's, copied rather than re-invented: frameless rounded card, the shared
       SurfaceCard, the 36 px drag bar, the shared resize grips, remembered placement.
@@ -152,7 +156,15 @@
 
                     <!-- === A CONSEQUENCE WORTH NAMING ===
                          The bin, or a move that has to copy and verify across volumes. It changes
-                         what she is agreeing to, so it is never folded away. -->
+                         what she is agreeing to, so it is never folded away.
+
+                         Warm sand, never red: red is this suite's error colour, and none of these
+                         is an error - they are legitimate things to ask for that happen to have a
+                         consequence worth stating.
+
+                         The LEAD line only appears for the delete that cannot be taken back. A
+                         paragraph that looks like every other paragraph is not a difference anyone
+                         sees, and that case has to read differently, not merely longer. -->
                     <Border DockPanel.Dock="Top" Margin="16,10,16,0" Padding="10,8"
                             CornerRadius="8" IsVisible="{Binding HasCaution}"
                             Background="{DynamicResource CautionSurfaceBrush}"
@@ -160,14 +172,20 @@
                         <!-- (!) A Grid, not a horizontal StackPanel: a StackPanel measures its
                              children with infinite width, so TextWrapping never fires and the
                              sentence runs off the card. This one has to be readable - it is the
-                             line that says a delete goes to the bin. -->
+                             line that says whether a delete can be taken back. -->
                         <Grid ColumnDefinitions="Auto,*">
                             <uic:JustIcon Grid.Column="0" Kind="Warning" Width="13" Height="13"
                                           VerticalAlignment="Top" Margin="0,1,8,0"
                                           Foreground="{DynamicResource CautionBrush}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Caution}" FontSize="11.5"
-                                       TextWrapping="Wrap"
-                                       Foreground="{DynamicResource CautionBrush}"/>
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Text="{Binding CautionLead}" FontSize="11.5"
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           IsVisible="{Binding HasCautionLead}"
+                                           Foreground="{DynamicResource CautionBrush}"/>
+                                <TextBlock Text="{Binding Caution}" FontSize="11.5"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource CautionBrush}"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
 

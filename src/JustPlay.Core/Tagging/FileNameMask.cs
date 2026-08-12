@@ -191,6 +191,20 @@ public static class FileNameMask
     {
         if (!tolerant) return Regex.Escape(text);
 
+        // (!!) Does this run hold anything OTHER than spaces and underscores?
+        //
+        // If it does - a dash, a bracket, a word - that character still marks the split, so the
+        // spaces around it may safely be optional: "Perc-Gob" fits a mask written
+        // "%artist% - %title%", which is the whole reason the tolerant pass exists.
+        //
+        // If it does NOT, the whitespace IS the separator, and making it optional lets the mask
+        // match a name that has none: "%artist% %title%" against "SomeTrack" becomes
+        // "^(.+?)[\s_]*(.+)$", which happily reports artist "S" and title "omeTrack" - and that
+        // guess is then written into the file. This class's own rule (see Parse) is that a name
+        // which does not fit the mask is left alone; zero-or-more everywhere quietly broke it.
+        var anchored = text.Any(c => !char.IsWhiteSpace(c) && c != '_');
+        var gap = anchored ? @"[\s_]*" : @"[\s_]+";
+
         var sb = new StringBuilder();
         var i = 0;
         while (i < text.Length)
@@ -200,8 +214,7 @@ public static class FileNameMask
             if (char.IsWhiteSpace(c) || c == '_')
             {
                 while (i < text.Length && (char.IsWhiteSpace(text[i]) || text[i] == '_')) i++;
-                // Zero-or-more, so "Perc-Gob" still fits a mask written "%artist% - %title%".
-                sb.Append(@"[\s_]*");
+                sb.Append(gap);
                 continue;
             }
 

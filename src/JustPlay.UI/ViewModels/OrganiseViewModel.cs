@@ -41,9 +41,11 @@ public sealed record RecentFolder(string FullPath, string Name);
 /// already holds is a collision; the default answer leaves both files alone, and the only other
 /// answer writes the arrival under a free name. Overwriting a track cannot be taken back.</para>
 ///
-/// <para><b>A delete goes to the operating system's bin, never away.</b> Where no bin can be
-/// reached, the window says so and the button stays dead - it does not fall back to a permanent
-/// delete.</para>
+/// <para><b>A delete goes to the operating system's bin where there is one.</b> Where there is none,
+/// it is a permanent delete - and the window says which of the two it is in the caution box, in the
+/// headline, and in the words on the button you press. A dead button would leave someone with no way
+/// to do a thing this window offers; a silent permanent delete would be worse than either. So it is
+/// stated, and the choice is theirs.</para>
 ///
 /// <para>Hand-rolled <see cref="INotifyPropertyChanged"/>, like the rest of the shared UI library.
 /// The window holds no rules: every decision is <see cref="OrganisePlanner"/>'s and every byte is
@@ -63,7 +65,9 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
 
     /// <param name="action">Move, copy or delete.</param>
     /// <param name="sources">The selected files.</param>
-    /// <param name="bin">Where a delete sends its files. <c>NoRecycleBin</c> makes deletes refuse.</param>
+    /// <param name="bin">This machine's bin. <c>NoRecycleBin</c> states that there is none, which
+    /// makes a delete here a permanent one - previewed and labelled as such, not refused. Required:
+    /// a window that deletes tracks may not guess where they go.</param>
     /// <param name="index">Optional - the library index to reconcile afterwards, so a moved track is
     /// never lost from the library. Null in an app that has no index.</param>
     /// <param name="release">Optional - called on the UI thread with the paths about to be touched,
@@ -79,10 +83,11 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
         IFileProbe? probe = null)
     {
         ArgumentNullException.ThrowIfNull(sources);
+        ArgumentNullException.ThrowIfNull(bin);
 
         Action = action;
         _sources = sources;
-        _bin = bin ?? NoRecycleBin.Instance;
+        _bin = bin;
         _index = index;
         _release = release;
         _probe = probe ?? SystemFileProbe.Instance;
@@ -212,16 +217,17 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
     /// two cases that qualify: a delete, and a move that has to copy and verify across volumes.
     ///
     /// <para>It is deliberately NOT used for "the originals stay where they are". A caution mark on
-    /// a non-event trains you to ignore the caution mark.</para>
+    /// a non-event trains you to ignore the caution mark. It is warm sand and never red: red is for
+    /// errors, and none of this is an error - it is a legitimate thing to ask for.</para>
+    ///
+    /// <para>The delete wording lives in <see cref="OrganiseText"/> beside the model, because it is
+    /// the sentence the whole feature is judged on and a sentence in a view is one no test can
+    /// assert on.</para>
     /// </summary>
     public string Caution => Action switch
     {
-        OrganiseAction.Delete when !_bin.IsAvailable =>
-            OrganiseText.Describe(OrganiseBlocker.NoRecycleBin),
-
         OrganiseAction.Delete =>
-            $"These go to the {_bin.Name}, where you can get them back. A file on a network share " +
-            "often has no bin - one that cannot be recycled is reported and left where it is.",
+            OrganiseText.DeleteCaution(Deletion, _bin.Name, _plan.RunCount),
 
         OrganiseAction.Move when HasDestination && _plan.AnyCrossVolume =>
             "That is a different drive, so each file is copied, checked byte for byte against the " +
@@ -232,6 +238,20 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
     };
 
     public bool HasCaution => Caution.Length > 0;
+
+    /// <summary>
+    /// The one short bold line above the caution paragraph, for the case that has to read
+    /// DIFFERENTLY and not merely longer: a delete on a machine with no bin. Empty everywhere else.
+    /// </summary>
+    public string CautionLead => Action == OrganiseAction.Delete
+        ? OrganiseText.DeleteCautionLead(Deletion)
+        : "";
+
+    public bool HasCautionLead => CautionLead.Length > 0;
+
+    /// <summary>Which kind of delete this is. <see cref="DeleteKind.Recycle"/> for everything that
+    /// is not a delete, so the copy helpers have one plain answer to switch on.</summary>
+    private DeleteKind Deletion => _plan.Deletion ?? DeleteKind.Recycle;
 
     /// <summary>
     /// Plain information, one dim line, no mark: what this operation is when there is nothing to be
@@ -247,16 +267,14 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
     /// <summary>True when there is nothing in the way of the whole operation.</summary>
     public bool CanRun => !IsBusy && _plan.CanRun;
 
-    /// <summary>The button's own words, carrying the count - "Move 12 files".</summary>
-    public string RunLabel
-    {
-        get
-        {
-            var n = _plan.RunCount;
-            var files = n == 1 ? "1 file" : $"{ByteSize.Count(n)} files";
-            return $"{OrganiseText.Verb(Action)} {files}";
-        }
-    }
+    /// <summary>
+    /// The button's own words, carrying the count - "Move 12 files", and for the delete that cannot
+    /// be taken back, "Delete 12 files for good".
+    ///
+    /// <para>There is no second dialog behind this button: the preview IS the confirmation here. So
+    /// the words being pressed are the words that acknowledge what happens.</para>
+    /// </summary>
+    public string RunLabel => OrganiseText.RunLabel(Action, _plan.RunCount, _plan.Deletion);
 
     /// <summary>What the run did, once it has. Null while it has not.</summary>
     public string? Result { get; private set; }
@@ -301,6 +319,8 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
         Raise(nameof(FromTip));
         Raise(nameof(Caution));
         Raise(nameof(HasCaution));
+        Raise(nameof(CautionLead));
+        Raise(nameof(HasCautionLead));
         Raise(nameof(Notice));
         Raise(nameof(HasNotice));
         Raise(nameof(HasCollisions));
@@ -365,6 +385,13 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
             Result = ResultText(report);
             Raise(nameof(Result));
             Raise(nameof(HasResult));
+
+            // (!!) Re-plan against the disk as it is NOW. The window stays open when anything failed,
+            // and a preview built before the run still lists the files that did move - press the
+            // button again and it would go looking for tracks that are already at their destination.
+            // Re-planning turns that list into what is actually left: the ones that failed, and a
+            // dead button when there is nothing left to do.
+            Refresh();
             return report;
         }
         finally

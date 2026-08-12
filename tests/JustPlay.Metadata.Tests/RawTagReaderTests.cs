@@ -214,10 +214,11 @@ public sealed class RawTagReaderTests : IDisposable
         Assert.True(result.Success);
         var id3 = Assert.Single(result.Containers, c => c.Kind == RawTagContainerKind.Id3v2);
 
-        // 3 GEOB (Serato-style, Mixed In Key, and an unrecognised vendor), 4 TXXX (Mixed In Key,
-        // our own, Serato, and a plain unrecognised field), 2 PRIV, 2 POPM (our own + Traktor's).
+        // 3 GEOB (Serato-style, Mixed In Key, and an unrecognised vendor), 5 TXXX (Mixed In Key,
+        // our own, Serato, ReplayGain, and a plain unrecognised field), 2 PRIV, 2 POPM (our own +
+        // Traktor's).
         Assert.Equal(3, id3.Entries.Count(e => e.Id == "GEOB"));
-        Assert.Equal(4, id3.Entries.Count(e => e.Id == "TXXX"));
+        Assert.Equal(5, id3.Entries.Count(e => e.Id == "TXXX"));
         Assert.Equal(2, id3.Entries.Count(e => e.Id == "PRIV"));
         Assert.Equal(2, id3.Entries.Count(e => e.Id == "POPM"));
 
@@ -256,6 +257,13 @@ public sealed class RawTagReaderTests : IDisposable
         // the Serato branch on the TXXX path specifically.
         var seratoTxxx = Assert.Single(id3.Entries, e => e.Id == "TXXX" && e.Descriptor == "SERATO_PLAYCOUNT");
         Assert.Equal(RawTagVendor.Serato, seratoTxxx.Vendor);
+
+        // The one entry that is recognised WITHOUT being attributed: our writer emits this exact key,
+        // and it still must not read as ours, because mp3gain / foobar2000 / loudgain emit the same
+        // bytes and nothing in the frame says who did. This assertion IS the rule.
+        var gainTxxx = Assert.Single(id3.Entries, e => e.Id == "TXXX" && e.Descriptor == "REPLAYGAIN_TRACK_GAIN");
+        Assert.Equal(RawTagVendor.ReplayGain, gainTxxx.Vendor);
+        Assert.NotEqual(RawTagVendor.JustPlay, gainTxxx.Vendor);
 
         var popm = Assert.Single(id3.Entries, e => e.Id == "POPM" && e.Descriptor == "JustPlay");
         Assert.Equal(RawTagVendor.JustPlay, popm.Vendor);
@@ -453,6 +461,11 @@ public sealed class RawTagReaderTests : IDisposable
             // not the same frame type.
             TagLib.Id3v2.UserTextInformationFrame.Get(id3, "ENERGY", true)!.Text = ["7"];
             TagLib.Id3v2.UserTextInformationFrame.Get(id3, "SERATO_PLAYCOUNT", true)!.Text = ["3"];
+
+            // TXXX:REPLAYGAIN_TRACK_GAIN - the exact key TagLibMetadataWriter.cs:64 writes. It must
+            // NOT resolve to JustPlay: every loudness tool writes this field identically and the
+            // frame names no author, so the reader may only name the standard.
+            TagLib.Id3v2.UserTextInformationFrame.Get(id3, "REPLAYGAIN_TRACK_GAIN", true)!.Text = ["-8.40 dB"];
 
             TagLib.Id3v2.PrivateFrame.Get(id3, "TRAKTOR4", true)!.PrivateData = new TagLib.ByteVector(new byte[8]);
             TagLib.Id3v2.PrivateFrame.Get(id3, "org.example.other", true)!.PrivateData = new TagLib.ByteVector(new byte[3]);

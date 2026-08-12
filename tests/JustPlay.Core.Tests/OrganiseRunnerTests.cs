@@ -226,26 +226,116 @@ public sealed class OrganiseRunnerTests : IDisposable
         var report = await new OrganiseRunner(bin).RunAsync(Plan(OrganiseAction.Delete, null, source));
 
         Assert.Equal(1, report.Succeeded);
+        Assert.Equal(DeleteKind.Recycle, report.Deletion);
         Assert.Equal(source, Assert.Single(bin.Sent));
         Assert.Equal(source, Assert.Single(report.RemovedPaths));
         Assert.Empty(report.AddedPaths);
     }
 
     [Fact]
-    public async Task Delete_refuses_rather_than_deleting_for_good_when_there_is_no_bin()
+    public async Task A_permanent_delete_takes_the_file_off_the_disk_and_never_touches_the_bin()
     {
-        // (!!) The rule the feature turns on. The plan blocks it, and even a plan that somehow got
-        // through has to fail at the runner rather than fall back to File.Delete.
+        // The platform has no bin, the plan says so, the preview said so, and the file goes. The
+        // old rule refused here and left the person with no way to do it at all.
+        var source = Write(_from, "a.mp3");
+        var bin = new FakeBin(available: false);
+
+        var report = await new OrganiseRunner(bin).RunAsync(new OrganisePlan
+        {
+            Action   = OrganiseAction.Delete,
+            Deletion = DeleteKind.Permanent,
+            Items    = [new OrganiseItem { SourcePath = source, Status = OrganiseItemStatus.Ready }],
+        });
+
+        Assert.Equal(1, report.Succeeded);
+        Assert.Equal(0, report.Failed);
+        Assert.False(File.Exists(source));
+        Assert.Empty(bin.Sent);
+        Assert.Equal(source, Assert.Single(report.RemovedPaths));
+    }
+
+    [Fact]
+    public async Task A_report_says_which_kind_of_delete_it_was()
+    {
+        // A caller with no window - a CLI, a log line - has to be able to report this honestly.
+        var forGood = await new OrganiseRunner(new FakeBin(available: false)).RunAsync(
+            new OrganisePlan
+            {
+                Action   = OrganiseAction.Delete,
+                Deletion = DeleteKind.Permanent,
+                Items    = [new OrganiseItem
+                {
+                    SourcePath = Write(_from, "a.mp3"), Status = OrganiseItemStatus.Ready,
+                }],
+            });
+
+        Assert.Equal(DeleteKind.Permanent, forGood.Deletion);
+        Assert.Contains("deleted for good", forGood.ToString(), StringComparison.Ordinal);
+
+        var recycled = await new OrganiseRunner(new FakeBin())
+            .RunAsync(Plan(OrganiseAction.Delete, null, Write(_from, "b.mp3")));
+
+        Assert.Equal(DeleteKind.Recycle, recycled.Deletion);
+        Assert.Contains("deleted", recycled.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("for good", recycled.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_copy_and_a_move_report_no_delete_kind()
+    {
+        var copied = await new OrganiseRunner(new FakeBin())
+            .RunAsync(Plan(OrganiseAction.Copy, _to, Write(_from, "a.mp3")));
+        var moved = await new OrganiseRunner(new FakeBin())
+            .RunAsync(Plan(OrganiseAction.Move, _to, Write(_from, "b.mp3")));
+
+        Assert.Null(copied.Deletion);
+        Assert.Null(moved.Deletion);
+    }
+
+    [Fact]
+    public async Task A_promise_of_the_bin_is_never_quietly_upgraded_to_a_permanent_delete()
+    {
+        // (!!) The rule that replaced the refusal. A permanent delete is fine when it was PREVIEWED
+        // as one - and only then. A plan that said "bin", meeting a machine that turns out to have
+        // none, fails the file and leaves it exactly where it is: the run must never do something
+        // worse than the preview described.
         var source = Write(_from, "a.mp3");
 
         var report = await new OrganiseRunner(new FakeBin(available: false)).RunAsync(new OrganisePlan
+        {
+            Action   = OrganiseAction.Delete,
+            Deletion = DeleteKind.Recycle,
+            Items    = [new OrganiseItem { SourcePath = source, Status = OrganiseItemStatus.Ready }],
+        });
+
+        Assert.Equal(1, report.Failed);
+        Assert.True(File.Exists(source));
+    }
+
+    [Fact]
+    public async Task A_plan_that_does_not_say_is_read_as_the_reversible_one()
+    {
+        // Default-to-recycle. A hand-built plan that forgot to say cannot become a permanent delete
+        // by omission.
+        var source = Write(_from, "a.mp3");
+        var bin = new FakeBin();
+
+        var report = await new OrganiseRunner(bin).RunAsync(new OrganisePlan
         {
             Action = OrganiseAction.Delete,
             Items  = [new OrganiseItem { SourcePath = source, Status = OrganiseItemStatus.Ready }],
         });
 
-        Assert.Equal(1, report.Failed);
-        Assert.True(File.Exists(source));
+        Assert.Equal(1, report.Succeeded);
+        Assert.Equal(source, Assert.Single(bin.Sent));
+        Assert.Equal(DeleteKind.Recycle, report.Deletion);
+    }
+
+    [Fact]
+    public void A_runner_without_a_bin_argument_is_refused_outright()
+    {
+        // Not defaulted to NoRecycleBin: a forgotten argument would then mean "delete for good".
+        Assert.Throws<ArgumentNullException>(() => new OrganiseRunner(null!));
     }
 
     [Fact]

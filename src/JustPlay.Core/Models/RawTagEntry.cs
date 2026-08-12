@@ -1,11 +1,17 @@
 namespace JustPlay.Core.Models;
 
 /// <summary>
-/// A vendor/tool that owns a recognisable slice of a file's raw tags, when one can be told apart
-/// from the id/descriptor string alone. Recognition is a small, explicit, documented table (see
+/// Who owns a recognisable slice of a file's raw tags, when one can be told apart from the
+/// id/descriptor string alone. Recognition is a small, explicit, documented table (see
 /// <c>JustPlay.Metadata.TagLibRawTagReader</c>'s "Vendor recognition" section) - never a guess -
 /// built from the corpus measurement in <c>taglib-byte-preservation.md</c> and the
 /// dj-metadata-interop skill.
+///
+/// <para>Mostly a TOOL, because most recognisable frames are one tool's private business. One
+/// value (<see cref="ReplayGain"/>) names a STANDARD instead, for the case where the frame is
+/// perfectly identifiable but its author is not - see its remarks. The distinction is not
+/// cosmetic: only a tool can be named in "whose data is in this file", and the read-only view
+/// that asks that question is exactly the one that must not answer it with a guess.</para>
 /// </summary>
 public enum RawTagVendor
 {
@@ -42,6 +48,22 @@ public enum RawTagVendor
     /// slot ready, not because this reader can detect rekordbox today.
     /// </summary>
     Rekordbox,
+
+    /// <summary>
+    /// The ReplayGain standard (REPLAYGAIN_TRACK_GAIN / _PEAK / _ALBUM_* / _REFERENCE_LOUDNESS as
+    /// TXXX frames, Xiph fields or APE items) - a FORMAT, not a tool, and the one entry in this
+    /// enum that names no author.
+    ///
+    /// <para>It has to be that way: mp3gain, foobar2000, loudgain, ffmpeg, Picard, beets and our
+    /// own writer all produce byte-identical fields, and the frame carries nothing that says which
+    /// one did. Saying "from JUST PLAY" would be right on a file we tagged and a lie on a file that
+    /// came from a pool, and we cannot tell the two apart - so we name the standard, which we CAN
+    /// read off the key, and leave the author unclaimed.</para>
+    ///
+    /// <para>Consequently it may label a ROW, which is a statement about that frame, but it can never
+    /// be read as "this file came from X" the way a tool name can.</para>
+    /// </summary>
+    ReplayGain,
 }
 
 /// <summary>

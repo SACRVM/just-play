@@ -1,3 +1,4 @@
+using JustPlay.Core.Abstractions;
 using JustPlay.Core.Organise;
 
 namespace JustPlay.Core.Tests;
@@ -64,6 +65,52 @@ public sealed class OrganisePlannerTests
             Collisions          = policy,
             RecycleBinAvailable = bin,
         }, disk);
+
+    // -- A drive root as the destination -----------------------------------------------------------
+
+    /// <summary>
+    /// A USB stick picked as "E:\" must land files IN the drive, not in whatever folder the process
+    /// happens to be sitting in on that drive.
+    ///
+    /// <para>The bug this pins: normalising trimmed the trailing separator off everything, and "D:\"
+    /// trimmed to "D:" is a DRIVE-RELATIVE path. <c>Path.Combine("D:", "a.mp3")</c> is "D:a.mp3",
+    /// which Windows resolves against the current directory of drive D - measured as
+    /// D:\repos\just-play\a.mp3 with the app started from there. A COPY would have put the file in
+    /// the wrong folder; a MOVE would have taken it out of the library to get it there.</para>
+    /// </summary>
+    [Theory]
+    [InlineData(@"E:\")]
+    [InlineData("E:")]
+    public void A_drive_root_destination_stays_rooted(string picked)
+    {
+        var disk = new FakeDisk()
+            .WithFile(@"E:\music\a.mp3", 100)
+            .WithFolder(@"E:\");
+
+        var plan = Plan(disk, OrganiseAction.Copy, [@"E:\music\a.mp3"], destination: picked);
+
+        Assert.Equal(@"E:\", plan.Destination);
+        Assert.Equal(@"E:\a.mp3", plan.Items[0].DestinationPath);
+
+        // The real test of "rooted": the path means the same thing from anywhere.
+        Assert.Equal(plan.Items[0].DestinationPath,
+                     Path.GetFullPath(plan.Items[0].DestinationPath!));
+    }
+
+    /// <summary>A share root has no drive-relative form, so it keeps behaving as it always did - the
+    /// fix above is a drive-letter case and must not start rewriting UNC paths.</summary>
+    [Fact]
+    public void A_share_root_destination_is_left_alone()
+    {
+        var disk = new FakeDisk()
+            .WithFile(@"\\nas\music\a.mp3", 100)
+            .WithFolder(@"\\nas\other");
+
+        var plan = Plan(disk, OrganiseAction.Copy, [@"\\nas\music\a.mp3"], destination: @"\\nas\other\");
+
+        Assert.Equal(@"\\nas\other", plan.Destination);
+        Assert.Equal(@"\\nas\other\a.mp3", plan.Items[0].DestinationPath);
+    }
 
     // -- The happy path --------------------------------------------------------------------------
 
@@ -365,15 +412,58 @@ public sealed class OrganisePlannerTests
     }
 
     [Fact]
-    public void Delete_refuses_outright_when_there_is_no_recycle_bin()
+    public void A_delete_with_a_bin_is_planned_as_a_trip_to_the_bin()
     {
-        // (!!) The rule the whole feature turns on: no bin means REFUSE, never a permanent delete.
+        var disk = new FakeDisk().WithFile($@"{Src}\a.mp3");
+
+        var plan = Plan(disk, OrganiseAction.Delete, [$@"{Src}\a.mp3"]);
+
+        Assert.Equal(DeleteKind.Recycle, plan.Deletion);
+    }
+
+    [Fact]
+    public void A_delete_without_a_bin_is_planned_as_a_permanent_one_and_still_runs()
+    {
+        // The rule this feature used to turn on was "no bin means REFUSE". It was wrong: a dead
+        // button leaves someone with no way to do a thing the window offers. The delete happens, it
+        // is planned as PERMANENT, and the preview says so before anything is pressed.
         var disk = new FakeDisk().WithFile($@"{Src}\a.mp3");
 
         var plan = Plan(disk, OrganiseAction.Delete, [$@"{Src}\a.mp3"], bin: false);
 
-        Assert.Contains(OrganiseBlocker.NoRecycleBin, plan.Blockers);
-        Assert.False(plan.CanRun);
+        Assert.Equal(DeleteKind.Permanent, plan.Deletion);
+        Assert.Empty(plan.Blockers);
+        Assert.True(plan.CanRun);
+    }
+
+    [Fact]
+    public void A_copy_and_a_move_have_no_delete_kind_at_all()
+    {
+        // Null rather than a default: "this plan deletes nothing" is a different fact from "this
+        // delete is the reversible one", and a caller reporting what happened needs to tell them
+        // apart.
+        var disk = new FakeDisk().WithFile($@"{Src}\a.mp3").WithFolder(Dst);
+
+        Assert.Null(Plan(disk, OrganiseAction.Copy, [$@"{Src}\a.mp3"]).Deletion);
+        Assert.Null(Plan(disk, OrganiseAction.Move, [$@"{Src}\a.mp3"]).Deletion);
+    }
+
+    [Fact]
+    public void The_platform_that_has_no_bin_says_so_through_NoRecycleBin()
+    {
+        // NoRecycleBin survives as INFORMATION - "there is nowhere to file this here" - and no
+        // longer as a refusal. This is the path a host on such a platform takes.
+        var disk = new FakeDisk().WithFile($@"{Src}\a.mp3");
+
+        var plan = OrganisePlanner.Plan(new OrganiseRequest
+        {
+            Action              = OrganiseAction.Delete,
+            Sources             = [$@"{Src}\a.mp3"],
+            RecycleBinAvailable = NoRecycleBin.Instance.IsAvailable,
+        }, disk);
+
+        Assert.Equal(DeleteKind.Permanent, plan.Deletion);
+        Assert.True(plan.CanRun);
     }
 
     // -- What the preview says -------------------------------------------------------------------
@@ -418,6 +508,87 @@ public sealed class OrganisePlannerTests
                         policy: CollisionPolicy.KeepBoth);
 
         Assert.Contains("a (2).mp3", OrganiseText.Describe(plan.Items[0]), StringComparison.Ordinal);
+    }
+
+    // -- The words of the two deletes ------------------------------------------------------------
+    //
+    // The wording IS the feature here. A permanent delete is the one thing in this suite that
+    // nothing can take back, so the headline, the caution box and the button all have to carry it -
+    // and there is no second dialog behind them to catch a misread.
+
+    [Fact]
+    public void The_headline_says_which_kind_of_delete_this_is()
+    {
+        var disk = new FakeDisk().WithFile($@"{Src}\a.mp3").WithFile($@"{Src}\b.mp3");
+        string[] sources = [$@"{Src}\a.mp3", $@"{Src}\b.mp3"];
+
+        var recycled = OrganiseText.Summarise(Plan(disk, OrganiseAction.Delete, sources));
+        var forGood  = OrganiseText.Summarise(Plan(disk, OrganiseAction.Delete, sources, bin: false));
+
+        Assert.Equal("2 files are deleted", recycled);
+        Assert.Equal("2 files are deleted for good", forGood);
+    }
+
+    [Fact]
+    public void The_button_is_the_acknowledgement_when_the_delete_is_permanent()
+    {
+        // The preview is the confirmation in this feature, so the words being PRESSED have to be the
+        // words that say what happens.
+        Assert.Equal("Delete 12 files",
+                     OrganiseText.RunLabel(OrganiseAction.Delete, 12, DeleteKind.Recycle));
+        Assert.Equal("Delete 12 files for good",
+                     OrganiseText.RunLabel(OrganiseAction.Delete, 12, DeleteKind.Permanent));
+        Assert.Equal("Delete 1 file for good",
+                     OrganiseText.RunLabel(OrganiseAction.Delete, 1, DeleteKind.Permanent));
+
+        // Nothing else grows a suffix.
+        Assert.Equal("Move 3 files", OrganiseText.RunLabel(OrganiseAction.Move, 3));
+        Assert.Equal("Copy 1 file", OrganiseText.RunLabel(OrganiseAction.Copy, 1));
+    }
+
+    [Fact]
+    public void The_recycling_delete_names_the_bin_and_gets_no_headline()
+    {
+        var caution = OrganiseText.DeleteCaution(DeleteKind.Recycle, "Recycle Bin", 4);
+
+        Assert.Contains("Recycle Bin", caution, StringComparison.Ordinal);
+        Assert.Contains("get them back", caution, StringComparison.Ordinal);
+
+        // No lead line: an ordinary, reversible thing with a headline on it teaches people to read
+        // past the headline that matters.
+        Assert.Equal("", OrganiseText.DeleteCautionLead(DeleteKind.Recycle));
+    }
+
+    [Fact]
+    public void The_permanent_delete_states_it_names_the_count_and_blames_nobody()
+    {
+        var lead    = OrganiseText.DeleteCautionLead(DeleteKind.Permanent);
+        var caution = OrganiseText.DeleteCaution(DeleteKind.Permanent, "recycle bin", 12);
+
+        Assert.Contains("permanent", lead, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no recycle bin", lead, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("12 files", caution, StringComparison.Ordinal);
+        Assert.Contains("nothing here or in the system can bring them back",
+                        caution, StringComparison.Ordinal);
+
+        // It must not read as a scare or as an accusation. Deleting a track you no longer want is a
+        // legitimate thing to ask for.
+        foreach (var word in new[] { "WARNING", "DANGER", "careful", "sure?", "really" })
+            Assert.DoesNotContain(word, caution, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void The_permanent_wording_stays_grammatical_for_one_file_and_for_none()
+    {
+        var one = OrganiseText.DeleteCaution(DeleteKind.Permanent, "recycle bin", 1);
+        Assert.Contains("That file is removed", one, StringComparison.Ordinal);
+        Assert.Contains("bring it back", one, StringComparison.Ordinal);
+
+        // Nothing is running, so there is nothing to count - and "0 files" is not a sentence.
+        var none = OrganiseText.DeleteCaution(DeleteKind.Permanent, "recycle bin", 0);
+        Assert.DoesNotContain("0 file", none, StringComparison.Ordinal);
+        Assert.Contains("removed from the disk", none, StringComparison.Ordinal);
     }
 
     [Fact]

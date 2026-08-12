@@ -14,9 +14,31 @@ public enum OrganiseAction
     /// <summary>Put the file in the destination and take it out of the folder it came from.</summary>
     Move,
 
-    /// <summary>Hand the file to the operating system's recycle bin / trash. Never a hard delete -
-    /// see <see cref="JustPlay.Core.Abstractions.IRecycleBin"/>.</summary>
+    /// <summary>Take the file away. Which KIND of taking away is <see cref="DeleteKind"/>, and it is
+    /// decided by whether this platform has a bin at all.</summary>
     Delete,
+}
+
+/// <summary>
+/// The two ways a delete can end, and the reason the preview has to name one of them.
+///
+/// <para>Where the operating system has a bin, a delete is a filing job: the track is out of the way
+/// and a wrong click on a Friday night is a trip to the bin, not a re-purchase. Where it has none,
+/// there is no third option to fall back on - the choice is between removing the file for good and
+/// not offering a delete at all, and refusing leaves someone with no way to do a thing the app
+/// otherwise offers. So it happens, and the window states plainly which of the two it is BEFORE the
+/// button is pressed. This is the one operation in the suite that nothing can take back, and it is
+/// the only one that says so in the button's own words.</para>
+/// </summary>
+public enum DeleteKind
+{
+    /// <summary>To the operating system's bin, where it can be fetched back. The default, and what
+    /// happens on every platform that has one.</summary>
+    Recycle,
+
+    /// <summary>Off the disk. Chosen only because this platform has no bin, never as a preference,
+    /// and never without the preview having said so.</summary>
+    Permanent,
 }
 
 /// <summary>
@@ -56,10 +78,6 @@ public enum OrganiseBlocker
     /// <summary>The destination is inside something that was selected - the operation would be
     /// putting a folder into itself.</summary>
     DestinationInsideSelection,
-
-    /// <summary>This platform has no recycle bin we can reach, so a delete would have to be
-    /// permanent. It refuses instead (see <see cref="JustPlay.Core.Abstractions.IRecycleBin"/>).</summary>
-    NoRecycleBin,
 }
 
 /// <summary>What will happen to one file. Every item in a plan carries one of these, and the
@@ -126,9 +144,11 @@ public sealed record OrganiseRequest
     public CollisionPolicy Collisions { get; init; } = CollisionPolicy.Skip;
 
     /// <summary>
-    /// Whether this machine has a recycle bin we can actually reach. Passed IN rather than probed,
-    /// so the planner stays pure and the "refuse instead of deleting permanently" rule is a plain
-    /// table-driven test.
+    /// Whether this machine has a recycle bin we can actually reach. Passed IN rather than probed, so
+    /// the planner stays pure and "which kind of delete is this" is a plain table-driven test.
+    ///
+    /// <para>It decides <see cref="OrganisePlan.Deletion"/> and nothing else. False does not block a
+    /// delete; it makes the delete a permanent one and makes the preview say so.</para>
     /// </summary>
     public bool RecycleBinAvailable { get; init; } = true;
 }
@@ -149,6 +169,17 @@ public sealed record OrganisePlan
     public string? Destination { get; init; }
 
     public CollisionPolicy Collisions { get; init; }
+
+    /// <summary>
+    /// For a DELETE: whether these files go to the bin or off the disk. Null for a copy or a move,
+    /// which take nothing away.
+    ///
+    /// <para>It rides on the PLAN rather than being re-decided at run time, for the same reason
+    /// everything else here does: the preview and the run have to be the same value, so what the
+    /// window said cannot drift from what happens. The runner refuses a plan that promised the bin
+    /// on a machine that turns out not to have one - it never quietly upgrades to permanent.</para>
+    /// </summary>
+    public DeleteKind? Deletion { get; init; }
 
     /// <summary>One line per selected file, in the order it was selected.</summary>
     public required IReadOnlyList<OrganiseItem> Items { get; init; }
@@ -204,12 +235,15 @@ public static class OrganiseText
         _                     => "Organise",
     };
 
-    /// <summary>The action in the past tense, for a result line.</summary>
-    public static string Past(OrganiseAction action) => action switch
+    /// <summary>
+    /// The action in the past tense, for a result line. A permanent delete says which one it was:
+    /// "12 deleted" and "12 deleted for good" are not the same news.
+    /// </summary>
+    public static string Past(OrganiseAction action, DeleteKind? deletion = null) => action switch
     {
         OrganiseAction.Copy   => "copied",
         OrganiseAction.Move   => "moved",
-        OrganiseAction.Delete => "deleted",
+        OrganiseAction.Delete => deletion == DeleteKind.Permanent ? "deleted for good" : "deleted",
         _                     => "done",
     };
 
@@ -221,9 +255,64 @@ public static class OrganiseText
         OrganiseBlocker.DestinationMissing         => "That folder is not there - the drive or share may be offline.",
         OrganiseBlocker.DestinationNotWritable     => "That folder cannot be written to.",
         OrganiseBlocker.DestinationInsideSelection => "That folder is inside what you selected.",
-        OrganiseBlocker.NoRecycleBin               => "This system has no recycle bin, and JUST TAG will not delete a track for good.",
         _                                          => "This cannot run.",
     };
+
+    /// <summary>
+    /// The button's own words: the verb, the count, and - for the delete that cannot be taken back -
+    /// the fact that it cannot.
+    ///
+    /// <para>The button is the confirming action, and there is no second dialog behind it: this
+    /// window's preview IS the confirmation. So the words the user presses have to be the words that
+    /// acknowledge what happens, not a neutral "Delete" over a warning they may have read past.</para>
+    /// </summary>
+    public static string RunLabel(OrganiseAction action, int count, DeleteKind? deletion = null)
+    {
+        var label = $"{Verb(action)} {Files(count)}";
+        return deletion == DeleteKind.Permanent ? label + " for good" : label;
+    }
+
+    /// <summary>
+    /// The short bold line at the top of a delete's caution box, or empty where none is needed.
+    ///
+    /// <para>A recycling delete gets no lead - it is an ordinary, reversible thing and a headline on
+    /// it would train people to read past the one that matters. The permanent case gets one, because
+    /// it is genuinely different and a paragraph that LOOKS like every other paragraph is not a
+    /// difference anyone sees.</para>
+    /// </summary>
+    public static string DeleteCautionLead(DeleteKind deletion) =>
+        deletion == DeleteKind.Permanent
+            ? "No recycle bin on this system - this delete is permanent."
+            : "";
+
+    /// <summary>
+    /// What a delete actually does, in the box above the list.
+    ///
+    /// <para>Warm caution, not alarm. Deleting a track you no longer want is a legitimate thing to
+    /// do, and the copy states the consequence without implying the choice was a mistake.</para>
+    /// </summary>
+    /// <param name="deletion">Which kind of delete this plan holds.</param>
+    /// <param name="binName">What this platform calls its bin - "Recycle Bin", "Trash".</param>
+    /// <param name="count">How many files will actually be deleted. 0 drops the count from the
+    /// sentence rather than saying "0 files": nothing is running, so there is nothing to count.</param>
+    public static string DeleteCaution(DeleteKind deletion, string binName, int count)
+    {
+        if (deletion != DeleteKind.Permanent)
+            return $"These go to the {(string.IsNullOrWhiteSpace(binName) ? "recycle bin" : binName)}, " +
+                   "where you can get them back. A file on a network share often has no bin - one " +
+                   "that cannot be recycled is reported and left where it is.";
+
+        var subject = count switch
+        {
+            <= 0 => "A file deleted here is removed",
+            1    => "That file is removed",
+            _    => $"Those {ByteSize.Count(count)} files are removed",
+        };
+
+        return $"{subject} from the disk itself, and nothing here or in the system can bring " +
+               (count <= 1 ? "it" : "them") +
+               " back afterwards - so the list below is worth one more look.";
+    }
 
     /// <summary>What happens to one file, in the words the preview row shows.</summary>
     public static string Describe(OrganiseItem item) => item.Status switch
@@ -252,8 +341,8 @@ public static class OrganiseText
         var parts = new List<string>(3);
 
         parts.Add(run == 1
-            ? $"1 file is {Past(plan.Action)}"
-            : $"{ByteSize.Count(run)} files are {Past(plan.Action)}");
+            ? $"1 file is {Past(plan.Action, plan.Deletion)}"
+            : $"{ByteSize.Count(run)} files are {Past(plan.Action, plan.Deletion)}");
 
         if (plan.Action != OrganiseAction.Delete && plan.TotalBytes > 0)
             parts.Add(ByteSize.Format(plan.TotalBytes));
@@ -264,6 +353,11 @@ public static class OrganiseText
 
         return string.Join("  -  ", parts);
     }
+
+    /// <summary>"1 file" or "12 files" - the count phrase every headline and button uses, so they
+    /// cannot disagree about the plural.</summary>
+    private static string Files(int count) =>
+        count == 1 ? "1 file" : $"{ByteSize.Count(count)} files";
 
     private static string FileNamePart(string path)
     {

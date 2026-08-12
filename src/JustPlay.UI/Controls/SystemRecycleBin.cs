@@ -14,18 +14,19 @@ namespace JustPlay.UI.Controls;
 /// this one (Core, Library) may not contain a platform call. The contract it fills is
 /// <see cref="IRecycleBin"/> in Core, so the organise engine never sees a Win32 struct.</para>
 ///
-/// <para><b>(!!) There is no fallback to a permanent delete.</b> On a platform with no bin,
-/// <see cref="IsAvailable"/> is false and every delete refuses with that on screen. Quietly calling
-/// <c>File.Delete</c> instead would turn a recoverable mistake into a lost track - which is the one
-/// thing this whole feature exists to prevent.</para>
+/// <para><b>(!!) This class never falls back to a permanent delete, and it never decides to.</b> On a
+/// platform with no bin, <see cref="IsAvailable"/> is false - that is a fact reported upwards, not a
+/// veto and not a fallback. The planner turns it into <c>DeleteKind.Permanent</c>, the window states
+/// that in the words on the button, and the person in front of it decides. What must never happen is
+/// the QUIET version: a delete the user was told would be recoverable that silently was not.</para>
 /// </summary>
 public sealed class SystemRecycleBin : IRecycleBin
 {
     /// <summary>One instance is enough - it holds nothing.</summary>
     public static readonly SystemRecycleBin Instance = new();
 
-    /// <summary>Windows and macOS both have one. Everywhere else this is false, and deletes refuse
-    /// rather than becoming permanent (see the class remarks).</summary>
+    /// <summary>Windows and macOS both have one. Everywhere else this is false, and a delete is
+    /// planned - and previewed - as a permanent one (see the class remarks).</summary>
     public bool IsAvailable => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
 
     /// <summary>The words this platform uses. The confirmation says them out loud, so nobody has to
@@ -46,8 +47,10 @@ public sealed class SystemRecycleBin : IRecycleBin
         if (OperatingSystem.IsWindows()) { SendWindows(path); return; }
         if (OperatingSystem.IsMacOS()) { SendMac(path); return; }
 
-        throw new PlatformNotSupportedException(
-            "There is no recycle bin on this system, and a track is never deleted for good.");
+        // Nothing calls this here - a plan built against IsAvailable == false is a permanent delete
+        // and never comes through the bin. It throws rather than pretending, so a future caller that
+        // skips the check gets a failure and not a vanished track.
+        throw new PlatformNotSupportedException("There is no recycle bin on this system.");
     }
 
     // -- Windows -----------------------------------------------------------------------------
@@ -131,9 +134,12 @@ public sealed class SystemRecycleBin : IRecycleBin
 
     private static void SendMac(string path)
     {
-        // The path goes in as a POSIX file, and the only character that can break the literal is a
-        // double quote, so it is doubled the way AppleScript wants.
-        var quoted = path.Replace("\"", "\\\"");
+        // The path goes in as a POSIX file inside an AppleScript string literal, which has exactly
+        // two characters that can break it: the backslash and the double quote. Both are legal in a
+        // macOS filename, and the backslash HAS to be escaped FIRST - doing the quote first would
+        // then escape the backslashes it just introduced and turn every \" back into a literal
+        // backslash followed by a string-ending quote.
+        var quoted = path.Replace("\\", "\\\\").Replace("\"", "\\\"");
         var script = $"tell application \"Finder\" to delete POSIX file \"{quoted}\"";
 
         var start = new ProcessStartInfo

@@ -18,7 +18,6 @@ using Avalonia.VisualTree;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Organise;
 using JustPlay.Library;
-using JustPlay.Metadata;
 using JustPlay.Tag.ViewModels;
 using JustPlay.UI;
 using JustPlay.UI.Behaviors;
@@ -122,6 +121,16 @@ public partial class MainWindow : Window, IFramelessWindow
     {
         base.OnLoaded(e);
 
+        // Subscribed HERE and not in the constructor: the DataContext is assigned by App.axaml.cs
+        // after the constructor has already returned. A run that could not analyse everything opens
+        // the log by itself - the summary chip in the header says HOW MANY, and only the log can say
+        // WHICH, and "which" is the part that must never be swallowed.
+        if (Vm is { } tagger && !_failuresHooked)
+        {
+            _failuresHooked = true;
+            tagger.AnalysisFailuresReported += () => OnShowAnalysisLog(this, e);
+        }
+
         if (Vm is not { StartFile: { Length: > 0 } file } vm) return;
 
         Dispatcher.UIThread.Post(() =>
@@ -165,6 +174,8 @@ public partial class MainWindow : Window, IFramelessWindow
     private void OnShowEditor(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Editor);
 
     private void OnShowAnalysis(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Analysis);
+
+    private void OnShowRaw(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Raw);
 
     private void OnShowFilter(object? sender, RoutedEventArgs e) => Vm?.ShowTab(TagPane.Filter);
 
@@ -554,38 +565,9 @@ public partial class MainWindow : Window, IFramelessWindow
             this, string.Join(Environment.NewLine, vm.Selected.Select(r => r.Path)));
     }
 
-    /// <summary>
-    /// RAW TAGS - every frame the selected files really carry, read only.
-    ///
-    /// <para>It is handed the version the WRITE FORMAT setting would convert to, so the window can
-    /// say when saving this particular file would rewrite the frame labels that Serato and Mixed In
-    /// Key look their data up by. A label rather than the enum: the shared window lives in
-    /// JustPlay.UI, which cannot see JustPlay.Metadata where the probe lives - and comparing the
-    /// probe's own string against the container name the reader produced WITH THE SAME PROBE is
-    /// exact by construction, instead of a second version table that can drift.</para>
-    /// </summary>
-    private async void OnMenuRawTags(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (Vm is not { Selected.Count: > 0 } vm) return;
-
-            var settings = Program.Services.GetRequiredService<JustPlay.Tag.Settings.TagSettingsService>();
-            var convertsTo = Id3VersionProbe.MajorFor(settings.WriteFormat) is { } major
-                ? Id3VersionProbe.Name(major)
-                : null;
-
-            await RawTagsWindow.ShowAsync(this,
-                                          Program.Services.GetRequiredService<IRawTagReader>(),
-                                          vm.Selected.Select(r => r.Path).ToList(),
-                                          convertsTo);
-        }
-        catch (Exception)
-        {
-            // `async void` on an event handler must not let anything escape - and a window that
-            // could not open is not worth taking the app down for.
-        }
-    }
+    // RAW TAGS is no longer a menu entry and no longer a window: it is the editor panel's third TAB,
+    // next to TAGS and ANALYSIS (JustPlay.UI, TagEditorViewModel.Raw). The reader reaches it through
+    // the editor's constructor in Program.cs - one seam, not a second door to the same room.
 
     /// <summary>
     /// TRANSFORM: change the text that is ALREADY in the selected files' tags - the other kind of
@@ -622,6 +604,77 @@ public partial class MainWindow : Window, IFramelessWindow
             // could not open its window is not worth taking the app down for.
         }
     }
+
+    // -- Analyse ---------------------------------------------------------------------------------
+
+    /// <summary>
+    /// ANALYSE the selection: measure BPM, key, energy and loudness, and write what we measure into
+    /// the files - one file or thirty, whatever is held.
+    ///
+    /// <para>The unsaved-edits question is asked FIRST, exactly as switching files, TRANSFORM and
+    /// MOVE ask it: the analysis write goes straight to the file, so a panel still holding
+    /// pre-analysis values would let the next Save put the old BPM back over the new one.</para>
+    ///
+    /// <para>Afterwards the editor is re-pointed at the same files with NO tags attached, which
+    /// makes it read them off disk rather than trust what it was holding - the same move TRANSFORM
+    /// makes after its write.</para>
+    /// </summary>
+    private async void OnMenuAnalyze(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (Vm is not { Selected.Count: > 0 } vm || vm.IsAnalysing) return;
+            if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
+
+            var rows = vm.Selected.ToList();
+            await vm.AnalyzeAsync(rows);
+
+            if (Vm is not { } after) return;
+            after.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, null)).ToList());
+            after.SyncAnalysisTab();
+        }
+        catch (Exception)
+        {
+            // `async void` on an event handler must not let anything escape - and a batch that
+            // could not start is not worth taking the app down for.
+        }
+    }
+
+    /// <summary>Stop the run after the files in flight. What already landed stays landed.</summary>
+    private void OnStopAnalysis(object? sender, RoutedEventArgs e) => Vm?.CancelAnalysis();
+
+    /// <summary>
+    /// The SHARED event-log window (JustPlay.UI) on JUST TAG's log - opened by the summary chip, and
+    /// by itself when a run left files behind. Every failure is in there by name; this app had no
+    /// such channel before, so a file the analyzer could not read had nowhere to be reported.
+    /// </summary>
+    private void OnShowAnalysisLog(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (Vm is not { } vm) return;
+
+            if (_log is { } open) { open.Activate(); return; }
+
+            var log = new LogWindow { DataContext = vm.Log };
+            WindowPlacement.Track(log, "JustTag.Log");
+            log.Closed += (_, _) => _log = null;
+            _log = log;
+            log.Show(this);
+        }
+        catch (Exception)
+        {
+            // A window that could not open is not worth taking the app down for.
+        }
+    }
+
+    /// <summary>The log window, while it is up - so a second click raises it instead of stacking a
+    /// second copy on top of the first.</summary>
+    private LogWindow? _log;
+
+    /// <summary>OnLoaded can run more than once (Avalonia re-raises it when a window is re-attached),
+    /// and a second subscription would open the log twice for one failed run.</summary>
+    private bool _failuresHooked;
 
     /// <summary>
     /// Re-read from disk WHAT IS ON SCREEN - which is not always the folder. The pane also shows a

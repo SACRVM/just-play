@@ -385,12 +385,18 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
 
     /// <summary>
     /// Entries that are on disk and unchanged but whose stored analysis a rule rejects - the
-    /// FLAC mono-decode debt, a failed run worth retrying, a never-analysed file. Paged so a
-    /// very large library does not materialise at once.
+    /// FLAC mono-decode debt, a failed run worth retrying, a never-analysed file.
     ///
     /// <para>Separate from <see cref="Reconcile"/> on purpose: reconciliation is about the
     /// FILESYSTEM, staleness is about our own past measurements. Mixing them would force the
     /// cheap pass to load full entries it does not need.</para>
+    ///
+    /// <para>(!) It reads the WHOLE index into memory in one query - <see cref="LibraryDb.Query"/>
+    /// materialises - and holds the database's lock while it does. At this library's scale that is
+    /// a few MB and a moment (measured: ~15,000 rows), which is why it is left alone; it is stated
+    /// here because this doc used to claim the opposite ("paged so a very large library does not
+    /// materialise at once") and a doc that contradicts its code is worse than no doc. Anything that
+    /// ever calls this on a tick rather than on demand needs a streaming query first.</para>
     /// </summary>
     public IReadOnlyList<string> FindStale(StalenessPolicy policy)
     {

@@ -39,6 +39,15 @@ public sealed record OrganiseReport
 {
     public required OrganiseAction Action { get; init; }
 
+    /// <summary>
+    /// For a DELETE: which kind it was - to the bin, or off the disk. Null for a copy or a move.
+    ///
+    /// <para>Carried on the report and not only in the window so that any caller can say honestly
+    /// what it did. "12 deleted" and "12 deleted for good" are different pieces of news, and a
+    /// headless caller - a CLI, a log line, an index reconciler - has no window to read it off.</para>
+    /// </summary>
+    public DeleteKind? Deletion { get; init; }
+
     /// <summary>Files the operation completed.</summary>
     public int Succeeded { get; init; }
 
@@ -70,7 +79,7 @@ public sealed record OrganiseReport
     {
         var parts = new List<string>(4)
         {
-            $"{ByteSize.Count(Succeeded)} {OrganiseText.Past(Action)}",
+            $"{ByteSize.Count(Succeeded)} {OrganiseText.Past(Action, Deletion)}",
         };
         if (Skipped > 0) parts.Add($"{ByteSize.Count(Skipped)} left alone");
         if (Failed > 0) parts.Add($"{ByteSize.Count(Failed)} failed");
@@ -101,8 +110,15 @@ public sealed record OrganiseReport
 /// <para><b>The source of a verified move is removed outright, not recycled.</b> That is not a
 /// deletion: the bytes are proven present at the destination. Recycling them instead would make
 /// every move need twice the space it should and would fill the bin with thousands of tracks that
-/// are not missing. The DELETE action, which genuinely takes a file away, always goes to the bin and
-/// refuses when there is none.</para>
+/// are not missing.</para>
+///
+/// <para><b>The DELETE action does exactly what the plan says, and only that.</b>
+/// <see cref="DeleteKind.Recycle"/> goes to the bin; <see cref="DeleteKind.Permanent"/> takes the
+/// file off the disk, which is what a platform without a bin can offer and what its preview said out
+/// loud. The one thing that never happens is the upgrade: a plan that promised the bin, meeting a
+/// machine that has none, FAILS the file rather than removing it for good. The preview is the
+/// confirmation in this feature, so it must not be possible for the run to do something worse than
+/// the preview described.</para>
 ///
 /// <para><b>A failure never stops the run.</b> The file is recorded by name and the next one starts,
 /// the same rule <c>AnalysisBatchRunner</c> follows. A cancelled run RETURNS a report rather than
@@ -126,13 +142,16 @@ public sealed class OrganiseRunner
     private readonly IRecycleBin _recycleBin;
     private readonly Action<string>? _log;
 
-    /// <param name="recycleBin">Where a DELETE sends its files. <see cref="NoRecycleBin"/> makes
-    /// every delete refuse, which is the correct behaviour on a platform without one.</param>
+    /// <param name="recycleBin">Where a recycling DELETE sends its files. Required, and deliberately
+    /// not defaulted: "which bin" is not something a delete engine may guess, and a silent fallback
+    /// to <see cref="NoRecycleBin"/> would turn a forgotten argument into permanent deletes.</param>
     /// <param name="log">Optional diagnostic sink. A bad file must never crash a run, so failures
     /// are recorded and logged, not thrown.</param>
     public OrganiseRunner(IRecycleBin recycleBin, Action<string>? log = null)
     {
-        _recycleBin = recycleBin ?? NoRecycleBin.Instance;
+        ArgumentNullException.ThrowIfNull(recycleBin);
+
+        _recycleBin = recycleBin;
         _log = log;
     }
 
@@ -183,7 +202,7 @@ public sealed class OrganiseRunner
 
             try
             {
-                await RunOneAsync(plan.Action, item, reporter, ct).ConfigureAwait(false);
+                await RunOneAsync(plan, item, reporter, ct).ConfigureAwait(false);
 
                 if (plan.Action != OrganiseAction.Delete) added.Add(item.DestinationPath);
                 if (plan.Action != OrganiseAction.Copy) removed.Add(item.SourcePath);
@@ -221,6 +240,7 @@ public sealed class OrganiseRunner
         return new OrganiseReport
         {
             Action       = plan.Action,
+            Deletion     = plan.Action == OrganiseAction.Delete ? DeletionOf(plan) : null,
             Succeeded    = done - failures.Count,
             Failed       = failures.Count,
             Skipped      = skipped,
@@ -237,16 +257,20 @@ public sealed class OrganiseRunner
 
     private delegate void ReportChunk(string? current, long extraBytes, bool verifying, bool force);
 
+    /// <summary>
+    /// What kind of delete this plan holds. A plan that does not say is read as
+    /// <see cref="DeleteKind.Recycle"/> - the reversible one. A permanent delete only ever happens
+    /// where something asked for it in writing.
+    /// </summary>
+    private static DeleteKind DeletionOf(OrganisePlan plan) => plan.Deletion ?? DeleteKind.Recycle;
+
     private async Task RunOneAsync(
-        OrganiseAction action, OrganiseItem item, ReportChunk? report, CancellationToken ct)
+        OrganisePlan plan, OrganiseItem item, ReportChunk? report, CancellationToken ct)
     {
-        switch (action)
+        switch (plan.Action)
         {
             case OrganiseAction.Delete:
-                if (!_recycleBin.IsAvailable)
-                    throw new PlatformNotSupportedException(
-                        "There is no recycle bin on this system, and a track is never deleted for good.");
-                _recycleBin.Send(item.SourcePath);
+                Delete(item.SourcePath, DeletionOf(plan));
                 return;
 
             case OrganiseAction.Copy:
@@ -258,8 +282,33 @@ public sealed class OrganiseRunner
                 return;
 
             default:
-                throw new NotSupportedException($"Unknown organise action: {action}");
+                throw new NotSupportedException($"Unknown organise action: {plan.Action}");
         }
+    }
+
+    /// <summary>
+    /// Take one file away, the way the plan said to.
+    ///
+    /// <para>The permanent branch is a plain <c>File.Delete</c>, and it is reached only from a plan
+    /// that carries <see cref="DeleteKind.Permanent"/> - which the planner only writes when the
+    /// platform has no bin, and which the window only shows behind a button that says so. There is no
+    /// path from "recycle" to "permanent" in here: a promise of the bin that cannot be kept is a
+    /// failure for that file, recorded by name, and the file stays exactly where it is.</para>
+    /// </summary>
+    private void Delete(string path, DeleteKind kind)
+    {
+        if (kind == DeleteKind.Permanent)
+        {
+            File.Delete(path);
+            return;
+        }
+
+        if (!_recycleBin.IsAvailable)
+            throw new PlatformNotSupportedException(
+                "This was planned as a trip to the recycle bin and there is none on this system. " +
+                "Nothing is deleted on a promise that changed underneath it.");
+
+        _recycleBin.Send(path);
     }
 
     private async Task MoveAsync(OrganiseItem item, ReportChunk? report, CancellationToken ct)

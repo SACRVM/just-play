@@ -46,7 +46,9 @@ public static class OrganisePlanner
 
         if (request.Action == OrganiseAction.Delete)
         {
-            if (!request.RecycleBinAvailable) blockers.Add(OrganiseBlocker.NoRecycleBin);
+            // A missing bin is not a blocker. It changes WHAT the delete is, the preview says which
+            // one in the words the button carries, and the person in front of it decides. Refusing
+            // would leave them with no way to do a thing this window otherwise offers.
             var deleteItems = sources.Select(s => DeleteItem(s, probe)).ToList();
 
             return new OrganisePlan
@@ -54,6 +56,7 @@ public static class OrganisePlanner
                 Action        = request.Action,
                 Destination   = null,
                 Collisions    = request.Collisions,
+                Deletion      = request.RecycleBinAvailable ? DeleteKind.Recycle : DeleteKind.Permanent,
                 Items         = deleteItems,
                 Blockers      = blockers,
                 SourceFolders = FoldersOf(sources),
@@ -255,7 +258,17 @@ public static class OrganisePlanner
         }
     }
 
-    /// <summary>Absolute, with any trailing separator taken off, or null when it makes no sense.</summary>
+    /// <summary>
+    /// Absolute, with any trailing separator taken off, or null when it makes no sense.
+    ///
+    /// <para>(!!) A DRIVE ROOT keeps its separator, and that is not cosmetic. "D:\" trimmed to "D:"
+    /// is not the drive - it is a DRIVE-RELATIVE path, and <c>Path.Combine("D:", "track.mp3")</c>
+    /// yields "D:track.mp3", which Windows resolves against the process's current directory on that
+    /// drive. Measured: with the app started from D:\repos\just-play, "D:track.mp3" resolves to
+    /// D:\repos\just-play\track.mp3. Picking a drive root - a USB stick, say - as the destination of
+    /// a MOVE would therefore take the file out of the library and put it somewhere nobody chose.
+    /// A UNC share root is safe (it has no relative form), so this is a drive-letter case only.</para>
+    /// </summary>
     internal static string? Normalise(string? path)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
@@ -264,8 +277,13 @@ public static class OrganisePlanner
         {
             var full = Path.GetFullPath(path);
             var trimmed = full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            // A drive root trims down to "C:" - keep the separator so it stays a path.
-            return trimmed.Length == 0 ? full : trimmed;
+
+            if (trimmed.Length == 0) return full;
+
+            // "D:" - a drive letter and nothing else. Give it back its separator.
+            return trimmed.Length == 2 && trimmed[1] == Path.VolumeSeparatorChar
+                ? trimmed + Path.DirectorySeparatorChar
+                : trimmed;
         }
         catch (Exception)
         {

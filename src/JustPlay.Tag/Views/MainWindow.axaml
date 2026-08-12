@@ -191,6 +191,11 @@
             <Setter Property="Foreground" Value="#E6FFFFFF"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+        <!-- The same chip, reading as a warning: the analysis summary when files were left behind.
+             Colour rather than a mark - this suite ships no glyph characters (CLAUDE.md rule 5). -->
+        <Style Selector="Button.crumb.warn">
+            <Setter Property="Foreground" Value="{DynamicResource CautionBrush}"/>
+        </Style>
         <Style Selector="TextBlock.crumbsep">
             <Setter Property="Foreground" Value="#59FFFFFF"/>
             <Setter Property="FontSize" Value="11"/>
@@ -398,6 +403,37 @@
                                                Foreground="{DynamicResource MutedDimBrush}"
                                                TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center" Margin="10,0,8,0"/>
+                                    <!-- == ANALYSIS ====================================================
+                                         STOP lives HERE, in the header, and not on the busy overlay:
+                                         the shared overlay is IsHitTestVisible=False by design (it
+                                         floats over the content and must never eat a click), so it
+                                         cannot carry a button. The header is a fixed-height strip, so
+                                         a control appearing in it moves no row - which is the whole
+                                         point of not putting progress inline.
+
+                                         A long batch over SMB has to be stoppable, and stopping is
+                                         not a rollback: every file that finished is already written.
+                                         The label says STOP for exactly that reason. -->
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8"
+                                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                Margin="10,0,8,0">
+                                        <!-- What the last run did. Clickable when something failed -
+                                             the names are in the log, and a count without names is a
+                                             dropped track. -->
+                                        <Button Classes="crumb" Classes.warn="{Binding AnalysisFailed}"
+                                                FontSize="11" Padding="5,1"
+                                                IsVisible="{Binding HasAnalysisNote}"
+                                                Click="OnShowAnalysisLog"
+                                                ToolTip.Tip="What the last analysis run did - click for the log">
+                                            <TextBlock Text="{Binding AnalysisNote}" FontSize="11"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="260"/>
+                                        </Button>
+                                        <Button Classes="ghost" Content="Stop" FontSize="11"
+                                                Padding="9,2" MinHeight="0"
+                                                IsVisible="{Binding IsAnalysing}"
+                                                Click="OnStopAnalysis"
+                                                ToolTip.Tip="Stop after the files being analysed right now - what is already done stays done"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
 
@@ -527,11 +563,9 @@
                                          IsVisible="{Binding HasFolder}">
                                     <!--
                                       The row menu. Deliberately short, and every entry is something
-                                      this window could NOT do until now - editing tags is the docked
-                                      panel's job and would only be a second door to the same room,
-                                      and analysing is not offered because JUST TAG does not carry the
-                                      analyzer at all (it would mean shipping the whole DSP stack in
-                                      the tagger, which is a decision and not a menu item).
+                                      the docked panel does not already do - editing tags is the
+                                      panel's job and a second door to the same room would only be
+                                      confusing.
 
                                       Right-clicking a row that is not part of the selection selects
                                       just it first - Explorer's rule, and the one the Finder's file
@@ -544,6 +578,21 @@
                                                       Click="OnMenuPreview"
                                                       IsVisible="{Binding HasOneSelected}"/>
                                             <Separator IsVisible="{Binding HasOneSelected}"/>
+                                            <!-- ANALYZE - measure BPM, key, energy and loudness and
+                                                 write them into the files. It is the action the AN
+                                                 column has been asking for since the shared row
+                                                 landed: the light said "never analysed" and there
+                                                 was nothing you could do about it here.
+
+                                                 Same verb and the same "(N)" count as the JUST PLAY
+                                                 queue's entry, and it runs the SAME analyzer - it is
+                                                 not a tagger-flavoured variant of it.
+                                                 Disabled while a batch is running: one at a time. -->
+                                            <MenuItem Header="{Binding AnalyzeMenuHeader}"
+                                                      Click="OnMenuAnalyze"
+                                                      IsVisible="{Binding HasSelection}"
+                                                      IsEnabled="{Binding CanAnalyze}"/>
+                                            <Separator IsVisible="{Binding HasSelection}"/>
                                             <!-- The bulk edit that CHANGES what is there rather than
                                                  setting it: fix the shouting, swap the underscores,
                                                  take a site name out of every comment. It sits at
@@ -575,13 +624,11 @@
                                             <MenuItem Header="{Binding CopyPathMenuHeader}"
                                                       Click="OnMenuCopyPath"
                                                       IsVisible="{Binding HasSelection}"/>
-                                            <!-- RAW TAGS: every frame the file really carries, read
-                                                 only. It is here rather than in the editor because
-                                                 it is not editing - it is looking, and what it shows
-                                                 is mostly frames that belong to OTHER tools. It is
-                                                 the one screen that proves their data survived us. -->
-                                            <MenuItem Header="Raw tags..." Click="OnMenuRawTags"
-                                                      IsVisible="{Binding HasSelection}"/>
+                                            <!-- RAW TAGS used to be a menu entry that opened its own
+                                                 window. It is the editor panel's third TAB now -
+                                                 TAGS | ANALYSIS | RAW - so looking at one file's
+                                                 frames happens where everything else about that file
+                                                 already is. -->
                                             <Separator IsVisible="{Binding HasSelection}"/>
                                             <MenuItem Header="Refresh" Click="OnMenuRefresh"/>
                                         </ContextMenu>
@@ -622,6 +669,45 @@
                                            FontSize="12.5" TextWrapping="Wrap" MaxWidth="320"
                                            Foreground="{DynamicResource MutedBrush}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                <!-- == NOTHING TO SHOW, AND WHY ================================
+                                     A folder that holds only SUB-folders listed correctly and then
+                                     said nothing at all - and a blank pane with no explanation is
+                                     read as a broken app, because from where you sit it is the same
+                                     thing. Each empty state names its own reason and, where there is
+                                     one, the way out.
+
+                                     The shape is the PRE CUE FINDER's, matched rather than invented:
+                                     a centred muted line, a dimmer hint under it, and a button on
+                                     the one state that has an action (see its "No tracks match the
+                                     filter." / "Clear filters" pair). The words are decided in
+                                     FilePaneEmptyState, which is pure and pinned by tests. -->
+                                <StackPanel IsVisible="{Binding ShowEmptyNote}" Spacing="7"
+                                            MaxWidth="360"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding EmptyLine}" FontSize="12.5"
+                                               TextWrapping="Wrap" TextAlignment="Center"
+                                               Foreground="{DynamicResource MutedBrush}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding EmptyHint}" FontSize="11.5"
+                                               IsVisible="{Binding HasEmptyHint}"
+                                               TextWrapping="Wrap" TextAlignment="Center"
+                                               Foreground="{DynamicResource MutedDimBrush}"
+                                               HorizontalAlignment="Center"/>
+                                    <Button Classes="crumb" Content="Clear the search" FontSize="11.5"
+                                            IsVisible="{Binding ShowClearSearchOffer}"
+                                            HorizontalAlignment="Center" Click="OnClearSearch"/>
+                                </StackPanel>
+
+                                <!-- The SHARED floating overlay for the analyse run - never inline
+                                     progress that pushes the list around. It floats over the rows,
+                                     which keep updating underneath it as each file lands.
+                                     (!) STOP is not on it: the overlay is IsHitTestVisible=False by
+                                     design, so the button lives in the FILES header above. -->
+                                <uic:BusyOverlay IsActive="{Binding IsAnalysing}"
+                                                 Message="{Binding AnalysisMessage}"
+                                                 Detail="{Binding AnalysisDetail}"
+                                                 Progress="{Binding AnalysisProgress}"/>
                             </Panel>
                         </DockPanel>
 
@@ -659,13 +745,22 @@
                                             Click="OnShowAnalysis">
                                         <TextBlock Text="ANALYSIS" Classes="panehead"/>
                                     </Button>
+                                    <!-- RAW is ONE file's frames exactly as they sit on disk - so it
+                                         follows ANALYSIS's rule, not EDITOR's: across a selection
+                                         there is no single answer, and the tab goes away rather than
+                                         standing there empty. -->
+                                    <Button Classes="tabhead" Classes.active="{Binding ShowRaw}"
+                                            IsVisible="{Binding CanShowRawTab}"
+                                            Click="OnShowRaw">
+                                        <TextBlock Text="RAW" Classes="panehead"/>
+                                    </Button>
                                     <!-- Searching needs EVERY row, so the tab waits for the read and
                                          says why - instead of quietly answering from the half that
                                          happens to be loaded. Same rule as the sort lock on the
-                                         column header. -->
-                                    <!-- .live = a search is narrowing the list. The count in the FILES
+                                         column header.
+                                         .live = a search is narrowing the list. The count in the FILES
                                          header ("12 of 1203") is the number; this is the STATE, and it
-                                         is visible from the other two tabs. -->
+                                         is visible from the other tabs. -->
                                     <Button Classes="tabhead" Classes.active="{Binding ShowFilter}"
                                             Classes.live="{Binding IsFiltering}"
                                             Click="OnShowFilter" IsEnabled="{Binding CanFilter}"
@@ -674,16 +769,10 @@
                                     </Button>
                                 </StackPanel>
 
-                                <!-- The file FACTS (type / length / kbps) ride the header, not the
-                                     body: they are what you are looking at, not something you edit,
-                                     and here they land on the same line as the FILES header beside
-                                     them instead of one row below it. Same idiom as the PLAYER
-                                     header's track name and the FILES header's count. -->
-                                <TextBlock Grid.Column="1" Text="{Binding Editor.FileInfo}"
-                                           FontSize="11" Foreground="{DynamicResource MutedBrush}"
-                                           HorizontalAlignment="Right" VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis" Margin="12,0,8,0"
-                                           ToolTip.Tip="{Binding Editor.FileInfo}"/>
+                                <!-- The file FACTS (type / length / kbps) are NOT here. They are the
+                                     first row of the editor body, in the shared panel, so both hosts
+                                     show them in one place. Putting a second copy in this header was
+                                     a change nobody asked for and it rendered them twice. -->
                               </Grid>
                             </Border>
 
@@ -813,7 +902,8 @@
                                      different one), so whatever the host asks for IS the alignment. -->
                                 <Panel IsVisible="{Binding ShowPanel}" Margin="8,0">
                                     <uic:TagEditorPanel Name="Editor" DataContext="{Binding Editor}"
-                                                        ShowAnalysis="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowAnalysis}"/>
+                                                        ShowAnalysis="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowAnalysis}"
+                                                        ShowRaw="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowRaw}"/>
                                 </Panel>
 
                                 <!-- FILTER - the Finder's field, verbatim: the x in the TextBox's own

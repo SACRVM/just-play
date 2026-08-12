@@ -126,6 +126,110 @@
             <Setter Property="Foreground" Value="#DEFFFFFF"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <!-- =========================================================================================
+             RAW tab. These came over with the body from the window this used to be; they are scoped
+             to this control, so the generic names cannot reach anything else.
+             ========================================================================================= -->
+
+        <!-- Vendor chip = the "your cues are still here" proof, as a count. Deliberately NEUTRAL and
+             not the green Ok token: a chip states a MEASUREMENT, a traffic light would state a
+             verdict, and this view is in no position to give one while the caution card above Save
+             may be saying the frame labels are about to be rewritten. -->
+        <Style Selector="Border.vendorchip">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1FFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="9,3"/>
+        </Style>
+
+        <!-- Section header: a whole-width toggle, flat until hover. -->
+        <Style Selector="Button.sechead">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Padding" Value="6,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+        <!-- FluentTheme leaks its own Background onto the templated ContentPresenter in all three
+             states; pin them or the hover does nothing and the base state goes grey. -->
+        <Style Selector="Button.sechead /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.sechead:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF"/>
+        </Style>
+        <Style Selector="Button.sechead:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF"/>
+        </Style>
+
+        <!-- One entry. A button because the ONE thing that may leave this tab is text: click a row,
+             that line is on the clipboard. No menu, no second gesture to learn. -->
+        <Style Selector="Button.rawrow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="Button.rawrow /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.rawrow:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+        </Style>
+        <Style Selector="Button.rawrow:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#0AFFFFFF"/>
+        </Style>
+
+        <!-- Lead with what matters: a frame somebody's DJ software owns reads at full strength, an
+             ordinary text frame one notch back. The ordinary ones are already shown, decoded, on the
+             TAGS tab - here they are context, not the subject.
+             (!) Set through the STYLE, never inline on the TextBlock: an inline value has LocalValue
+             precedence and would beat the .plain setter silently.
+             Ordered so the more specific pair lands LAST: a handle carries both classes, and among
+             equally specific selectors the one declared later wins. -->
+        <Style Selector="Button.rawrow TextBlock.mono">
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        </Style>
+        <Style Selector="Button.rawrow.plain TextBlock.mono">
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+        </Style>
+        <Style Selector="Button.rawrow TextBlock.handle">
+            <Setter Property="Foreground" Value="#ECFFFFFF"/>
+        </Style>
+        <Style Selector="Button.rawrow.plain TextBlock.handle">
+            <Setter Property="Foreground" Value="#8CFFFFFF"/>
+        </Style>
+
+        <!-- The chevron turns instead of swapping to a second icon (one shape, one meaning).
+             RenderTransformOrigin defaults to Center in Avalonia (Visual.cs), so no origin wiring. -->
+        <Style Selector="controls|JustIcon.chev">
+            <Setter Property="RenderTransform" Value="rotate(0deg)"/>
+        </Style>
+        <Style Selector="controls|JustIcon.chev.collapsed">
+            <Setter Property="RenderTransform" Value="rotate(-90deg)"/>
+        </Style>
+
+        <!-- The copy hint says "Copied" in the Ok green, and "Could not copy" in caution when the
+             platform clipboard refused - see CopyRawAsync for why that case is real. -->
+        <Style Selector="TextBlock#RawCopiedHint">
+            <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
+        </Style>
+        <Style Selector="TextBlock#RawCopiedHint.failed">
+            <Setter Property="Foreground" Value="{DynamicResource CautionBrush}"/>
+        </Style>
+
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="Consolas,monospace"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -215,16 +319,15 @@
                  row ran off the card (2026-08-03). -->
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
-                          IsVisible="{Binding !$parent[controls:TagEditorPanel].ShowAnalysis}">
+                          IsVisible="{Binding $parent[controls:TagEditorPanel].ShowTags}">
                 <StackPanel Spacing="12" Margin="0,4,0,4">
 
-                    <!-- (!) The file-fact line (type / length / kbps) is NOT here any more. It is not
-                         something you edit, it is what you are looking AT - so it belongs in the
-                         host's pane header, on the same line as the neighbouring pane's header, the
-                         way the PLAYER header carries the track name and FILES carries its count.
-                         Sitting as the first CONTENT row it hung one line below every header beside
-                         it and made the two panes read as misaligned. Both hosts bind
-                         TagEditorViewModel.FileInfo in their own header. -->
+                    <!-- File identity (type / length / kbps) - the first row of the BODY, in BOTH
+                         hosts, so the floating window and JUST TAG's docked pane cannot drift.
+                         The tooltip carries the full line for the width where it has to trim. -->
+                    <TextBlock Text="{Binding FileInfo}" Classes="tag-muted" FontSize="10.5"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding FileInfo}"/>
 
                     <!-- Cover + the four name fields.
                          (!) The cover is NOT given a height: its row is `*`, so the picture takes
@@ -617,6 +720,159 @@
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
+
+            <!-- == RAW ==========================================================================
+                 Every frame/field of the open file exactly as it sits on disk. Read-only, and there
+                 is no edit, no delete and no "strip foreign tags" here - not now and not as a stub.
+
+                 WHY IT EXISTS: measured 2026-07-31 (128 writes / 787 vendor frames) that our writer
+                 hands back every vendor payload byte-identical, where other taggers truncate
+                 Serato's Markers2, rename Mixed In Key's frames and wipe POPM. Nothing in the suite
+                 could SHOW that. This is the showing.
+
+                 WHAT IT MUST NEVER BECOME: it proves we PRESERVE, it does not pretend we UNDERSTAND.
+                 A row says "GEOB:Serato Markers2 = 470 bytes" (measured). It will never say "cue 3
+                 at 2:14", because we do not decode those blobs. Binary entries show a SIZE, never a
+                 hexdump.
+
+                 ONE FILE, like ANALYSIS beside it: a selection has no single set of frames, so the
+                 host drops the tab (TagEditorViewModel.CanShowRaw) rather than offer an empty one.
+
+                 (!) NO second copy of the ID3-conversion caution in here. It was a separate WINDOW
+                 for one evening and carried its own, because that window could be opened with the
+                 editor pointed at some other file. A TAB shares this panel's footer, where the same
+                 sentence already stands above Save, live, about this same file, on every tab. Two
+                 cards saying one sentence 300 px apart is not two warnings. The listing that Copy
+                 all puts on the clipboard still carries it - that text leaves the app, where the
+                 footer card does not travel with it. -->
+            <!-- Two nested conditions on purpose: the OUTER one is which tab you are on, the INNER
+                 one is whether there is a listing at all. Every binding below reaches through Raw,
+                 and a binding through a null reference produces NO value - which for IsVisible falls
+                 back to its default of true. Hanging the content on HasRaw is what stops a listing
+                 for nothing from rendering "Could not read this file". -->
+            <Panel IsVisible="{Binding $parent[controls:TagEditorPanel].ShowRaw}">
+            <DockPanel IsVisible="{Binding HasRaw}" LastChildFill="True">
+
+                <!-- === THE HEADER: how much is here, and the button that copies it ===
+                     Stays above the table so it does not scroll away from what it counts.
+                     (!) There was a sentence here naming whose data the file carries - "8 frames from
+                     SERATO, 4 from MIXED IN KEY and 2 from JUST PLAY. No TRAKTOR data." It went the
+                     moment every row got its owner in its own tooltip: the same answer twice, once
+                     as a summary you have to trust and once at the row you are actually looking at.
+                     The row wins - it is where the question gets asked. -->
+                <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,6,0,0">
+
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding Raw.CountLine}"
+                                   FontSize="10" FontWeight="SemiBold" LetterSpacing="1.6"
+                                   VerticalAlignment="Center" Margin="0,0,10,0"
+                                   TextTrimming="CharacterEllipsis" Foreground="#73FFFFFF"
+                                   IsVisible="{Binding Raw.HasContent}"/>
+
+                        <TextBlock Grid.Column="1" Name="RawCopiedHint" Text="Copied" FontSize="11"
+                                   VerticalAlignment="Center" Margin="0,0,10,0" IsVisible="False"/>
+
+                        <Button Grid.Column="2" Classes="tag-ghost" Content="Copy all" Padding="10,5"
+                                VerticalAlignment="Center" Click="OnCopyRawAll"/>
+                    </Grid>
+
+                    <!-- A file we could not open at all: one honest line, never an empty table. The
+                         plain sentence leads and the reader's own reason follows it - the exception
+                         text is the useful half for a DJ chasing a broken download, but
+                         "CorruptFileException" on its own is not an answer to anybody. -->
+                    <Grid IsVisible="{Binding Raw.HasFailure}" ColumnDefinitions="Auto,9,*">
+                        <controls:JustIcon Grid.Column="0" Kind="Warning" Width="13" Height="13"
+                                           VerticalAlignment="Top" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource CautionBrush}"/>
+                        <StackPanel Grid.Column="2" Spacing="3">
+                            <TextBlock Text="Could not read this file." FontSize="12"
+                                       FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource CautionBrush}"/>
+                            <TextBlock Text="{Binding Raw.FailureReason}" FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource MutedBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <!-- === THE CONTAINERS === -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled" Margin="0,8,0,0">
+                    <StackPanel Spacing="10">
+                        <ItemsControl ItemsSource="{Binding Raw.Sections}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RawTagSection">
+                                    <StackPanel Margin="0,0,0,10">
+
+                                        <Button Classes="sechead" Click="OnToggleRawSection">
+                                            <Grid ColumnDefinitions="Auto,9,Auto,*">
+                                                <controls:JustIcon Grid.Column="0" Classes="chev"
+                                                                   Classes.collapsed="{Binding IsCollapsed}"
+                                                                   Kind="ChevronDown" Width="10" Height="10"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="#8CFFFFFF"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Label}"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           LetterSpacing="1.4" Foreground="#ECFFFFFF"
+                                                           VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding CountText}"
+                                                           FontSize="11" Margin="10,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource MutedFaintBrush}"/>
+                                            </Grid>
+                                        </Button>
+
+                                        <StackPanel IsVisible="{Binding IsExpanded}" Margin="19,2,0,0">
+
+                                            <!-- A container the reader does not walk in detail gets
+                                                 ONE greyed explanatory row. An empty table would read
+                                                 as "this file has nothing here", which is a different
+                                                 and false statement. -->
+                                            <TextBlock IsVisible="{Binding IsUnsupported}"
+                                                       Text="{Binding UnsupportedReason}"
+                                                       FontSize="11" TextWrapping="Wrap" Margin="8,2,0,4"
+                                                       Foreground="{DynamicResource MutedFaintBrush}"/>
+
+                                            <ItemsControl ItemsSource="{Binding Rows}"
+                                                          IsVisible="{Binding HasRows}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="vm:RawTagRow">
+                                                        <!-- Handle and value, nothing between them. The
+                                                             vendor used to be a third column here and
+                                                             read as the first word of the value; it
+                                                             lives in the row's one tooltip now, next to
+                                                             the untrimmed handle and value. See
+                                                             RawTagRow.Tip. -->
+                                                        <Button Classes="rawrow" Click="OnCopyRawRow"
+                                                                Classes.plain="{Binding !HasVendor}"
+                                                                ToolTip.Tip="{Binding Tip}">
+                                                            <Grid ColumnDefinitions="Auto,*"
+                                                                  ColumnSpacing="10">
+                                                                <TextBlock Grid.Column="0" Classes="mono handle"
+                                                                           MaxWidth="196"
+                                                                           Text="{Binding Handle}"/>
+                                                                <TextBlock Grid.Column="1" Classes="mono"
+                                                                           Text="{Binding Value}"/>
+                                                            </Grid>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- The standing statement of what this tab is - last, the way ANALYSIS says
+                             why its numbers are read-only at the end of its own list. -->
+                        <TextBlock Classes="tag-muted" TextWrapping="Wrap"
+                                   IsVisible="{Binding Raw.HasContent}"
+                                   Text="Read-only. Frames are shown as they sit on disk - a binary one by its size, because what is inside belongs to the app that wrote it. Click a line to copy it."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+            </Panel>
 
             </Panel>
         </DockPanel>

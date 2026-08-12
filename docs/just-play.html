@@ -96,6 +96,45 @@
       <b>Refresh</b> re-reads it from disk. Opening a playlist to pre-cue it is the elegant way to
       line up your next set.
     </p>
+    <h3>Fits what's playing</h3>
+    <p>
+      One click narrows the list to what would actually mix with the track on air: the playing key
+      plus its harmonic neighbours, a ±3 BPM window, and energy from one step below upward. It works
+      by <i>moving the filters you can see</i> — the key wheel lights up, the sliders move — so you
+      can widen any of it by hand. A button whose reasoning you can't see is one you stop trusting
+      mid-gig.
+    </p>
+  </section>
+
+  <section class="doc-section prose" id="library-index">
+    <h2>The library index — searching deeper</h2>
+    <p>
+      By default the finder reads one folder at a time, straight off the disk. Turn on
+      <b>Keep an index of this library</b> in the finder settings and press <b>Scan library</b> once,
+      and three things open up: <b>Include subfolders</b> searches everything below the folder you're
+      standing in, standing above your sets <b>filters across all the playlists</b> under it at once
+      (a track in five sets is one row, and the panel tells you which five), and a big folder paints
+      the instant you step into it instead of after the last tag has been read.
+    </p>
+    <p>
+      The index is built on <i>this</i> computer, from the tags already in your files, and it lives in
+      your user profile — <b>nothing is written next to your music</b>. That is also why two machines
+      sharing one NAS both stay current without a database between them: whichever one analyses a
+      track first writes the result into the file, and the other reads it back.
+    </p>
+    <p>
+      It is opt-in in the strict sense: if you never scan, no index file is created at all. And the
+      index can't hide a track from you — files it has never seen are still listed, with blank
+      columns, and one that has gone missing is flagged rather than quietly dropped. Where the index
+      is needed and isn't there, the control that needs it is disabled <b>with the reason written on
+      it</b>, never left as a bare grey button.
+    </p>
+    <div class="callout warn">
+      <b>Nothing watches the folder for you yet.</b> The index catches up when you press Scan, or
+      when you open a folder whose contents have changed. And a scan <i>indexes</i> — it does not
+      analyse: tracks with no key or BPM in them are listed, not queued. Running the detectors over a
+      whole library is the <a href="cli.html">CLI</a>'s job.
+    </div>
   </section>
 
   <section class="doc-section prose">
@@ -189,8 +228,13 @@
     <p>
       When you ask — and only then — JUST PLAY writes the detected key, BPM and energy into each
       file's own tags. The analysis then travels with the track, and other apps can read it. Every
-      change is undoable. Close the app and nothing else is left behind: no library, no database, no
-      leftovers.
+      change is undoable. Close the app and your queue is gone again — nothing is ever written into
+      your music folders except the tracks' own tags.
+    </p>
+    <p>
+      The one thing JUST PLAY can keep is the <a href="#library-index">library index</a>, and only
+      because you asked for it: it lives in your user profile, it is built from those same tags, and
+      it is off until you switch it on.
     </p>
   </section>
 

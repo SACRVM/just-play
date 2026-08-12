@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,14 +28,18 @@ public partial class TagEditorPanel : UserControl
     }
 
     /// <summary>
-    /// Which half is showing: the editable TAGS, or the read-only ANALYSIS. It lives on the CONTROL,
-    /// not the view model - the view model is the file's state and is shared with whatever else a host
-    /// wires to it, while "which half am I looking at" belongs to this panel.
+    /// Which body is showing: the editable TAGS, the read-only ANALYSIS, or the read-only RAW frames.
+    /// It lives on the CONTROL, not the view model - the view model is the file's state and is shared
+    /// with whatever else a host wires to it, while "which one am I looking at" belongs to this panel.
     ///
     /// <para>The panel no longer draws the switch itself: the HOST owns its pane
     /// header, and a panel with its own tab bar produced a second row of tabs right under the first.
     /// Hosts bind this - JUST TAG from its EDITOR | ANALYSIS | FILTER header, the floating window from
     /// its chrome.</para>
+    ///
+    /// <para>Two flags rather than one enum because a host may only know about the one it drives:
+    /// they are kept mutually exclusive here (see <see cref="OnTabFlagChanged"/>), and TAGS is what
+    /// is left when neither is on.</para>
     /// </summary>
     public static readonly StyledProperty<bool> ShowAnalysisProperty =
         AvaloniaProperty.Register<TagEditorPanel, bool>(nameof(ShowAnalysis));
@@ -45,7 +50,99 @@ public partial class TagEditorPanel : UserControl
         set => SetValue(ShowAnalysisProperty, value);
     }
 
+    /// <summary>The RAW frames of the open file. Same mechanism as <see cref="ShowAnalysis"/> - the
+    /// host's header drives it, this panel switches its body.</summary>
+    public static readonly StyledProperty<bool> ShowRawProperty =
+        AvaloniaProperty.Register<TagEditorPanel, bool>(nameof(ShowRaw));
+
+    public bool ShowRaw
+    {
+        get => GetValue(ShowRawProperty);
+        set => SetValue(ShowRawProperty, value);
+    }
+
+    /// <summary>The editable body - what is showing when neither of the two read-only bodies is.
+    /// Read-only and derived, so no host has to keep a third flag in step.</summary>
+    public static readonly DirectProperty<TagEditorPanel, bool> ShowTagsProperty =
+        AvaloniaProperty.RegisterDirect<TagEditorPanel, bool>(nameof(ShowTags), o => o.ShowTags);
+
+    private bool _showTags = true;
+
+    public bool ShowTags
+    {
+        get => _showTags;
+        private set => SetAndRaise(ShowTagsProperty, ref _showTags, value);
+    }
+
+    static TagEditorPanel()
+    {
+        ShowAnalysisProperty.Changed.AddClassHandler<TagEditorPanel>((p, e) => p.OnTabFlagChanged(e));
+        ShowRawProperty.Changed.AddClassHandler<TagEditorPanel>((p, e) => p.OnTabFlagChanged(e));
+    }
+
+    /// <summary>
+    /// The two flags are ONE choice, so whichever was just switched on switches the other off. A host
+    /// that drives only the flag it knows about therefore cannot leave the panel with two bodies up.
+    ///
+    /// <para><see cref="AvaloniaObject.SetCurrentValue{T}"/>, never <c>SetValue</c>: JUST TAG BINDS
+    /// <see cref="ShowAnalysis"/> to its pane state, and a local value would win over that binding
+    /// permanently - the tab would work once and then be stuck.</para>
+    /// </summary>
+    private void OnTabFlagChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.GetNewValue<bool>())
+        {
+            if (e.Property == ShowAnalysisProperty) SetCurrentValue(ShowRawProperty, false);
+            else SetCurrentValue(ShowAnalysisProperty, false);
+        }
+
+        ShowTags = !ShowAnalysis && !ShowRaw;
+
+        // Reading a file's raw containers is a second open of it, so it does not happen until the tab
+        // is actually looked at. From here on the view model keeps it in step by itself.
+        if (ShowRaw) Vm?.EnsureRaw();
+    }
+
     private TagEditorViewModel? Vm => DataContext as TagEditorViewModel;
+
+    private TagEditorViewModel? _watched;
+
+    /// <summary>
+    /// A body that stops being available has to leave you somewhere, and that rule lives HERE rather
+    /// than in each host: both read-only bodies are single-file views, so picking a selection takes
+    /// them away, and a host that forgot to reset would be left rendering one over a file it is not
+    /// pointed at.
+    /// </summary>
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        if (_watched is not null) _watched.PropertyChanged -= OnEditorPropertyChanged;
+        _watched = Vm;
+        if (_watched is not null) _watched.PropertyChanged += OnEditorPropertyChanged;
+
+        SyncAvailableTabs();
+        base.OnDataContextChanged(e);
+    }
+
+    private void OnEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(TagEditorViewModel.CanShowAnalysis)
+                           or nameof(TagEditorViewModel.CanShowRaw))
+            SyncAvailableTabs();
+    }
+
+    /// <summary>Fall back to TAGS when the body that is up has just gone away.
+    /// <see cref="AvaloniaObject.SetCurrentValue{T}"/> so a host's binding survives - see
+    /// <see cref="OnTabFlagChanged"/>.</summary>
+    private void SyncAvailableTabs()
+    {
+        if (Vm is not { } vm) return;
+        if (ShowAnalysis && !vm.CanShowAnalysis) SetCurrentValue(ShowAnalysisProperty, false);
+        if (ShowRaw && !vm.CanShowRaw) SetCurrentValue(ShowRawProperty, false);
+
+        // Covers the host that has the panel on RAW BEFORE it hands over the view model - the flag
+        // changed while there was nothing to ask, so the ask happens here instead. Idempotent.
+        if (ShowRaw) vm.EnsureRaw();
+    }
 
     private async void OnSave(object? sender, RoutedEventArgs e)
     {
@@ -191,6 +288,46 @@ public partial class TagEditorPanel : UserControl
             // Unreadable image / cancelled picker - leave the cover as it was. `async void` on an
             // event handler cannot let an exception escape, so it is caught here on purpose.
         }
+    }
+
+    // ================================================================================================
+    // RAW - the file's containers as they sit on disk. Read-only by contract: nothing in here edits,
+    // deletes or strips anything, and the ONLY thing that leaves it is text.
+    // ================================================================================================
+
+    /// <summary>A container's header is the whole-width toggle for it. The section object carries its
+    /// own expanded state, so a fold survives a switch to another tab and back.</summary>
+    private void OnToggleRawSection(object? sender, RoutedEventArgs e) =>
+        ((sender as Button)?.DataContext as RawTagSection)?.Toggle();
+
+    private async void OnCopyRawRow(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.DataContext is RawTagRow row)
+            await CopyRawAsync(row.Line.TrimEnd());
+    }
+
+    private async void OnCopyRawAll(object? sender, RoutedEventArgs e) =>
+        await CopyRawAsync(Vm?.Raw?.ListingText);
+
+    /// <summary>
+    /// Through the SHARED clipboard helper, which exists because of the crash this view found: the
+    /// Win32 clipboard raises from inside the copy call, and an exception out of an <c>async void</c>
+    /// handler terminates the process. Every row here is a copy button, so that path gets clicked
+    /// constantly. A copy that did not happen is worth one word, never the app.
+    /// </summary>
+    private async Task CopyRawAsync(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        var copied = await SystemClipboard.CopyTextAsync(TopLevel.GetTopLevel(this), text);
+
+        // The word is the feedback, not the copy: a missing hint must never be able to stop the copy
+        // itself, so it is looked up after the work and not before it.
+        if (this.FindControl<TextBlock>("RawCopiedHint") is not { } hint) return;
+
+        hint.Text = copied ? "Copied" : "Could not copy";
+        hint.Classes.Set("failed", !copied);
+        hint.IsVisible = true;
     }
 
     /// <summary>

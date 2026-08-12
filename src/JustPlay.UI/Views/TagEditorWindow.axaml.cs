@@ -98,9 +98,10 @@ public partial class TagEditorWindow : Window
 
         if (Body is { } body && !await body.ConfirmLeaveAsync(this)) return false;
 
+        // A tab that vanishes under you has to leave you somewhere - both read-only bodies are
+        // single-file views, so a selection takes them away and TAGS is what is left. That is
+        // TagEditorPanel's own job now (SyncAvailableTabs), so every host gets it, not just this one.
         Editor.LoadMany(targets);
-        // A tab that vanishes under you has to leave you somewhere.
-        if (Body is { } panel) panel.ShowAnalysis = false;
         FitHeightToContentOnce();
         return true;
     }
@@ -155,12 +156,19 @@ public partial class TagEditorWindow : Window
         BeginMoveDrag(e);
     }
 
-    // TAGS | ANALYSIS. The switch lives in the CHROME here, because in this window the chrome IS the
-    // pane header - the panel stopped drawing its own tab bar so that a docked host (JUST TAG) does
-    // not end up with two rows of tabs.
-    private void OnShowTags(object? sender, RoutedEventArgs e) => Panel.ShowAnalysis = false;
+    // TAGS | ANALYSIS | RAW. The switch lives in the CHROME here, because in this window the chrome IS
+    // the pane header - the panel stopped drawing its own tab bar so that a docked host (JUST TAG)
+    // does not end up with two rows of tabs. Turning one of the read-only bodies ON turns the other
+    // off inside the panel, so these three lines are the whole switch.
+    private void OnShowTags(object? sender, RoutedEventArgs e)
+    {
+        Panel.ShowAnalysis = false;
+        Panel.ShowRaw = false;
+    }
 
     private void OnShowAnalysis(object? sender, RoutedEventArgs e) => Panel.ShowAnalysis = true;
+
+    private void OnShowRaw(object? sender, RoutedEventArgs e) => Panel.ShowRaw = true;
 
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
 

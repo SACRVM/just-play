@@ -17,17 +17,23 @@ namespace JustPlay.Core.Abstractions;
 /// </para>
 ///
 /// <para>
-/// <b>UI seam (not built by this task):</b> a future <c>RawTagsWindow</c> in <c>JustPlay.UI</c>
-/// calls <see cref="Read"/> once per selected file and renders <see cref="RawTagReadResult.Containers"/>
+/// <b>UI seam:</b> the shared tag editor's RAW tab (<c>TagEditorPanel</c> in <c>JustPlay.UI</c>,
+/// via <c>TagEditorViewModel.Raw</c>) calls <see cref="Read"/> for the open file and renders
+/// <see cref="RawTagReadResult.Containers"/>
 /// as one collapsible section per container ("ID3v2.3", "Xiph", ...), each section a small table of
 /// <see cref="RawTagEntry.Id"/> / <see cref="RawTagEntry.Descriptor"/> / <see cref="RawTagEntry.Vendor"/>
 /// / <see cref="RawTagEntry.SizeBytes"/> / <see cref="RawTagEntry.Summary"/>. A container with
 /// <see cref="RawTagContainer.UnsupportedReason"/> set renders as one greyed-out explanatory row,
 /// not an empty table. A non-null <see cref="RawTagReadResult.FailureReason"/> renders as a single
-/// "couldn't read this file" line instead of the table. The one thing worth calling out visually in
-/// that window is <see cref="RawTagReadResult.VendorEntries"/> - a badge per recognised vendor
-/// (Serato / Traktor / Mixed In Key) is the actual "your cues are still here" proof this was built
-/// to surface.
+/// "couldn't read this file" line instead of the table.
+/// </para>
+///
+/// <para>
+/// <see cref="RawTagEntry.Vendor"/> is what makes this more than a frame dump - a row the reader can
+/// attribute to Serato / Traktor / Mixed In Key IS the "your cues are still here" proof it was built
+/// to surface. It is shown per ROW (in the row's tooltip), never as a summary above the table: a
+/// count of somebody's frames is a claim you have to trust, while the row is the thing being looked
+/// at. Everything that once aggregated it - a chip strip, then a sentence - was tried and removed.
 /// </para>
 /// </summary>
 public interface IRawTagReader

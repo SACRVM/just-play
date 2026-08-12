@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Build tool (NOT shipped, NOT part of JustPlay.slnx): generates the throwaway test library at
+       D:\JUST-TESTLIB, a tree of SYNTHESISED, tagged, playable audio files for hand testing JUST
+       TAG's ORGANISE feature (move / copy / delete) without touching a real music library. Every
+       byte of audio is generated here; nothing is copied from anywhere. Sibling of
+       build/make-tag-icon (same shape, also outside the solution, so it changes neither the
+       solution build nor the test count).
+
+       How to run it is in build/make-testlib/README or in the generated D:\JUST-TESTLIB\README.txt;
+       the command line is deliberately NOT repeated in this comment, because a literal double
+       hyphen inside an XML comment makes MSBuild refuse to load the project (MSB4025). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AssemblyName>make-testlib</AssemblyName>
+    <RootNamespace>MakeTestLib</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The tag writer the apps themselves use. No second tagging implementation exists. -->
+    <ProjectReference Include="..\..\src\JustPlay.Metadata\JustPlay.Metadata.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The vendored un4seen encoders, so the tree can hold the two formats the real library is
+         mostly made of: bassenc_mp3.dll (LAME) and bassenc_flac.dll, driven the same way
+         BassRecordingService drives them (start paused, feed PCM with BASS_Encode_Write). -->
+    <None Include="..\..\src\JustPlay.Audio.Bass\native\win-x64\*.dll">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

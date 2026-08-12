@@ -194,6 +194,22 @@
   </section>
 
   <section class="doc-section prose">
+    <h2>Who's listening</h2>
+    <p>
+      A <b>LISTENERS</b> readout sits with the stream info, with the session's peak beside it. The
+      number comes off your server's own public status page as an ordinary web request — the same one
+      anybody could open in a browser — so <b>no admin password is stored anywhere</b>, and nothing
+      about your listeners leaves the server.
+    </p>
+    <p>
+      It refreshes every 15 seconds while you're on air and every minute when you're not, one request
+      at a time. A server that stops answering costs you the number and never the broadcast: the
+      readout falls back to a dash and the stream carries on. Not every Icecast server exposes that
+      page, and on the ones that don't the count stays a dash.
+    </p>
+  </section>
+
+  <section class="doc-section prose">
     <h2>If the connection drops</h2>
     <p>
       JUST STREAM reconnects on its own — first after a couple of seconds, then with growing

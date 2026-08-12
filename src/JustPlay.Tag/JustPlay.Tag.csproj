@@ -37,16 +37,26 @@
   <!-- JUST TAG = a single-file tag editor. Platform-agnostic Core (models/abstractions) +
        JustPlay.Metadata (TagLib# read/write — all tag logic lives there, never in the app) +
        JustPlay.UI (shared suite chrome, caption buttons, themed icon, theme engine, About).
-       NO Analysis reference: JUST TAG REPORTS what analysis a file already carries, it never runs
-       a detector - that stays JUST PLAY's and the CLI's job. (Playback is a different story, see
-       the BASS reference below - it used to be excluded here too.) -->
+       (Playback is a different story, see the BASS reference below - it used to be excluded
+       here too, and so did the analyzer.) -->
   <ItemGroup>
     <ProjectReference Include="..\JustPlay.Core\JustPlay.Core.csproj" />
     <ProjectReference Include="..\JustPlay.Metadata\JustPlay.Metadata.csproj" />
     <ProjectReference Include="..\JustPlay.UI\JustPlay.UI.csproj" />
-    <!-- For AudioFiles ONLY — the suite's single definition of "what counts as a track". A private
+    <!-- AudioFiles (the suite's one definition of "what counts as a track"), the library index
+         lookup, and the AnalysisQueue + AnalysisBatchRunner the analyse action drives. A private
          extension list here would let JUST TAG and the Finder disagree about the same folder. -->
     <ProjectReference Include="..\JustPlay.Library\JustPlay.Library.csproj" />
+    <!-- (!) The tagger RUNS the analyzer now. It used to only REPORT what a file already carried,
+         which left the analysis traffic light in the file table a meter you could read and not act
+         on - and a meter you cannot act on is worse than none.
+         The detectors are the SUITE'S, not a second set: TrackAnalysisService is what
+         JustPlay.App's ConfigureServices and the CLI's EngineComposer both build, and Program.cs
+         here composes exactly the same stack. JustPlay.ML comes along because BestKeyDetector is
+         the ONE canonical key detector - a tagger keying a track differently from the player IS
+         the key-conflict-dot bug, by construction. -->
+    <ProjectReference Include="..\JustPlay.Analysis\JustPlay.Analysis.csproj" />
+    <ProjectReference Include="..\JustPlay.ML\JustPlay.ML.csproj" />
     <!-- (!) This REVERSES the project's original "deliberately no BASS" rule, on purpose and out
          loud. mp3tag has no playback at all - it hands the file to the OS player - so being able to
          hear the track inside the tagger is a straight win over it. It stays a PREVIEW: no queue,

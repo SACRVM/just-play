@@ -38,10 +38,16 @@ public sealed class LibraryOrganiseSync(IMetadataReader metadata, Action<string>
         if (removed is not null) touched.AddRange(removed);
         if (touched.Count == 0) return;
 
+        // (!) The machine's registry is read ONCE for the whole batch. LibraryIndexRegistry.RootFor
+        // reads and parses roots.json on every call, so asking it per path made a 500-file move open
+        // and re-parse the same small file 500 times. The pure overload takes the roots it was given.
+        var roots = LibraryIndexRegistry.Roots();
+        if (roots.Count == 0) return;
+
         // One database per registered root. Two paths under the same root share a connection; a path
         // under no root has no index to correct and is dropped here.
         var byRoot = touched
-            .Select(p => (Path: p, Root: RootOf(p)))
+            .Select(p => (Path: p, Root: RootOf(roots, p)))
             .Where(x => x.Root is not null)
             .GroupBy(x => x.Root!, StringComparer.OrdinalIgnoreCase);
 
@@ -75,12 +81,12 @@ public sealed class LibraryOrganiseSync(IMetadataReader metadata, Action<string>
         }
     }
 
-    private static string? RootOf(string path)
+    private static string? RootOf(IEnumerable<string> roots, string path)
     {
         try
         {
             return Path.GetDirectoryName(path) is { Length: > 0 } folder
-                ? LibraryIndexRegistry.RootFor(folder)
+                ? LibraryIndexRegistry.RootFor(roots, folder)
                 : null;
         }
         catch (Exception)

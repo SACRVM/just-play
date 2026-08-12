@@ -42,6 +42,9 @@ public sealed partial class TagEditorViewModel
             if (clean == _convertsToId3Version) return;
             _convertsToId3Version = clean;
             RefreshId3Notice();
+            // The RAW listing quotes the same target in the text Copy all produces, so it is rebuilt
+            // rather than left holding the version that was configured when the tab was opened.
+            RefreshRaw();
         }
     }
 

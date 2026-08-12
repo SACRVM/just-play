@@ -312,6 +312,14 @@ public sealed class TagLibRawTagReader : IRawTagReader
         if (string.IsNullOrEmpty(key)) return RawTagVendor.Unknown;
         if (key is "JUSTPLAY" or "ENERGY") return RawTagVendor.JustPlay;
 
+        // REPLAYGAIN_TRACK_GAIN / _TRACK_PEAK / _ALBUM_* / _REFERENCE_LOUDNESS. Our writer emits the
+        // first two (TagLibMetadataWriter.cs:64-69), but this is NOT recognition of our own writing:
+        // the ReplayGain fields are a standard everyone writes identically, so the match names the
+        // FORMAT and stops there - see RawTagVendor.ReplayGain for why the author stays unclaimed.
+        // Case-insensitive because Vorbis comment keys are case-insensitive by spec and the
+        // lowercase "replaygain_track_gain" spelling is the common one in FLAC/OGG files.
+        if (key.StartsWith("REPLAYGAIN_", StringComparison.OrdinalIgnoreCase)) return RawTagVendor.ReplayGain;
+
         // "EnergyLevel" is the commonly observed casing; some tooling reports "ENERGYLEVEL"
         // (mik-beatport-coexistence.md Sec.1) - compare case-insensitively for that reason alone.
         if (string.Equals(key, "EnergyLevel", StringComparison.OrdinalIgnoreCase)) return RawTagVendor.MixedInKey;

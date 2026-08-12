@@ -6,6 +6,9 @@ using System.Text.Json.Serialization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+// Screen lives in Avalonia.Platform (Avalonia.Controls only carries the Screens COLLECTION) -
+// verified against Avalonia release/12.0.3, src/Avalonia.Controls/Screen.cs.
+using Avalonia.Platform;
 using JustPlay.Core.Storage;
 
 namespace JustPlay.UI.Behaviors;
@@ -58,7 +61,11 @@ public static class WindowPlacement
             latest = new WindowBounds(window.Position.X, window.Position.Y, window.Width, window.Height);
         }
 
-        window.Opened += (_, _) => EnsureVisible(window); // clamp to the monitors that exist NOW
+        window.Opened += (_, _) =>
+        {
+            FollowOwnerScreen(window);   // an overlay belongs on the screen you are working on
+            EnsureVisible(window);       // clamp to the monitors that exist NOW
+        };
         window.PositionChanged += (_, _) => Capture();
         window.PropertyChanged += (_, e) =>
         {
@@ -88,6 +95,62 @@ public static class WindowPlacement
             w.Height = b.H;
         }
         w.Position = new PixelPoint(b.X, b.Y);
+    }
+
+    /// <summary>
+    /// (!!) SUITE RULE: a window that BELONGS to another one opens on the screen that other one is on.
+    /// Not where it was last time - where you are working now.
+    ///
+    /// <para>Remembering a position is right for a main window and wrong for an overlay. The editor, the
+    /// pattern help, the previews, the raw-tag view: you open them from the app you are looking at, and
+    /// having one appear on the monitor you are not looking at is not a restored preference, it is a
+    /// window that went missing. This was reported twice - the first fix only set a startup location,
+    /// which decides the FIRST open and nothing after it, because from the second open the remembered
+    /// position wins. So the rule has to live here, where the remembering happens.</para>
+    ///
+    /// <para>The memory is not thrown away, it is scoped: a saved spot ON the owner's screen is honoured
+    /// exactly as before, so moving a tool window where you like it still sticks. Only a spot on a
+    /// DIFFERENT screen is overridden, and then the window is centred on the owner.</para>
+    /// </summary>
+    public static void FollowOwnerScreen(Window w)
+    {
+        if (w.Owner is not Window owner) return;   // a main window answers to nobody
+        if (w.Screens is not { } screens || screens.All.Count == 0) return;
+
+        var ownerRect = PixelRectOf(owner);
+        var target = BestScreen(screens.All, ownerRect);
+        if (target is null) return;
+
+        // Already on the owner's screen? Then the remembered position stands.
+        if (Overlap(target.WorkingArea, PixelRectOf(w)) > 0) return;
+
+        var wa = target.WorkingArea;
+        var self = PixelRectOf(w);
+        w.Position = new PixelPoint(
+            wa.X + Math.Max(0, (wa.Width  - self.Width)  / 2),
+            wa.Y + Math.Max(0, (wa.Height - self.Height) / 2));
+    }
+
+    /// <summary>A window's bounds in physical pixels - the unit the screen work areas are in.</summary>
+    private static PixelRect PixelRectOf(Window w)
+    {
+        var scale = w.RenderScaling <= 0 ? 1.0 : w.RenderScaling;
+        return new PixelRect(w.Position.X, w.Position.Y,
+                             Math.Max(1, (int)Math.Round(w.Width  * scale)),
+                             Math.Max(1, (int)Math.Round(w.Height * scale)));
+    }
+
+    /// <summary>The screen a rect sits on: the one it overlaps most, or null if it touches none.</summary>
+    private static Screen? BestScreen(IReadOnlyList<Screen> all, PixelRect rect)
+    {
+        Screen? best = null;
+        long bestOverlap = 0;
+        foreach (var s in all)
+        {
+            long area = Overlap(s.WorkingArea, rect);
+            if (area > bestOverlap) { bestOverlap = area; best = s; }
+        }
+        return best;
     }
 
     /// <summary>

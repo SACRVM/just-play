@@ -77,14 +77,23 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
 
     private readonly Func<IReadOnlyList<string>>? _genreSource;
 
+    /// <param name="rawReader">
+    /// Reads the file's tag containers as they sit on disk - what the RAW tab shows. Optional: a host
+    /// that does not hand one over simply has no RAW tab (<see cref="CanShowRaw"/> stays false), which
+    /// is the same shape every other dependency here has. It arrives through the constructor for the
+    /// same reason the metadata reader does: this library must never reference JustPlay.Metadata,
+    /// where the only implementation lives.
+    /// </param>
     public TagEditorViewModel(IMetadataReader reader, IMetadataWriter writer,
                               TagWriteExecutor? execute = null,
-                              Func<IReadOnlyList<string>>? genreSource = null)
+                              Func<IReadOnlyList<string>>? genreSource = null,
+                              IRawTagReader? rawReader = null)
     {
         _reader = reader;
         _writer = writer;
         _execute = execute ?? WriteDirect;
         _genreSource = genreSource;
+        _rawReader = rawReader;
     }
 
     /// <summary>
@@ -210,8 +219,26 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         // A leading or trailing separator is what a missing first/last placeholder leaves.
         s = s.Trim('-', '_', '.', ' ');
         while (s.Contains("- -")) s = s.Replace("- -", "-");
-        return s.Trim();
+        s = s.Trim();
+
+        // Windows reserves a handful of names for DEVICES, extension and all: "NUL.mp3" is not a
+        // file called NUL, it is the null device, and a rename to it fails instead of happening.
+        // GetInvalidFileNameChars does not cover this - it is about characters, and these names
+        // contain none. "Aux" and "Con" are perfectly ordinary track titles, so a mask of %title%
+        // reaches this on real music. One underscore makes the name a name again.
+        return IsReservedDeviceName(s) ? s + "_" : s;
     }
+
+    /// <summary>The MS-DOS device names Windows still reserves, in any casing.</summary>
+    private static readonly string[] DeviceNames =
+    [
+        "CON", "PRN", "AUX", "NUL",
+        "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+
+    private static bool IsReservedDeviceName(string name) =>
+        DeviceNames.Contains(name, StringComparer.OrdinalIgnoreCase);
 
     // -- Editorial fields ------------------------------------------------------------------------
 
@@ -661,6 +688,9 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             Status = "Saved";
                 Saved?.Invoke(path);
                 if (newPath is not null) TryRename(path, newPath);
+                // A write is the one thing that changes what the RAW tab is listing, so it re-reads.
+                // After TryRename, because that is what settles the path it would read.
+                RefreshRaw();
                 return true;
 
             case TagWriteOutcome.Deferred:
