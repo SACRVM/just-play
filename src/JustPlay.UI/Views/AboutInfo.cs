@@ -21,7 +21,7 @@ public sealed record AboutInfo(
     string Tagline,
     string Version,
     BrandGlyph Glyph,
-    string By = "by Chloe Dream",
-    string Copyright = "(c) 2026 Chloe Dream",
+    string By = "by Just Useful Sound Tools",
+    string Copyright = "(c) 2026 Just Useful Sound Tools",
     string SuiteLine = "Part of J.U.S.T. - Just Useful Sound Tools",
     string Motto = "FROM DJS TO DJS");

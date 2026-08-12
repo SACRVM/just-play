@@ -11,8 +11,16 @@
   <PropertyGroup>
     <Version>0.6.0</Version>
     <Product>JustPlay</Product>
-    <Authors>Chloe Dream</Authors>
-    <Company>Chloe Dream</Company>
-    <Copyright>© 2026 Chloe Dream</Copyright>
+    <!--
+      The SUITE is the publisher, not a person. These three strings travel further than
+      they look: they become the assembly's Authors/Company/Copyright, which Windows shows
+      in a file's Details tab, and the About dialog reads them back at runtime. A name that
+      may change therefore has no business in here - the suite's name does not change.
+      The MIT copyright holder is a different question and lives in LICENSE, where naming a
+      real rights holder is the point.
+    -->
+    <Authors>Just Useful Sound Tools</Authors>
+    <Company>Just Useful Sound Tools</Company>
+    <Copyright>© 2026 Just Useful Sound Tools</Copyright>
   </PropertyGroup>
 </Project>

@@ -17,7 +17,11 @@
 #endif
 
 #define AppName "JustPlay"
-#define AppPublisher "Chloe Dream"
+; The publisher is the SUITE. This string is the one Windows puts in the UAC prompt, in
+; Programs & Features and in the installer's own header - the places where "who is this
+; from?" gets answered, and where a personal name would age badly. Spelled out rather than
+; "J.U.S.T.": an abbreviation alone reads as a fragment in a security dialog.
+#define AppPublisher "Just Useful Sound Tools"
 #define AppExe "JustPlay.exe"
 #define StreamExe "JustStream.exe"
 #define TagExe "JustTag.exe"

@@ -8,7 +8,7 @@
     <AssemblyName>JustStream</AssemblyName>
     <AssemblyTitle>JUST STREAM</AssemblyTitle>
     <Product>JUST STREAM</Product>
-    <Company>Chloe Dream</Company>
+    <!-- Company: inherited from Directory.Build.props (one publisher for the whole suite). -->
     <!-- Static Win32 exe icon (Explorer / shortcuts) = the JUST STREAM brand mark, Aurora theme +
          radio-tower glyph. Generated from BrandGlyphs.RadioTower via build/make-stream-icon (SkiaSharp).
          The live taskbar/title-bar icon is still rendered per-theme by ThemedWindowIcon at runtime. -->
