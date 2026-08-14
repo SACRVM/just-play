@@ -27,12 +27,37 @@ which artist photo to fetch, asking you to log in. JustPlay aims for the opposit
 - A quick window you **drop tracks onto and play.**
 - **No state between sessions** — close it, reopen it, the queue is empty again. The only
   memory it keeps is the one *you* allow: detected values written into the files' own tags
-  (the file is the memory, not a hidden database). 0.6 adds a local library index for the
-  Pre-Cue Finder and JUST TAG — opt-in, off by default, derived from those same tags, and
-  never written next to your music.
+  (the file is the memory, not a hidden database).
 - **Cross-platform from day 1** — Windows / macOS / Linux, single codebase.
 - **Small + fast deployment** — self-contained (no .NET install on the end user's machine),
   no C++ build tools required to build.
+
+### "But 0.6 added a library index"
+
+It did — and the promise is intact, because the promise was never *"there will never be an
+index"*. It is **you never have to build one before you can play**. That is still true: the
+index is off until you switch it on, and with it off, no index file is created at all and
+browsing behaves exactly as it did in 0.5.
+
+Why it exists, and what it actually is:
+
+- **Three features needed it.** Search everything *below* a folder instead of one directory at
+  a time; filter across all the playlists in a crate at once; paint a big folder the instant you
+  step into it. Each of those has to answer a question about files you have not opened, and
+  there is no way to do that from nothing.
+- **It is a cache, not a source of truth.** Every value in it was read out of your files' own
+  tags. Delete it and you lose speed, nothing else — it rebuilds from the same tags. That is
+  also why two machines pointed at one NAS each keep their own and need no shared database
+  between them.
+- **Nothing is written next to your music.** The index lives in your user profile. A music
+  folder after JustPlay looks exactly like a music folder before it.
+- **It cannot hide a track from you.** Files it has never seen are still listed, with blank
+  columns; a file that has gone missing is flagged rather than quietly dropped.
+- **Opt-in and explicit.** One toggle in the finder settings, and scanning is a button you
+  press — nothing crawls your disk in the background.
+
+A library you *must* build before the player is useful: no, and that will not change. An index
+you *may* build because it makes three specific things fast: yes, since 0.6.
 
 The DJ tilt comes from analysis baked straight into the player:
 
