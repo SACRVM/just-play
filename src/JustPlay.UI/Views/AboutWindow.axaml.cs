@@ -90,6 +90,13 @@ public partial class AboutWindow : Window
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 
+    // The author credit is a link. SystemWebBrowser drops anything that is not an absolute
+    // http(s) URL, so a mis-set ByUrl does nothing rather than launching something.
+    private void OnByClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is AboutInfo info) Controls.SystemWebBrowser.Open(info.ByUrl);
+    }
+
     // Frameless window: drag it by the card, but let button clicks through.
     private void OnCardPressed(object? sender, PointerPressedEventArgs e)
     {

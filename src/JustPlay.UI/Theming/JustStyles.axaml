@@ -457,6 +457,40 @@
     </Style>
 
     <!--
+      Shared text LINK - a credit or an address that opens in the browser (the About card's author
+      line today). Deliberately not underlined: the suite's dialogs are quiet, and the accent colour
+      plus the hand cursor already say "this is clickable" without adding a second visual language.
+      Foreground is the muted text tone so it sits at the weight of the line it replaces, and lifts
+      to the theme accent on hover. The three ContentPresenter overrides are the documented
+      FluentTheme quirk - without them the accent fill leaks through on hover and pressed.
+    -->
+    <Style Selector="Button.link">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="2,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.link /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.link:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="Button.link:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+    </Style>
+    <Style Selector="Button.link:pressed">
+        <Setter Property="Foreground" Value="{DynamicResource AccentABrush}"/>
+        <Setter Property="Opacity" Value="0.75"/>
+    </Style>
+
+    <!--
       Shared fader look - used by JUST PLAY (EQ + Revive sliders in TweaksPanel) and JUST STREAM
       (EQ + AutoTilt + Punch + Gain + Monitor faders). Lifted verbatim from TweaksPanel so the two
       products share one implementation. WHITE thumb - theme-independent, not the OS SystemAccent

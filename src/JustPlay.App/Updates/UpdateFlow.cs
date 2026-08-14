@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +6,7 @@ using Avalonia.Controls;
 using JustPlay.App.ViewModels;
 using JustPlay.App.Views;
 using JustPlay.Core.Updates;
+using JustPlay.UI.Controls;
 
 namespace JustPlay.App.Updates;
 
@@ -64,15 +64,8 @@ internal static class UpdateFlow
         }
     }
 
-    private static void OpenReleasePage(string url)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-        }
-        catch
-        {
-            // Nothing more we can do; the badge stays so the user can retry.
-        }
-    }
+    // The shared opener rather than a local Process.Start: it accepts absolute http(s) only, and
+    // this URL came back from the GitHub API - the one caller in the suite whose string is not a
+    // literal. A refused open leaves the badge up, so the user can retry.
+    private static void OpenReleasePage(string url) => SystemWebBrowser.Open(url);
 }

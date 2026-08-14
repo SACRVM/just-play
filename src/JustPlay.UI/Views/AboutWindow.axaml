@@ -103,7 +103,15 @@
                            Foreground="{DynamicResource AccentABrush}" Opacity="0.85"
                            HorizontalAlignment="Center" Margin="0,0,0,12"/>
 
+                <!-- The author credit. A link when AboutInfo carries a ByUrl, plain text when it does
+                     not - two elements rather than a disabled button, because a greyed-out credit
+                     would read as broken. OnCardPressed already lets Button clicks through, so this
+                     does not start a window drag. -->
+                <Button Classes="link" Content="{Binding By}" Click="OnByClick"
+                        IsVisible="{Binding HasByLink}"
+                        ToolTip.Tip="{Binding ByUrl}"/>
                 <TextBlock Text="{Binding By}" FontSize="12"
+                           IsVisible="{Binding !HasByLink}"
                            Foreground="{DynamicResource MutedBrush}"
                            HorizontalAlignment="Center"/>
                 <TextBlock Text="{Binding Copyright}" FontSize="11"
