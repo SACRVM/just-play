@@ -7,9 +7,16 @@
 
     Applies to every project under the solution root (MSBuild auto-imports the
     nearest Directory.Build.props). Test projects inherit it too — harmless.
+
+    A PRE-RELEASE carries its suffix here, in full: the installer is named from this
+    string (JustPlaySetup-<version>-win-x64.exe), and a beta whose file name claims to
+    be the final build is the kind of artefact that gets mailed to the wrong person.
+    Nothing downstream breaks on the suffix: AssemblyVersion stays numeric, which is
+    what the updater compares, and the release-tag parser drops anything after the
+    first '-' by design.
   -->
   <PropertyGroup>
-    <Version>0.6.0</Version>
+    <Version>0.6.0-beta.1</Version>
     <Product>JustPlay</Product>
     <!--
       The SUITE is the publisher, not a person. These three strings travel further than

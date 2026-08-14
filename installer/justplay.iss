@@ -12,8 +12,13 @@
 ; version from Directory.Build.props). AppVersion can be overridden on the command line:
 ;   ISCC.exe /DAppVersion=0.1.0 installer\justplay.iss
 
+; No default version here, on purpose. A literal in this file is a SECOND place the version
+; lives, and a stale one produces a perfectly good installer under a wrong name - which is how
+; a beta shipped as "JustPlaySetup-0.6.0-win-x64.exe". Same class of bug as a per-project
+; <Company> quietly overriding the shared one: the build stays green and the artefact lies.
+; One source of truth is Directory.Build.props; publish-installer.ps1 reads it and passes it.
 #ifndef AppVersion
-  #define AppVersion "0.6.0"
+  #error AppVersion was not supplied. Use build\publish-installer.ps1, or pass /DAppVersion=x.y.z
 #endif
 
 #define AppName "JustPlay"
