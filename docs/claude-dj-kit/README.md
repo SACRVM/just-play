@@ -8,7 +8,7 @@ drafts — by asking in plain language.
 ## Quick start (3 steps)
 
 1. **Install Claude Code** → <https://claude.com/claude-code>
-   (and the J.U.S.T. suite, if you haven't → <https://github.com/chloe-dream/just-play/releases/latest>)
+   (and the J.U.S.T. suite, if you haven't → <https://github.com/SACRVM/just-play/releases/latest>)
 2. **Copy `CLAUDE.md` from this kit into the ROOT folder of your music library**
    (the folder that contains your tracks). This file teaches the agent its rules and tools.
 3. **Open a terminal in that folder and run `claude`.** Then just talk:

@@ -33,9 +33,9 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
-AppPublisherURL=https://github.com/chloe-dream/just-play
-AppSupportURL=https://github.com/chloe-dream/just-play/issues
-AppUpdatesURL=https://github.com/chloe-dream/just-play/releases
+AppPublisherURL=https://github.com/SACRVM/just-play
+AppSupportURL=https://github.com/SACRVM/just-play/issues
+AppUpdatesURL=https://github.com/SACRVM/just-play/releases
 ; Per-user, no elevation — installs under the user's profile.
 DefaultDirName={localappdata}\Programs\JustPlay
 DefaultGroupName=JustPlay

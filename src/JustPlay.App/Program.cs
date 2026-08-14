@@ -268,7 +268,7 @@ sealed class Program
             return http;
         });
         services.AddSingleton<IUpdateChecker>(sp => new GitHubUpdateChecker(
-            sp.GetRequiredService<HttpClient>(), "chloe-dream", "just-play",
+            sp.GetRequiredService<HttpClient>(), "SACRVM", "just-play",
             log: m => Console.WriteLine($"[Update] {m}")));
         services.AddSingleton<UpdateViewModel>();
 
