@@ -9,7 +9,7 @@ namespace JustPlay.Core.Models;
 /// Sound tab exposes after the 2026-06-17 "blendware cull". Saving captures the CURRENT bus state;
 /// applying pushes every field back onto the engine + persistence (mirroring the built-in
 /// Hard / Neutral presets in <c>MainWindowViewModel.ApplyHardPreset</c> /
-/// <c>ApplyNeutralPreset</c>). [[own-limiter-no-vst]]
+/// <c>ApplyNeutralPreset</c>).
 ///
 /// The six captured fields ARE the whole post-cull Sound chain:
 ///   - <see cref="EqLowGain"/> / <see cref="EqMidGain"/> / <see cref="EqHighGain"/> - 3-band EQ (linear, 1.0 = flat)
@@ -67,7 +67,7 @@ public sealed record DspPreset
     /// <summary>"Hard" - the validated correction for structurally-bright hard genres (hard techno /
     /// hardstyle): a static High -3 dB shelf + golden-curve AutoTilt 0.65 tame the hot 2-16 kHz, and
     /// Limiter <b>Loud</b> pushes it loud/dense so it holds up in a club/stream (Soft = quiet -> you get
-    /// out-loudened). Measured 2026-06-17 on 35 tracks from a real library. [[hard-dance-headphone-mode]]</summary>
+    /// out-loudened). Measured 2026-06-17 on 35 tracks from a real library.</summary>
     public static DspPreset Hard => new()
     {
         Name = "Hard", EqHighGain = 0.72, AutoTiltStrength = 0.65, LimiterMode = "Loud",
@@ -98,7 +98,7 @@ public sealed record DspPreset
 
     /// <summary>The SAME starting points seeded into JUST STREAM (broadcast): identical tonal identity
     /// to <see cref="PlaybackDefaults"/>, but the limiter is one notch LOUDER because a live stream must
-    /// stay competitively loud ([[hard-dance-headphone-mode]] / [[roadmap-just-stream]]).</summary>
+    /// stay competitively loud.</summary>
     public static IReadOnlyList<DspPreset> StreamDefaults =>
     [
         Electronic with { LimiterMode = "Club" },

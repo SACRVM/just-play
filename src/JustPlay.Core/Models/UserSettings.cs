@@ -54,7 +54,7 @@ public sealed record UserSettings
     /// Apply each track's measured ReplayGain on playback so the whole queue plays at an even
     /// loudness (non-destructively, via output volume - the file is never altered). Clipping is
     /// prevented using the measured peak. Off by default: only analysed tracks carry a gain, and
-    /// raw playback is the least-surprising default; flip it on in Tweaks. [[future-gain-loudness-feature]]
+    /// raw playback is the least-surprising default; flip it on in Tweaks.
     /// </summary>
     public bool PlaybackNormalization { get; init; } = false;
 
@@ -62,7 +62,7 @@ public sealed record UserSettings
     /// Loudness target for playback normalization, streaming-player style: "Quiet" (-19 LUFS),
     /// "Normal" (-14, default), or "Loud" (-11). Higher = louder + closer to modern masters (less
     /// gain reduction); the RG 2.0 reference (-18) is intentionally quiet/broadcast and was too
-    /// soft as a player default. Unknown values fall back to Normal. See [[future-gain-loudness-feature]].
+    /// soft as a player default. Unknown values fall back to Normal.
     /// </summary>
     public string NormalizationLevel { get; init; } = "Normal";
 
@@ -81,14 +81,14 @@ public sealed record UserSettings
     ///   - Loud - -1 dBTP + 6 dB maximizer drive.
     /// Off by default - raw output is the least-surprising default; flip it on in Tweaks. The
     /// ceiling stays broadcast-safe (-1 dBTP) in every non-Off mode. Shapes both local playback
-    /// AND the Icecast stream (the encoder taps the mixer after the limiter). [[own-limiter-no-vst]]
+    /// AND the Icecast stream (the encoder taps the mixer after the limiter).
     /// </summary>
     public string LimiterMode { get; init; } = "Off";
 
     /// <summary>
     /// 3-band DJ EQ / isolator band gains (LINEAR): 1.0 = unity/flat, 0.0 = full kill, 2.0 = +6 dB.
     /// All default to 1.0 (flat -> the EQ bypasses entirely). Crossovers fixed at 200 Hz / 4 kHz.
-    /// Low/Mid/High shape both local playback and the stream. [[own-limiter-no-vst]]
+    /// Low/Mid/High shape both local playback and the stream.
     /// </summary>
     public double EqLowGain  { get; init; } = 1.0;
     /// <inheritdoc cref="EqLowGain"/>
@@ -99,7 +99,7 @@ public sealed record UserSettings
     /// <summary>
     /// "Revive" rack - anti-flat enhancement on the output bus, for tracks that sound dull/lifeless.
     /// All neutral by default (each block bypasses at its zero value), so the bus stays bit-transparent
-    /// until the user dials something in. They shape both local playback and the stream. [[own-limiter-no-vst]]
+    /// until the user dials something in. They shape both local playback and the stream.
     /// </summary>
     /// <remarks>Each block bypasses at 0; tune by ear.</remarks>
     public double TransientPunch  { get; init; } = 0.0;
@@ -110,7 +110,7 @@ public sealed record UserSettings
     /// User-saved Sound-tab bus presets (name + the six tone fields above). Additive on top of the
     /// built-in Hard / Neutral presets - the user saves the current bus state under a name, recalls
     /// it with one click, and deletes it. Empty by default. Forward-compatible: an old settings.json
-    /// without this field deserializes to an empty list (no migration needed). [[own-limiter-no-vst]]
+    /// without this field deserializes to an empty list (no migration needed).
     /// </summary>
     public List<DspPreset> SoundPresets { get; init; } = [];
 
@@ -124,7 +124,7 @@ public sealed record UserSettings
     /// value below <see cref="DspPreset.BuiltInSeedVersion"/> tops up any missing built-in starting
     /// points (by name) exactly once, so existing installs gain new presets without duplicating or
     /// resurrecting the user's own. Supersedes <see cref="SoundPresetsSeeded"/>; an old settings.json
-    /// without this key deserializes to 0 -> tops up on first load. [[own-limiter-no-vst]]</summary>
+    /// without this key deserializes to 0 -> tops up on first load.</summary>
     public int SoundPresetsSeedVersion { get; init; }
 
     // -- Audio output device -----------------------------------------------------------
@@ -148,7 +148,7 @@ public sealed record UserSettings
     /// Persisted by name (same stability reason as <see cref="OutputDeviceName"/>).
     /// On startup the engine resolves the name to a BASS device index; if the device
     /// is no longer present (e.g. headphones unplugged) the selection stays null and
-    /// the pre-listen panel shows the "choose a device" hint. [[roadmap-precue-headphone]]
+    /// the pre-listen panel shows the "choose a device" hint.
     /// </summary>
     public string? HeadphoneDeviceName { get; init; } = null;
 
@@ -156,7 +156,7 @@ public sealed record UserSettings
     /// Volume for the pre-listen (PFL) headphone output, 0..1. Persisted separately
     /// from the main output volume so switching back to monitoring restores the last
     /// headphone level. Defaults to 0.8 (slightly under full to protect ears on
-    /// headphone plug-in). [[roadmap-precue-headphone]]
+    /// headphone plug-in).
     /// </summary>
     public double PreCueVolume { get; init; } = 0.8;
 
