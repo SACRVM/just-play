@@ -15,8 +15,8 @@ public class IcecastStatsProbeTests
         {"icestats":{"admin":"icemaster@localhost","host":"stream.example.com",
          "location":"AzuraCast","server_id":"Icecast 2.4.0-kh22",
          "source":{"bitrate":320,"connected":5,"genre":"Mixed","listener_peak":12,"listeners":7,
-                   "listenurl":"https://stream.example.com/listen/chloe/chloe",
-                   "server_name":"chloe","server_type":"audio/mpeg",
+                   "listenurl":"https://stream.example.com/listen/radio/radio",
+                   "server_name":"radio","server_type":"audio/mpeg",
                    "title":"Streaming live from Chrome"}}}
         """;
 
@@ -24,14 +24,14 @@ public class IcecastStatsProbeTests
     private const string TwoMounts = """
         {"icestats":{"server_id":"Icecast 2.4.0-kh22","source":[
           {"listeners":3,"listener_peak":4,"server_name":"other","listenurl":"http://x/other","title":"Other"},
-          {"listeners":7,"listener_peak":12,"server_name":"chloe","listenurl":"http://x/chloe","title":"Mine","bitrate":320}
+          {"listeners":7,"listener_peak":12,"server_name":"radio","listenurl":"http://x/radio","title":"Mine","bitrate":320}
         ]}}
         """;
 
     [Fact]
     public void Reads_a_single_mount_server()
     {
-        var stats = IcecastStatsProbe.Parse(OneMount, "/chloe");
+        var stats = IcecastStatsProbe.Parse(OneMount, "/radio");
 
         Assert.NotNull(stats);
         Assert.Equal(7, stats!.Listeners);
@@ -46,14 +46,14 @@ public class IcecastStatsProbeTests
     {
         // With one source there is nothing to confuse it with, so the mount name must not gate it -
         // the profile's mount and the server's idea of it disagree more often than you would think
-        // (here the profile says "/chloe" and listenurl is ".../listen/chloe/chloe").
+        // (here the profile says "/radio" and listenurl is ".../listen/radio/radio").
         Assert.NotNull(IcecastStatsProbe.Parse(OneMount, "/something-else"));
     }
 
     [Fact]
     public void Picks_the_right_mount_out_of_several()
     {
-        var stats = IcecastStatsProbe.Parse(TwoMounts, "/chloe");
+        var stats = IcecastStatsProbe.Parse(TwoMounts, "/radio");
 
         Assert.Equal(7, stats!.Listeners);
         Assert.Equal("Mine", stats.Title);
@@ -76,16 +76,16 @@ public class IcecastStatsProbeTests
     public void Anything_that_is_not_a_usable_answer_is_null(string payload)
     {
         // A stats poll must never throw: an unknown count is a dash on screen, not a crash mid-set.
-        Assert.Null(IcecastStatsProbe.Parse(payload, "/chloe"));
+        Assert.Null(IcecastStatsProbe.Parse(payload, "/radio"));
     }
 
     [Fact]
     public void Quoted_numbers_are_accepted()
     {
         const string quoted =
-            """{"icestats":{"source":{"listeners":"5","listener_peak":"9","server_name":"chloe"}}}""";
+            """{"icestats":{"source":{"listeners":"5","listener_peak":"9","server_name":"radio"}}}""";
 
-        var stats = IcecastStatsProbe.Parse(quoted, "/chloe");
+        var stats = IcecastStatsProbe.Parse(quoted, "/radio");
 
         Assert.Equal(5, stats!.Listeners);
         Assert.Equal(9, stats.PeakListeners);
@@ -94,9 +94,9 @@ public class IcecastStatsProbeTests
     [Fact]
     public void A_missing_count_reads_as_zero_not_as_a_crash()
     {
-        const string sparse = """{"icestats":{"source":{"server_name":"chloe"}}}""";
+        const string sparse = """{"icestats":{"source":{"server_name":"radio"}}}""";
 
-        var stats = IcecastStatsProbe.Parse(sparse, "/chloe");
+        var stats = IcecastStatsProbe.Parse(sparse, "/radio");
 
         Assert.NotNull(stats);
         Assert.Equal(0, stats!.Listeners);

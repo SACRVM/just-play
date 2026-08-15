@@ -76,9 +76,9 @@ Non-negotiable rules (all proven in JUST PLAY — cite these files when building
    OS picks, and that is not under our control**: the same `📁` (U+1F4C1), from the same
    source line, rendered BRIGHT YELLOW in JUST TAG and monochrome white in the PRE CUE
    FINDER — two processes, same Avalonia, same `WithInterFont()`, same codepoint
-   (verified: identical UTF-16 in both files). Chloe 2026-08-06: *"ich bin kein Fan
-   davon Emojis zu verwenden in der UI — wer weiß ob das dann überall gleich aussieht,
-   vor allem auf Mac oder Linux."* She is right, and the macOS port makes it concrete:
+   (verified: identical UTF-16 in both files). An emoji in the UI is therefore a bet
+   that every OS will render it the same way, and that bet is lost on Mac and Linux
+   before it is ever made. The macOS port makes it concrete:
    Apple renders many BMP symbols (`♥`, `✓`, `⚠`, `▶`, `■`) with **emoji presentation
    by default** — they would come out red/coloured on the Mac.
 
@@ -92,9 +92,8 @@ Non-negotiable rules (all proven in JUST PLAY — cite these files when building
 
    **Same rule for raster images: vector by default, a bitmap only as an approved
    exception.** No PNG/JPG/ICO shipped as chrome, decoration or an icon — it does not
-   scale, does not follow the theme, and needs a set per DPI. Chloe 2026-08-06: *"Bilder
-   nur in Ausnahmefällen die einzeln genehmigt werden müssen — sonst immer
-   Vektorgrafik."* An exception is asked for and granted **per image, before** it is
+   scale, does not follow the theme, and needs a set per DPI. Vector is the default and
+   an exception is asked for and granted **per image, before** it is
    added. (Album artwork is not chrome — it is user content and obviously stays a
    bitmap; so is the rendered window icon, which `ThemedWindowIcon.cs` rasterises from a
    vector at runtime because Win32 demands a bitmap handle.)

@@ -7,7 +7,7 @@ using Xunit;
 namespace JustPlay.Core.Tests;
 
 /// <summary>
-/// The track table's content-aware column sizing (Chloe 2026-08-06): size every flexible text column
+/// The track table's content-aware column sizing: size every flexible text column
 /// to the 90th percentile of what is actually in it, then share the leftover space out in proportion
 /// to those widths - with floors, so the title column can never be squeezed.
 /// </summary>

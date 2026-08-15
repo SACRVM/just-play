@@ -6,7 +6,7 @@ namespace JustPlay.Analysis.Tests;
 /// <summary>
 /// Diagnostic / metrics tests for <see cref="TruePeakLimiter"/>.
 /// These tests ALWAYS PASS but emit measurements to the test output for review.
-/// Chloe can read the numbers here to evaluate limiter quality.
+/// The numbers here are what you read to evaluate limiter quality.
 /// </summary>
 public class TruePeakLimiterMetricsTests(ITestOutputHelper output)
 {

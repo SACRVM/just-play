@@ -46,8 +46,8 @@ one-shots from existing mixes.
    library, with a DOSE-style onset-weighted loss for punch. Open question: achievable ceiling.
 3. **Producer reality check:** Emergent Drums judged "mediocre sounding" on Gearspace; Backbone's
    DrumGAN is the only AI drum tool with a decent kick reputation — and it sits behind exactly the
-   kind of curated training + productization we'd have to replicate. The "generic AI mush" Chloe
-   complains about is the verified norm, not the exception.
+   kind of curated training + productization we'd have to replicate. The "generic AI mush" complaint
+   is the verified norm, not the exception.
 
 ## Known gaps (from the adversarial pass)
 

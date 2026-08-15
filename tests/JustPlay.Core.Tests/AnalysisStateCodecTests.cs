@@ -145,7 +145,7 @@ public class AnalysisStateCodecTests
     public void OldBlob_WithNoAatKey_StillParses_WithAnalysedAtUtcNull()
     {
         // Verbatim shape of a blob written before AnalysedAtUtc existed: no "aat" key at all.
-        // Backward-compat is non-negotiable - this blob lives in Chloe's actual music files.
+        // Backward-compat is non-negotiable - this blob lives in real, already-tagged music files.
         const string oldBlob =
             "{\"v\":9,\"bpm\":127.98,\"kpc\":9,\"kmd\":\"min\",\"kcf\":0.82,\"nrg\":7," +
             "\"abpm\":\"A\",\"akey\":\"P\",\"anrg\":\"K\"}";

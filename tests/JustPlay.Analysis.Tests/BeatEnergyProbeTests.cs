@@ -6,7 +6,7 @@ using Xunit.Abstractions;
 namespace JustPlay.Analysis.Tests;
 
 /// <summary>
-/// (*) Origin: Chloe's challenge (2026-07-16), "let's see if you can get past 6" - run JUST BEAT's
+/// (*) Origin: the 2026-07-16 challenge, "let's see if you can get past 6" - run JUST BEAT's
 /// mastered hard-techno loop through JUST PLAY's own energy analyser and see where it lands on the
 /// 1..10 scale (ambient -> 2, mid-dance -> 5-6, hard techno -> 9).
 ///
@@ -172,7 +172,7 @@ public sealed class BeatEnergyProbeTests : IDisposable
     // Synthetic: the WAV-reading and decimation glue this probe depends on. ReadWavMono,
     // DecimateBy4 and Peak are this test file's OWN fixture helpers (not src/ product code) - the
     // point of pinning them is that the corpus tests above are only trustworthy if this glue is
-    // correct, and every real .wav on Chloe's disk happens to be mono-or-stereo PCM16 with no
+    // correct, and every real .wav in the local corpus happens to be mono-or-stereo PCM16 with no
     // extra chunks, so none of these branches were ever exercised by the real files either.
     // ===========================================================================================
 
@@ -369,7 +369,7 @@ public sealed class BeatEnergyProbeTests : IDisposable
     /// particular number on real material (that depends on the whole mix's loudness/flux/RMS-SD
     /// too, not just brightness) - only that the brightness lever
     /// <see cref="Probe_Saturation_Sweep_ClearsSix"/> exploits behaves as claimed, everywhere,
-    /// not just on Chloe's one render.
+    /// not just on that one render.
     /// </summary>
     [Fact]
     public void SaturationSweep_RaisesMeasuredBrightness_OnSyntheticLowTone()

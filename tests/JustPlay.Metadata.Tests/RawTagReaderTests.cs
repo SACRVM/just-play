@@ -7,7 +7,7 @@ namespace JustPlay.Metadata.Tests;
 /// <summary>
 /// Tests for <see cref="TagLibRawTagReader"/>. Every behaviour this reader implements is pinned on
 /// SYNTHETIC fixtures (built in-process at runtime, in a temp directory, no binary blobs in the
-/// repo) - the corpus tests further down are an EXTRA cross-check against Chloe's real ID3 corpus at
+/// repo) - the corpus tests further down are an EXTRA cross-check against a real ID3 corpus at
 /// <see cref="CorpusDir"/> (8 real MP3s carrying real Serato/Traktor/Mixed In Key frames, measured
 /// once already in <c>.claude/night-reports/2026-07-31-L3-taglib-bytes.md</c>), never the only place
 /// a claim is tested. The corpus is gitignored (<c>testdata/</c>) and lives outside this repo -
@@ -59,7 +59,7 @@ public sealed class RawTagReaderTests : IDisposable
         public RequiresCorpusFactAttribute()
         {
             if (!Directory.Exists(CorpusDir))
-                Skip = $"Chloe's real ID3 corpus not found at '{CorpusDir}' (gitignored, outside " +
+                Skip = $"The real ID3 corpus was not found at '{CorpusDir}' (gitignored, outside " +
                        "this repo, expected absent on CI/other machines). This is an extra " +
                        "cross-check against real vendor bytes - every behaviour it covers is also " +
                        "pinned on synthetic fixtures elsewhere in this file.";

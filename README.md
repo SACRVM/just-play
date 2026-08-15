@@ -175,7 +175,7 @@ BASS licence — the MIT licence here grants you no rights to BASS.
 
 ## Credits
 
-By **Marcus Wilhelm**, published under the suite's name.
+By **[SACRVM](https://sacrvm.dev)**, published under the suite's name.
 
 UI ported from the [Claude Design](https://claude.ai) mockups in `.design/`. Spinning vinyl and
 glossy chrome from the heyday of iTunes, repainted in a 2026 aurora palette. Built on

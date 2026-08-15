@@ -31,7 +31,7 @@ namespace JustPlay.App.ViewModels;
 /// folders pane is focused). The clickable breadcrumb in the chrome jumps to any level.</para>
 ///
 /// <para>Play/pause is a browsing MODE (Space): in play mode the selected song starts after ~1 s
-/// (so racing down a list never blasts the ears - see chloe-sound-sensitivity), paused browsing
+/// (so racing down a list never blasts the ears - a hearing-sensitivity requirement), paused browsing
 /// stays silent. Enter (files) adds the selected song to the CURRENT queue and advances; L likes;
 /// the detail panel shows everything the analyzer stored in the v9 blob - zero DSP on browse.</para>
 ///
@@ -410,7 +410,7 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         RaiseDetail();
         _playDebounce.Stop();
         // Auto-play mode (opt-in): settle on a row and it auditions after the ~1 s debounce, so racing
-        // the list never blasts the ears (chloe-sound-sensitivity). Default OFF - Enter plays instead.
+        // the list never blasts the ears (hearing-sensitivity requirement). Default OFF - Enter plays instead.
         if (value is not null && AutoPlayOnSelect) _playDebounce.Start();
     }
 

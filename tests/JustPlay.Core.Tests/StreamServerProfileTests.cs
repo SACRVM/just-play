@@ -62,7 +62,7 @@ public class StreamServerProfileTests
             BitrateKbps = 320,
             UseTls = true,
             Protocol = IcecastProtocol.Put,
-            Url = "https://chloe.fm",
+            Url = "https://radio.example.com",
             Genre = "Hard Dance",
             Description = "Two classes better",
             IsPublic = true,
@@ -83,7 +83,7 @@ public class StreamServerProfileTests
         Assert.Equal(320, restored.BitrateKbps);
         Assert.True(restored.UseTls);
         Assert.Equal(IcecastProtocol.Put, restored.Protocol);
-        Assert.Equal("https://chloe.fm", restored.Url);
+        Assert.Equal("https://radio.example.com", restored.Url);
         Assert.Equal("Hard Dance", restored.Genre);
         Assert.Equal("Two classes better", restored.Description);
         Assert.True(restored.IsPublic);

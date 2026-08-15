@@ -3,7 +3,7 @@ using JustPlay.Core.Models;
 namespace JustPlay.Tag.Tests;
 
 /// <summary>
-/// What JUST TAG's search actually decides. Written because Chloe reported it behaving "inverted"
+/// What JUST TAG's search actually decides. Written after it was reported behaving "inverted"
 /// (2026-08-05) and the logic was private inside the view model, i.e. only checkable by clicking -
 /// which is how a filter can be wrong for a while without anyone being able to say how.
 ///

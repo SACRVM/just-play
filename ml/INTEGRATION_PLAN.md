@@ -5,7 +5,7 @@ A learned MLP(128,64) on JustPlay's own 36-bin HPCP chroma scores **MIREX ~0.754
 exact** on the GiantSteps ground truth (track-level 5-fold CV + 12× transposition
 augmentation — `ml/train_key.py`), vs the shipped DSP template's **0.712 / 64%**. That clears
 the 0.74 goal. This doc is the plan to ship it as the opt-in "AI key" mode — **no code in the
-shipped app has changed yet; this needs Chloe's sign-off on the dependency.**
+shipped app has changed yet; this needs sign-off on the dependency.**
 
 ## Why this is lightweight (the nice surprise)
 
@@ -29,7 +29,7 @@ So: our own model, our own features, clean licence, model file is *tiny* (~tens 
      `MlKeyDetector : IKeyDetector` in a NEW adapter project (e.g. `JustPlay.ML`) or in
      `JustPlay.App`, mirroring how `JustPlay.Audio.Bass` isolates ManagedBass.
    - `Microsoft.ML.OnnxRuntime` runs via P/Invoke — same shape as ManagedBass, so AOT-compatible
-     in principle, but **this is the flag-day dependency decision** (CLAUDE.md). Decide with Chloe.
+     in principle, but **this is the flag-day dependency decision** (CLAUDE.md). Needs a decision.
    - Apply the SAME transposition trick at inference is unnecessary — just run the 36-vector
      through the net once → argmax of 24 → MusicalKey. Confidence = softmax max (gate the UI).
 
@@ -43,7 +43,7 @@ So: our own model, our own features, clean licence, model file is *tiny* (~tens 
    the app feeds `BuildFine36` output — identical feature, so CV accuracy should transfer. Add
    a `--giantsteps-ml` benchmark that runs the ONNX model end-to-end to confirm ~0.754 in-app.
 
-## Open decisions for Chloe
+## Open decisions
 - OK to add `Microsoft.ML.OnnxRuntime` (native dep) — bundled, or downloaded on first enable?
 - New `JustPlay.ML` project, or keep the detector in `JustPlay.App`?
 - Where to host the model file for lazy download (GitHub release asset)?

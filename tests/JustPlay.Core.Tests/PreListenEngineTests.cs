@@ -319,7 +319,7 @@ public class PreListenEngineTests
         engine.Play();
         engine.Position = TimeSpan.FromSeconds(42);
 
-        engine.Load("B.mp3"); // Chloe scouts a new track mid-audition - the slot replaces instantly
+        engine.Load("B.mp3"); // scouting a new track mid-audition - the slot replaces instantly
 
         Assert.Equal("B.mp3", engine.LastLoadedPath);
         Assert.Equal(TimeSpan.Zero, engine.Position); // fresh load starts at the top

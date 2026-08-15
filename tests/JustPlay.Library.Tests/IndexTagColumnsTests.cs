@@ -6,11 +6,11 @@ namespace JustPlay.Library.Tests;
 
 /// <summary>
 /// Schema v3 (2026-08-07): the index carries everything a track table SHOWS, so no list has to open
-/// a file to paint a row - Chloe: "null live zugriffe, ergo kommt alles in den index rein". Before
+/// a file to paint a row - the rule is zero live file reads, everything goes into the index. Before
 /// this, album artist and comment were not indexed at all (a tag read per row over the NAS), and the
 /// COV tick and the ID3 column each cost a SECOND and THIRD file open per visible row.
 ///
-/// <para>These tests guard the two things that can go quietly wrong: an existing index on her machine
+/// <para>These tests guard the two things that can go quietly wrong: an existing index on disk
 /// must survive the migration, and the re-read that fills the new columns must not turn into a
 /// re-ANALYSIS.</para>
 /// </summary>

@@ -78,7 +78,7 @@ deterministic, trivially cheap on CPU, trim/AOT-safe, zero dependencies.
    is reproducible, shareable, and can be a preset string. "Kick #4711" is forever recallable.
 4. **⭐ Analyzer as judge (the JustPlay-original move):** generate candidates, then SCORE them with
    our own analysis stack — bassPunch/transient metrics for punch, harshness detector as the
-   anti-fatigue gate (Chloe's ears!), LUFS via the rack for loudness match. Auto-cull duds; only
+   anti-fatigue gate (the hearing-sensitivity constraint), LUFS via the rack for loudness match. Auto-cull duds; only
    hits above the punch threshold reach the user. Nobody else can do generate-and-test with a
    gig-validated feature stack as the fitness function.
 5. **Variation around a favorite:** small Gaussian jitter in macro space around a chosen seed =

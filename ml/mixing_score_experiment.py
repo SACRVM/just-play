@@ -2,7 +2,7 @@
 """
 N3 — Mixing-Score Experimental Harness
 JustPlay night task: generate pairwise mix-compatibility data over a
-real library sample so Chloe can design the final scoring formula.
+real library sample to design the final scoring formula on.
 
 Does NOT pick the final formula — emits evidence only.
 
@@ -45,7 +45,7 @@ WEIGHT_VARIANTS = {
     "tempo_heavy":     (0.20, 0.50, 0.15, 0.15),
     "balanced":        (0.25, 0.25, 0.25, 0.25),
     "vibe_heavy":      (0.15, 0.20, 0.15, 0.50),
-    "beat_vibe":       (0.20, 0.30, 0.15, 0.35),  # beat=primary (Chloe's design intent)
+    "beat_vibe":       (0.20, 0.30, 0.15, 0.35),  # beat=primary (the stated design intent)
 }
 
 # Camelot wheel maximum distance: ndiff=6 + ldiff=1
@@ -425,7 +425,7 @@ def main():
     W("# N3 — Mixing-Score Experimental Harness")
     W(f"*Generated: {now_str} | JustPlay night task*")
     W("")
-    W("> **Purpose:** produce DATA for Chloe to design the pairwise mix-compatibility")
+    W("> **Purpose:** produce DATA to design the pairwise mix-compatibility")
     W("> score. Does NOT pick the final formula. Numbers are evidence, not decisions.")
     W("")
 
@@ -543,7 +543,7 @@ def main():
         "tempo_heavy":    "\"beatmatch first\" — club DJ approach",
         "balanced":       "equal weight baseline",
         "vibe_heavy":     "\"feel/texture first\" — mood-based curation",
-        "beat_vibe":      "\"beat+feel\" — Chloe's stated design intent (beat primary)",
+        "beat_vibe":      "\"beat+feel\" — the stated design intent (beat primary)",
     }
     for vname, (wh, wt, we, wv) in WEIGHT_VARIANTS.items():
         W(f"| **{vname}** | {wh} | {wt} | {we} | {wv} | {intents[vname]} |")
@@ -612,7 +612,7 @@ def main():
     W("### 7c. Harmonically compatible but vibally mismatched (top 8)")
     W("")
     W("These pairs score well on Camelot adjacency but are distant on the vibe axis.")
-    W("Useful for Chloe's ear-test: does a key-match feel mixable if the texture diverges?")
+    W("Useful for the ear-test: does a key-match feel mixable if the texture diverges?")
     W("")
     W("| Track A | Key BPM | Track B | Key BPM | harm | vibe | notes |")
     W("|---------|---------|---------|---------|------|------|-------|")
@@ -694,7 +694,7 @@ def main():
     W("`beat_vibe` (w_harm=0.20, w_tempo=0.30, w_energy=0.15, w_vibe=0.35)")
     W("consistently surfaces neighbours that share both BPM range AND texture feel,")
     W("while `harmony_heavy` restricts the pool too aggressively (Camelot harmony is")
-    W("nice but not the sole axis Chloe DJs by). `vibe_heavy` alone ignores tempo")
+    W("nice but not the sole axis anyone DJs by). `vibe_heavy` alone ignores tempo")
     W("which would break actual beatmatching. `tempo_heavy` clusters by BPM decade")
     W("but ignores texture — usable for a rough sort but not a 'next track' score.")
     W("")
@@ -707,7 +707,7 @@ def main():
     # ── 9. Limitations and open questions ─────────────────────────────────────
     W("## 9. Limitations and open questions for daytime")
     W("")
-    W("1. **Energy calibration (N1b):** the energy term is near-useless until Chloe's")
+    W("1. **Energy calibration (N1b):** the energy term is near-useless until an")
     W("   ear calibrates the 1–10 scale. With proper spread, energy will become a")
     W("   meaningful 3rd discriminator (especially for set arc / energy flow).")
     W("")
@@ -715,9 +715,9 @@ def main():
     W("   cyclic tempogram) is persisted in the blob but NOT yet in the sidecar index.")
     W("   When the index is regenerated from GENRES paths (post-N12), ingesting the")
     W("   fingerprint would add a 5th distance term (beat similarity) — expected to be")
-    W("   the strongest discriminator per N8 research and Chloe's 'beat is primary' intent.")
+    W("   the strongest discriminator per N8 research and the 'beat is primary' intent.")
     W("")
-    W("3. **harshness as a hard constraint:** harshness (Chloe's hearing sensitivity)")
+    W("3. **harshness as a hard constraint:** harshness (the hearing sensitivity)")
     W("   may be better modelled as a hard threshold filter (exclude pairs where both")
     W("   tracks are harsh AND consecutive) rather than a soft distance term.")
     W("")
@@ -730,7 +730,7 @@ def main():
     W("   the chroma from the raw audio (already computed). It would require storing the")
     W("   mean chroma vector in the index, but would give finer-grained harmonic compat.")
     W("")
-    W("6. **Weight personalisation:** run 20–40 pair-comparison labels from Chloe's ear,")
+    W("6. **Weight personalisation:** run 20–40 pair-comparison labels from a trained ear,")
     W("   fit with Bradley-Terry + L2, compare to these 5 manual variants.")
     W("")
 

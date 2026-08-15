@@ -14,7 +14,7 @@ namespace JustPlay.Metadata.Tests;
 ///   <b>The default is exactly today's ungated writer.</b> A caller that omits the argument
 ///   (every existing caller - <c>MainWindowViewModel</c>, the CLI, JUST TAG) must get
 ///   byte-identical output to a caller that passes <see cref="TagWritePolicy.AllowAll"/>
-///   explicitly. The one-off proof against Chloe's real 8-file ID3 corpus (pre-change writer vs.
+///   explicitly. The one-off proof against the real 8-file ID3 corpus (pre-change writer vs.
 ///   post-change writer, both hashed) lives in the L5 task report, not in the repo (the corpus is
 ///   gitignored, copyrighted, real music); these tests are the permanent, CI-repeatable version of
 ///   the same claim, on synthetic fixtures (same technique as <see cref="TagLibWritePreviewTests"/>).

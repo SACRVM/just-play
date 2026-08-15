@@ -321,7 +321,7 @@ public sealed class LibrarySyncTests : IDisposable
         // (*) The case the whole design turns on. A retag changes the FILE's mtime while the folder's
         // own timestamp does not move - measured on the real library, GENRES\Bass_House held a file
         // modified 07-29 while the directory still read 07-17. Watching the newest FILE mtime (what
-        // Chloe actually proposed) catches it; watching the folder would not.
+        // the design actually settled on) catches it; watching the folder would not.
         var folder = Path.Combine(_root, "GENRES");
         var path   = MakeFile(@"GENRES\a.mp3", blob: Blob());
         _sync.VerifyFolder(folder);

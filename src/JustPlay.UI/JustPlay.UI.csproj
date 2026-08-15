@@ -18,7 +18,7 @@
     <!-- The SHARED track row (TrackViewModel / TrackColumns) is built on the toolkit's
          [ObservableProperty] / [RelayCommand] SOURCE GENERATORS — compile-time code, no reflection,
          so it stays trim/AOT-safe. Same package + version the two app projects already carry.
-         Added 2026-08-05 with the row's move out of JustPlay.App (Chloe: "ja zum paket"): the
+         Added 2026-08-05 with the row's move out of JustPlay.App, the dependency signed off: the
          alternative was hand-rolling 390 lines of a hot-path view model into a second INPC dialect,
          which is the exact drift this move exists to end. -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
