@@ -177,6 +177,9 @@ BASS licence — the MIT licence here grants you no rights to BASS.
 
 By **[SACRVM](https://sacrvm.dev)**, published under the suite's name.
 
+Feedback, bugs and questions: **<info@sacrvm.dev>** — or open an
+[issue](https://github.com/SACRVM/just-play/issues).
+
 UI ported from the [Claude Design](https://claude.ai) mockups in `.design/`. Spinning vinyl and
 glossy chrome from the heyday of iTunes, repainted in a 2026 aurora palette. Built on
 [Avalonia](https://avaloniaui.net/), [ManagedBass](https://github.com/ManagedBass/ManagedBass) and

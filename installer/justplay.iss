@@ -41,6 +41,7 @@ AppPublisher={#AppPublisher}
 AppPublisherURL=https://github.com/SACRVM/just-play
 AppSupportURL=https://github.com/SACRVM/just-play/issues
 AppUpdatesURL=https://github.com/SACRVM/just-play/releases
+AppContact=info@sacrvm.dev
 ; Per-user, no elevation — installs under the user's profile.
 DefaultDirName={localappdata}\Programs\JustPlay
 DefaultGroupName=JustPlay
