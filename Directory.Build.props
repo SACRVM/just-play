@@ -23,11 +23,14 @@
       they look: they become the assembly's Authors/Company/Copyright, which Windows shows
       in a file's Details tab, and the About dialog reads them back at runtime. A name that
       may change therefore has no business in here - the suite's name does not change.
-      The MIT copyright holder is a different question and lives in LICENSE, where naming a
-      real rights holder is the point.
+
+      Publisher and copyright are two different fields with two different rules: the suite
+      PUBLISHES, the contributors HOLD the copyright. The copyright string therefore matches
+      LICENSE word for word - one collective, one form, everywhere - and a person is named in
+      neither. One year, not a range: a range is upkeep nobody does, and then it is wrong.
     -->
     <Authors>Just Useful Sound Tools</Authors>
     <Company>Just Useful Sound Tools</Company>
-    <Copyright>© 2026 Just Useful Sound Tools</Copyright>
+    <Copyright>Copyright (c) 2026 JustPlay contributors</Copyright>
   </PropertyGroup>
 </Project>

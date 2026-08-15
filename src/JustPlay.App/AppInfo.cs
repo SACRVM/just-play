@@ -14,7 +14,9 @@ public static class AppInfo
     // The SUITE is the author on screen, not a person - the same string the installer's
     // publisher field and the assembly metadata carry, so all three say one thing.
     public const string Author = "Just Useful Sound Tools";
-    public const string Copyright = "(c) 2026 Just Useful Sound Tools";
+    // Publisher and copyright are different fields: the suite publishes, the contributors hold
+    // the copyright. Aliased so the string lives in ONE place for the whole suite.
+    public const string Copyright = JustPlay.UI.Views.AboutInfo.CopyrightLine;
 
     /// <summary>
     /// True in DEBUG builds, false in RELEASE. Gates IN-PROGRESS / not-yet-working UI so release
