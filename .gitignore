@@ -17,9 +17,9 @@ artifacts/
 
 # ── Local agent / memory ────────────────────────────────────────────────────
 # Claude Code's per-project memory (personal notes, not project artefacts).
-.claude/
+# .claude/   # Firepit: blanket ignore disabled — it hid the shared config
 # Other co-pilot scratch dirs.
-.firepit/
+# .firepit/   # Firepit: blanket ignore disabled — it hid the shared config
 
 # ── Avalonia ────────────────────────────────────────────────────────────────
 *.axaml.cs.bak
