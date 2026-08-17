@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "id": "just-play",
+  "quickLinks": [
+  ],
+  "commands": [
+    {
+      "name": "VS",
+      "type": "Shell",
+      "command": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\devenv.exe",
+      "args": [
+        "JustPlay.slnx"
+      ],
+      "window": "new"
+    },
+    {
+      "name": "Play",
+      "type": "Shell",
+      "icon": "play",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "dotnet run --project src/JustPlay.App; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+      ],
+      "window": "new"
+    },
+    {
+      "name": "Stream",
+      "type": "Shell",
+      "icon": "play",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "dotnet run --project src/JustPlay.Stream; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+      ],
+      "window": "new"
+    },
+    {
+      "name": "Bootleg",
+      "type": "Shell",
+      "icon": "play",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "dotnet run --project ../just-edit/src/JustEdit.App -c Release; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+      ],
+      "window": "new"
+    },
+    {
+      "name": "Beat",
+      "type": "Shell",
+      "icon": "play",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "dotnet run --project ../just-edit/src/JustBeat.App -c Release; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+      ],
+      "window": "new"
+    },
+    {
+      "name": "Tag",
+      "type": "Shell",
+      "icon": "play",
+      "command": "powershell",
+      "args": [
+        "-Command",
+        "dotnet run --project src/JustPlay.Tag; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+      ],
+      "window": "new"
+    }
+  ,
+    { "name": "GitHub", "type": "url", "url": "https://github.com/SACRVM/just-play", "icon": "🐙" }
+  ]
+}
