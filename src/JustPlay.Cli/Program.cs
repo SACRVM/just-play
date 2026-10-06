@@ -302,8 +302,10 @@ static void PrintHelp()
                                   the .m3u's folder) - e.g. re-tag exactly one set.
               Default: DRY-RUN - prints sample before/after changes without touching files.
               --apply             Commit the writes.
-              --backup-dir        Directory for the comment-clean-backup.json undo file
-                                  (default: the root dir / the playlist's folder).
+              --backup-dir <dir>  Write the undo file to <dir>\comment-clean-backup.json.
+                                  Default: the suite data folder, as
+                                  JUST\backups\tag-clean-<time>-<name>.json - never
+                                  next to the music.
 
         EXAMPLES
 

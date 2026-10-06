@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Text.Json;
 using JustPlay.Cli.Tags;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playlists;
+using JustPlay.Core.Storage;
 using JustPlay.Engine.Dtos;
 using JustPlay.Metadata;
 
@@ -41,7 +43,8 @@ namespace JustPlay.Cli.Commands;
 /// </summary>
 internal static class CleanCommentsCommand
 {
-    private const string BackupFileName = "comment-clean-backup.json";
+    /// <summary>The undo file's name inside an explicit <c>--backup-dir</c> - kept for scripts.</summary>
+    internal const string BackupFileName = "comment-clean-backup.json";
 
     /// <summary>Clean every audio file under a directory tree (recursive).</summary>
     public static int RunRoot(string root, bool apply, string? backupDir, bool force = false)
@@ -55,7 +58,8 @@ internal static class CleanCommentsCommand
 
         Console.WriteLine($"[tag clean] Root : {root}");
         var files = AudioFiles.Enumerate(root).ToList();
-        return Clean(files, $"under root: {files.Count:N0}", backupDir ?? root, apply, backupDir, force);
+        var backupPath = BackupPathFor(backupDir, root, sourceIsPlaylist: false, DateTime.Now);
+        return Clean(files, $"under root: {files.Count:N0}", backupPath, apply, force);
     }
 
     /// <summary>Clean only the tracks referenced by an .m3u/.m3u8 playlist (paths resolved
@@ -77,16 +81,46 @@ internal static class CleanCommentsCommand
             return 1;
         }
 
-        var defaultBackupDir = Path.GetDirectoryName(playlistPath) ?? ".";
-        return Clean(files, $"in playlist: {files.Count:N0}", defaultBackupDir, apply, backupDir, force);
+        var backupPath = BackupPathFor(backupDir, playlistPath, sourceIsPlaylist: true, DateTime.Now);
+        return Clean(files, $"in playlist: {files.Count:N0}", backupPath, apply, force);
+    }
+
+    /// <summary>
+    /// Where a run's undo file goes. With <c>--backup-dir</c>: that folder, under the fixed
+    /// <see cref="BackupFileName"/>. Without: the suite's own data folder, under a name that says
+    /// when the run started and what it cleaned - never the music root or the playlist's folder
+    /// (e.g. <c>\\nas\music\SETS</c>), because nothing is ever written next to the music.
+    /// </summary>
+    /// <param name="backupDir">The <c>--backup-dir</c> value, or null.</param>
+    /// <param name="source">The root folder or the playlist file the run cleans.</param>
+    /// <param name="sourceIsPlaylist">True when <paramref name="source"/> is a playlist file.</param>
+    /// <param name="startedAt">Local start time of the run.</param>
+    internal static string BackupPathFor(
+        string? backupDir, string source, bool sourceIsPlaylist, DateTime startedAt)
+    {
+        if (!string.IsNullOrWhiteSpace(backupDir))
+            return Path.Combine(backupDir, BackupFileName);
+
+        // Not Path.GetFileName for a folder: a UNC share root (\\nas\music) has no file name.
+        char[] separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+        var name = sourceIsPlaylist
+            ? Path.GetFileNameWithoutExtension(source)
+            : source.Split(separators).LastOrDefault(s => s.Length > 0) ?? "";
+
+        var label = new string(name
+            .Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '_')
+            .ToArray());
+        if (label.Trim('_').Length == 0) label = "run";
+
+        var stamp = startedAt.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        return JustDataPaths.Combine("JUST", "backups", $"tag-clean-{stamp}-{label}.json");
     }
 
     private static int Clean(
         IReadOnlyList<string> files,
         string sourceLabel,
-        string defaultBackupDir,
+        string backupPath,
         bool apply,
-        string? backupDir,
         bool force = false)
     {
         Console.WriteLine($"[tag clean] Mode : {(apply ? "APPLY (files will be written)" : "DRY-RUN (no files touched)")}{(force ? " [FORCE: rewrite even when the visible comment already looks clean - collapses hidden COMM frames]" : "")}");
@@ -95,7 +129,6 @@ internal static class CleanCommentsCommand
         Console.WriteLine($"[tag clean] Audio files {sourceLabel}");
         Console.WriteLine();
 
-        var backupPath   = Path.Combine(backupDir ?? defaultBackupDir, BackupFileName);
         var backupExists = File.Exists(backupPath);
         if (apply)
             Console.WriteLine(backupExists
@@ -217,6 +250,7 @@ internal static class CleanCommentsCommand
             {
                 var json = JsonSerializer.Serialize(
                     backupRecords, CleanBackupJsonContext.Default.ListCleanBackupEntry);
+                Directory.CreateDirectory(Path.GetDirectoryName(backupPath)!);
                 var tmp = backupPath + ".tmp";
                 File.WriteAllText(tmp, json);
                 File.Move(tmp, backupPath, overwrite: true);
