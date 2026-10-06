@@ -15,16 +15,17 @@ namespace JustPlay.Metadata;
 /// </para>
 /// <para>
 /// So the stored text is read from the file's own bytes (<see cref="Read"/>) and the frame is set to
-/// that ONE string before the save (<see cref="Pin"/>), which TagLib# renders back unchanged. Scope
-/// is the leading tag of the file - an MP3's - exactly like <see cref="Id3VersionProbe"/>; a tag in an
-/// AIFF/WAV chunk keeps TagLib#'s behaviour.
+/// that ONE string before the save (<see cref="Pin"/>), which TagLib# renders back unchanged. The tag
+/// is found where each container keeps it: at the head of an MP3, in the "ID3 " chunk of an AIFF and
+/// in the "id3 " chunk of a WAV. Lossless DJ downloads are mostly AIFF, so a guard that looked only
+/// at offset 0 left exactly those genres to the rewrite.
 /// </para>
 /// </summary>
 internal static class Id3v23Genre
 {
     /// <summary>
-    /// The text of the first TCON frame of the file's leading ID3v2.3 tag, as stored (up to the first
-    /// NUL, like TagLib# reads it). Null when there is no such tag or frame, when the tag uses
+    /// The text of the first TCON frame of the file's ID3v2.3 tag, as stored (up to the first NUL,
+    /// like TagLib# reads it). Null when there is no such tag or frame, when the tag uses
     /// unsynchronisation or the frame is compressed/encrypted (the bytes are not the text then), and
     /// on any read error - null means "leave it to TagLib#", never a guess.
     /// </summary>
@@ -33,6 +34,10 @@ internal static class Id3v23Genre
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (TagSpan(fs) is not { } span) return null;
+            var (start, limit) = span;
+
+            fs.Position = start;
             Span<byte> head = stackalloc byte[10];
             if (fs.ReadAtLeast(head, 10, throwOnEndOfStream: false) < 10) return null;
             if (head[0] != 'I' || head[1] != 'D' || head[2] != '3' || head[3] != 3) return null;
@@ -40,8 +45,8 @@ internal static class Id3v23Genre
             var flags = head[5];
             if ((flags & 0x80) != 0) return null;                    // unsynchronised
 
-            var end = 10L + Syncsafe(head[6..]);
-            if (end > fs.Length) return null;
+            var end = start + 10L + Syncsafe(head[6..]);
+            if (end > limit) return null;
 
             if ((flags & 0x40) != 0)                                  // extended header: skip it
             {
@@ -97,6 +102,42 @@ internal static class Id3v23Genre
         var encoding = tcon.TextEncoding;
         tcon.Text = [stored];
         tcon.TextEncoding = encoding;
+    }
+
+    /// <summary>
+    /// Where the ID3v2 tag sits and where its container ends: offset 0 for a file that starts with
+    /// one (MP3), the body of the "ID3 "/"id3 " chunk for an AIFF (big-endian chunk sizes) or a WAV
+    /// (little-endian). Null for anything else, or when the chunk walk runs off the file.
+    /// </summary>
+    private static (long Start, long Limit)? TagSpan(FileStream fs)
+    {
+        Span<byte> head = stackalloc byte[12];
+        var got = fs.ReadAtLeast(head, 12, throwOnEndOfStream: false);
+        if (got >= 3 && head[0] == 'I' && head[1] == 'D' && head[2] == '3') return (0, fs.Length);
+        if (got < 12) return null;
+
+        var aiff = head[..4].SequenceEqual("FORM"u8) &&
+                   (head[8..].SequenceEqual("AIFF"u8) || head[8..].SequenceEqual("AIFC"u8));
+        var wav = head[..4].SequenceEqual("RIFF"u8) && head[8..].SequenceEqual("WAVE"u8);
+        if (!aiff && !wav) return null;
+
+        Span<byte> chunk = stackalloc byte[8];
+        for (var pos = 12L; pos + 8 <= fs.Length;)
+        {
+            fs.Position = pos;
+            if (fs.ReadAtLeast(chunk, 8, throwOnEndOfStream: false) < 8) return null;
+
+            long size = aiff
+                ? (uint)BigEndian(chunk[4..])
+                : (uint)(chunk[4] | (chunk[5] << 8) | (chunk[6] << 16) | (chunk[7] << 24));
+
+            if (chunk[..4].SequenceEqual("ID3 "u8) || chunk[..4].SequenceEqual("id3 "u8))
+                return (pos + 8, Math.Min(pos + 8 + size, fs.Length));
+
+            pos += 8 + size + (size & 1);   // chunks are padded to an even length
+        }
+
+        return null;
     }
 
     /// <summary>The frame's text per its encoding byte, cut at the first NUL.</summary>
