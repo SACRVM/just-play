@@ -2214,17 +2214,47 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>Re-read one file's tags into every queue row pointing at it and repaint. Safe to call
-    /// from a background thread - the VM refresh marshals itself.</summary>
+    /// from a background thread - the batch save and the retry timer both do.
+    /// <para><see cref="Tracks"/> is bound to the queue list and only ever touched on the UI thread;
+    /// enumerating it from a worker raced every add, remove and reorder. So the rows are looked up on
+    /// the UI thread, and the tag READ (file IO, slow on a share) stays wherever the caller is.</para></summary>
     public void RefreshTagsFor(string path)
     {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            // On the UI thread the rows can be checked first, so a file the queue does not hold is
+            // never opened.
+            if (!Tracks.Any(t => IsFile(t, path))) return;
+            if (TryReadTags(path) is { } md) ApplyTags(path, md);
+            return;
+        }
+
+        if (TryReadTags(path) is { } read)
+            Dispatcher.UIThread.Post(() => ApplyTags(path, read));
+    }
+
+    private TrackMetadata? TryReadTags(string path)
+    {
+        try { return _metadata.Read(path); }
+        catch { return null; }
+    }
+
+    /// <summary>UI thread only: put freshly read tags on every queue row for <paramref name="path"/>.</summary>
+    private void ApplyTags(string path, TrackMetadata md)
+    {
+        var any = false;
         foreach (var tvm in Tracks)
         {
-            if (!string.Equals(tvm.Model.FilePath, path, StringComparison.OrdinalIgnoreCase)) continue;
-            try { tvm.Model.Metadata = _metadata.Read(path); } catch { continue; }
-            RemeasureColumnWidths();   // an edit can lengthen or shorten a column's content
-            Dispatcher.UIThread.Post(tvm.Refresh);
+            if (!IsFile(tvm, path)) continue;
+            tvm.Model.Metadata = md;
+            tvm.Refresh();
+            any = true;
         }
+        if (any) RemeasureColumnWidths();   // an edit can lengthen or shorten a column's content
     }
+
+    private static bool IsFile(TrackViewModel tvm, string path) =>
+        string.Equals(tvm.Model.FilePath, path, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Run a user write action as one undoable batch: clears the prior undo set, lets the
     /// nested DoWrite calls record their pre-state, then publishes the new undo availability.</summary>
