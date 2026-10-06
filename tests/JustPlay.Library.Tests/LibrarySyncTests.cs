@@ -39,10 +39,22 @@ public sealed class LibrarySyncTests : IDisposable
         public readonly List<string> Opened = [];
         public readonly HashSet<string> Unreadable = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Files whose read fails the way the REAL reader fails: no exception, a bare record with
+        /// ReadFailed set. Unreadable above throws, which no shipped reader does.
+        /// </summary>
+        public readonly HashSet<string> ReadFails = new(StringComparer.OrdinalIgnoreCase);
+
         public TrackMetadata Read(string filePath)
         {
             Opened.Add(filePath);
             if (Unreadable.Contains(filePath)) throw new IOException("file is locked");
+            if (ReadFails.Contains(filePath))
+                return new TrackMetadata
+                {
+                    FallbackName = Path.GetFileNameWithoutExtension(filePath),
+                    ReadFailed = true,
+                };
             return ByPath.TryGetValue(filePath, out var m)
                 ? m
                 : new TrackMetadata { FallbackName = Path.GetFileNameWithoutExtension(filePath) };
@@ -198,6 +210,110 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal([locked], report.QueuedForAnalysis);
         Assert.Equal(1, report.ImportedFromTags);
         Assert.NotNull(_db.TryGet(ok));
+    }
+
+    // -- A failed read never overwrites what the index knows ------------------------
+
+    [Fact]
+    public void A_read_that_reports_failure_keeps_the_row_and_is_retried_next_pass()
+    {
+        var path = MakeFile(@"a.mp3", blob: Blob());
+        _sync.Reconcile(_root);
+        var before = _db.TryGet(path)!;
+
+        File.WriteAllText(path, "audio, retagged on the other machine");   // size moved: owed a read
+        _tags.ByPath[path] = _tags.ByPath[path] with { Title = "Corrected" };
+        _tags.ReadFails.Add(path);                                         // ...and the share hiccups
+
+        var report = _sync.Reconcile(_root);
+
+        Assert.Equal(1, report.TagReadFailed);
+        Assert.Equal(0, report.ImportedFromTags);
+        var kept = _db.TryGet(path)!;
+        Assert.True(kept.Success);                                // not turned into "not analysed"
+        Assert.Equal(145.0, kept.Bpm);
+        Assert.Equal("8A", kept.KeyCamelot);
+        Assert.Equal("a", kept.Title);
+        Assert.Equal(before.FileSizeBytes, kept.FileSizeBytes);  // the OLD key: still owed a read
+
+        _tags.ReadFails.Clear();
+        _tags.Opened.Clear();
+        var retry = _sync.Reconcile(_root);
+
+        Assert.Equal([path], _tags.Opened);
+        Assert.Equal(1, retry.ImportedFromTags);
+        Assert.Equal("Corrected", _db.TryGet(path)!.Title);
+    }
+
+    [Fact]
+    public void A_new_file_whose_read_fails_is_not_indexed_blank_and_is_picked_up_next_pass()
+    {
+        var path = MakeFile(@"new.mp3", blob: Blob());
+        _tags.ReadFails.Add(path);
+
+        var report = _sync.Reconcile(_root);
+
+        Assert.Equal(1, report.TagReadFailed);
+        Assert.Null(_db.TryGet(path));       // no row built from a bare record
+
+        _tags.ReadFails.Clear();
+        var retry = _sync.Reconcile(_root);
+
+        Assert.Equal(1, retry.ImportedFromTags);
+        Assert.Equal(145.0, _db.TryGet(path)!.Bpm);
+    }
+
+    [Fact]
+    public void VerifyFolder_keeps_the_row_when_a_read_fails_and_does_not_record_the_folder_as_checked()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        var path   = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+
+        File.WriteAllText(path, "audio, retagged elsewhere");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(5));
+        _tags.ByPath[path] = _tags.ByPath[path] with { Title = "Corrected" };
+        _tags.ReadFails.Add(path);
+
+        var failed = _sync.VerifyFolder(folder);
+
+        Assert.Equal(0, failed.Updated);
+        Assert.Equal(145.0, _db.TryGet(path)!.Bpm);
+        Assert.Equal("a", _db.TryGet(path)!.Title);
+
+        _tags.ReadFails.Clear();
+        _tags.Opened.Clear();
+        var retry = _sync.VerifyFolder(folder);   // no early-out: the failed look was not recorded
+
+        Assert.Equal([path], _tags.Opened);
+        Assert.Equal(1, retry.Updated);
+        Assert.Equal("Corrected", _db.TryGet(path)!.Title);
+    }
+
+    [Fact]
+    public void VerifyTracks_keeps_the_row_when_a_read_fails_and_retries_it_next_time()
+    {
+        var path = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyTracks([path]);
+
+        File.WriteAllText(path, "audio, retagged elsewhere");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(5));
+        _tags.ByPath[path] = _tags.ByPath[path] with { Title = "Corrected" };
+        _tags.ReadFails.Add(path);
+
+        var failed = _sync.VerifyTracks([path]);
+
+        Assert.Equal(0, failed.Updated);
+        Assert.Equal(145.0, _db.TryGet(path)!.Bpm);
+        Assert.Equal("a", _db.TryGet(path)!.Title);
+
+        _tags.ReadFails.Clear();
+        _tags.Opened.Clear();
+        var retry = _sync.VerifyTracks([path]);
+
+        Assert.Equal([path], _tags.Opened);
+        Assert.Equal(1, retry.Updated);
+        Assert.Equal("Corrected", _db.TryGet(path)!.Title);
     }
 
     // -- Never leave a song behind ---------------------------------------------

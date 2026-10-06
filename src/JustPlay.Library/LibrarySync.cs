@@ -96,40 +96,16 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
                 new ParallelOptions { MaxDegreeOfParallelism = opt.Threads, CancellationToken = ct },
                 file =>
                 {
-                    TrackIndexEntry? entry = null;
-                    var failed = false;
-                    var needsDsp = false;
-
-                    try
-                    {
-                        var meta = metadata.Read(file.Path);
-                        entry = TrackIndexMapping.FromStoredBlob(
-                            file.Path, file.SizeBytes, file.ModifiedUtc, meta, opt.MinBlobVersion);
-
-                        if (entry is null)
-                        {
-                            // No usable blob -> this one needs real DSP. Index it anyway (tags only) so
-                            // a track on disk is never invisible in the library just because it is new.
-                            needsDsp = true;
-                            if (opt.IndexUnanalysedFiles)
-                                entry = TrackIndexMapping.NotAnalysed(
-                                    file.Path, file.SizeBytes, file.ModifiedUtc, meta);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // A locked or unreadable file is not a reason to abort a library sweep.
-                        failed = true;
-                        needsDsp = true;
-                    }
+                    var outcome = ReadEntry(
+                        file.Path, file.SizeBytes, file.ModifiedUtc, opt, out var entry);
 
                     // Everything shared happens here, under one lock, for a handful of microseconds -
                     // the expensive part (the file read) is already done and was not holding it.
                     lock (gate)
                     {
-                        if (failed) tagFailed++;
-                        else if (!needsDsp) imported++;
-                        if (needsDsp) queued.Add(file.Path);
+                        if (outcome == ReadOutcome.Failed) tagFailed++;
+                        else if (outcome == ReadOutcome.Imported) imported++;
+                        if (outcome != ReadOutcome.Imported) queued.Add(file.Path);
 
                         if (entry is not null) batch.Add(entry);
 
@@ -219,10 +195,11 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         var known = db.LookupMany(files.Select(f => f.Path));
         var seen  = new HashSet<string>(files.Count, StringComparer.OrdinalIgnoreCase);
 
-        var batch    = new List<TrackIndexEntry>();
-        var queued   = new List<string>();
-        var added    = 0;
-        var updated  = 0;
+        var batch      = new List<TrackIndexEntry>();
+        var queued     = new List<string>();
+        var added      = 0;
+        var updated    = 0;
+        var readFailed = 0;
 
         foreach (var file in files)
         {
@@ -237,25 +214,9 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
                 existing.LooksUnchanged(file.SizeBytes, file.ModifiedUtc) && existing.TagsAreCurrent)
                 continue;   // this one is fine; something else in the folder moved
 
-            TrackIndexEntry? entry = null;
-            try
-            {
-                var meta = metadata.Read(file.Path);
-                entry = TrackIndexMapping.FromStoredBlob(
-                    file.Path, file.SizeBytes, file.ModifiedUtc, meta, opt.MinBlobVersion);
-
-                if (entry is null)
-                {
-                    queued.Add(file.Path);
-                    if (opt.IndexUnanalysedFiles)
-                        entry = TrackIndexMapping.NotAnalysed(
-                            file.Path, file.SizeBytes, file.ModifiedUtc, meta);
-                }
-            }
-            catch (Exception)
-            {
-                if (!queued.Contains(file.Path)) queued.Add(file.Path);
-            }
+            var outcome = ReadEntry(file.Path, file.SizeBytes, file.ModifiedUtc, opt, out var entry);
+            if (outcome != ReadOutcome.Imported) queued.Add(file.Path);
+            if (outcome == ReadOutcome.Failed) readFailed++;
 
             if (entry is null) continue;
 
@@ -281,7 +242,9 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             if (gone.Count > 0) markedMissing = db.MarkMissing(gone);
         }
 
-        db.SetFolderState(folder, live);
+        // A file that could not be read is still owed a read. Recording the fingerprint now would
+        // make the next look early-out and leave its row stale for good, so the folder stays unchecked.
+        if (readFailed == 0) db.SetFolderState(folder, live);
 
         return new FolderVerifyResult
         {
@@ -344,23 +307,8 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             if (existing is not null && existing.LooksUnchanged(size, modified) && existing.TagsAreCurrent)
                 continue;
 
-            TrackIndexEntry? entry = null;
-            try
-            {
-                var meta = metadata.Read(path);
-                entry = TrackIndexMapping.FromStoredBlob(path, size, modified, meta, opt.MinBlobVersion);
-
-                if (entry is null)
-                {
-                    queued.Add(path);
-                    if (opt.IndexUnanalysedFiles)
-                        entry = TrackIndexMapping.NotAnalysed(path, size, modified, meta);
-                }
-            }
-            catch (Exception)
-            {
-                if (!queued.Contains(path)) queued.Add(path);
-            }
+            if (ReadEntry(path, size, modified, opt, out var entry) != ReadOutcome.Imported)
+                queued.Add(path);
 
             if (entry is null) continue;
 
@@ -381,6 +329,55 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             MarkedMissing     = markedMissing,
             QueuedForAnalysis = queued,
         };
+    }
+
+    private enum ReadOutcome
+    {
+        /// <summary>The file's stored analysis became the entry - no DSP needed.</summary>
+        Imported,
+
+        /// <summary>Read fine but holds no usable analysis; the entry (if any) is tags only.</summary>
+        NeedsAnalysis,
+
+        /// <summary>Could not be read at all. No entry: the row the index holds stays as it is.</summary>
+        Failed,
+    }
+
+    /// <summary>
+    /// Reads one file's tags into an index entry - the one copy of this step for all three passes.
+    ///
+    /// <para>(!) A failed read must never reach the index. <see cref="IMetadataReader.Read"/> does
+    /// not throw: for a locked file or an SMB hiccup it returns a bare record with
+    /// <see cref="Core.Models.TrackMetadata.ReadFailed"/> set. Indexed as "not analysed", that record would
+    /// blank BPM, key and tags under the file's CURRENT size and mtime - and the cheap key would then
+    /// match on every later pass, so the row would never be read again. Leaving the old row alone
+    /// keeps its key stale, which is exactly what gets the file retried next time.</para>
+    /// </summary>
+    private ReadOutcome ReadEntry(
+        string path, long size, DateTime modifiedUtc, SyncOptions opt, out TrackIndexEntry? entry)
+    {
+        entry = null;
+        try
+        {
+            var meta = metadata.Read(path);
+            if (meta.ReadFailed) return ReadOutcome.Failed;
+
+            entry = TrackIndexMapping.FromStoredBlob(path, size, modifiedUtc, meta, opt.MinBlobVersion);
+            if (entry is not null) return ReadOutcome.Imported;
+
+            // No usable blob -> this one needs real DSP. Index it anyway (tags only) so a track on
+            // disk is never invisible in the library just because it is new.
+            if (opt.IndexUnanalysedFiles)
+                entry = TrackIndexMapping.NotAnalysed(path, size, modifiedUtc, meta);
+            return ReadOutcome.NeedsAnalysis;
+        }
+        catch (Exception)
+        {
+            // A reader that throws is treated like one that says so. Either way, one unreadable
+            // file is not a reason to abort a library sweep.
+            entry = null;
+            return ReadOutcome.Failed;
+        }
     }
 
     /// <summary>
