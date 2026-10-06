@@ -786,7 +786,7 @@ public sealed partial class TagEditorViewModel
         // has to be read anyway - and one read answers both questions.
         var needTags = targets.Any(t => t.Tags is null);
 
-        _ = Task.Run(() =>
+        _coverCompareRun = Task.Run(() =>
         {
             var tags = new TrackMetadata?[targets.Count];
             byte[]? shared = null;
@@ -853,6 +853,24 @@ public sealed partial class TagEditorViewModel
         _coverCompare?.Cancel();
         _coverCompare?.Dispose();
         _coverCompare = null;
+    }
+
+    /// <summary>The background pass, so a save can wait for it to let go of the files.</summary>
+    private Task? _coverCompareRun;
+
+    /// <summary>
+    /// Stop the cover pass AND wait until it has closed its file. A save must not start while it is
+    /// reading: TagLib# opens a file for writing without sharing, so the save of whichever file the
+    /// pass was standing on failed - or the pass failed and reported "different covers".
+    /// </summary>
+    private async Task StopCoverCompareAsync()
+    {
+        var run = _coverCompareRun;
+        CancelCoverCompare();
+        if (run is null) return;
+
+        try { await run.ConfigureAwait(true); }
+        catch (Exception) { /* cancelled or failed - either way it holds no file any more */ }
     }
 
     private static string? Hash(byte[]? bytes) =>
@@ -1109,6 +1127,11 @@ public sealed partial class TagEditorViewModel
         // afterwards. A skipped or failed file was NOT converted, and must keep its warning.
         var didWrite = new bool[targets.Count];
 
+        // A cover comparison still running would be reading the same files - see
+        // StopCoverCompareAsync. It is started again afterwards if it had not finished.
+        var comparing = CoverState == CoverPlan.Comparing;
+        await StopCoverCompareAsync().ConfigureAwait(true);
+
         await Task.Run(() =>
         {
             for (var i = 0; i < targets.Count; i++)
@@ -1167,6 +1190,9 @@ public sealed partial class TagEditorViewModel
                 progress?.Report(++done);
             }
         }, token).ConfigureAwait(true);
+
+        if (comparing && ReferenceEquals(_targets, targets) && CoverState == CoverPlan.Comparing)
+            StartCoverCompare(targets);
 
         Status = SaveStatus(written, deferred, failed, renamesHeld, renamesFailed);
 
