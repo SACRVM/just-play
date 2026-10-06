@@ -251,6 +251,14 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
         _analyseOne = new AnalysisFileWrite(analysis, reader, writer, writes);
         Log = log;
 
+        // Every change of the editor's target raises HasFile (single, selection and clear alike), and
+        // a new target may be in or out of a running batch - see EditorLocked. Both live as long as
+        // the app, so there is nothing to unsubscribe.
+        Editor.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TagEditorViewModel.HasFile)) Raise(nameof(EditorLocked));
+        };
+
         // The SHARED column state (JustPlay.UI) - the same object the JUST PLAY queue and the Finder
         // use, with JUST TAG's own set switched on. Null means "never chosen", which is what makes a
         // first run land on the tagging default; an empty array is a choice and is kept.

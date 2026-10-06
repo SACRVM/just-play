@@ -904,7 +904,12 @@
                                      EDITOR. Zero was as wrong as the 16 it replaced: the panel carries no
                                      inset of its own (it is shared, and the floating window needs a
                                      different one), so whatever the host asks for IS the alignment. -->
-                                <Panel IsVisible="{Binding ShowPanel}" Margin="8,0">
+                                <!-- No edits to a file the running ANALYZE batch writes into: what the
+                                     editor read is about to go stale, and a correction saved from it
+                                     would put the old analysis back (see EditorLocked). Other files
+                                     stay editable while the batch runs. -->
+                                <Panel IsVisible="{Binding ShowPanel}" IsEnabled="{Binding !EditorLocked}"
+                                       Margin="8,0">
                                     <uic:TagEditorPanel Name="Editor" DataContext="{Binding Editor}"
                                                         ShowAnalysis="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowAnalysis}"
                                                         ShowRaw="{Binding $parent[Window].((vm:TaggerViewModel)DataContext).ShowRaw}"/>

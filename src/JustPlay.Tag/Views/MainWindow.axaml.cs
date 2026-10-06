@@ -638,15 +638,14 @@ public partial class MainWindow : Window, IFramelessWindow
     /// MOVE ask it: the analysis write goes straight to the file, so a panel still holding
     /// pre-analysis values would let the next Save put the old BPM back over the new one.</para>
     ///
-    /// <para>Afterwards the editor is re-pointed at the same files with NO tags attached, which
-    /// makes it read them off disk rather than trust what it was holding - the same move TRANSFORM
-    /// makes after its write.</para>
+    /// <para>Afterwards the editor re-reads what it is HOLDING, off disk, if the batch wrote into any
+    /// of it - see <see cref="ReloadEditorAfterAnalysisAsync"/>.</para>
     /// </summary>
     private async void OnMenuAnalyze(object? sender, RoutedEventArgs e)
     {
         try
         {
-            if (Vm is not { Selected.Count: > 0 } vm || vm.IsAnalysing) return;
+            if (Vm is not { Selected.Count: > 0 } vm || vm.IsAnalysing || _closing) return;
             if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
 
             var rows = vm.Selected.ToList();
@@ -654,14 +653,36 @@ public partial class MainWindow : Window, IFramelessWindow
 
             // A run that ended because the window is closing leaves the editor alone.
             if (_closing || Vm is not { } after) return;
-            after.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, null)).ToList());
-            after.SyncAnalysisTab();
+            await ReloadEditorAfterAnalysisAsync(after, rows);
         }
         catch (Exception)
         {
             // `async void` on an event handler must not let anything escape - and a batch that
             // could not start is not worth taking the app down for.
         }
+    }
+
+    /// <summary>
+    /// After a batch, the editor re-reads what it is holding - and only if the batch wrote into any
+    /// of it. Anything else it holds is left exactly as it is, edits and all.
+    ///
+    /// <para>(!) It used to be re-pointed at the ANALYSED rows unconditionally. The list's selection
+    /// can move on while a batch runs, so the editor ended up on the analysed set while the list
+    /// showed another one, and edits typed meanwhile were thrown away without a question.</para>
+    ///
+    /// <para>The prompt below is the same unsaved-changes question as everywhere else. The editor
+    /// cannot normally be dirty here - it takes no edits to a file the batch writes, see
+    /// <see cref="TaggerViewModel.EditorLocked"/> - but if it is, it is asked, never discarded.</para>
+    /// </summary>
+    private async Task ReloadEditorAfterAnalysisAsync(TaggerViewModel vm, IReadOnlyList<FileRow> analysed)
+    {
+        var written = analysed.Select(r => r.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!TaggerViewModel.EditorHoldsAny(vm.Editor, written)) return;
+
+        if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
+
+        vm.ReloadEditor();
+        vm.SyncAnalysisTab();
     }
 
     /// <summary>Stop the run after the files in flight. What already landed stays landed.</summary>

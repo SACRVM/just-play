@@ -89,8 +89,63 @@ public sealed partial class TaggerViewModel
             Set(ref _analysing, value);
             Raise(nameof(CanAnalyze));
             Raise(nameof(HasAnalysisNote));
+            Raise(nameof(EditorLocked));
             RaiseBusy();
         }
+    }
+
+    // -- The editor while a batch runs -----------------------------------------------------------
+
+    /// <summary>The files the running batch will write - empty when none is running.</summary>
+    private IReadOnlySet<string> _analysingPaths = new HashSet<string>();
+
+    /// <summary>
+    /// The editor is holding a file the running batch writes into, so it takes no edits until the
+    /// batch is over.
+    ///
+    /// <para>(!) What it prevents: the editor read the file BEFORE the batch wrote it, and its single
+    /// file save builds a hand correction on the analysis blob it read then. A key corrected during
+    /// the batch therefore wrote the pre-analysis blob back over the fresh one - and a correction
+    /// saved while the batch was still reading the file was overwritten by the batch in turn. The
+    /// editor is re-read from disk when the batch ends (see <see cref="ReloadEditor"/>), so the lock
+    /// is exactly as long as what it holds is about to go stale.</para>
+    ///
+    /// <para>Files outside the batch stay editable throughout.</para>
+    /// </summary>
+    public bool EditorLocked => IsAnalysing && EditorHoldsAny(Editor, _analysingPaths);
+
+    /// <summary>Is the editor holding any of <paramref name="paths"/> - its one file, or any file of
+    /// its selection?</summary>
+    public static bool EditorHoldsAny(TagEditorViewModel editor, IReadOnlySet<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(paths);
+
+        if (paths.Count == 0) return false;
+        if (editor.IsMulti) return editor.SelectedPaths.Overlaps(paths);
+        return editor.FilePath is { } path && paths.Contains(path);
+    }
+
+    /// <summary>
+    /// Read the files the editor is holding again, off disk - the same files, never a different set.
+    /// A selection keeps the list's order, which is the order it was made in.
+    /// </summary>
+    public void ReloadEditor()
+    {
+        if (!Editor.IsMulti)
+        {
+            if (Editor.FilePath is { } path) Editor.Load(path);
+            return;
+        }
+
+        var held = Editor.SelectedPaths;
+        var ordered = _selected.Select(r => r.Path).Where(held.Contains).ToList();
+        var listed = ordered.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        ordered.AddRange(held.Where(p => !listed.Contains(p)));
+
+        // No tags attached: that is what makes the editor read them off DISK rather than trust a
+        // row that may not have repainted yet.
+        Editor.LoadMany(ordered.Select(p => new TagTarget(p, null)).ToList());
     }
 
     private string? _analysisMessage;
@@ -162,6 +217,8 @@ public sealed partial class TaggerViewModel
         _analysisCts?.Dispose();
         var cts = _analysisCts = new CancellationTokenSource();
 
+        // Before IsAnalysing: raising it is what re-evaluates EditorLocked.
+        _analysingPaths = byPath.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
         IsAnalysing = true;
         AnalysisNote = null;
         AnalysisFailed = false;
@@ -215,6 +272,8 @@ public sealed partial class TaggerViewModel
             AnalysisMessage = null;
             AnalysisDetail = null;
             AnalysisProgress = null;
+            // Every write of the run has landed by here - the runner returns only after its workers.
+            _analysingPaths = new HashSet<string>();
         }
 
         IsAnalysing = false;
