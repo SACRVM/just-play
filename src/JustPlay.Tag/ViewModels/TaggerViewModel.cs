@@ -247,9 +247,7 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
         Preview = preview;
         _reader = reader;
         _settings = settings;
-        _analysis = analysis;
-        _writer = writer;
-        _writes = writes;
+        _analyseOne = new AnalysisFileWrite(analysis, reader, writer, writes);
         Log = log;
 
         // The SHARED column state (JustPlay.UI) - the same object the JUST PLAY queue and the Finder
@@ -1854,20 +1852,26 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
             {
                 try
                 {
-                    row.Meta = _reader.Read(row.Path);
-                    row.Id3 = row.Meta?.Id3Version;
-                    row.Track.Artwork = row.Meta?.CoverArt is { Length: > 0 };
-                    if (row.Meta?.StoredAnalysis is { } stored)
+                    // An unreadable file keeps whatever the row already showed. Blanking it would be
+                    // losing a song in the listing over a transient share hiccup. The reader says so
+                    // with ReadFailed rather than by throwing; the catch is for any reader that throws.
+                    var meta = _reader.Read(row.Path);
+                    if (!meta.ReadFailed)
                     {
-                        row.Track.Model.Analysis = stored.Detected;
-                        row.Track.Model.AnalysedAtUtc = stored.AnalysedAtUtc;
-                        row.Track.Model.AnalysisStatus = AnalysisStatus.Done;
+                        row.Meta = meta;
+                        row.Id3 = meta.Id3Version;
+                        row.Track.Artwork = meta.CoverArt is { Length: > 0 };
+                        if (meta.StoredAnalysis is { } stored)
+                        {
+                            row.Track.Model.Analysis = stored.Detected;
+                            row.Track.Model.AnalysedAtUtc = stored.AnalysedAtUtc;
+                            row.Track.Model.AnalysisStatus = AnalysisStatus.Done;
+                        }
                     }
                 }
                 catch (Exception)
                 {
-                    // An unreadable file keeps whatever the row already showed. Blanking it would be
-                    // losing a song in the listing over a transient share hiccup.
+                    // Same rule: the row keeps what it showed.
                 }
                 Touched(row);
             }

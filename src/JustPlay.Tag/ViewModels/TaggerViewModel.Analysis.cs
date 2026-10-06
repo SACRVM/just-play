@@ -43,9 +43,7 @@ namespace JustPlay.Tag.ViewModels;
 /// </summary>
 public sealed partial class TaggerViewModel
 {
-    private readonly ITrackAnalysisService _analysis;
-    private readonly IMetadataWriter _writer;
-    private readonly TagWriteGate _writes;
+    private readonly AnalysisFileWrite _analyseOne;
 
     private CancellationTokenSource? _analysisCts;
 
@@ -233,38 +231,8 @@ public sealed partial class TaggerViewModel
     private async Task AnalyseOneAsync(
         IReadOnlyDictionary<string, FileRow> rows, string path, CancellationToken ct)
     {
-        var detected = await _analysis.AnalyzeAsync(path, null, ct).ConfigureAwait(false);
-
-        // The DSP ran HERE - the one honest timestamp for this measurement.
-        var analysedAt = DateTime.UtcNow;
-
-        // (!) NO cancellation check between the decode and the write. Cancellation stops new files
-        // from STARTING and aborts a decode in flight; a file whose DSP already finished is written,
-        // because the expensive part is spent and throwing the result away would mean STOP quietly
-        // undid work that was done. "Whatever finished stays finished" is the promise the STOP
-        // button makes, and this is where it is kept.
-
-        // (!) Read the FILE, not the row. A row hydrated from the library index has tags but no
-        // blob (TrackIndexMapping.ToMetadata stores no StoredAnalysis), and the blob is what carries
-        // the per-field KEPT decisions. Deciding the write off the row would therefore overwrite a
-        // key the user had hand-corrected, on exactly the folders the index covers. One extra file
-        // open against a whole decode is nothing.
-        TrackMetadata? current = null;
-        try { current = _reader.Read(path); }
-        catch (Exception) { /* unreadable tags: write as if the file carried none */ }
-
-        // The suite's ONE composition of "what our detected values put in a file" - blob + standard
-        // tags + ReplayGain + the decision stamps, and it leaves a KEPT field alone.
-        var write = AnalysisTagWrite.ForDetected(detected, current, analysedAt);
-
-        if (write is not null)
-        {
-            // The SAME gate the editor saves through: it releases the file if the preview is
-            // holding it, then writes. Write, not Execute: a failure must THROW here, because the
-            // runner is what counts it and names the file in the report - an outcome code would be
-            // read as success. The batch keeps going.
-            _writes.Write(path, p => _writer.Write(p, write));
-        }
+        // Measure, read, write - see AnalysisFileWrite for the rules, which a test pins there.
+        await _analyseOne.RunAsync(path, ct).ConfigureAwait(false);
 
         // The row reads itself back off disk through the existing refresh - so the AN light, BPM,
         // KEY and NRG all come from the file that was actually written, not from what we think we
