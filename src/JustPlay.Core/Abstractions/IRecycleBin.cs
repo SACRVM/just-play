@@ -33,14 +33,26 @@ public interface IRecycleBin
     bool IsAvailable { get; }
 
     /// <summary>
+    /// Whether THIS file can go to the bin. A machine that has one still has places without it - on
+    /// Windows a network share or a removable drive - and the shell, asked to recycle a file there,
+    /// deletes it for good instead. False means a recycling delete leaves this file where it is: the
+    /// preview says so on its row, and <see cref="Send"/> refuses it.
+    ///
+    /// <para>Asked per PATH, never once per machine, and it must not throw. The default, for a bin
+    /// that knows nothing finer, is the platform's answer.</para>
+    /// </summary>
+    bool CanRecycle(string path) => IsAvailable;
+
+    /// <summary>
     /// What the bin is CALLED here - "Recycle Bin" on Windows, "Trash" on macOS. The UI has to say
     /// the words, because a DJ must never be left wondering whether the track is gone or filed.
     /// </summary>
     string Name { get; }
 
     /// <summary>
-    /// Send one file to the bin. Throws when it did not happen - the caller records the failure per
-    /// file and keeps going, so one stubborn file never stops a batch.
+    /// Send one file to the bin. Throws when it did not happen - a file <see cref="CanRecycle"/> turns
+    /// down included, which is refused rather than handed to a shell that would destroy it. The
+    /// caller records the failure per file and keeps going, so one stubborn file never stops a batch.
     /// </summary>
     void Send(string path);
 }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Organise;
 
 namespace JustPlay.UI.Controls;
 
@@ -19,6 +20,11 @@ namespace JustPlay.UI.Controls;
 /// veto and not a fallback. The planner turns it into <c>DeleteKind.Permanent</c>, the window states
 /// that in the words on the button, and the person in front of it decides. What must never happen is
 /// the QUIET version: a delete the user was told would be recoverable that silently was not.</para>
+///
+/// <para><b>A machine with a bin still has files that cannot reach it</b> - a network share, and on
+/// Windows a removable drive. Those are answered per file by <see cref="CanRecycle"/>, so the preview
+/// marks them as left alone, and refused by <see cref="Send"/> as a per-file failure. Delete means
+/// the bin; such a file stays where it is.</para>
 /// </summary>
 public sealed class SystemRecycleBin : IRecycleBin
 {
@@ -28,6 +34,10 @@ public sealed class SystemRecycleBin : IRecycleBin
     /// <summary>Windows and macOS both have one. Everywhere else this is false, and a delete is
     /// planned - and previewed - as a permanent one (see the class remarks).</summary>
     public bool IsAvailable => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+
+    /// <summary>False for a file on a network share (Windows and macOS) or a removable drive
+    /// (Windows) - see <see cref="RecycleBinReach"/>. Never throws.</summary>
+    public bool CanRecycle(string path) => IsAvailable && Reach(path) == NoBinReason.None;
 
     /// <summary>The words this platform uses. The confirmation says them out loud, so nobody has to
     /// wonder whether the track is gone or filed.</summary>
@@ -44,6 +54,12 @@ public sealed class SystemRecycleBin : IRecycleBin
         if (!File.Exists(path))
             throw new FileNotFoundException("The file is not there any more.", path);
 
+        // The backstop behind the preview: whatever the plan said, a file with no bin to go to is
+        // never handed to a shell that would delete it for good instead.
+        var reach = Reach(path);
+        if (reach != NoBinReason.None)
+            throw new IOException(RecycleBinReach.Describe(reach, Name));
+
         if (OperatingSystem.IsWindows()) { SendWindows(path); return; }
         if (OperatingSystem.IsMacOS()) { SendMac(path); return; }
 
@@ -51,6 +67,53 @@ public sealed class SystemRecycleBin : IRecycleBin
         // and never comes through the bin. It throws rather than pretending, so a future caller that
         // skips the check gets a failure and not a vanished track.
         throw new PlatformNotSupportedException("There is no recycle bin on this system.");
+    }
+
+    /// <summary>
+    /// Why this file has no bin to go to, if anything known says so. Never throws: a path that cannot
+    /// be read is answered <see cref="NoBinReason.None"/>, and the shell - nuke warning on - has the
+    /// last word.
+    /// </summary>
+    private static NoBinReason Reach(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return NoBinReason.None;
+
+        try
+        {
+            var full = Path.GetFullPath(path);
+
+            if (OperatingSystem.IsWindows())
+                return RecycleBinReach.OnWindows(full, WindowsDriveType);
+
+            // macOS: DriveInfo asks statfs about the volume holding ANY path - it does not have to
+            // be the mount point - and maps the file system name to a type (smbfs, afpfs, nfs and
+            // webdav read as Network). A USB stick does have a Trash on the Mac, so only the share
+            // is refused here.
+            if (OperatingSystem.IsMacOS())
+                return new DriveInfo(full).DriveType == DriveType.Network
+                    ? NoBinReason.NetworkShare
+                    : NoBinReason.None;
+
+            return NoBinReason.None;
+        }
+        catch (Exception)
+        {
+            return NoBinReason.None;
+        }
+    }
+
+    /// <summary>GetDriveType through the BCL: DRIVE_REMOTE reads as Network, DRIVE_REMOVABLE as
+    /// Removable. A drive that cannot be asked reads as Unknown.</summary>
+    private static DriveType WindowsDriveType(string root)
+    {
+        try
+        {
+            return new DriveInfo(root).DriveType;
+        }
+        catch (Exception)
+        {
+            return DriveType.Unknown;
+        }
     }
 
     // -- Windows -----------------------------------------------------------------------------
@@ -61,10 +124,15 @@ public sealed class SystemRecycleBin : IRecycleBin
     // Microsoft.VisualBasic.FileIO (an extra framework assembly, and it is a UI-aware wrapper around
     // exactly this call). No package is added for it.
     //
-    // (!) A path on a network share has no bin: the shell reports that as ERROR (0x78 /
-    // DE_ACCESSDENIEDSRC on some builds) rather than deleting it, and FOF_NOERRORUI keeps that
-    // silent so it comes back here as a per-file failure instead of a dialog behind our window.
-    // That is the right answer - it must NOT become a permanent delete.
+    // (!!) FOF_ALLOWUNDO is a request, not a promise. Per the SHFILEOPSTRUCT documentation, a file
+    // the shell cannot recycle - on a network share, on a removable drive, larger than the bin will
+    // hold, on a drive whose bin is switched off - is deleted PERMANENTLY instead, and with
+    // FOF_NOCONFIRMATION that happens without a word. It does NOT come back as an error. So:
+    //   - a network share or a removable drive is refused before the shell is asked (Send, through
+    //     RecycleBinReach) - a per-file failure, and the file stays where it is;
+    //   - FOF_WANTNUKEWARNING covers what no path can predict (too large, bin switched off): it is
+    //     the one confirmation FOF_NOCONFIRMATION does not silence, so the shell asks before it
+    //     destroys anything, and "No" leaves the file alone.
 
     private const uint FoDelete = 0x0003;
 
@@ -73,6 +141,7 @@ public sealed class SystemRecycleBin : IRecycleBin
     private const ushort FofAllowUndo = 0x0040;         // (!!) THE flag - without it this is permanent
     private const ushort FofNoErrorUi = 0x0400;         // report failures to us, not to a dialog
     private const ushort FofNoConfirmMkDir = 0x0200;
+    private const ushort FofWantNukeWarning = 0x4000;   // (!!) ask before anything is destroyed, not recycled
 
     /// <summary>
     /// SHFILEOPSTRUCTW.
@@ -107,18 +176,21 @@ public sealed class SystemRecycleBin : IRecycleBin
             // The shell wants a DOUBLE-null-terminated list. One trailing NUL ends the entry, the
             // second ends the list; the marshaller supplies the last one.
             pFrom = path + "\0",
-            fFlags = FofAllowUndo | FofNoConfirmation | FofNoErrorUi | FofSilent | FofNoConfirmMkDir,
+            fFlags = FofAllowUndo | FofNoConfirmation | FofNoErrorUi | FofSilent | FofNoConfirmMkDir
+                     | FofWantNukeWarning,
         };
 
         var result = SHFileOperationW(ref op);
 
+        // "No" to the shell's permanent-delete question lands here, as an aborted operation.
+        if (op.fAnyOperationsAborted)
+            throw new IOException(File.Exists(path)
+                ? "Not deleted - the delete was stopped, and this file is left where it is."
+                : "The delete was stopped before it finished.");
+
         if (result != 0)
             throw new IOException(
-                $"Windows would not put this in the Recycle Bin (shell error 0x{result:X}). " +
-                "Files on a network share often have no bin.");
-
-        if (op.fAnyOperationsAborted)
-            throw new IOException("The delete was aborted before it finished.");
+                $"Windows would not put this in the Recycle Bin (shell error 0x{result:X}).");
 
         // The shell reports success for a few cases where nothing happened. The file being gone is
         // the only proof that counts.

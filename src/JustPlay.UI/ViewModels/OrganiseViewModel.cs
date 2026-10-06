@@ -424,6 +424,7 @@ public sealed class OrganiseViewModel : INotifyPropertyChanged
             Destination         = Action == OrganiseAction.Delete ? null : _destination,
             Collisions          = _keepBoth ? CollisionPolicy.KeepBoth : CollisionPolicy.Skip,
             RecycleBinAvailable = _bin.IsAvailable,
+            CanRecycle          = _bin.CanRecycle,
         }, _probe);
 
         // The folder only earns a line per row when the selection actually spans several - one

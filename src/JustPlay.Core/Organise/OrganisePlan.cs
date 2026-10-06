@@ -102,6 +102,11 @@ public enum OrganiseItemStatus
 
     /// <summary>The path is a folder, not a track. Skipped: this operates on files.</summary>
     NotAFile,
+
+    /// <summary>A delete to the bin, and this file sits where the bin cannot reach - a network share,
+    /// a removable drive. Skipped: delete means the bin, and handing it to the shell anyway would
+    /// remove it for good.</summary>
+    NoBin,
 }
 
 /// <summary>One file's line in the plan: where it is, where it would land, and what stops it.</summary>
@@ -151,6 +156,16 @@ public sealed record OrganiseRequest
     /// delete; it makes the delete a permanent one and makes the preview say so.</para>
     /// </summary>
     public bool RecycleBinAvailable { get; init; } = true;
+
+    /// <summary>
+    /// For a delete to the bin: whether the bin can take THIS file. A machine with a bin still has
+    /// files that cannot reach it, and the preview has to name them before the button is pressed, not
+    /// after the run. Null means every file can. Never consulted for a permanent delete.
+    ///
+    /// <para>A question, like the probe - the planner asks and never acts. Typically
+    /// <c>IRecycleBin.CanRecycle</c>.</para>
+    /// </summary>
+    public Func<string, bool>? CanRecycle { get; init; }
 }
 
 /// <summary>
@@ -323,6 +338,7 @@ public static class OrganiseText
         OrganiseItemStatus.SourceMissing => "not on disk any more",
         OrganiseItemStatus.SameFolder    => "already in this folder",
         OrganiseItemStatus.NotAFile      => "not a file",
+        OrganiseItemStatus.NoBin         => "no recycle bin there - left alone",
         _                                => "",
     };
 

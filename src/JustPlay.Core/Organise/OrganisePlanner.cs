@@ -49,14 +49,21 @@ public static class OrganisePlanner
             // A missing bin is not a blocker. It changes WHAT the delete is, the preview says which
             // one in the words the button carries, and the person in front of it decides. Refusing
             // would leave them with no way to do a thing this window otherwise offers.
-            var deleteItems = sources.Select(s => DeleteItem(s, probe)).ToList();
+            //
+            // That is a statement about the PLATFORM. On a platform that has a bin, a single file
+            // that cannot reach it (a network share, a removable drive) is a different case: delete
+            // means the bin there, so that file is left alone - and named as such here, before
+            // anything runs.
+            var deletion = request.RecycleBinAvailable ? DeleteKind.Recycle : DeleteKind.Permanent;
+            var canRecycle = deletion == DeleteKind.Recycle ? request.CanRecycle : null;
+            var deleteItems = sources.Select(s => DeleteItem(s, probe, canRecycle)).ToList();
 
             return new OrganisePlan
             {
                 Action        = request.Action,
                 Destination   = null,
                 Collisions    = request.Collisions,
-                Deletion      = request.RecycleBinAvailable ? DeleteKind.Recycle : DeleteKind.Permanent,
+                Deletion      = deletion,
                 Items         = deleteItems,
                 Blockers      = blockers,
                 SourceFolders = FoldersOf(sources),
@@ -100,7 +107,7 @@ public static class OrganisePlanner
 
     // -- One file --------------------------------------------------------------------------------
 
-    private static OrganiseItem DeleteItem(string source, IFileProbe probe)
+    private static OrganiseItem DeleteItem(string source, IFileProbe probe, Func<string, bool>? canRecycle)
     {
         if (probe.DirectoryExists(source))
             return new OrganiseItem { SourcePath = source, Status = OrganiseItemStatus.NotAFile };
@@ -111,7 +118,9 @@ public static class OrganisePlanner
         return new OrganiseItem
         {
             SourcePath = source,
-            Status     = OrganiseItemStatus.Ready,
+            Status     = canRecycle is null || canRecycle(source)
+                             ? OrganiseItemStatus.Ready
+                             : OrganiseItemStatus.NoBin,
             Bytes      = probe.SizeOf(source),
         };
     }

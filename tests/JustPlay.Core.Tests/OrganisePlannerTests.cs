@@ -466,6 +466,107 @@ public sealed class OrganisePlannerTests
         Assert.True(plan.CanRun);
     }
 
+    // -- A bin that cannot reach every file -------------------------------------------------------
+    //
+    // A machine with a bin still has files the bin cannot take - a network share, a USB stick - and
+    // the shell, asked to recycle one, deletes it for good instead. Delete means the bin: such a
+    // file is left alone, and the preview names it before the button is pressed.
+
+    /// <summary>A bin that, like the real one on Windows, cannot take a file on a share.</summary>
+    private sealed class ShareBlindBin : IRecycleBin
+    {
+        public readonly List<string> Asked = [];
+
+        public bool IsAvailable => true;
+
+        public string Name => "Recycle Bin";
+
+        public bool CanRecycle(string path)
+        {
+            Asked.Add(path);
+            return !path.StartsWith(@"\\", StringComparison.Ordinal);
+        }
+
+        public void Send(string path) => throw new InvalidOperationException("the planner never sends");
+    }
+
+    private static OrganisePlan PlanDelete(FakeDisk disk, IRecycleBin bin, params string[] sources) =>
+        OrganisePlanner.Plan(new OrganiseRequest
+        {
+            Action              = OrganiseAction.Delete,
+            Sources             = sources,
+            RecycleBinAvailable = bin.IsAvailable,
+            CanRecycle          = bin.CanRecycle,
+        }, disk);
+
+    [Fact]
+    public void A_file_the_bin_cannot_reach_is_left_alone_and_named_before_anything_runs()
+    {
+        var disk = new FakeDisk().WithFile($@"{Src}\a.mp3").WithFile(@"\\nas\music\b.mp3");
+
+        var plan = PlanDelete(disk, new ShareBlindBin(), $@"{Src}\a.mp3", @"\\nas\music\b.mp3");
+
+        // Still a trip to the bin - one file without a bin never turns the delete permanent.
+        Assert.Equal(DeleteKind.Recycle, plan.Deletion);
+        Assert.Equal(OrganiseItemStatus.Ready, plan.Items[0].Status);
+        Assert.Equal(OrganiseItemStatus.NoBin, plan.Items[1].Status);
+        Assert.False(plan.Items[1].WillRun);
+
+        Assert.True(plan.CanRun);
+        Assert.Equal("1 file is deleted  -  1 is left alone", OrganiseText.Summarise(plan));
+        Assert.Equal("Delete 1 file", OrganiseText.RunLabel(plan.Action, plan.RunCount, plan.Deletion));
+        Assert.Contains("no recycle bin", OrganiseText.Describe(plan.Items[1]), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_selection_that_is_all_on_a_share_cannot_run()
+    {
+        var disk = new FakeDisk().WithFile(@"\\nas\music\a.mp3").WithFile(@"\\nas\music\b.mp3");
+
+        var plan = PlanDelete(disk, new ShareBlindBin(), @"\\nas\music\a.mp3", @"\\nas\music\b.mp3");
+
+        Assert.Equal(DeleteKind.Recycle, plan.Deletion);
+        Assert.All(plan.Items, i => Assert.Equal(OrganiseItemStatus.NoBin, i.Status));
+        Assert.False(plan.CanRun);
+    }
+
+    [Fact]
+    public void The_bin_is_asked_about_each_file_that_is_actually_there()
+    {
+        var bin = new ShareBlindBin();
+        var disk = new FakeDisk().WithFile($@"{Src}\a.mp3").WithFolder($@"{Src}\album");
+
+        PlanDelete(disk, bin, $@"{Src}\a.mp3", $@"{Src}\gone.mp3", $@"{Src}\album");
+
+        // A missing file and a folder already have their answer; only the real file is asked about.
+        Assert.Equal(new[] { $@"{Src}\a.mp3" }, bin.Asked);
+    }
+
+    [Fact]
+    public void A_permanent_delete_never_asks_the_bin()
+    {
+        var disk = new FakeDisk().WithFile(@"\\nas\music\a.mp3");
+
+        var plan = OrganisePlanner.Plan(new OrganiseRequest
+        {
+            Action              = OrganiseAction.Delete,
+            Sources             = [@"\\nas\music\a.mp3"],
+            RecycleBinAvailable = false,
+            CanRecycle          = _ => throw new InvalidOperationException("asked about a permanent delete"),
+        }, disk);
+
+        Assert.Equal(DeleteKind.Permanent, plan.Deletion);
+        Assert.Equal(OrganiseItemStatus.Ready, plan.Items[0].Status);
+    }
+
+    [Fact]
+    public void A_bin_that_knows_nothing_finer_answers_for_its_platform()
+    {
+        IRecycleBin none = NoRecycleBin.Instance;
+
+        Assert.False(none.CanRecycle(@"C:\music\a.mp3"));
+    }
+
     // -- What the preview says -------------------------------------------------------------------
 
     [Fact]
