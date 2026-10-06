@@ -158,32 +158,14 @@ internal static class CleanCommentsCommand
                 continue;
             }
 
-            // Key + Energy for the clean MIK comment: standard tags first, blob as fallback.
-            var key = MusicalKey.TryParse(meta.TaggedKey)
-                      ?? meta.StoredAnalysis?.Detected.Key;
-            var energy = meta.TaggedEnergy
-                      ?? meta.StoredAnalysis?.Detected.Energy;
+            if (Plan(meta, force) is not { } plan)
+            {
+                Console.Error.WriteLine($"  [FAIL] tag read  {Path.GetFileName(filePath)}: could not be read");
+                failed++;
+                continue;
+            }
 
-            // Comment: rebuild clean. Build() strips any JP/MIK prefix and prepends "8A - Energy 7".
-            // When neither key nor energy is known (un-promoted new ingest), Build() returns null ->
-            // fall back to stripping ONLY the JP blob, keeping whatever follows (e.g. an older MIK
-            // segment or user text). We never delete the file's best-available key/energy info.
-            var newComment = DjCommentBuilder.Build(key, energy, meta.Comment)
-                             ?? VibeTagEncoder.StripJpPrefix(meta.Comment);
-
-            // Grouping: the blob is removed entirely (user's decision). Strip the JP block,
-            // keep any non-JP remainder (it was written as a pure blob, so this is normally "").
-            var newGrouping = VibeTagEncoder.StripJpPrefix(meta.Grouping);
-
-            var commentChanged  = !SameTag(meta.Comment, newComment);
-            var groupingChanged = !SameTag(meta.Grouping, newGrouping);
-
-            // With --force we rewrite even when the visible comment already matches, so the
-            // writer's RemoveFrames+single-write collapses any HIDDEN second COMM frame that
-            // TagLib# never surfaced (it returns only the preferred frame). Only meaningful
-            // when there is a clean comment value to write.
-            var forceRewrite = force && newComment is not null;
-            if (!commentChanged && !groupingChanged && !forceRewrite)
+            if (plan.NothingToDo)
             {
                 unchanged++;
                 continue;
@@ -193,10 +175,10 @@ internal static class CleanCommentsCommand
             if (samples < 12)
             {
                 Console.WriteLine($"  {Path.GetFileName(filePath)}");
-                if (commentChanged)
-                    Console.WriteLine($"      comment  : {Show(meta.Comment)}  ->  {Show(newComment)}");
-                if (groupingChanged)
-                    Console.WriteLine($"      grouping : {Show(meta.Grouping)}  ->  {Show(newGrouping)}");
+                if (plan.CommentChanged)
+                    Console.WriteLine($"      comment  : {Show(meta.Comment)}  ->  {Show(plan.NewComment)}");
+                if (plan.GroupingChanged)
+                    Console.WriteLine($"      grouping : {Show(meta.Grouping)}  ->  {Show(plan.NewGrouping)}");
                 samples++;
                 if (samples == 12)
                     Console.WriteLine("      ... (further changes not printed) ...");
@@ -215,8 +197,8 @@ internal static class CleanCommentsCommand
                 // "" = clear. BPM/Key/Energy/blob stay exactly as they are.
                 var request = new WriteTagsRequest
                 {
-                    Comment  = (commentChanged || forceRewrite) ? newComment  : null,
-                    Grouping = groupingChanged ? newGrouping : null,
+                    Comment  = (plan.CommentChanged || plan.ForceRewrite) ? plan.NewComment : null,
+                    Grouping = plan.GroupingChanged ? plan.NewGrouping : null,
                 };
 
                 WriteTagsResult result;
@@ -277,6 +259,46 @@ internal static class CleanCommentsCommand
         return failed > 0 ? 2 : 0;
     }
 
+    /// <summary>
+    /// What one file needs, decided from its tags alone. Null when the file could not be read.
+    ///
+    /// <para>(!) A failed read returns a bare record, not the file's tags. Planned on, it yields an
+    /// empty comment - and <c>--force</c> would write that over a file that was only momentarily
+    /// locked or out of reach. Such a file is counted as failed and left alone.</para>
+    /// </summary>
+    internal static CleanPlan? Plan(TrackMetadata meta, bool force)
+    {
+        if (meta.ReadFailed) return null;
+
+        // Key + Energy for the clean MIK comment: standard tags first, blob as fallback.
+        var key = MusicalKey.TryParse(meta.TaggedKey)
+                  ?? meta.StoredAnalysis?.Detected.Key;
+        var energy = meta.TaggedEnergy
+                  ?? meta.StoredAnalysis?.Detected.Energy;
+
+        // Comment: rebuild clean. Build() strips any JP/MIK prefix and prepends "8A - Energy 7".
+        // When neither key nor energy is known (un-promoted new ingest), Build() returns null ->
+        // fall back to stripping ONLY the JP blob, keeping whatever follows (e.g. an older MIK
+        // segment or user text). We never delete the file's best-available key/energy info.
+        var newComment = DjCommentBuilder.Build(key, energy, meta.Comment)
+                         ?? VibeTagEncoder.StripJpPrefix(meta.Comment);
+
+        // Grouping: the blob is removed entirely (user's decision). Strip the JP block,
+        // keep any non-JP remainder (it was written as a pure blob, so this is normally "").
+        var newGrouping = VibeTagEncoder.StripJpPrefix(meta.Grouping);
+
+        // With --force we rewrite even when the visible comment already matches, so the
+        // writer's RemoveFrames+single-write collapses any HIDDEN second COMM frame that
+        // TagLib# never surfaced (it returns only the preferred frame). Only meaningful
+        // when there is a clean comment value to write.
+        return new CleanPlan(
+            newComment,
+            newGrouping,
+            CommentChanged:  !SameTag(meta.Comment, newComment),
+            GroupingChanged: !SameTag(meta.Grouping, newGrouping),
+            ForceRewrite:    force && newComment is not null);
+    }
+
     /// <summary>True when two tag values are equivalent, treating null and "" as the same.</summary>
     private static bool SameTag(string? a, string? b)
         => string.Equals(a ?? "", b ?? "", StringComparison.Ordinal);
@@ -284,6 +306,20 @@ internal static class CleanCommentsCommand
     /// <summary>Render a tag value for the console (quote it, mark empty/cleared).</summary>
     private static string Show(string? s)
         => string.IsNullOrEmpty(s) ? "(empty)" : $"\"{s}\"";
+}
+
+/// <summary>
+/// What <c>tag clean</c> would do to one file. <see cref="NewComment"/> and
+/// <see cref="NewGrouping"/> are only written where the matching flag says so.
+/// </summary>
+internal sealed record CleanPlan(
+    string? NewComment,
+    string NewGrouping,
+    bool CommentChanged,
+    bool GroupingChanged,
+    bool ForceRewrite)
+{
+    public bool NothingToDo => !CommentChanged && !GroupingChanged && !ForceRewrite;
 }
 
 // --- Backup DTO + JSON context ------------------------------------------------
