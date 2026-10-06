@@ -512,7 +512,7 @@ public sealed class TagTransformViewModel : INotifyPropertyChanged
             ? $"Wrote {report.Written}, {report.Failed} failed"
               + (report.FirstError is { Length: > 0 } e ? $" - {e}" : ".")
             : report.Deferred > 0
-                ? $"Wrote {report.Written} - {report.Deferred} playing, they save at the track change."
+                ? $"Wrote {report.Written} - {report.Deferred} in use, they save as soon as they are free."
                 : $"Wrote {report.Written}.";
     }
 
