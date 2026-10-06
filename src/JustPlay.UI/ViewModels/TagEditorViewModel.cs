@@ -680,10 +680,26 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             }
         }
 
+        // The blob the decision is recorded INTO is the one the file holds NOW, not the one it held
+        // when the editor opened: an analysis that ran in between wrote a fresh blob, and building on
+        // the load-time copy put the stale one back over it. A file that cannot be read is not
+        // written - the blob would be rebuilt from nothing.
+        TrackAnalysisState? storedNow = null;
+        if (analysisChanged)
+        {
+            var fresh = _reader.Read(path);
+            if (fresh.ReadFailed)
+            {
+                Status = "Couldn't read this file - nothing was saved.";
+                return false;
+            }
+            storedNow = fresh.StoredAnalysis;
+        }
+
         var coverAction = _coverAction;
         var coverBytes  = coverAction == CoverAction.Replace ? _coverBytes : null;
         var coverMime   = coverAction == CoverAction.Replace ? _coverMime : null;
-        var write       = analysisChanged ? BuildAnalysisWrite(bpm, key, energy) : null;
+        var write       = analysisChanged ? BuildAnalysisWrite(storedNow, bpm, key, energy) : null;
 
         Exception? failure = null;
         var outcome = editorialChanged || analysisChanged
@@ -790,9 +806,9 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     /// and that is it. Stamping a JUSTPLAY record with an empty <c>Detected</c> would claim we
     /// analysed a file we never opened.</para>
     /// </summary>
-    private TagWrite BuildAnalysisWrite(double? bpm, MusicalKey? key, int? energy)
+    /// <param name="prev">The blob as the file holds it at save time - see <see cref="Save"/>.</param>
+    private TagWrite BuildAnalysisWrite(TrackAnalysisState? prev, double? bpm, MusicalKey? key, int? energy)
     {
-        var prev = _loaded?.StoredAnalysis;
         var b = _baseline;
 
         var bpmChanged    = !TextEquals(BpmText, b.Bpm);

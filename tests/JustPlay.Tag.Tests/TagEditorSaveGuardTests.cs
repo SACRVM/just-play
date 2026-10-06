@@ -16,6 +16,7 @@ namespace JustPlay.Tag.Tests;
 ///     movable. A double click ran two loops over the same files; retargeting mid-save and choosing
 ///     Discard let the finishing save mark the NEW selection clean and drop its edits.</item>
 ///   <item>A selection's save with failures reported the editor clean, so the host moved on.</item>
+///   <item>A hand correction wrote back the blob from when the editor opened, over a fresher one.</item>
 /// </list>
 /// </summary>
 public sealed class TagEditorSaveGuardTests
@@ -245,4 +246,45 @@ public sealed class TagEditorSaveGuardTests
         Assert.Empty(store.Editorial);
     }
 
+    // -- A hand correction builds on the blob the file holds NOW ----------------------------------
+
+    private static TrackAnalysisState Blob(double detectedBpm) => new()
+    {
+        Detected = new AnalysisResult { Bpm = detectedBpm },
+    };
+
+    [Fact]
+    public void A_hand_correction_records_into_the_blob_the_file_holds_at_save_time()
+    {
+        var store = new Store();
+        store.Files[A] = Track() with { StoredAnalysis = Blob(127) };
+        var vm = new TagEditorViewModel(store, store);
+        vm.Load(A);
+
+        // An analysis runs while the editor is open and writes a fresh blob.
+        store.Files[A] = store.Files[A] with { StoredAnalysis = Blob(140) };
+
+        vm.BpmText = "130";
+        Assert.True(vm.Save());
+
+        var state = Assert.Single(store.Analysis).Write.State!;
+        Assert.Equal(140, state.Detected!.Bpm);
+        Assert.Equal(FieldDecision.Kept, state.BpmDecision);
+    }
+
+    [Fact]
+    public void A_hand_correction_on_a_file_that_cannot_be_read_is_refused()
+    {
+        var store = new Store();
+        store.Files[A] = Track() with { StoredAnalysis = Blob(127) };
+        var vm = new TagEditorViewModel(store, store);
+        vm.Load(A);
+        store.Files[A] = store.Files[A] with { ReadFailed = true };
+
+        vm.BpmText = "130";
+
+        Assert.False(vm.Save());
+        Assert.Empty(store.Analysis);
+        Assert.True(vm.IsDirty);
+    }
 }
