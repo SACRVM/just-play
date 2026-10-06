@@ -105,19 +105,43 @@ public sealed class LibraryDb : IDisposable
 
     private void Migrate()
     {
-        var version = Convert.ToInt32(Scalar("PRAGMA user_version;") ?? 0);
+        // Fast path without the write lock: every open but the first after an upgrade ends here.
+        if (Convert.ToInt32(Scalar("PRAGMA user_version;") ?? 0) >= SchemaVersion) return;
+
+        // Every step AND the version stamp in one transaction. Interrupted halfway, a migration rolls
+        // back to the old number and simply runs again - instead of leaving an ALTER applied under the
+        // old number, which the next start would repeat and fail on ("duplicate column"). The version
+        // is read again INSIDE the transaction: BeginTransaction takes the write lock, so a second
+        // process opening the same index at the same moment waits here and then finds it migrated.
+        using var tx = _cx.BeginTransaction();
+
+        void Run(string sql)
+        {
+            using var cmd = _cx.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+
+        int version;
+        using (var read = _cx.CreateCommand())
+        {
+            read.Transaction = tx;
+            read.CommandText = "PRAGMA user_version;";
+            version = Convert.ToInt32(read.ExecuteScalar() ?? 0);
+        }
         if (version >= SchemaVersion) return;
 
         if (version == 0)
         {
-            Execute(_cx, Schema);
-            Execute(_cx, FolderSchema);
+            Run(Schema);
+            Run(FolderSchema);
         }
         else if (version == 1)
         {
             // v2 (2026-07-30): per-folder fingerprints, so the finder can paint a directory from
             // the index and verify it behind the user's back instead of enumerating first.
-            Execute(_cx, FolderSchema);
+            Run(FolderSchema);
         }
 
         // v3 (2026-08-07): the columns a track table shows but the index never stored, so that no
@@ -134,7 +158,7 @@ public sealed class LibraryDb : IDisposable
                          "tag_rev INTEGER NOT NULL DEFAULT 0",
                      })
             {
-                Execute(_cx, $"ALTER TABLE tracks ADD COLUMN {column};");
+                Run($"ALTER TABLE tracks ADD COLUMN {column};");
             }
         }
 
@@ -143,9 +167,10 @@ public sealed class LibraryDb : IDisposable
         // folder costs one extra per-file check, which then stores the new form. (v0 and v1 created
         // the folders table from FolderSchema above, which already has the column.)
         if (version is 2 or 3)
-            Execute(_cx, "ALTER TABLE folders ADD COLUMN listing_hash INTEGER;");
+            Run("ALTER TABLE folders ADD COLUMN listing_hash INTEGER;");
 
-        Execute(_cx, $"PRAGMA user_version={SchemaVersion};");
+        Run($"PRAGMA user_version={SchemaVersion};");
+        tx.Commit();
     }
 
     private const string Schema = """
