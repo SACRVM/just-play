@@ -29,10 +29,13 @@ public sealed class TagLibMetadataReader : IMetadataReader
             {
                 FallbackName = fallback,
                 Title = Clean(tag.Title),
-                Artist = Clean(tag.FirstPerformer),
+                // The same full values the editor shows (see AllValues): a First* read cut an
+                // ID3v2.3 "AC/DC" to "AC" and a Beatport genre at its first '/', and the index, the
+                // track table and search all saw the cut version.
+                Artist = Clean(AllValues(file, static t => t.Performers)),
                 Album = Clean(tag.Album),
-                AlbumArtist = Clean(tag.FirstAlbumArtist),
-                Genre = Clean(tag.FirstGenre),
+                AlbumArtist = Clean(AllValues(file, static t => t.AlbumArtists)),
+                Genre = Clean(StoredV23Genre(filePath) ?? AllValues(file, static t => t.Genres)),
                 Year = tag.Year == 0 ? null : tag.Year,
                 TrackNumber = tag.Track == 0 ? null : tag.Track,
                 Comment = Clean(tag.Comment),

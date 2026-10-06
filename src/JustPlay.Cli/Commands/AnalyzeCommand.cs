@@ -507,6 +507,10 @@ internal static class AnalyzeCommand
     /// <para>Entries written before 0.6 have no recorded mtime, so they never match here and fall
     /// through to a tag read. That costs ~57 ms each and usually ends in a blob import, which is
     /// still vastly cheaper than the SHA-256 pass the old resume check performed on every file.</para>
+    ///
+    /// <para>The FILE's key only, not <see cref="SyncKey.Matches"/>: that one also asks whether the
+    /// row's tag columns are current, and a tag-shape bump must re-read tags, never re-run DSP over
+    /// a whole library whose analysis is still valid.</para>
     /// </summary>
     private static bool IsAlreadyDone(
         AudioFiles.ScannedFile file,
@@ -517,7 +521,7 @@ internal static class AnalyzeCommand
         if (dbState is not null &&
             dbState.TryGetValue(file.Path, out var key) &&
             key.Analysed &&
-            key.Matches(file.SizeBytes, file.ModifiedUtc))
+            TrackIndexEntry.LooksUnchanged(key.FileSizeBytes, key.ModifiedUtc, file.SizeBytes, file.ModifiedUtc))
             return true;
 
         lock (lockObj)

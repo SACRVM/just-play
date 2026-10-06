@@ -62,11 +62,35 @@ public sealed class Id3v23GenreTests : IDisposable
         Assert.Null(Tcon(path));
     }
 
+    /// <summary>
+    /// The READ side the index, the track table and search see. It used First* values, so a v2.3
+    /// genre or artist with a slash reached all of them cut at the slash - "Techno (Peak Time" as the
+    /// genre column, "AC" as the artist.
+    /// </summary>
+    [Theory]
+    [InlineData("Techno (Peak Time / Driving)")]
+    [InlineData("Hard Dance / Hardcore / Neo Rave")]
+    [InlineData("House; Techno")]
+    public void Read_ReturnsTheWholeGenre(string genre)
+    {
+        var path = Mp3(genre);
+
+        Assert.Equal(genre, new TagLibMetadataReader().Read(path).Genre);
+    }
+
+    [Fact]
+    public void Read_ReturnsTheWholeArtist()
+    {
+        var path = Mp3(null, artist: "AC/DC");
+
+        Assert.Equal("AC/DC", new TagLibMetadataReader().Read(path).Artist);
+    }
+
     // -- fixtures ---------------------------------------------------------------------------------
 
     /// <summary>A minimal ID3v2.3 MP3 (the TagContractComplianceTests shape) with a title and, when
-    /// given, a genre stored as ONE string - the way other taggers write it.</summary>
-    private string Mp3(string? genre)
+    /// given, a genre and an artist each stored as ONE string - the way other taggers write them.</summary>
+    private string Mp3(string? genre, string? artist = null)
     {
         var bare = new byte[14];
         bare[0] = (byte)'I'; bare[1] = (byte)'D'; bare[2] = (byte)'3';
@@ -80,6 +104,7 @@ public sealed class Id3v23GenreTests : IDisposable
         var id3 = (TagLib.Id3v2.Tag)file.GetTag(TagLib.TagTypes.Id3v2, true)!;
         id3.SetTextFrame("TIT2", "Title");
         if (genre is not null) id3.SetTextFrame("TCON", genre);
+        if (artist is not null) id3.SetTextFrame("TPE1", artist);
         file.Save();
 
         return path;

@@ -71,13 +71,15 @@ public sealed record TrackIndexEntry
     /// shape reads as changed, is re-read once, and is then quiet again.</para>
     ///
     /// <para>0 = pre-0.6.1 (title/artist/album/genre/year only). Old JSON without the key
-    /// deserialises to 0, which is the correct answer for it.</para>
+    /// deserialises to 0, which is the correct answer for it. 2 = artist, album artist and genre
+    /// hold every value (an ID3v2.3 "AC/DC" or "Techno (Peak Time / Driving)" was cut at the first
+    /// '/' before).</para>
     /// </summary>
     [JsonPropertyName("tagRev")]         public int      TagRev      { get; init; }
 
-    /// <summary>The tag shape this build writes. (!) Bump when a tag field is ADDED to this record -
-    /// that is what re-reads the library once and fills the new column in.</summary>
-    public const int CurrentTagRev = 1;
+    /// <summary>The tag shape this build writes. (!) Bump when a tag field is ADDED to this record, or
+    /// when what an existing field holds changes - that is what re-reads the library once.</summary>
+    public const int CurrentTagRev = 2;
 
     // -- DSP analysis ----------------------------------------------------------
     /// <summary>
