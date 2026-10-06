@@ -1204,19 +1204,26 @@ public sealed partial class TagEditorViewModel
         if (ReferenceEquals(_targets, targets))
         {
             Status = SaveStatus(written, deferred, failed, renamesHeld, renamesFailed);
-
-            // The baseline is what was WRITTEN, not what the boxes hold now: the fields stay editable
-            // while a save runs, and anything typed meanwhile is not in the files and stays unsaved.
-            // The picture likewise: only the one this save wrote is settled.
-            _baseline = values;
-            if (_coverAction == coverActionAtStart && ReferenceEquals(_coverBytes, coverBytesAtStart))
-            {
-                _coverAction = CoverAction.Keep;
-                if (CoverState is CoverPlan.Remove or CoverPlan.Replace) CoverState = CoverPlan.Same;
-            }
-            _uniform |= write;                   // what we just wrote, they now agree on
-            IsDirty = Snapshot.From(this).Differs(values) || _coverAction != CoverAction.Keep;
             MarkId3Converted(didWrite);          // the files we wrote now carry the write format's version
+
+            // A file that FAILED does not hold the edits, so the edits are not saved: the editor stays
+            // dirty with everything as it was, the leave question answers "stay", and Save again
+            // retries - the files that did land compare as unchanged and are skipped. Calling a
+            // partial save clean let the host move on and left the failure in a log line.
+            if (failed == 0)
+            {
+                // The baseline is what was WRITTEN, not what the boxes hold now: the fields stay
+                // editable while a save runs, and anything typed meanwhile is not in the files and
+                // stays unsaved. The picture likewise: only the one this save wrote is settled.
+                _baseline = values;
+                if (_coverAction == coverActionAtStart && ReferenceEquals(_coverBytes, coverBytesAtStart))
+                {
+                    _coverAction = CoverAction.Keep;
+                    if (CoverState is CoverPlan.Remove or CoverPlan.Replace) CoverState = CoverPlan.Same;
+                }
+                _uniform |= write;               // what we just wrote, they now agree on
+                IsDirty = Snapshot.From(this).Differs(values) || _coverAction != CoverAction.Keep;
+            }
         }
 
         foreach (var t in targets) Saved?.Invoke(t.Path);

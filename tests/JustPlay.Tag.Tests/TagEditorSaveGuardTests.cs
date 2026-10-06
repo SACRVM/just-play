@@ -15,6 +15,7 @@ namespace JustPlay.Tag.Tests;
 ///   <item>A selection's save ran in the background with Save still enabled and the editor still
 ///     movable. A double click ran two loops over the same files; retargeting mid-save and choosing
 ///     Discard let the finishing save mark the NEW selection clean and drop its edits.</item>
+///   <item>A selection's save with failures reported the editor clean, so the host moved on.</item>
 /// </list>
 /// </summary>
 public sealed class TagEditorSaveGuardTests
@@ -169,6 +170,32 @@ public sealed class TagEditorSaveGuardTests
         Assert.Equal(1, report.Failed);
         Assert.Contains("b.mp3", report.FirstError);
         Assert.DoesNotContain(store.Editorial, w => w.Path == B);
+    }
+
+    // -- A save with a failure is not a clean save ------------------------------------------------
+
+    /// <summary>A file that failed does not hold the edits, so the edits are not saved: the editor
+    /// stays dirty and the leave question answers "stay", instead of letting the host move on with
+    /// the failure left in a log line.</summary>
+    [Fact]
+    public async Task A_save_with_a_failed_file_leaves_the_editor_dirty_until_a_retry_lands()
+    {
+        var store = Seed(A, B);
+        var vm = new TagEditorViewModel(store, store);
+        vm.LoadMany(Rows(store, A, B));
+        store.Files[B] = store.Files[B] with { ReadFailed = true };
+
+        vm.Title = "New";
+        await vm.SaveManyAsync();
+        Assert.True(vm.IsDirty);
+        Assert.True(vm.CanSave);
+
+        // The share is back: saving again finishes the job, and only then is the editor clean.
+        store.Files[B] = store.Files[B] with { ReadFailed = false };
+        var retry = await vm.SaveManyAsync();
+
+        Assert.Equal(0, retry.Failed);
+        Assert.False(vm.IsDirty);
     }
 
     // -- What a save names ------------------------------------------------------------------------
