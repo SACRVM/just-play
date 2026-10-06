@@ -397,7 +397,30 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     public string Status { get => _status; private set => Set(ref _status, value); }
 
     private bool _isDirty;
-    public bool IsDirty { get => _isDirty; private set => Set(ref _isDirty, value); }
+    public bool IsDirty
+    {
+        get => _isDirty;
+        private set { Set(ref _isDirty, value); Raise(nameof(CanSave)); }
+    }
+
+    private bool _isSaving;
+
+    /// <summary>
+    /// A multi-file save is writing right now. While it is, the editor does not move: Save and Revert
+    /// are off, <see cref="Load"/> / <see cref="LoadMany"/> / <see cref="Clear"/> do nothing, and the
+    /// panel's leave question answers "stay". Hosts that retarget the editor without going through
+    /// that question should check this first - a retarget mid-save used to let the finishing save
+    /// stamp its "saved" state onto the NEW selection and drop that selection's edits.
+    /// </summary>
+    public bool IsSaving
+    {
+        get => _isSaving;
+        private set { Set(ref _isSaving, value); Raise(nameof(CanSave)); }
+    }
+
+    /// <summary>What Save and Revert hang off: there are edits, and no save is already writing them.
+    /// A second click during a save used to start a second loop over the same files.</summary>
+    public bool CanSave => IsDirty && !IsSaving;
 
     /// <summary>Raised after a successful save so the host can refresh its own row for this file.</summary>
     public event Action<string>? Saved;
@@ -415,9 +438,12 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// Point the editor at a file. The caller is responsible for having dealt with
     /// <see cref="IsDirty"/> first - the prompt is the host's, because it needs an owner window.
+    /// Ignored while <see cref="IsSaving"/>.
     /// </summary>
     public void Load(string path)
     {
+        if (IsSaving) return;
+
         _loading = true;
         CancelCoverCompare();
         _targets = [];
@@ -490,9 +516,11 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Drop the editor's target (nothing selected).</summary>
+    /// <summary>Drop the editor's target (nothing selected). Ignored while <see cref="IsSaving"/>.</summary>
     public void Clear()
     {
+        if (IsSaving) return;
+
         _loading = true;
         CancelCoverCompare();
         _targets = [];

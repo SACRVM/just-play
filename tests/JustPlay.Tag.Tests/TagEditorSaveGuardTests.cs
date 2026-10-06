@@ -5,12 +5,16 @@ using JustPlay.UI.ViewModels;
 namespace JustPlay.Tag.Tests;
 
 /// <summary>
-/// The editor's save, around the write itself: what it names, and what it reads first.
+/// The editor's save, around the write itself: what it names, what it reads first, and what it does
+/// while it is running.
 ///
 /// <para>What was wrong:</para>
 /// <list type="bullet">
 ///   <item>A save wrote fields nobody edited - across a selection, the measurements it agreed on
 ///     too - and a file whose read failed was written anyway, from a blank snapshot.</item>
+///   <item>A selection's save ran in the background with Save still enabled and the editor still
+///     movable. A double click ran two loops over the same files; retargeting mid-save and choosing
+///     Discard let the finishing save mark the NEW selection clean and drop its edits.</item>
 /// </list>
 /// </summary>
 public sealed class TagEditorSaveGuardTests
@@ -45,6 +49,8 @@ public sealed class TagEditorSaveGuardTests
 
     private const string A = "C:/music/a.mp3";
     private const string B = "C:/music/b.mp3";
+    private const string C = "C:/music/c.mp3";
+    private const string D = "C:/music/d.mp3";
 
     private static TrackMetadata Track(string title = "Old", double? bpm = 128) => new()
     {
@@ -64,6 +70,87 @@ public sealed class TagEditorSaveGuardTests
 
     private static List<TagTarget> Rows(Store store, params string[] paths) =>
         paths.Select(p => new TagTarget(p, store.Read(p))).ToList();
+
+    /// <summary>An executor that holds every write until the gate opens - a save "in flight".</summary>
+    private static TagWriteExecutor Held(ManualResetEventSlim gate) => (path, write) =>
+    {
+        gate.Wait(TimeSpan.FromSeconds(10));
+        write(path);
+        return TagWriteOutcome.Written;
+    };
+
+    // -- B6: nothing moves while a selection is being saved ---------------------------------------
+
+    [Fact]
+    public async Task A_second_save_while_one_runs_does_nothing()
+    {
+        using var gate = new ManualResetEventSlim();
+        var store = Seed(A, B);
+        var vm = new TagEditorViewModel(store, store, Held(gate));
+        vm.LoadMany(Rows(store, A, B));
+        vm.Title = "New";
+        Assert.True(vm.CanSave);
+
+        var first = vm.SaveManyAsync();
+        Assert.True(vm.IsSaving);
+        Assert.False(vm.CanSave);                       // Save and Revert are off
+
+        var second = await vm.SaveManyAsync();
+        Assert.Equal(0, second.Written + second.Unchanged + second.Failed);
+
+        gate.Set();
+        var report = await first;
+
+        Assert.Equal(2, report.Written);
+        Assert.Equal(2, store.Editorial.Count);         // one loop over the files, not two
+        Assert.False(vm.IsSaving);
+        Assert.False(vm.IsDirty);
+    }
+
+    [Fact]
+    public async Task A_retarget_during_a_save_is_refused_and_the_saved_state_stays_with_its_files()
+    {
+        using var gate = new ManualResetEventSlim();
+        var store = Seed(A, B, C, D);
+        var vm = new TagEditorViewModel(store, store, Held(gate));
+        vm.LoadMany(Rows(store, A, B));
+        vm.Title = "New";
+
+        var save = vm.SaveManyAsync();
+        vm.LoadMany(Rows(store, C, D));
+        vm.Load(C);
+        vm.Clear();
+        Assert.True(vm.SelectedPaths.SetEquals([A, B]));
+
+        gate.Set();
+        await save;
+
+        Assert.True(vm.SelectedPaths.SetEquals([A, B]));
+        Assert.Equal("New", vm.Title);
+        Assert.False(vm.IsDirty);
+    }
+
+    /// <summary>The fields stay editable while the files are written, so anything typed meanwhile is
+    /// NOT in them - it must stay unsaved rather than be absorbed into the "saved" state.</summary>
+    [Fact]
+    public async Task An_edit_typed_while_the_save_runs_stays_unsaved()
+    {
+        using var gate = new ManualResetEventSlim();
+        var store = Seed(A, B);
+        var vm = new TagEditorViewModel(store, store, Held(gate));
+        vm.LoadMany(Rows(store, A, B));
+        vm.Title = "New";
+
+        var save = vm.SaveManyAsync();
+        vm.Album = "Typed meanwhile";
+        gate.Set();
+        await save;
+
+        Assert.True(vm.IsDirty);
+        var sets = vm.BuildPlan().Sets;
+        Assert.Contains(sets, s => s.Field == "ALBUM");
+        Assert.DoesNotContain(sets, s => s.Field == "TITLE");
+    }
 
     // -- A failed read writes nothing ------------------------------------------------------------
 
@@ -130,4 +217,5 @@ public sealed class TagEditorSaveGuardTests
         Assert.All(store.Analysis, w => Assert.Equal(130, w.Write.Bpm));
         Assert.Empty(store.Editorial);
     }
+
 }

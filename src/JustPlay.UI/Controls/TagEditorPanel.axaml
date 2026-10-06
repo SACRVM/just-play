@@ -268,11 +268,13 @@
                 <TextBlock Grid.Column="0" Text="{Binding Status}" Classes="tag-muted"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                            Margin="0,0,10,0"/>
+                <!-- Both hang off CanSave, not IsDirty: while a selection is being written the edits
+                     are still "unsaved", and neither a second save nor a revert may start then. -->
                 <Button Grid.Column="1" Classes="tag-ghost" Content="Revert" Margin="0,0,8,0"
-                        Click="OnRevert" IsEnabled="{Binding IsDirty}"
+                        Click="OnRevert" IsEnabled="{Binding CanSave}"
                         ToolTip.Tip="Throw the unsaved edits away and read the file again"/>
                 <Button Grid.Column="2" Classes="tag-save" Content="Save"
-                        Click="OnSave" IsEnabled="{Binding IsDirty}"/>
+                        Click="OnSave" IsEnabled="{Binding CanSave}"/>
             </Grid>
 
             <!-- ID3 VERSION CONVERSION NOTICE. Docked AFTER the footer, so it lands directly ABOVE

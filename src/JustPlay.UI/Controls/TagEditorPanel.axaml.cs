@@ -155,6 +155,13 @@ public partial class TagEditorPanel : UserControl
     }
 
     /// <summary>
+    /// A selection's save is under way - from the confirmation question to the last file. The view
+    /// model's <see cref="TagEditorViewModel.IsSaving"/> covers the writing; this covers the question
+    /// before it, during which the floating window's host can still be clicked.
+    /// </summary>
+    private bool _saving;
+
+    /// <summary>
     /// One file saves straight away; a selection asks first.
     /// <para>The asking is not ceremony: writing tags into dozens of files cannot be taken back, and
     /// what is about to happen is spread over eleven ticks the user may have scrolled past. The
@@ -163,17 +170,25 @@ public partial class TagEditorPanel : UserControl
     /// </summary>
     private async Task SaveAsync()
     {
-        if (Vm is not { } vm) return;
+        if (Vm is not { } vm || _saving || vm.IsSaving) return;
 
         if (!vm.IsMulti) { vm.Save(); return; }
 
-        var plan = vm.BuildPlan();
-        if (!plan.HasWork) { await vm.SaveManyAsync(); return; }   // sets "Nothing to save."
+        _saving = true;
+        try
+        {
+            var plan = vm.BuildPlan();
+            if (!plan.HasWork) { await vm.SaveManyAsync(); return; }   // sets "Nothing to save."
 
-        if (TopLevel.GetTopLevel(this) is not Window owner) return;
-        if (!await TagSaveConfirmWindow.AskAsync(owner, plan)) return;
+            if (TopLevel.GetTopLevel(this) is not Window owner) return;
+            if (!await TagSaveConfirmWindow.AskAsync(owner, plan)) return;
 
-        await vm.SaveManyAsync();
+            await vm.SaveManyAsync();
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private void OnRevert(object? sender, RoutedEventArgs e) => Vm?.Revert();
@@ -331,12 +346,16 @@ public partial class TagEditorPanel : UserControl
     }
 
     /// <summary>
-    /// Ask about unsaved edits before the target changes. Returns false only when the user picked
+    /// Ask about unsaved edits before the target changes. Returns false when the user picked
     /// Cancel, i.e. "stay on this file" - a mis-click must never be able to throw the work away,
     /// which is why this is a THREE-way question and not a yes/no.
+    /// <para>Also false, without asking, while a selection is being saved: the editor cannot move
+    /// until the save has finished with the files it is writing. Every host already treats false as
+    /// "stay", so none of them needs to know why.</para>
     /// </summary>
     public async Task<bool> ConfirmLeaveAsync(Window owner)
     {
+        if (_saving || Vm is { IsSaving: true }) return false;
         if (Vm is not { IsDirty: true } vm) return true;
 
         var choice = await ConfirmDialog.AskSaveDiscardCancelAsync(

@@ -611,11 +611,12 @@ public sealed partial class TagEditorViewModel
 
     /// <summary>
     /// Point the editor at a whole selection. One file falls straight through to <see cref="Load"/>,
-    /// so the ordinary case has no second code path to drift.
+    /// so the ordinary case has no second code path to drift. Ignored while <see cref="IsSaving"/>.
     /// </summary>
     public void LoadMany(IReadOnlyList<TagTarget> targets)
     {
         ArgumentNullException.ThrowIfNull(targets);
+        if (IsSaving) return;
 
         CancelCoverCompare();
 
@@ -1118,10 +1119,16 @@ public sealed partial class TagEditorViewModel
     ///
     /// <para>Every write goes through the host's executor, so a file that is PLAYING is deferred
     /// rather than failed, exactly as a single-file save is.</para>
+    ///
+    /// <para>While it runs, <see cref="IsSaving"/> holds the editor where it is - see there.</para>
     /// </summary>
     public async Task<TagSaveReport> SaveManyAsync(IProgress<int>? progress = null,
                                                    CancellationToken token = default)
     {
+        // A second click, or a leave-question answered "Save" while this one runs: one loop per
+        // selection, never two over the same files.
+        if (IsSaving) return new TagSaveReport(0, 0, 0, 0, null);
+
         var plan = BuildPlan();
         if (!plan.HasWork)
         {
@@ -1167,12 +1174,57 @@ public sealed partial class TagEditorViewModel
         // afterwards. A skipped or failed file was NOT converted, and must keep its warning.
         var didWrite = new bool[targets.Count];
 
+        // The picture as it stood when the save began - what tells, afterwards, whether one was
+        // picked or cleared while the files were being written.
+        var coverActionAtStart = _coverAction;
+        var coverBytesAtStart = _coverBytes;
+
         // A cover comparison still running would be reading the same files - see
         // StopCoverCompareAsync. It is started again afterwards if it had not finished.
         var comparing = CoverState == CoverPlan.Comparing;
-        await StopCoverCompareAsync().ConfigureAwait(true);
 
-        await Task.Run(() =>
+        IsSaving = true;
+        try
+        {
+            await StopCoverCompareAsync().ConfigureAwait(true);
+            await Task.Run(Run, token).ConfigureAwait(true);
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+
+        if (comparing && ReferenceEquals(_targets, targets) && CoverState == CoverPlan.Comparing)
+            StartCoverCompare(targets);
+
+        // The "saved" state belongs to the files that were saved. If the editor is pointed somewhere
+        // else by now, stamping it there would mark THAT selection clean and lose its edits - so it
+        // is applied only to the targets this save ran over. (IsSaving refuses a retarget, so this is
+        // the second lock on the same door.)
+        if (ReferenceEquals(_targets, targets))
+        {
+            Status = SaveStatus(written, deferred, failed, renamesHeld, renamesFailed);
+
+            // The baseline is what was WRITTEN, not what the boxes hold now: the fields stay editable
+            // while a save runs, and anything typed meanwhile is not in the files and stays unsaved.
+            // The picture likewise: only the one this save wrote is settled.
+            _baseline = values;
+            if (_coverAction == coverActionAtStart && ReferenceEquals(_coverBytes, coverBytesAtStart))
+            {
+                _coverAction = CoverAction.Keep;
+                if (CoverState is CoverPlan.Remove or CoverPlan.Replace) CoverState = CoverPlan.Same;
+            }
+            _uniform |= write;                   // what we just wrote, they now agree on
+            IsDirty = Snapshot.From(this).Differs(values) || _coverAction != CoverAction.Keep;
+            MarkId3Converted(didWrite);          // the files we wrote now carry the write format's version
+        }
+
+        foreach (var t in targets) Saved?.Invoke(t.Path);
+
+        return new TagSaveReport(written, unchanged, deferred, failed, firstError,
+                                 renamesFailed, firstRenameError);
+
+        void Run()
         {
             for (var i = 0; i < targets.Count; i++)
             {
@@ -1229,24 +1281,7 @@ public sealed partial class TagEditorViewModel
 
                 progress?.Report(++done);
             }
-        }, token).ConfigureAwait(true);
-
-        if (comparing && ReferenceEquals(_targets, targets) && CoverState == CoverPlan.Comparing)
-            StartCoverCompare(targets);
-
-        Status = SaveStatus(written, deferred, failed, renamesHeld, renamesFailed);
-
-        _baseline = Snapshot.From(this);
-        _coverAction = CoverAction.Keep;
-        if (CoverState is CoverPlan.Remove or CoverPlan.Replace) CoverState = CoverPlan.Same;
-        _uniform |= write;                       // what we just wrote, they now agree on
-        IsDirty = false;
-        MarkId3Converted(didWrite);              // the files we wrote now carry the write format's version
-
-        foreach (var t in targets) Saved?.Invoke(t.Path);
-
-        return new TagSaveReport(written, unchanged, deferred, failed, firstError,
-                                 renamesFailed, firstRenameError);
+        }
     }
 
     /// <summary>
