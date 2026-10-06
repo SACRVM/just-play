@@ -1306,7 +1306,9 @@ public sealed partial class TagEditorViewModel
     {
         var parts = new List<string>(4) { $"Saved {written}" };
 
-        if (deferred > 0) parts.Add($"{deferred} playing, they save at the track change");
+        // Deferred = the file was in use (the playing track, the pre-cue preview, another app); the
+        // write is queued and lands as soon as the file is free.
+        if (deferred > 0) parts.Add($"{deferred} in use, they save as soon as they are free");
         if (failed > 0) parts.Add($"{failed} failed");
 
         // "the tags did land" is the half that would otherwise be lost - the same sentence the
@@ -1318,8 +1320,8 @@ public sealed partial class TagEditorViewModel
 
         if (renamesHeld > 0)
             parts.Add(renamesHeld == 1
-                ? "1 rename needs the track stopped"
-                : $"{renamesHeld} renames need the track stopped");
+                ? "1 rename needs the file free"
+                : $"{renamesHeld} renames need the files free");
 
         return string.Join(" - ", parts) + ".";
     }

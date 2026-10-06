@@ -739,16 +739,18 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
                 return true;
 
             case TagWriteOutcome.Deferred:
-                // The file is playing. The write is queued, so the editor must NOT claim it landed -
-                // but it must also not keep nagging about unsaved changes for work already handed over.
+                // The file is in use - the playing track, the pre-cue preview, another app. The write
+                // is queued, so the editor must NOT claim it landed - but it must also not keep
+                // nagging about unsaved changes for work already handed over.
                 _coverAction = CoverAction.Keep;
                 _baseline = now;
                 IsDirty = false;
-                // A rename CANNOT ride along: the queued write targets the old path, and the engine
-                // is holding the handle anyway. Say so instead of silently dropping half the save.
+                // A rename CANNOT ride along: the queued write targets the old path, and whatever
+                // holds the file is holding the handle anyway. Say so instead of silently dropping
+                // half the save.
                 Status = newPath is null
-                    ? "Track is playing - saves when it changes."
-                    : "Track is playing - tags save when it changes, the rename needs it stopped.";
+                    ? "File is in use - the save lands as soon as it is free."
+                    : "File is in use - the tags land as soon as it is free, the rename needs it free too.";
                 if (newPath is not null) { BaseName = _baselineBaseName; MarkDirty(); }
                 return true;
 

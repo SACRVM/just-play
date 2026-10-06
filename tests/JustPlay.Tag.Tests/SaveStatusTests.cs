@@ -42,13 +42,14 @@ public class SaveStatusTests
                                           renamesHeld: 0, renamesFailed: 1));
     }
 
-    /// <summary>A playing track's write is queued for the track change; its rename cannot ride along,
-    /// because the queued write is aimed at the old path. Said, not silently skipped.</summary>
+    /// <summary>A file in use (the playing track, the pre-cue preview, another app) has its write
+    /// queued until it is free; its rename cannot ride along, because the queued write is aimed at the
+    /// old path. Said, not silently skipped - and said for every cause, not only playback.</summary>
     [Fact]
-    public void A_rename_held_by_playback_says_what_it_needs()
+    public void A_rename_held_by_a_file_in_use_says_what_it_needs()
     {
         Assert.Equal(
-            "Saved 4 - 1 playing, they save at the track change - 1 rename needs the track stopped.",
+            "Saved 4 - 1 in use, they save as soon as they are free - 1 rename needs the file free.",
             TagEditorViewModel.SaveStatus(written: 4, deferred: 1, failed: 0,
                                           renamesHeld: 1, renamesFailed: 0));
     }
@@ -56,7 +57,7 @@ public class SaveStatusTests
     [Fact]
     public void Several_of_each_read_as_plurals()
     {
-        Assert.Equal("Saved 8 - 3 renames failed, their tags did land - 2 renames need the track stopped.",
+        Assert.Equal("Saved 8 - 3 renames failed, their tags did land - 2 renames need the files free.",
             TagEditorViewModel.SaveStatus(written: 8, deferred: 0, failed: 0,
                                           renamesHeld: 2, renamesFailed: 3));
     }
