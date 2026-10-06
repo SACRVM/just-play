@@ -102,15 +102,19 @@ internal sealed class Program
         services.AddSingleton<ILoudnessDetector, Bs1770LoudnessDetector>();
         services.AddSingleton<ITrackAnalysisService, TrackAnalysisService>();
 
-        // ONE executor for every write this app makes - the tag editor's saves AND the analyse
-        // action's. It is what makes previewing safe: a file that is being played has an open
-        // handle, and a tag write on an open handle fails. JUST PLAY defers such a write to the
-        // track change because it is performing; a tagger has no reason to wait - it lets go of the
-        // file and writes immediately. Same abstraction, the answer each app can actually give.
+        // ONE gate for every write this app makes - the tag editor's saves AND the analyse
+        // action's (see TagWriteGate). It is what makes previewing safe: a file that is being played
+        // has an open handle, and a tag write on an open handle fails. JUST PLAY defers such a write
+        // to the track change because it is performing; a tagger has no reason to wait - it lets go
+        // of the file and writes immediately. Same abstraction, the answer each app can actually give.
         //
         // (!) Registered rather than built inline at the editor's call site: the moment a SECOND
         // caller needed it, an inline lambda would have become two lambdas that have to agree about
         // releasing the preview - and one of them would eventually not.
+        //
+        // A write that fails is named in the log and answered with TagWriteOutcome.Failed, never
+        // thrown at the editor - see TagWriteGate.Execute.
+        //
         // (!!) The release goes through the DISPATCHER, and it BLOCKS until it has happened.
         //
         // Through the dispatcher because the editor's save calls this on the UI thread but the
@@ -123,16 +127,15 @@ internal sealed class Program
         // before the write starts. Posting would let the write race the release and fail on a locked
         // file. There is no deadlock in it: the UI thread awaits the batch, it never waits on a
         // worker, and Invoke runs inline when we are already on the UI thread.
-        services.AddSingleton<TagWriteExecutor>(sp =>
+        services.AddSingleton(sp =>
         {
             var preview = sp.GetRequiredService<PreviewViewModel>();
-            return (path, write) =>
-            {
-                Dispatcher.UIThread.Invoke(() => preview.ReleaseIfPlaying(path));
-                write(path);
-                return TagWriteOutcome.Written;
-            };
+            var log = sp.GetRequiredService<UI.Logging.LogViewModel>();
+            return new TagWriteGate(
+                releaseFile: path => Dispatcher.UIThread.Invoke(() => preview.ReleaseIfPlaying(path)),
+                log: log.Append);
         });
+        services.AddSingleton<TagWriteExecutor>(sp => sp.GetRequiredService<TagWriteGate>().Execute);
 
         // THE editor is the shared one from JustPlay.UI - JUST TAG docks the same panel + view model
         // that JUST PLAY and the PRE CUE FINDER float. It used to have its own copy; that copy was

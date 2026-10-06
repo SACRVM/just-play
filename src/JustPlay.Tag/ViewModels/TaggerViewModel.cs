@@ -241,7 +241,7 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
                            IMetadataReader reader, TagSettingsService settings,
                            StartupTarget startup,
                            ITrackAnalysisService analysis, IMetadataWriter writer,
-                           TagWriteExecutor execute, LogViewModel log)
+                           TagWriteGate writes, LogViewModel log)
     {
         Editor = editor;
         Preview = preview;
@@ -249,7 +249,7 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
         _settings = settings;
         _analysis = analysis;
         _writer = writer;
-        _execute = execute;
+        _writes = writes;
         Log = log;
 
         // The SHARED column state (JustPlay.UI) - the same object the JUST PLAY queue and the Finder

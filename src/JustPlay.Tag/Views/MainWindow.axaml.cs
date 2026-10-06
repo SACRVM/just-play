@@ -488,21 +488,33 @@ public partial class MainWindow : Window, IFramelessWindow
         // and re-loading would throw away edits in progress for no reason.
         if (ShowsSameFiles(vm, rows)) return;
 
-        if (!await panel.ConfirmLeaveAsync(this))
+        try
         {
-            RestoreSelection(vm.Editor.FilePath);
-            return;
+            // A save that FAILED answers false here as well, so a failed save keeps the editor and
+            // the list on the old file, together, with the reason in the editor's status line.
+            if (!await panel.ConfirmLeaveAsync(this))
+            {
+                RestoreEditorSelection(vm);
+                return;
+            }
+
+            // MORE THAN ONE ROW turns the editor into a multi-file edit. The tags come off the ROWS
+            // rather than off disk: since schema v3 the index carries them, so "do these 37 files
+            // agree on their genre?" is answered without opening anything.
+            if (rows.Count > 1)
+                vm.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, r.Meta)).ToList());
+            else if (rows.Count == 1) vm.Editor.Load(rows[0].Path);
+            else vm.Editor.Clear();
+
+            vm.SyncAnalysisTab();
         }
-
-        // MORE THAN ONE ROW turns the editor into a multi-file edit. The tags come off the ROWS
-        // rather than off disk: since schema v3 the index carries them, so "do these 37 files agree
-        // on their genre?" is answered without opening anything.
-        if (rows.Count > 1)
-            vm.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, r.Meta)).ToList());
-        else if (rows.Count == 1) vm.Editor.Load(rows[0].Path);
-        else vm.Editor.Clear();
-
-        vm.SyncAnalysisTab();
+        catch (Exception)
+        {
+            // `async void` on an event handler must not let anything escape. Whatever got as far
+            // as the editor, the list goes back to what the editor HOLDS - a list showing one file
+            // and an editor holding another is a lie about what Save is about to write.
+            RestoreEditorSelection(vm);
+        }
     }
 
     /// <summary>Is the editor already pointed at exactly this set of files, in any order?</summary>
@@ -737,7 +749,35 @@ public partial class MainWindow : Window, IFramelessWindow
         }
     }
 
-    /// <summary>Point the list back at whatever the editor is actually holding.</summary>
+    /// <summary>
+    /// Point the list back at everything the editor is holding - the whole selection when it is a
+    /// multi-file edit. Restoring only <see cref="TagEditorViewModel.FilePath"/> cleared the list
+    /// instead, because a selection has no single path, while the editor kept its files.
+    /// </summary>
+    private void RestoreEditorSelection(TaggerViewModel vm)
+    {
+        if (!vm.Editor.IsMulti)
+        {
+            RestoreSelection(vm.Editor.FilePath);
+            return;
+        }
+
+        if (FileList is not { SelectedItems: { } items }) return;
+
+        var held = vm.Editor.SelectedPaths;
+        _restoringSelection = true;
+        try
+        {
+            items.Clear();
+            foreach (var row in vm.Files.Where(f => held.Contains(f.Path))) items.Add(row);
+        }
+        finally
+        {
+            _restoringSelection = false;
+        }
+    }
+
+    /// <summary>Point the list back at the one file the editor is holding.</summary>
     private void RestoreSelection(string? path)
     {
         if (FileList is not { } list || Vm is not { } vm) return;

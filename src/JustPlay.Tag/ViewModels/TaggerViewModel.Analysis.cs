@@ -33,7 +33,7 @@ namespace JustPlay.Tag.ViewModels;
 /// counts instead of throwing them away;</description></item>
 /// <item><description>the write is <see cref="AnalysisTagWrite.ForDetected"/> (the blob + the
 /// standard tags + the decision stamps, defined once for the whole suite) handed to the SAME
-/// <see cref="TagWriteExecutor"/> the tag editor saves through, so a file being previewed is
+/// <see cref="TagWriteGate"/> the tag editor saves through, so a file being previewed is
 /// released first instead of failing on an open handle;</description></item>
 /// <item><description>the rows repaint through <see cref="RefreshTagsFor"/>, the refresh the
 /// TRANSFORM window already uses;</description></item>
@@ -45,7 +45,7 @@ public sealed partial class TaggerViewModel
 {
     private readonly ITrackAnalysisService _analysis;
     private readonly IMetadataWriter _writer;
-    private readonly TagWriteExecutor _execute;
+    private readonly TagWriteGate _writes;
 
     private CancellationTokenSource? _analysisCts;
 
@@ -259,10 +259,11 @@ public sealed partial class TaggerViewModel
 
         if (write is not null)
         {
-            // The SAME executor the editor saves through: it releases the file if the preview is
-            // holding it, then writes. A throw here is caught by the runner, counted, and the file
-            // is named in the report - the batch keeps going.
-            _execute(path, p => _writer.Write(p, write));
+            // The SAME gate the editor saves through: it releases the file if the preview is
+            // holding it, then writes. Write, not Execute: a failure must THROW here, because the
+            // runner is what counts it and names the file in the report - an outcome code would be
+            // read as success. The batch keeps going.
+            _writes.Write(path, p => _writer.Write(p, write));
         }
 
         // The row reads itself back off disk through the existing refresh - so the AN light, BPM,
