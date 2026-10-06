@@ -1,6 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using JustPlay.Core.Layout;
 
 namespace JustPlay.UI.Behaviors;
 
@@ -24,6 +25,7 @@ public sealed class FramelessMaximize
     private readonly Window _window;
     private readonly string _cardName;
     private readonly string _gripsName;
+    private readonly WindowMaximizeState _state = new();
     private PixelRect _restoreBounds;
 
     private FramelessMaximize(Window window, string cardName, string gripsName)
@@ -47,10 +49,12 @@ public sealed class FramelessMaximize
         // and none of that goes through our button. Without this watcher the card kept its margin and
         // its corners on every one of those routes. (JUST PLAY's XAML has claimed a "WindowState
         // watcher" in a comment since it was written; there wasn't one. Verified 2026-08-05.)
+        // The watcher only feeds the OS half of the state: our own maximize leaves WindowState at
+        // Normal, so a minimize-and-restore must not end it - see WindowMaximizeState.
         window.PropertyChanged += (_, e) =>
         {
             if (e.Property != Window.WindowStateProperty) return;
-            behavior.IsMaximized = window.WindowState is WindowState.Maximized or WindowState.FullScreen;
+            behavior._state.OnOsStateChanged(ToOsState(window.WindowState));
             behavior.Apply();
         };
 
@@ -58,9 +62,18 @@ public sealed class FramelessMaximize
         return behavior;
     }
 
-    /// <summary>True while the custom maximize is active. <see cref="WindowPlacement"/> reads it so the
-    /// screen-filling bounds are never persisted as the window's normal size.</summary>
-    public bool IsMaximized { get; private set; }
+    private static OsWindowState ToOsState(WindowState state) => state switch
+    {
+        WindowState.Minimized  => OsWindowState.Minimized,
+        WindowState.Maximized  => OsWindowState.Maximized,
+        WindowState.FullScreen => OsWindowState.FullScreen,
+        _                      => OsWindowState.Normal,
+    };
+
+    /// <summary>True while the window is maximized, by our own maximize or the OS's.
+    /// <see cref="WindowPlacement"/> reads it so the screen-filling bounds are never persisted as the
+    /// window's normal size.</summary>
+    public bool IsMaximized => _state.IsMaximized;
 
     /// <summary>
     /// The same flag, ATTACHED TO THE WINDOW, so anything in the window's tree can bind to it.
@@ -91,28 +104,47 @@ public sealed class FramelessMaximize
     /// <summary>Fill the current screen's work area, or go back to the exact bounds from before.</summary>
     public void Toggle()
     {
+        if (IsMaximized) Restore();
+        else Maximize();
+    }
+
+    private void Maximize()
+    {
         var screen = _window.Screens.ScreenFromWindow(_window) ?? _window.Screens.Primary;
         if (screen is null) return;
 
         var scale = _window.RenderScaling;
+        _restoreBounds = new PixelRect(
+            _window.Position, PixelSize.FromSize(new Size(_window.Width, _window.Height), scale));
 
-        if (!IsMaximized)
-        {
-            _restoreBounds = new PixelRect(
-                _window.Position, PixelSize.FromSize(new Size(_window.Width, _window.Height), scale));
+        // The flag goes up BEFORE the bounds move. Every one of the three assignments below raises a
+        // change that WindowPlacement records, and a window that is not yet "maximized" at that moment
+        // gets the work area remembered as its normal size.
+        _state.EnterCustom();
 
-            var area = screen.WorkingArea;
-            _window.Position = area.Position;
-            _window.Width = area.Width / scale;
-            _window.Height = area.Height / scale;
-            IsMaximized = true;
-        }
-        else
+        var area = screen.WorkingArea;
+        _window.Position = area.Position;
+        _window.Width = area.Width / scale;
+        _window.Height = area.Height / scale;
+
+        Apply();
+    }
+
+    private void Restore()
+    {
+        // Maximized by the OS (Win+Up, a snap): hand it back to the OS, which restores its own normal
+        // bounds. The WindowState watcher clears that half of the state.
+        if (_state.IsOsMaximized) _window.WindowState = WindowState.Normal;
+
+        if (_state.IsCustomMaximized)
         {
+            // Down BEFORE the bounds move, the mirror of Maximize: these are the bounds to remember.
+            _state.LeaveCustom();
+
+            var scale = _window.RenderScaling;
             _window.Position = _restoreBounds.Position;
             _window.Width = _restoreBounds.Width / scale;
             _window.Height = _restoreBounds.Height / scale;
-            IsMaximized = false;
         }
 
         Apply();
