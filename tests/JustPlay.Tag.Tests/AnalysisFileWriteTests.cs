@@ -112,4 +112,48 @@ public class AnalysisFileWriteTests
         Assert.Equal(1, report.Failed);
         Assert.Equal("The media is write protected.", Assert.Single(report.Failures).Message);
     }
+
+    /// <summary>A measurement that finishes AFTER the window started closing.</summary>
+    private sealed class HeldAnalysis : ITrackAnalysisService
+    {
+        public TaskCompletionSource Measuring { get; } = new();
+        public TaskCompletionSource<AnalysisResult> Result { get; } = new();
+
+        public async Task<AnalysisResult> AnalyzeAsync(string filePath, IProgress<AnalysisResult>? progress = null,
+                                                       CancellationToken ct = default)
+        {
+            Measuring.TrySetResult();
+            return await Result.Task;
+        }
+    }
+
+    /// <summary>Closing cancels the run and then shuts the write gate. A file whose measurement lands
+    /// after that is refused without being opened - and is filed as not done, not as failed: nothing
+    /// went wrong with it, and calling it a failure would send someone looking for a broken file.</summary>
+    [Fact]
+    public async Task A_file_refused_because_the_window_is_closing_is_left_for_later_not_failed()
+    {
+        var analysis = new HeldAnalysis();
+        var gate = new TagWriteGate(releaseFile: _ => { }, log: _log.Add);
+        var writer = new RecordingWriter();
+        var step = new AnalysisFileWrite(analysis, new FakeReader(new TrackMetadata { FallbackName = "a" }),
+                                         writer, gate);
+        using var cts = new CancellationTokenSource();
+
+        var run = new AnalysisBatchRunner(step.RunAsync, mayWorkNow: () => true)
+            .RunAsync([File1], ct: cts.Token);
+        await analysis.Measuring.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        cts.Cancel();
+        await gate.ShutAsync();
+        analysis.Result.SetResult(new AnalysisResult { Bpm = 128 });
+
+        var report = await run.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Empty(writer.Writes);
+        Assert.True(report.Cancelled);
+        Assert.Equal(0, report.Failed);
+        Assert.Equal(0, report.Succeeded);
+        Assert.Equal(1, report.Remaining);
+    }
 }

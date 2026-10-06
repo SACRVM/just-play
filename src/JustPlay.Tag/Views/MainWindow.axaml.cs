@@ -128,7 +128,10 @@ public partial class MainWindow : Window, IFramelessWindow
         if (Vm is { } tagger && !_failuresHooked)
         {
             _failuresHooked = true;
-            tagger.AnalysisFailuresReported += () => OnShowAnalysisLog(this, e);
+            tagger.AnalysisFailuresReported += () =>
+            {
+                if (!_closing) OnShowAnalysisLog(this, e);
+            };
         }
 
         if (Vm is not { StartFile: { Length: > 0 } file } vm) return;
@@ -223,6 +226,14 @@ public partial class MainWindow : Window, IFramelessWindow
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
         if (Vm is not { } vm) return;
+
+        // Closing, and waiting for a write to land: the panes take no clicks (see the body grid in
+        // the XAML), and the keyboard must not start anything either.
+        if (vm.IsFinishing)
+        {
+            e.Handled = true;
+            return;
+        }
 
         // Escape unwinds ONE layer at a time - settings panel, then a focused text box, then the
         // window. Same ladder as the Finder's, with the settings PANEL in the overlay's place.
@@ -641,7 +652,8 @@ public partial class MainWindow : Window, IFramelessWindow
             var rows = vm.Selected.ToList();
             await vm.AnalyzeAsync(rows);
 
-            if (Vm is not { } after) return;
+            // A run that ended because the window is closing leaves the editor alone.
+            if (_closing || Vm is not { } after) return;
             after.Editor.LoadMany(rows.Select(r => new TagTarget(r.Path, null)).ToList());
             after.SyncAnalysisTab();
         }
@@ -841,25 +853,57 @@ public partial class MainWindow : Window, IFramelessWindow
     }
 
     /// <summary>
-    /// Closing with unsaved edits asks the same three-way question as switching files. The close is
-    /// cancelled first and re-issued after the answer, because the dialog is async and a
-    /// <see cref="Window.Closing"/> handler cannot wait.
+    /// Closing while files are being written, or with unsaved edits. The close is cancelled first
+    /// and re-issued once everything is settled, because both the wait and the dialog are async and
+    /// a <see cref="Window.Closing"/> handler cannot wait. What "settled" means, in which order, is
+    /// <see cref="CloseSequence"/>'s - this only supplies the dialog.
+    ///
+    /// <para>(!!) This used to look at unsaved edits alone. An ANALYZE batch or a multi-file save
+    /// writes from worker threads, so the process could exit in the middle of TagLib's save - and
+    /// when a tag grows, that save rewrites the file in place, so the audio was truncated.</para>
     /// </summary>
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (!_forceClose && Vm is { Editor.IsDirty: true })
+        if (_forceClose || Vm is not { } vm || (!_closing && vm.Closing.TryNow()))
         {
-            e.Cancel = true;
-            _ = ConfirmThenCloseAsync();
+            base.OnClosing(e);
             return;
         }
-        base.OnClosing(e);
+
+        e.Cancel = true;
+
+        // Already settling: a second click on the close button waits for the first one.
+        if (_closing) return;
+        _closing = true;
+
+        // Posted rather than started here: the sequence can finish without ever awaiting, and its
+        // Close() would then re-enter this handler from inside itself.
+        Dispatcher.UIThread.Post(() => _ = CloseWhenSettledAsync(vm));
     }
 
-    private async Task ConfirmThenCloseAsync()
+    private async Task CloseWhenSettledAsync(TaggerViewModel vm)
     {
-        if (Editor is { } panel && !await panel.ConfirmLeaveAsync(this)) return;
-        _forceClose = true;
-        Close();
+        try
+        {
+            if (!await vm.Closing.RunAsync(ConfirmLeaveAsync)) return;   // "stay" - nothing was shut
+            _forceClose = true;
+            Close();
+        }
+        catch (Exception)
+        {
+            // Staying open is recoverable; an exception out of a fire-and-forget task is not seen by
+            // anyone. The close button works again below.
+        }
+        finally
+        {
+            _closing = false;
+        }
     }
+
+    private Task<bool> ConfirmLeaveAsync() =>
+        Editor is { } panel ? panel.ConfirmLeaveAsync(this) : Task.FromResult(true);
+
+    /// <summary>The window has been asked to close and is settling - a batch that ends now must not
+    /// open the log or re-point the editor on the way out.</summary>
+    private bool _closing;
 }

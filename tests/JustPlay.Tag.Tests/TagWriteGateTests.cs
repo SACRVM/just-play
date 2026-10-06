@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using JustPlay.UI.ViewModels;
 
 namespace JustPlay.Tag.Tests;
@@ -85,5 +87,92 @@ public class TagWriteGateTests
 
         Assert.Equal("The process cannot access the file.", ex.Message);
         Assert.Empty(_log);
+    }
+
+    // -- Closing ----------------------------------------------------------------------------------
+    //
+    // When a tag grows, TagLib rewrites the file in place; a process that exits mid-write truncates
+    // the audio. The gate is what lets the window wait for the write in progress and refuse the rest.
+
+    [Fact]
+    public void Shutting_an_idle_gate_completes_at_once()
+    {
+        Assert.True(Gate().ShutAsync().IsCompleted);
+    }
+
+    [Fact]
+    public async Task Shutting_waits_for_the_write_in_progress_and_never_cuts_it_off()
+    {
+        var gate = Gate();
+        using var writing = new ManualResetEventSlim();
+        using var mayFinish = new ManualResetEventSlim();
+        var finished = false;
+
+        var writer = Task.Run(() => gate.Execute("a.mp3", _ =>
+        {
+            writing.Set();
+            mayFinish.Wait();
+            finished = true;
+        }));
+        Assert.True(writing.Wait(TimeSpan.FromSeconds(10)));
+
+        var drained = gate.ShutAsync();
+        Assert.False(drained.IsCompleted);
+        Assert.Equal(1, gate.InFlight);
+
+        mayFinish.Set();
+        await drained.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.True(finished);
+        Assert.Equal(TagWriteOutcome.Written, await writer);
+        Assert.Equal(0, gate.InFlight);
+    }
+
+    [Fact]
+    public void After_shutting_a_write_is_refused_without_touching_the_file()
+    {
+        var gate = Gate();
+        var touched = false;
+        gate.ShutAsync();
+
+        var outcome = gate.Execute(@"C:\music\next.mp3", _ => touched = true);
+
+        Assert.Equal(TagWriteOutcome.Failed, outcome);
+        Assert.False(touched);
+        Assert.Empty(_released);
+        Assert.Contains("\"next.mp3\"", Assert.Single(_log));
+    }
+
+    /// <summary>A refusal on the analyze run's entry point is a CANCELLATION, so its batch runner
+    /// files the file as not done rather than failed - it was never opened.</summary>
+    [Fact]
+    public void After_shutting_Write_throws_a_cancellation()
+    {
+        var gate = Gate();
+        gate.ShutAsync();
+
+        Assert.ThrowsAny<OperationCanceledException>(() => gate.Write("a.mp3", _ => { }));
+    }
+
+    [Fact]
+    public async Task A_write_that_fails_while_closing_still_lets_the_close_through()
+    {
+        var gate = Gate();
+        using var writing = new ManualResetEventSlim();
+        using var mayFail = new ManualResetEventSlim();
+
+        var writer = Task.Run(() => gate.Execute("a.mp3", _ =>
+        {
+            writing.Set();
+            mayFail.Wait();
+            throw new IOException("The network path was not found.");
+        }));
+        Assert.True(writing.Wait(TimeSpan.FromSeconds(10)));
+
+        var drained = gate.ShutAsync();
+        mayFail.Set();
+        await drained.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(TagWriteOutcome.Failed, await writer);
     }
 }

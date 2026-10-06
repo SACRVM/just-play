@@ -320,8 +320,10 @@
                          The editor column is FIXED width: it is the working surface, and a sidebar
                          that stretched with the window would move the fields around under your
                          hands. The folder <-> files gap is a draggable splitter (transparent - the
-                         resize cursor is the affordance), same as the Finder. -->
-                    <Grid Margin="16,4,16,14">
+                         resize cursor is the affordance), same as the Finder.
+                         While the window is closing and waits for a write to finish, the panes take
+                         no clicks: nothing new may start under a window that is on its way out. -->
+                    <Grid Margin="16,4,16,14" IsHitTestVisible="{Binding !IsFinishing}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="230" MinWidth="150"/> <!-- FOLDERS -->
                             <ColumnDefinition Width="16"/>                 <!-- splitter -->
@@ -701,13 +703,15 @@
 
                                 <!-- The SHARED floating overlay for the analyse run - never inline
                                      progress that pushes the list around. It floats over the rows,
-                                     which keep updating underneath it as each file lands.
+                                     which keep updating underneath it as each file lands. The same
+                                     overlay says "Finishing the current file" when the window is
+                                     closing and waits for a write to land.
                                      (!) STOP is not on it: the overlay is IsHitTestVisible=False by
                                      design, so the button lives in the FILES header above. -->
-                                <uic:BusyOverlay IsActive="{Binding IsAnalysing}"
-                                                 Message="{Binding AnalysisMessage}"
-                                                 Detail="{Binding AnalysisDetail}"
-                                                 Progress="{Binding AnalysisProgress}"/>
+                                <uic:BusyOverlay IsActive="{Binding ShowBusy}"
+                                                 Message="{Binding BusyMessage}"
+                                                 Detail="{Binding BusyDetail}"
+                                                 Progress="{Binding BusyProgress}"/>
                             </Panel>
                         </DockPanel>
 

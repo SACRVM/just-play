@@ -44,8 +44,12 @@ namespace JustPlay.Tag.ViewModels;
 public sealed partial class TaggerViewModel
 {
     private readonly AnalysisFileWrite _analyseOne;
+    private readonly TagWriteGate _writes;
 
     private CancellationTokenSource? _analysisCts;
+
+    /// <summary>The batch that is running, or the last one - what closing the window waits for.</summary>
+    private Task _analysisRun = Task.CompletedTask;
 
     /// <summary>The suite's "do not swallow errors silently" channel (shared LogWindow). Every file
     /// the analyzer could not read is named here, by name, and the pane's summary line opens it.</summary>
@@ -69,8 +73,8 @@ public sealed partial class TaggerViewModel
     }
 
     /// <summary>One batch at a time. A second run while one is going would fight it for the same
-    /// files and for the same overlay.</summary>
-    public bool CanAnalyze => _selected.Count > 0 && !IsAnalysing;
+    /// files and for the same overlay - and none at all once the window is closing.</summary>
+    public bool CanAnalyze => _selected.Count > 0 && !IsAnalysing && !IsFinishing;
 
     // -- The run ---------------------------------------------------------------------------------
 
@@ -85,22 +89,35 @@ public sealed partial class TaggerViewModel
             Set(ref _analysing, value);
             Raise(nameof(CanAnalyze));
             Raise(nameof(HasAnalysisNote));
-            // The busy disc and the empty note share the pane's centre - see ShowEmptyNote.
-            RaiseEmptyState();
+            RaiseBusy();
         }
     }
 
     private string? _analysisMessage;
-    /// <summary>The overlay's phase line ("Analysing", "Waiting for playback", "Paused").</summary>
-    public string? AnalysisMessage { get => _analysisMessage; private set => Set(ref _analysisMessage, value); }
+    /// <summary>The run's phase line ("Analysing", "Waiting for playback", "Paused") - shown through
+    /// <see cref="BusyMessage"/>.</summary>
+    public string? AnalysisMessage
+    {
+        get => _analysisMessage;
+        private set { Set(ref _analysisMessage, value); Raise(nameof(BusyMessage)); }
+    }
 
     private string? _analysisDetail;
-    /// <summary>The overlay's counter ("12 / 30").</summary>
-    public string? AnalysisDetail { get => _analysisDetail; private set => Set(ref _analysisDetail, value); }
+    /// <summary>The run's counter ("12 / 30") - shown through <see cref="BusyDetail"/>.</summary>
+    public string? AnalysisDetail
+    {
+        get => _analysisDetail;
+        private set { Set(ref _analysisDetail, value); Raise(nameof(BusyDetail)); }
+    }
 
     private double? _analysisProgress;
-    /// <summary>0..1 for the overlay's ring, or null while there is nothing to divide by.</summary>
-    public double? AnalysisProgress { get => _analysisProgress; private set => Set(ref _analysisProgress, value); }
+    /// <summary>0..1 for the ring, or null while there is nothing to divide by - shown through
+    /// <see cref="BusyProgress"/>.</summary>
+    public double? AnalysisProgress
+    {
+        get => _analysisProgress;
+        private set { Set(ref _analysisProgress, value); Raise(nameof(BusyProgress)); }
+    }
 
     private string? _analysisNote;
 
@@ -125,11 +142,18 @@ public sealed partial class TaggerViewModel
     /// <para>(!) There is NO freshness gate: a file that already carries a current blob is analysed
     /// again, because you asked for THESE files. Silently skipping the ones we think are fine would
     /// make "re-analyse" a no-op on exactly the tracks somebody re-analyses deliberately.</para>
+    ///
+    /// <para>The run is kept, so closing the window can stop it and wait for the files in progress
+    /// instead of ending the process in the middle of a write.</para>
     /// </summary>
-    public async Task AnalyzeAsync(IReadOnlyList<FileRow> rows)
+    public Task AnalyzeAsync(IReadOnlyList<FileRow> rows)
     {
-        if (IsAnalysing || rows is not { Count: > 0 }) return;
+        if (IsAnalysing || IsFinishing || rows is not { Count: > 0 }) return Task.CompletedTask;
+        return _analysisRun = RunAnalysisAsync(rows);
+    }
 
+    private async Task RunAnalysisAsync(IReadOnlyList<FileRow> rows)
+    {
         // Path -> row, so a worker can find the row it just finished without walking the listing.
         var byPath = rows
             .GroupBy(r => r.Path, StringComparer.OrdinalIgnoreCase)

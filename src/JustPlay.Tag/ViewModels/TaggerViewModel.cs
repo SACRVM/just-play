@@ -247,6 +247,7 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
         Preview = preview;
         _reader = reader;
         _settings = settings;
+        _writes = writes;
         _analyseOne = new AnalysisFileWrite(analysis, reader, writer, writes);
         Log = log;
 
@@ -588,10 +589,10 @@ public sealed partial class TaggerViewModel : INotifyPropertyChanged
         // empty folder would send you looking for a set you never opened.
         isPlaylist:   _sourcePath is { Length: > 0 } src && M3uPlaylist.IsPlaylist(src));
 
-    /// <summary>Show the centred empty note. Off while a batch is running: the busy disc owns the
+    /// <summary>Show the centred empty note. Off while the busy overlay is up: the busy disc owns the
     /// pane's centre, and a line under it would stick out past the rim on both sides (the Finder
     /// documents the same rule for its hints).</summary>
-    public bool ShowEmptyNote => Blank.IsEmpty && !IsAnalysing;
+    public bool ShowEmptyNote => Blank.IsEmpty && !ShowBusy;
 
     /// <summary>The one calm line.</summary>
     public string EmptyLine => Blank.Line;
