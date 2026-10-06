@@ -112,8 +112,9 @@ Older releases: [the Releases page](https://github.com/SACRVM/just-play/releases
   — re-analyse them by hand.
 - **Genres an older build rewrote stay rewritten.** Up to the 0.6.0 beta, every tag write to an
   ID3v2.3 file turned the `/` in its genre into `;` — "Techno (Peak Time / Driving)" came back as
-  "Techno (Peak Time ; Driving)". 0.6.0 writes a genre back exactly as stored, but it cannot tell
-  which `;` used to be a `/`. JUST TAG's Replace fixes them in one previewed pass.
+  "Techno (Peak Time ; Driving)", sometimes with the bracket doubled: "Techno ((Peak Time ;
+  Driving)". 0.6.0 writes a genre back exactly as stored, but it cannot tell which `;` used to be a
+  `/`. Two previewed Replace passes in JUST TAG fix them: ` ; ` to ` / `, then `((` to `(`.
 - **macOS / Linux are not validated.** Cross-platform code, no real-hardware run. There is a macOS
   publish script and no Linux one.
 
