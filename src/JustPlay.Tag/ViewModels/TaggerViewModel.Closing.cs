@@ -22,12 +22,11 @@ public sealed partial class TaggerViewModel
 
     /// <summary>
     /// Whether the shared editor is in the middle of a multi-file save. That state belongs to the
-    /// editor - the save runs inside <c>TagEditorViewModel.SaveManyAsync</c> - and the editor does
-    /// not expose it yet, so this answers false. A running save is still never cut off mid-file (the
-    /// write gate drains it before the window closes); what it does not do yet is hold the
-    /// unsaved-changes prompt back while that save runs.
+    /// editor - the save runs inside <c>TagEditorViewModel.SaveManyAsync</c> - and closing reads it
+    /// so the unsaved-changes prompt is held back while that save runs: the prompt's Save would start
+    /// a second one on top of it.
     /// </summary>
-    private static bool EditorSaving => false;
+    private bool EditorSaving => Editor.IsSaving;
 
     private bool _finishing;
 

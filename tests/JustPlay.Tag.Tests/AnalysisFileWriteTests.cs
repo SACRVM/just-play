@@ -48,8 +48,8 @@ public class AnalysisFileWriteTests
             Writes.Add((filePath, write));
         }
 
-        public void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
-                                  byte[]? newCover, string? coverMimeType) =>
+        public void WriteEditable(string filePath, EditableTags tags, EditableField fields,
+                                  CoverAction coverAction, byte[]? newCover, string? coverMimeType) =>
             throw new InvalidOperationException("The analyze run never writes editorial tags.");
 
         public void Restore(string filePath, TagRestore restore) =>

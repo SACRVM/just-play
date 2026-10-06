@@ -26,8 +26,8 @@ public class EditorHoldsAnyTests : IDisposable
 
         public EditableTags ReadEditable(string filePath) => EditorialWrite.From(Read(filePath));
 
-        public void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
-                                  byte[]? newCover, string? coverMimeType) { }
+        public void WriteEditable(string filePath, EditableTags tags, EditableField fields,
+                                  CoverAction coverAction, byte[]? newCover, string? coverMimeType) { }
 
         public void Write(string filePath, TagWrite write, TagWritePolicy? policy = null) { }
 
