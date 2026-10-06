@@ -149,8 +149,8 @@ public sealed class LibraryOrganiseSyncTests : IDisposable
     [Fact]
     public void The_folder_fingerprints_of_both_ends_are_forgotten()
     {
-        // The fingerprint is a (count, newest mtime) early-out a later VerifyFolder trusts. Left in
-        // place after a move it would let the next folder check short-circuit straight past it.
+        // The fingerprint is an early-out a later VerifyFolder trusts. Left in place after a move it
+        // could let the next folder check short-circuit straight past it.
         LibraryIndexRegistry.Register(_root);
         var before = Write(_from, "a.mp3");
         Index(before);

@@ -627,15 +627,10 @@ public sealed class LibrarySyncTests : IDisposable
     }
 
     [Fact]
-    public void KNOWN_LIMIT_a_change_within_the_time_tolerance_of_the_newest_file_is_invisible()
+    public void A_change_within_the_time_tolerance_is_seen_when_the_size_moved()
     {
-        // The fingerprint's resolution is the same 2 s tolerance the per-file key uses (FAT/exFAT
-        // round to 2 s). A file edited within that window of the folder's previously-newest one
-        // therefore does not move it, and the check early-outs.
-        //
-        // Harmless in practice - a retag happens minutes or days after the folder last changed, and
-        // the first look at a folder always does the full pass - but it is a real property of the
-        // design, not an accident, so it is pinned here rather than discovered later.
+        // Before the listing hash, the fingerprint saw only the newest mtime with a 2 s tolerance, so
+        // this edit was invisible. The hash includes each file's size.
         var folder = Path.Combine(_root, "GENRES");
         var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
         var b = MakeFile(@"GENRES\b.mp3", blob: Blob());
@@ -649,13 +644,125 @@ public sealed class LibrarySyncTests : IDisposable
         File.WriteAllText(b, "changed");
         File.SetLastWriteTimeUtc(b, now.AddSeconds(1));   // inside the tolerance
 
+        Assert.True(_sync.VerifyFolder(folder).Changed);
+        Assert.Equal([b], _tags.Opened);
+    }
+
+    [Fact]
+    public void KNOWN_LIMIT_a_rewrite_that_keeps_name_size_and_second_is_invisible()
+    {
+        // The hash takes each file's name, size and mtime cut to the whole second. A rewrite that keeps
+        // all three - same-length content saved within the same second - does not move it, and the
+        // check early-outs. The per-file key would not see it either (same size, mtime inside its 2 s
+        // tolerance), so the early-out hides nothing a full pass would have found. Pinned here as a
+        // property of the design rather than discovered later.
+        var folder = Path.Combine(_root, "GENRES");
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        var b = MakeFile(@"GENRES\b.mp3", blob: Blob());
+        var second = new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(a, second);
+        File.SetLastWriteTimeUtc(b, second);
+
+        _sync.VerifyFolder(folder);
+        _tags.Opened.Clear();
+
+        File.WriteAllText(b, "AUDIO");                               // same length as "audio"
+        File.SetLastWriteTimeUtc(b, second.AddMilliseconds(400));   // same second
+
         var result = _sync.VerifyFolder(folder);
 
         Assert.False(result.Changed);
         Assert.Empty(_tags.Opened);
         // ...and an explicit Refresh (or any later change in the folder) still repairs it.
-        File.SetLastWriteTimeUtc(b, now.AddMinutes(5));
+        File.SetLastWriteTimeUtc(b, second.AddMinutes(5));
         Assert.True(_sync.VerifyFolder(folder).Changed);
+    }
+
+    [Fact]
+    public void A_RENAMED_file_moves_the_fingerprint()
+    {
+        // A rename keeps the file's mtime and the folder's count: (count, newest mtime) alone stayed put.
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\keep.mp3", blob: Blob());
+        var old = MakeFile(@"GENRES\old-name.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+
+        var renamed = Path.Combine(folder, "new-name.mp3");
+        Move(old, renamed);
+        _tags.ByPath[renamed] = _tags.ByPath[old];
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.True(result.Changed);
+        Assert.Equal(1, result.Added);
+        Assert.Equal(1, result.MarkedMissing);
+        Assert.NotNull(_db.TryGet(renamed));
+    }
+
+    [Fact]
+    public void A_same_count_REPLACEMENT_by_an_older_copy_moves_the_fingerprint()
+    {
+        // One track deleted, another copied in with Explorer, which keeps the SOURCE file's mtime -
+        // older than the folder's newest. Count and newest mtime both stay where they were.
+        var folder = Path.Combine(_root, "GENRES");
+        var newest = MakeFile(@"GENRES\newest.mp3", blob: Blob());
+        var goes   = MakeFile(@"GENRES\goes.mp3", blob: Blob());
+        var t      = new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(newest, t);
+        File.SetLastWriteTimeUtc(goes, t.AddDays(-1));
+        _sync.VerifyFolder(folder);
+
+        File.Delete(goes);
+        var comes = MakeFile(@"GENRES\comes.mp3", content: "other audio", blob: Blob());
+        File.SetLastWriteTimeUtc(comes, t.AddDays(-30));
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.True(result.Changed);
+        Assert.Equal(1, result.Added);
+        Assert.Equal(1, result.MarkedMissing);
+        Assert.NotNull(_db.TryGet(comes));
+    }
+
+    [Fact]
+    public void A_file_OVERWRITTEN_by_an_older_copy_is_re_read()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        var newest = MakeFile(@"GENRES\newest.mp3", blob: Blob());
+        var a      = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        var t      = new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(newest, t);
+        File.SetLastWriteTimeUtc(a, t.AddDays(-1));
+        _sync.VerifyFolder(folder);
+
+        File.WriteAllText(a, "a different track entirely");
+        File.SetLastWriteTimeUtc(a, t.AddDays(-30));
+        _tags.ByPath[a] = _tags.ByPath[a] with { Title = "Replaced" };
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.Equal(1, result.Updated);
+        Assert.Equal("Replaced", _db.TryGet(a)!.Title);
+    }
+
+    [Fact]
+    public void A_fingerprint_stored_by_an_older_build_costs_one_per_file_pass_and_is_then_replaced()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+
+        // What an older build left behind: count and newest mtime, no listing hash.
+        var current = _db.FolderState(folder)!.Value;
+        _db.SetFolderState(folder, current with { ListingHash = null });
+        _tags.Opened.Clear();
+
+        var result = _sync.VerifyFolder(folder);     // no early-out, no throw, nothing to re-read
+
+        Assert.False(result.Changed);
+        Assert.Empty(_tags.Opened);
+        Assert.NotNull(_db.FolderState(folder)!.Value.ListingHash);
+        Assert.True(_db.FolderState(folder)!.Value.Matches(current));
     }
 
     [Fact]

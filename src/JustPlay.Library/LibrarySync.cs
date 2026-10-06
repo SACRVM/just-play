@@ -186,11 +186,12 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     /// Checks ONE folder against the index and repairs it if it drifted - the background half of
     /// painting a directory from the index.
     ///
-    /// <para>The early-out is a fingerprint (2026-07-30): the file count plus the newest
-    /// modification time among the folder's tracks. It moves for an added, deleted, renamed OR
-    /// retagged file, which the folder's own timestamp does not - measured, <c>GENRES\Bass_House</c>
-    /// held a file modified 07-29 while the directory still read 07-17. When it matches, this
-    /// returns having written nothing.</para>
+    /// <para>The early-out is a <see cref="FolderFingerprint"/>: the file count, the newest
+    /// modification time among the folder's tracks and a hash of every name, size and mtime. It
+    /// moves for an added, deleted, renamed, replaced OR retagged file - the folder's own timestamp
+    /// misses retags (measured, <c>GENRES\Bass_House</c> held a file modified 07-29 while the
+    /// directory still read 07-17). When it matches, nothing is read and only a missing flag can
+    /// change.</para>
     ///
     /// <para>Cheap enough to run behind every folder open: 0.12-0.25 ms per file, measured over SMB
     /// (276 ms for the 1,092-file folder, ~18 ms for a normal one) - but only because it is NOT on

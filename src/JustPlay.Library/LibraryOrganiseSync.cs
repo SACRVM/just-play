@@ -60,9 +60,9 @@ public sealed class LibraryOrganiseSync(IMetadataReader metadata, Action<string>
 
                 var paths = group.Select(x => x.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-                // The folder fingerprint is a (count, newest mtime) early-out that a later
-                // VerifyFolder trusts. A move changes both folders, so forgetting their fingerprints
-                // is what stops the next folder check from short-circuiting past the change.
+                // The folder fingerprint is an early-out that a later VerifyFolder trusts. A move
+                // changes both folders, and forgetting their fingerprints guarantees the next folder
+                // check looks at them file by file instead of short-circuiting past the change.
                 foreach (var folder in paths.Select(Path.GetDirectoryName)
                                             .OfType<string>()
                                             .Distinct(StringComparer.OrdinalIgnoreCase))

@@ -29,7 +29,7 @@ namespace JustPlay.Library;
 public sealed class LibraryDb : IDisposable
 {
     /// <summary>Schema version stored in SQLite's <c>user_version</c>. Bump + migrate when columns change.</summary>
-    private const int SchemaVersion = 3;
+    private const int SchemaVersion = 4;
 
     private readonly SqliteConnection _cx;
     private readonly Lock _gate = new();
@@ -138,6 +138,13 @@ public sealed class LibraryDb : IDisposable
             }
         }
 
+        // v4: the folder fingerprint gains a hash of its listing, so a rename or a same-count
+        // replacement moves it. Existing rows get NULL, which never matches a live fingerprint: each
+        // folder costs one extra per-file check, which then stores the new form. (v0 and v1 created
+        // the folders table from FolderSchema above, which already has the column.)
+        if (version is 2 or 3)
+            Execute(_cx, "ALTER TABLE folders ADD COLUMN listing_hash INTEGER;");
+
         Execute(_cx, $"PRAGMA user_version={SchemaVersion};");
     }
 
@@ -182,16 +189,18 @@ public sealed class LibraryDb : IDisposable
         """;
 
     /// <summary>
-    /// What the last look at a folder found: how many tracks were in it and the newest modification
-    /// time among them. Comparing this against the live listing is what tells the finder whether the
-    /// rows it just painted from the index are still true.
+    /// What the last look at a folder found: how many tracks were in it, the newest modification
+    /// time among them and a hash of the listing (<see cref="FolderFingerprint"/>). Comparing this
+    /// against the live listing is what tells the finder whether the rows it just painted from the
+    /// index are still true.
     /// </summary>
     private const string FolderSchema = """
         CREATE TABLE IF NOT EXISTS folders (
-            path        TEXT PRIMARY KEY COLLATE NOCASE,
-            file_count  INTEGER NOT NULL,
-            max_mtime   TEXT,
-            checked_at  TEXT NOT NULL
+            path         TEXT PRIMARY KEY COLLATE NOCASE,
+            file_count   INTEGER NOT NULL,
+            max_mtime    TEXT,
+            checked_at   TEXT NOT NULL,
+            listing_hash INTEGER
         );
         """;
 
@@ -506,7 +515,8 @@ public sealed class LibraryDb : IDisposable
         lock (_gate)
         {
             using var cmd = _cx.CreateCommand();
-            cmd.CommandText = "SELECT file_count, max_mtime FROM folders WHERE path=$path;";
+            cmd.CommandText =
+                "SELECT file_count, max_mtime, listing_hash FROM folders WHERE path=$path;";
             cmd.Parameters.AddWithValue("$path", key);
 
             using var r = cmd.ExecuteReader();
@@ -518,7 +528,10 @@ public sealed class LibraryDb : IDisposable
                     System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
                 newest = parsed.ToUniversalTime();
 
-            return new FolderFingerprint(r.GetInt32(0), newest);
+            // NULL = stored before the hash existed (or by an older build) - never matches a live one.
+            long? hash = r.IsDBNull(2) ? null : r.GetInt64(2);
+
+            return new FolderFingerprint(r.GetInt32(0), newest, hash);
         }
     }
 
@@ -531,18 +544,20 @@ public sealed class LibraryDb : IDisposable
         {
             using var cmd = _cx.CreateCommand();
             cmd.CommandText = """
-                INSERT INTO folders (path, file_count, max_mtime, checked_at)
-                VALUES ($path, $count, $mtime, $checked)
+                INSERT INTO folders (path, file_count, max_mtime, checked_at, listing_hash)
+                VALUES ($path, $count, $mtime, $checked, $hash)
                 ON CONFLICT(path) DO UPDATE SET
                     file_count=excluded.file_count,
                     max_mtime=excluded.max_mtime,
-                    checked_at=excluded.checked_at;
+                    checked_at=excluded.checked_at,
+                    listing_hash=excluded.listing_hash;
                 """;
             cmd.Parameters.AddWithValue("$path", key);
             cmd.Parameters.AddWithValue("$count", state.FileCount);
             cmd.Parameters.AddWithValue("$mtime",
                 state.MaxModifiedUtc is { } m ? TrackIndexEntry.FormatUtc(m) : DBNull.Value);
             cmd.Parameters.AddWithValue("$checked", DateTime.UtcNow.ToString("o"));
+            cmd.Parameters.AddWithValue("$hash", state.ListingHash is { } h ? h : DBNull.Value);
             cmd.ExecuteNonQuery();
         }
     }

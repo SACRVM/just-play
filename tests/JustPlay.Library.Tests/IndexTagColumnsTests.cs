@@ -125,6 +125,32 @@ public sealed class IndexTagColumnsTests : IDisposable
     }
 
     [Fact]
+    public void A_folder_fingerprint_from_before_the_listing_hash_reads_back_without_one()
+    {
+        CreateV2Database(DbPath, @"C:\m\old.mp3");
+        using (var cx = new SqliteConnection($"Data Source={DbPath}"))
+        {
+            cx.Open();
+            using var cmd = cx.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO folders (path, file_count, max_mtime, checked_at)
+                VALUES ('C:\m', 1, '2026-08-01T10:00:00.0000000Z', '2026-08-01T12:00:00.0000000Z');
+                """;
+            cmd.ExecuteNonQuery();
+            SqliteConnection.ClearPool(cx);
+        }
+
+        using var db = LibraryDb.Open(DbPath);   // <- adds folders.listing_hash
+        var stored = db.FolderState(@"C:\m");
+
+        Assert.NotNull(stored);
+        Assert.Equal(1, stored!.Value.FileCount);
+        Assert.Null(stored.Value.ListingHash);
+        // ...so it never matches a live fingerprint, which always carries one.
+        Assert.False(stored.Value.Matches(stored.Value with { ListingHash = 0 }));
+    }
+
+    [Fact]
     public void Migrating_twice_is_harmless()
     {
         CreateV2Database(DbPath, @"C:\m\old.mp3");
