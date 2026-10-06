@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustPlay.App.Services;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Layout;
 using JustPlay.Core.Models;
 using JustPlay.Core.Playback;
 using JustPlay.Core.Playlists;
@@ -408,6 +409,16 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     partial void OnSelectedChanged(FinderItemViewModel? value)
     {
         RaiseDetail();
+        // A rebuild takes the cursor down and puts it back. Whether that left it on a different FILE -
+        // the only thing the cue may react to - is decided once, at the end of RebuildView. Reacting
+        // here restarted the audition of the very track that was playing whenever a folder finished
+        // loading in the background.
+        if (IsRebuildingView) return;
+        FollowCursorWithCue(value);
+    }
+
+    private void FollowCursorWithCue(FinderItemViewModel? value)
+    {
         _playDebounce.Stop();
         // Auto-play mode (opt-in): settle on a row and it auditions after the ~1 s debounce, so racing
         // the list never blasts the ears (hearing-sensitivity requirement). Default OFF - Enter plays instead.
@@ -498,6 +509,38 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     /// live - and setting <see cref="Selected"/>=null alone can't reach a Ctrl-click MULTI-selection
     /// (the KeyWheel-click crash, fixed 2026-07-08).</summary>
     public Action? ClearFileSelection { get; set; }
+
+    /// <summary>Set by the window: add these rows to the file ListBox's selection, next to the cursor -
+    /// so a multi-selection survives a rebuild instead of collapsing to one row.</summary>
+    public Action<IReadOnlyList<FinderItemViewModel>>? RestoreFileSelection { get; set; }
+
+    /// <summary>Set by the window: a rebuild is over and the selection is back. Whoever sat the rebuild
+    /// out (the tag editor) looks at the result ONCE - and acts only if it names other files.</summary>
+    public Action? FileSelectionRestored { get; set; }
+
+    /// <summary>True while <see cref="RebuildView"/> swaps the rows under the selection. On the way
+    /// the selection passes through "nothing selected" and new row objects, and nothing that follows
+    /// the selection may act on either - see <see cref="FileSelectionRestored"/>.</summary>
+    public bool IsRebuildingView { get; private set; }
+
+    /// <summary>Files the tag editor renamed, old normalized path -> new. A rename is followed by a
+    /// reload, and the reload must find the cursor on the file under its NEW name, or it falls back to
+    /// the first row and takes the editor with it. An entry goes once a rebuild has found its file.</summary>
+    private readonly Dictionary<string, string> _renamed = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The tag editor renamed <paramref name="from"/> to <paramref name="to"/>: reload the pane,
+    /// keeping the selection on the renamed file. A tag re-read cannot fix the row - its path moved.</summary>
+    public void FollowRename(string from, string to)
+    {
+        _renamed[NormalizePath(from)] = NormalizePath(to);
+        RefreshFolder();
+    }
+
+    /// <summary>The name a selected file goes by in the rows about to be shown. Normally its own; after a
+    /// rename, the NEW name once the listing has it - a listing served from the index before the
+    /// background check has caught up still shows the old one, and then the old one is right.</summary>
+    private string? AsListed(string? path, HashSet<string> listed) =>
+        path is not null && !listed.Contains(path) && _renamed.TryGetValue(path, out var to) ? to : path;
 
     public bool HasFileSelection => SelectedItems.Count > 0;
 
@@ -1611,8 +1654,10 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         // Song played out: in auto-play mode, if she's still ON that row, flow to the next track; in
         // manual mode (Enter-to-play) a finished song just stops - don't yank the selection around.
         IsCuePaused = false;
-        if (AutoPlayOnSelect && _cuedItem is { } ended && ReferenceEquals(Selected, ended))
-            AdvanceToNextTrackRow(ended);
+        // Same FILE, not same object: a background reload rebuilds the rows while a song plays.
+        if (AutoPlayOnSelect && _cuedItem is { } ended && Selected is { } on
+            && string.Equals(on.NormalizedPath, ended.NormalizedPath, StringComparison.OrdinalIgnoreCase))
+            AdvanceToNextTrackRow(on);
     }
 
     public void SeekForward() => Seek(+1);
@@ -2047,7 +2092,8 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
     }
 
     /// <summary>Rebuild <see cref="Items"/> from the master list through the active filter + sort, keeping
-    /// the cursor on the same row when it survives. The single funnel every filter/sort change flows through.</summary>
+    /// the selection on the same FILES when they survive. The single funnel every filter/sort change -
+    /// and every background reload - flows through.</summary>
     private void RebuildView()
     {
         // Filtering needs every row's data too - while a folder is still filling, show ALL rows (the
@@ -2055,17 +2101,48 @@ public sealed partial class PreCueFinderViewModel : ViewModelBase
         var filtered = AllHydrated ? _masterItems.Where(PassesFilter).ToList() : _masterItems.ToList();
         SortList(filtered);
 
+        // Remember the selection by FILE, not by row object. Rebuilds also run unprompted - when a
+        // folder finishes loading, and when the background check finds the folder changed on disk and
+        // reloads it with NEW row objects - and the tag editor follows this selection. Kept by
+        // reference, a reload lost it, fell back to the first row, and the editor jumped there.
+        var listed = new HashSet<string>(filtered.Select(i => i.NormalizedPath), StringComparer.OrdinalIgnoreCase);
+        var keepCursor = AsListed(Selected?.NormalizedPath, listed);
+        var keepSelected = SelectedItems.Select(i => AsListed(i.NormalizedPath, listed)!).ToList();
+
         // Detach the selection BEFORE the Reset. A ListBox in SelectionMode=Multiple with a bound
         // SelectedItem crashes inside Avalonia's SelectionModel when the source collection resets while a
         // selection is live - it enumerates SelectedItems against now-stale indices (the crash report from
         // clicking a key on the wheel). Clearing against the still-valid OLD collection, then reselecting
-        // in the NEW one, sidesteps it. Multi-selection collapses to the cursor on any filter/sort - fine,
-        // the old selection was over the old view anyway.
-        var keep = Selected;
-        Selected = null;
-        ClearFileSelection?.Invoke(); // clear the ListBox's FULL selection (multi included) before the Reset
-        Items.ReplaceAll(filtered);
-        Selected = keep is not null && filtered.Contains(keep) ? keep : filtered.FirstOrDefault();
+        // in the NEW one, sidesteps it. The window does not pass the empty selection in between on to
+        // the tag editor (IsRebuildingView) - doing so popped "Unsaved changes" in the middle of typing.
+        IsRebuildingView = true;
+        try
+        {
+            Selected = null;
+            ClearFileSelection?.Invoke(); // clear the ListBox's FULL selection (multi included) before the Reset
+            Items.ReplaceAll(filtered);
+
+            var restored = SelectionCarryOver.Restore(filtered, i => i.NormalizedPath, keepCursor, keepSelected);
+            Selected = restored.Cursor;
+            if (restored.Selected.Count > 1) RestoreFileSelection?.Invoke(restored.Selected);
+        }
+        finally
+        {
+            IsRebuildingView = false;
+        }
+
+        // A rename has been followed once its new name is in the folder (filtered out or not).
+        if (_renamed.Count > 0)
+        {
+            var inFolder = new HashSet<string>(_masterItems.Select(i => i.NormalizedPath), StringComparer.OrdinalIgnoreCase);
+            foreach (var from in _renamed.Where(r => inFolder.Contains(r.Value)).Select(r => r.Key).ToList())
+                _renamed.Remove(from);
+        }
+
+        // Only a cursor that landed on another FILE is news for the cue.
+        if (!string.Equals(keepCursor, Selected?.NormalizedPath, StringComparison.OrdinalIgnoreCase))
+            FollowCursorWithCue(Selected);
+        FileSelectionRestored?.Invoke();
 
         // Size the text columns to THIS view's content - same call JUST TAG makes from its
         // ApplyFilter, so the two tables size by one rule, per view.

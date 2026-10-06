@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Selection;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -12,6 +13,7 @@ using Avalonia.VisualTree;
 using JustPlay.App.Controls;
 using JustPlay.App.ViewModels;
 using JustPlay.Core.Abstractions;
+using JustPlay.Core.Layout;
 using JustPlay.Core.Theming;
 using JustPlay.UI;
 using JustPlay.UI.Behaviors;
@@ -142,6 +144,22 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             // SelectionModel crashes if the bound source resets while a (multi-)selection is live.
             var fileList = this.FindControl<ListBox>("FinderList");
             vm.ClearFileSelection = () => fileList?.Selection?.Clear();
+            // ...and put a multi-selection back afterwards. Select() leaves SelectedIndex - the
+            // cursor the VM has just restored - where it is (SelectionModel.SelectRange only sets it
+            // when nothing is selected, release/12.0.3 src/Avalonia.Controls/Selection/SelectionModel.cs);
+            // the anchor is put back on the cursor so a Shift-click still extends from there.
+            vm.RestoreFileSelection = rows =>
+            {
+                if (fileList?.Selection is not { } selection) return;
+                using (selection.BatchUpdate())
+                {
+                    foreach (var row in rows)
+                        if (vm.Items.IndexOf(row) is var i and >= 0) selection.Select(i);
+                    if (vm.Selected is { } cursor && vm.Items.IndexOf(cursor) is var c and >= 0)
+                        selection.AnchorIndex = c;
+                }
+            };
+            vm.FileSelectionRestored = () => FollowSelectionInEditor(vm);
             // Modal yes/no confirm over THIS window - used by "Open playlist" before it replaces the queue.
             // Uses the SHARED suite dialog (JustPlay.UI), not an app-local copy.
             vm.ConfirmAsync = (title, message, confirm) =>
@@ -443,8 +461,27 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
         // The tag editor follows the SELECTION - which is the one signal it is allowed to follow (a
         // track ending must never retarget it; see TagEditorWindow). More than one row turns it into
         // a multi-file edit, the same panel and the same rules JUST TAG docks.
-        if (_tagEditor is not null)
-            _ = _tagEditor.SetSelectionAsync(TagTargets(vm));
+        // A rebuild of the list passes through "nothing selected" on its way back to the same rows;
+        // the editor hears about its RESULT, once (FileSelectionRestored), not about the way there.
+        if (!vm.IsRebuildingView) FollowSelectionInEditor(vm);
+    }
+
+    /// <summary>The files the editor was last pointed at from here, as the LIST had them selected.
+    /// Compared against, so the editor is only retargeted when the selected FILES change - not when the
+    /// same files come back in new row objects, and not again after "Cancel" left the editor on its
+    /// old file while the list moved on.</summary>
+    private IReadOnlyList<string> _editorPaths = [];
+
+    private void FollowSelectionInEditor(PreCueFinderViewModel vm)
+    {
+        if (_tagEditor is null) return;
+
+        var targets = TagTargets(vm);
+        var paths = targets.Select(t => t.Path).ToList();
+        if (SelectionCarryOver.SamePaths(paths, _editorPaths)) return;
+
+        _editorPaths = paths;
+        _ = _tagEditor.SetSelectionAsync(targets);
     }
 
     /// <summary>
@@ -478,18 +515,30 @@ public partial class PreCueFinderWindow : Window, IFramelessWindow
             editor.Saved += path => vm.RefreshTagsFor(path);
             // A renamed file's row is stale in a way a tag re-read cannot fix (the path itself moved),
             // so the listing is reloaded - cheap, and it keeps the pane honest about what is on disk.
-            editor.Renamed += (_, _) => vm.RefreshFolderCommand.Execute(null);
+            // The reload keeps the selection on the renamed file, so the editor stays where it is.
+            editor.Renamed += (from, to) =>
+            {
+                _editorPaths = _editorPaths.Select(p => string.Equals(p, from, StringComparison.OrdinalIgnoreCase) ? to : p)
+                                           .ToList();
+                vm.FollowRename(from, to);
+            };
             _tagEditor = TagEditorWindow.Open(this, null, editor);
             // A closed Avalonia window cannot be shown again - drop the reference so the next
             // "Edit tags..." builds a fresh one instead of raising a dead window.
-            _tagEditor.Closed += (_, _) => _tagEditor = null;
+            _tagEditor.Closed += (_, _) =>
+            {
+                _tagEditor = null;
+                _editorPaths = [];
+            };
         }
         else
         {
             _tagEditor.Activate();
         }
 
-        _ = _tagEditor.SetSelectionAsync(TagTargets(vm));
+        var targets = TagTargets(vm);
+        _editorPaths = targets.Select(t => t.Path).ToList();
+        _ = _tagEditor.SetSelectionAsync(targets);
     }
 
     // Right-click a file row: if it isn't part of the current multi-selection, select just it (standard
