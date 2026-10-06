@@ -435,6 +435,12 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             var m = _reader.Read(path);
             _loaded = m;
 
+            // The boxes show the LOSSLESS read. Read keeps the first value of a multi-value field -
+            // an ID3v2.3 "AC/DC" is "AC" there - and a box showing "AC" is a box that invites
+            // "fixing" what the file never got wrong.
+            var e = _reader.ReadEditable(path);
+            if (e.ReadFailed) e = EditorialWrite.From(m);
+
             FilePath = path;
             FileName = Path.GetFileName(path);
             FileInfo = BuildInfo(m, path);
@@ -444,14 +450,14 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             _baselineBaseName = Path.GetFileNameWithoutExtension(path);
             BaseName = _baselineBaseName;
 
-            Title       = m.Title;
-            Artist      = m.Artist;
-            Album       = m.Album;
-            AlbumArtist = m.AlbumArtist;
-            Genre       = m.Genre;
-            Year        = m.Year is > 0 ? m.Year.Value.ToString(CultureInfo.InvariantCulture) : null;
-            Track       = m.TrackNumber is > 0 ? m.TrackNumber.Value.ToString(CultureInfo.InvariantCulture) : null;
-            Comment     = m.Comment;
+            Title       = e.Title;
+            Artist      = e.Artist;
+            Album       = e.Album;
+            AlbumArtist = e.AlbumArtist;
+            Genre       = e.Genre;
+            Year        = e.Year > 0 ? e.Year.ToString(CultureInfo.InvariantCulture) : null;
+            Track       = e.TrackNumber > 0 ? e.TrackNumber.ToString(CultureInfo.InvariantCulture) : null;
+            Comment     = e.Comment;
 
             // The tag is what the file SAYS; the blob is what we MEASURED. The editable field shows
             // the tag, because that is the value every other tool reads.
@@ -468,7 +474,9 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
 
             _baseline = Snapshot.From(this);
             IsDirty = false;
-            Status = "";                       // a fresh file is not news - see Status
+            // A fresh file is not news - see Status. A file that could not be READ is: the empty
+            // boxes are not what it holds. A save still writes only what is typed into them.
+            Status = m.ReadFailed ? "Couldn't read this file's tags - the fields are not what it holds." : "";
         }
         catch (Exception ex)
         {
@@ -568,7 +576,12 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
         if (FilePath is not { } path || _loaded is null) return false;
 
         var now = Snapshot.From(this);
-        var editorialChanged = now.EditorialDiffers(_baseline) || _coverAction != CoverAction.Keep;
+        var tags = now.Editable();
+
+        // The fields the user changed, and ONLY those, are written - see IMetadataWriter.WriteEditable
+        // for what writing back an untouched field used to cost.
+        var fields = EditableTags.Differences(tags, _baseline.Editable());
+        var editorialChanged = fields != EditableField.None || _coverAction != CoverAction.Keep;
         var analysisChanged  = now.AnalysisDiffers(_baseline);
         var rename           = WillRename;
 
@@ -639,18 +652,6 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             }
         }
 
-        var tags = new EditableTags
-        {
-            Title       = Blank(Title),
-            Artist      = Blank(Artist),
-            Album       = Blank(Album),
-            AlbumArtist = Blank(AlbumArtist),
-            Genre       = Blank(Genre),
-            Year        = ParseUint(Year),
-            TrackNumber = ParseUint(Track),
-            Comment     = Blank(Comment),
-        };
-
         var coverAction = _coverAction;
         var coverBytes  = coverAction == CoverAction.Replace ? _coverBytes : null;
         var coverMime   = coverAction == CoverAction.Replace ? _coverMime : null;
@@ -662,7 +663,7 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
               {
                   try
                   {
-                      if (editorialChanged) _writer.WriteEditable(p, tags, coverAction, coverBytes, coverMime);
+                      if (editorialChanged) _writer.WriteEditable(p, tags, fields, coverAction, coverBytes, coverMime);
                       if (write is not null) _writer.Write(p, write);
                   }
                   catch (Exception ex)
@@ -819,6 +820,20 @@ public sealed partial class TagEditorViewModel : INotifyPropertyChanged
             !TextEquals(Album, o.Album) || !TextEquals(AlbumArtist, o.AlbumArtist) ||
             !TextEquals(Genre, o.Genre) || !TextEquals(Year, o.Year) ||
             !TextEquals(Track, o.Track) || !TextEquals(Comment, o.Comment);
+
+        /// <summary>The editorial half in the shape a write takes - normalised exactly as it would
+        /// be written, so two snapshots that write the same thing compare equal.</summary>
+        public EditableTags Editable() => new()
+        {
+            Title       = Blank(Title),
+            Artist      = Blank(Artist),
+            Album       = Blank(Album),
+            AlbumArtist = Blank(AlbumArtist),
+            Genre       = Blank(Genre),
+            Year        = ParseUint(Year),
+            TrackNumber = ParseUint(Track),
+            Comment     = Blank(Comment),
+        };
 
         public bool AnalysisDiffers(Snapshot o) =>
             !TextEquals(Bpm, o.Bpm) || !TextEquals(Key, o.Key) || !TextEquals(Energy, o.Energy);

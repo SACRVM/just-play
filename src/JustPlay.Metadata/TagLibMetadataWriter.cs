@@ -145,17 +145,23 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         file.Save();
     }
 
-    public void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
-        byte[]? newCover, string? coverMimeType)
+    public void WriteEditable(string filePath, EditableTags tags, EditableField fields,
+        CoverAction coverAction, byte[]? newCover, string? coverMimeType)
     {
-        WriteEditableCore(filePath, tags, coverAction, newCover, coverMimeType);
+        WriteEditableCore(filePath, tags, fields, coverAction, newCover, coverMimeType);
         RepairAiffFormSize(filePath);
     }
 
-    private static void WriteEditableCore(string filePath, EditableTags tags, CoverAction coverAction,
-        byte[]? newCover, string? coverMimeType)
+    private static void WriteEditableCore(string filePath, EditableTags tags, EditableField fields,
+        CoverAction coverAction, byte[]? newCover, string? coverMimeType)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentNullException.ThrowIfNull(tags);
+
+        bool On(EditableField f) => (fields & f) != 0;
+
+        // Before TagLib# parses it - see Id3v23Genre. Not needed when the genre is being written.
+        var genre = On(EditableField.Genre) ? null : Id3v23Genre.Read(filePath);
 
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
@@ -163,19 +169,25 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         // Contract Sec.4: no ID3v1 shadow tag (see Write).
         file.RemoveTags(TagLib.TagTypes.Id3v1);
 
-        // Title / Artist / Album / AlbumArtist / Genre - null/empty clears.
-        tag.Title       = string.IsNullOrEmpty(tags.Title)       ? null : tags.Title;
-        tag.Performers  = string.IsNullOrWhiteSpace(tags.Artist) ? [] : [tags.Artist];
-        tag.Album       = string.IsNullOrEmpty(tags.Album)       ? null : tags.Album;
-        tag.AlbumArtists = string.IsNullOrWhiteSpace(tags.AlbumArtist) ? [] : [tags.AlbumArtist];
-        tag.Genres      = string.IsNullOrWhiteSpace(tags.Genre)  ? [] : [tags.Genre];
+        // ONLY the fields in the mask are assigned. An assignment is a rewrite from whatever the
+        // caller read, and a read is lossy: TagLib# splits an ID3v2.3 TPE1/TCON on '/', so writing
+        // back an untouched "AC/DC" or "Techno (Peak Time / Driving)" truncated it at the slash;
+        // tag.Year turned a TDRC "2019-05-03" into "2019"; the comment helper dropped iTunes' COMM
+        // frames; a FLAC's second ARTIST field vanished. A field nobody edited is not touched.
+
+        // Text fields - null/empty clears, and a written value is ONE value.
+        if (On(EditableField.Title))       tag.Title       = string.IsNullOrEmpty(tags.Title) ? null : tags.Title;
+        if (On(EditableField.Artist))      tag.Performers  = string.IsNullOrWhiteSpace(tags.Artist) ? [] : [tags.Artist];
+        if (On(EditableField.Album))       tag.Album       = string.IsNullOrEmpty(tags.Album) ? null : tags.Album;
+        if (On(EditableField.AlbumArtist)) tag.AlbumArtists = string.IsNullOrWhiteSpace(tags.AlbumArtist) ? [] : [tags.AlbumArtist];
+        if (On(EditableField.Genre))       tag.Genres      = string.IsNullOrWhiteSpace(tags.Genre) ? [] : [tags.Genre];
 
         // Year / TrackNumber - 0 clears (TagLib convention).
-        tag.Year  = tags.Year;
-        tag.Track = tags.TrackNumber;
+        if (On(EditableField.Year))        tag.Year  = tags.Year;
+        if (On(EditableField.TrackNumber)) tag.Track = tags.TrackNumber;
 
         // Comment - reuse the single-COMM-frame helper (same de-dup logic as Write).
-        ApplyCleanComment(file, tags.Comment);
+        if (On(EditableField.Comment))     ApplyCleanComment(file, tags.Comment);
 
         // Cover art. NEVER assign a fresh array without carrying the NotAPicture
         // attachments over: Serato / Mixed In Key store cues, beatgrids and energy as
@@ -204,6 +216,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             // CoverAction.Keep - do nothing; tag.Pictures is left exactly as TagLib# read it.
         }
 
+        Id3v23Genre.Pin(file, genre);
         file.Save();
     }
 
@@ -309,6 +322,9 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     /// Write a comment to the file using the single-COMM-frame strategy (ID3v2) or the
     /// plain comment field (Xiph/other). Shared by <see cref="Write"/> and
     /// <see cref="WriteEditable"/> so the de-dup logic lives in exactly one place.
+    /// <para>(!) It clears EVERY COMM frame, iTunes' iTunNORM / iTunSMPB and other languages
+    /// included - which is why the editorial write only reaches it when the comment itself was
+    /// edited.</para>
     /// </summary>
     /// <remarks>
     /// N21 CLEAN SLATE + Sec.4 contract: collapse the multiple COMM frames legacy taggers

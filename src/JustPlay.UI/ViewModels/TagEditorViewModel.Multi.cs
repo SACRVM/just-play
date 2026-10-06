@@ -909,17 +909,11 @@ public sealed partial class TagEditorViewModel
     public TagSavePlan BuildPlan()
     {
         var sets = new List<TagSetting>();
+        var planned = Planned();
 
         void Add(TagField f, string label, string? value)
         {
-            // Filled per file from the name - it has no ONE value, and the plan says so on its own
-            // line instead of pretending to.
-            if (FromName(f)) return;
-            if (!Ticked(f)) return;
-
-            // A field the selection already agrees on, left untouched, writes nothing - so it is not
-            // part of the plan either. Anything else either unifies them or clears them.
-            if ((_uniform & f) != 0 && TextEquals(value, BaselineOf(f))) return;
+            if ((planned & f) == 0) return;
 
             var blank = string.IsNullOrWhiteSpace(value);
             sets.Add(new TagSetting(label, blank ? "" : value!.Trim(), blank));
@@ -944,6 +938,51 @@ public sealed partial class TagEditorViewModel
                                HasTagFromName ? _fromNameMask : null,
                                HasTagFromName ? FileNameMask.FieldsIn(_fromNameMask) : null);
     }
+
+    /// <summary>
+    /// The fields a save sets to the panel's value - the plan's lines, and exactly what
+    /// <see cref="SaveManyAsync"/> writes, so the confirmation cannot promise one thing and the save
+    /// do another.
+    /// <list type="bullet">
+    ///   <item>Unticked: not written.</item>
+    ///   <item>Filled per file from the name: not ONE value, so not here - the plan says so on its
+    ///     own line, and the save takes those values from each name.</item>
+    ///   <item>Ticked but already agreed on and left as it was: not written either. The tick starts
+    ///     ON for such a field, so without this rule every save would rewrite it in every file -
+    ///     and a value the selection "agrees on" is a value off a READ, which is not always the
+    ///     value in the file.</item>
+    /// </list>
+    /// </summary>
+    private TagField Planned()
+    {
+        var planned = TagField.None;
+
+        foreach (var f in AllFields)
+        {
+            if ((f & (TagField.Editorial | TagField.Analysis)) == 0) continue;
+            if (FromName(f) || !Ticked(f)) continue;
+            if ((_uniform & f) != 0 && TextEquals(ValueOf(f), BaselineOf(f))) continue;
+            planned |= f;
+        }
+
+        return planned;
+    }
+
+    private string? ValueOf(TagField f) => f switch
+    {
+        TagField.Title       => Title,
+        TagField.Artist      => Artist,
+        TagField.Album       => Album,
+        TagField.AlbumArtist => AlbumArtist,
+        TagField.Genre       => Genre,
+        TagField.Year        => Year,
+        TagField.Track       => Track,
+        TagField.Comment     => Comment,
+        TagField.Bpm         => BpmText,
+        TagField.Key         => KeyText,
+        TagField.Energy      => EnergyText,
+        _                    => null,
+    };
 
     private string? BaselineOf(TagField f) => f switch
     {
@@ -1068,14 +1107,14 @@ public sealed partial class TagEditorViewModel
     // -- The save --------------------------------------------------------------------------------
 
     /// <summary>
-    /// Write the ticked fields into every selected file.
+    /// Write the planned fields into every selected file.
     ///
-    /// <para><b>Read, overlay, write</b> - one file at a time, and it has to be that way: the
-    /// editorial writer takes a COMPLETE set of tags and clears whatever it is not given, so "write
-    /// only the genre" can only mean "read this file's tags, lay the new genre over them, write the
-    /// result back". The read pays for itself twice: a file the edit does not actually change is
-    /// skipped outright, so nothing collects a new timestamp, a re-serialised ID3 tag or a tidied
-    /// comment frame over a value it already carried.</para>
+    /// <para><b>Read, overlay, write what changed</b> - one file at a time. Each file is read
+    /// (losslessly - see <see cref="EditorialWrite"/>), the planned values are laid over it, and only
+    /// the fields that then differ from what the file holds are written; nothing else is assigned.
+    /// A file the edit does not actually change is skipped outright, so nothing collects a new
+    /// timestamp or a re-serialised ID3 tag. A file that cannot be READ is not written at all and
+    /// counts as failed.</para>
     ///
     /// <para>Every write goes through the host's executor, so a file that is PLAYING is deferred
     /// rather than failed, exactly as a single-file save is.</para>
@@ -1092,10 +1131,11 @@ public sealed partial class TagEditorViewModel
         }
 
         var write = _write;
+        var planned = Planned();
         var targets = _targets;
         var values = Snapshot.From(this);
 
-        var analysis = ParseAnalysis(write, values, out var parseError);
+        var analysis = ParseAnalysis(planned, values, out var parseError);
         if (parseError is not null)
         {
             Status = parseError;
@@ -1152,7 +1192,7 @@ public sealed partial class TagEditorViewModel
 
                 try
                 {
-                    switch (WriteOne(path, write, values, analysis, coverAction, coverBytes,
+                    switch (WriteOne(path, planned, values, analysis, coverAction, coverBytes,
                                      coverMime, plan.TagFromNameMask))
                     {
                         case null:                     unchanged++; break;
@@ -1243,15 +1283,16 @@ public sealed partial class TagEditorViewModel
     }
 
     /// <summary>
-    /// One file: read what it holds, lay the ticked fields over it, and write only if that actually
-    /// changes something. Returns null for "nothing to do".
+    /// One file: read what it holds, lay the planned fields (and whatever its name supplies) over it,
+    /// and write the fields that then differ - nothing else, and nothing at all when none do. Returns
+    /// null for "nothing to do".
     /// </summary>
-    private TagWriteOutcome? WriteOne(string path, TagField write, Snapshot v, TagWrite? analysis,
+    /// <exception cref="IOException">The file could not be read. Nothing is written to it - an overlay
+    /// on a read that saw nothing would write the panel's values over tags nobody looked at.</exception>
+    private TagWriteOutcome? WriteOne(string path, TagField planned, Snapshot v, TagWrite? analysis,
                                       CoverAction coverAction, byte[]? coverBytes, string? coverMime,
                                       string? fromName)
     {
-        var current = _reader.Read(path);
-
         // Tags read OUT of this file's own name. Null when there is no mask, or when this name does
         // not fit it - and "does not fit" means the file is left exactly as it was rather than being
         // given whatever a loose pattern happened to capture.
@@ -1259,40 +1300,63 @@ public sealed partial class TagEditorViewModel
             ? null
             : FileNameMask.Parse(fromName, FileNameMask.SubjectFor(fromName, path));
 
-        string? Field(TagField f, string? typed, string? currently) =>
-            parsed is not null && parsed.TryGetValue(NameOf(f), out var fromFile)
-                ? fromFile
-                : Pick(write, f, typed, currently);
-
-        var next = new EditableTags
+        // Every read happens before anything is written, and a failed one stops this file.
+        var editorial = (planned & TagField.Editorial) != 0 || parsed is { Count: > 0 };
+        EditableTags? current = null;
+        if (editorial)
         {
-            Title       = Field(TagField.Title, v.Title, current.Title),
-            Artist      = Field(TagField.Artist, v.Artist, current.Artist),
-            Album       = Field(TagField.Album, v.Album, current.Album),
-            AlbumArtist = Field(TagField.AlbumArtist, v.AlbumArtist, current.AlbumArtist),
-            Genre       = Field(TagField.Genre, v.Genre, current.Genre),
-            Comment     = Pick(write, TagField.Comment, v.Comment, current.Comment),
-            Year        = ParseUint(Field(TagField.Year, v.Year, Num(current.Year)))
-                          is var y && y > 0 ? y : PickNum(write, TagField.Year, v.Year, current.Year),
-            TrackNumber = ParseUint(Field(TagField.Track, v.Track, Num(current.TrackNumber)))
-                          is var t && t > 0 ? t : PickNum(write, TagField.Track, v.Track, current.TrackNumber),
+            // The LOSSLESS read: the comparison below has to see the file's "AC/DC", not the "AC" a
+            // first-value read hands back - see EditorialWrite.
+            current = _reader.ReadEditable(path);
+            if (current.ReadFailed) throw EditorialWrite.CouldNotRead(path);
+        }
+
+        TrackMetadata? meta = null;
+        if (analysis is not null)
+        {
+            meta = _reader.Read(path);
+            if (meta.ReadFailed) throw EditorialWrite.CouldNotRead(path);
+        }
+
+        string? Text(TagField f, string? typed, string? currently) =>
+            parsed is not null && parsed.TryGetValue(NameOf(f), out var fromFile) ? Blank(fromFile)
+            : (planned & f) != 0 ? Blank(typed)
+            : currently;
+
+        uint Number(TagField f, string? typed, uint currently) =>
+            parsed is not null && parsed.TryGetValue(NameOf(f), out var fromFile) && ParseUint(fromFile) is > 0 and var n
+                ? n
+            : (planned & f) != 0 ? ParseUint(typed)
+            : currently;
+
+        var next = current is null ? null : current with
+        {
+            Title       = Text(TagField.Title, v.Title, current.Title),
+            Artist      = Text(TagField.Artist, v.Artist, current.Artist),
+            Album       = Text(TagField.Album, v.Album, current.Album),
+            AlbumArtist = Text(TagField.AlbumArtist, v.AlbumArtist, current.AlbumArtist),
+            Genre       = Text(TagField.Genre, v.Genre, current.Genre),
+            Comment     = (planned & TagField.Comment) != 0 ? Blank(v.Comment) : current.Comment,
+            Year        = Number(TagField.Year, v.Year, current.Year),
+            TrackNumber = Number(TagField.Track, v.Track, current.TrackNumber),
         };
 
-        // The "did this actually change anything" comparison is the SHARED one - see EditorialWrite,
-        // which the TRANSFORM window writes through as well. The cover is this method's own business:
-        // it is not an editorial field, and it rides along in the same call.
-        var editorialChanged = EditorialWrite.Changes(next, current) || coverAction != CoverAction.Keep;
+        // The "what does this actually change" comparison is the SHARED one - the TRANSFORM window
+        // and the single-file save ask it too. The cover is this method's own business: it is not an
+        // editorial field, and it rides along in the same call.
+        var fields = next is null ? EditableField.None : EditableTags.Differences(next, current!);
+        var editorialChanged = fields != EditableField.None || coverAction != CoverAction.Keep;
 
         var analysisWrite = analysis is null ? null : analysis with
         {
             // The blob records that a HUMAN decided - and that record is per file, so it is built
             // from the file we are standing on, never from whichever one the panel happened to load.
-            State = current.StoredAnalysis is { } prev
+            State = meta?.StoredAnalysis is { } prev
                 ? prev with
                   {
-                      BpmDecision    = (write & TagField.Bpm) != 0 ? FieldDecision.Kept : prev.BpmDecision,
-                      KeyDecision    = (write & TagField.Key) != 0 ? FieldDecision.Kept : prev.KeyDecision,
-                      EnergyDecision = (write & TagField.Energy) != 0 ? FieldDecision.Kept : prev.EnergyDecision,
+                      BpmDecision    = (planned & TagField.Bpm) != 0 ? FieldDecision.Kept : prev.BpmDecision,
+                      KeyDecision    = (planned & TagField.Key) != 0 ? FieldDecision.Kept : prev.KeyDecision,
+                      EnergyDecision = (planned & TagField.Energy) != 0 ? FieldDecision.Kept : prev.EnergyDecision,
                   }
                 : null,
         };
@@ -1301,19 +1365,15 @@ public sealed partial class TagEditorViewModel
 
         return _execute(path, p =>
         {
-            if (editorialChanged) _writer.WriteEditable(p, next, coverAction, coverBytes, coverMime);
+            if (editorialChanged)
+                _writer.WriteEditable(p, next ?? new EditableTags(), fields, coverAction, coverBytes, coverMime);
             if (analysisWrite is not null) _writer.Write(p, analysisWrite);
         });
     }
 
-    private static string? Pick(TagField write, TagField f, string? typed, string? current) =>
-        (write & f) != 0 ? Blank(typed) : Blank(current);
-
-    private static uint PickNum(TagField write, TagField f, string? typed, uint? current) =>
-        (write & f) != 0 ? ParseUint(typed) : current ?? 0u;
-
     /// <summary>Parse the three measurements ONCE, before any file is opened - a value we cannot read
-    /// has to stop the whole run, not fail on file 12 of 37.</summary>
+    /// has to stop the whole run, not fail on file 12 of 37. Only the PLANNED ones: a measurement the
+    /// selection agrees on and nobody changed is not rewritten, and not re-stamped as a decision.</summary>
     private static TagWrite? ParseAnalysis(TagField write, Snapshot v, out string? error)
     {
         error = null;

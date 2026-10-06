@@ -1,23 +1,29 @@
 using System;
+using System.IO;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
 
 namespace JustPlay.UI.ViewModels;
 
 /// <summary>
-/// READ -> OVERLAY -> WRITE. The one shape an editorial tag write can have here, kept in one place
-/// so the two things that do it cannot drift apart.
+/// READ -> OVERLAY -> WRITE WHAT CHANGED. The one shape an editorial tag write can have here, kept in
+/// one place so the things that do it cannot drift apart.
 ///
-/// <para><b>Why the read is not optional.</b> <see cref="IMetadataWriter.WriteEditable"/> takes a
-/// COMPLETE set of tags and clears whatever it is not given. So "write only the genre" cannot be
-/// expressed as a write - it can only be expressed as "read this file's tags, lay the new genre over
-/// them, write the result back". Every editorial write in the suite is therefore per file, and every
-/// one of them has to build the whole set.</para>
+/// <para><b>Only the changed fields are written.</b> <see cref="IMetadataWriter.WriteEditable"/>
+/// takes a field mask, and the mask is exactly the fields whose value the edit changes in THIS file
+/// (<see cref="EditableTags.Differences"/>). Everything else is not assigned, so its frame stays as
+/// it is - which matters, because a value that went through a read is not always the value in the
+/// file (ID3v2.3 splits "AC/DC" on '/'; a year is not a full date).</para>
+///
+/// <para><b>The read is the file's own, and lossless.</b> The overlay starts from
+/// <see cref="IMetadataReader.ReadEditable"/>, which returns every value of a multi-value field - a
+/// transform pointed at an artist works on "AC/DC", not on the "AC" a first-value read would hand it.
+/// A file that cannot be read is not written at all.</para>
 ///
 /// <para><b>Why the skip is not optional either.</b> A file whose values the edit does not actually
-/// change is left completely alone: no new timestamp, no re-serialised ID3 tag, no tidied comment
-/// frame over a value it already carried. On a selection where nine files in ten already read
-/// correctly, that is the difference between touching 37 files and touching 4.</para>
+/// change is left completely alone: no new timestamp, no re-serialised ID3 tag. On a selection where
+/// nine files in ten already read correctly, that is the difference between touching 37 files and
+/// touching 4.</para>
 /// </summary>
 public static class EditorialWrite
 {
@@ -61,7 +67,21 @@ public static class EditorialWrite
         _                    => null,
     };
 
-    /// <summary>What the file holds today, in the shape a write takes - the thing an edit overlays.</summary>
+    /// <summary>The same question asked of the editable snapshot - the lossless one a write overlays.</summary>
+    public static string? Value(EditableTags m, TagField f) => f switch
+    {
+        TagField.Title       => Blank(m.Title),
+        TagField.Artist      => Blank(m.Artist),
+        TagField.Album       => Blank(m.Album),
+        TagField.AlbumArtist => Blank(m.AlbumArtist),
+        TagField.Genre       => Blank(m.Genre),
+        TagField.Comment     => Blank(m.Comment),
+        _                    => null,
+    };
+
+    /// <summary>A <see cref="TrackMetadata"/> in the shape a write takes. For hosts and test doubles
+    /// that only have the full read; the real reader's <see cref="IMetadataReader.ReadEditable"/> is
+    /// the lossless source an editorial write starts from.</summary>
     public static EditableTags From(TrackMetadata m) => new()
     {
         Title       = Blank(m.Title),
@@ -72,6 +92,7 @@ public static class EditorialWrite
         Comment     = Blank(m.Comment),
         Year        = m.Year ?? 0u,
         TrackNumber = m.TrackNumber ?? 0u,
+        ReadFailed  = m.ReadFailed,
     };
 
     /// <summary>
@@ -79,14 +100,14 @@ public static class EditorialWrite
     /// field and that field's current value, and returns what it should become - returning what it
     /// was given means "leave it". The two numbers are carried through untouched.
     /// </summary>
-    public static EditableTags Over(TrackMetadata current, Func<TagField, string?, string?> value)
+    public static EditableTags Over(EditableTags current, Func<TagField, string?, string?> value)
     {
         ArgumentNullException.ThrowIfNull(current);
         ArgumentNullException.ThrowIfNull(value);
 
         string? V(TagField f) => Blank(value(f, Value(current, f)));
 
-        return From(current) with
+        return current with
         {
             Title       = V(TagField.Title),
             Artist      = V(TagField.Artist),
@@ -98,27 +119,9 @@ public static class EditorialWrite
     }
 
     /// <summary>
-    /// Would writing <paramref name="next"/> actually change what the file holds? The question the
-    /// skip hangs off - see the class summary for why it is worth asking.
-    /// </summary>
-    public static bool Changes(EditableTags next, TrackMetadata current)
-    {
-        ArgumentNullException.ThrowIfNull(next);
-        ArgumentNullException.ThrowIfNull(current);
-
-        return !TextEquals(next.Title, Blank(current.Title))
-            || !TextEquals(next.Artist, Blank(current.Artist))
-            || !TextEquals(next.Album, Blank(current.Album))
-            || !TextEquals(next.AlbumArtist, Blank(current.AlbumArtist))
-            || !TextEquals(next.Genre, Blank(current.Genre))
-            || !TextEquals(next.Comment, Blank(current.Comment))
-            || next.Year != (current.Year ?? 0u)
-            || next.TrackNumber != (current.TrackNumber ?? 0u);
-    }
-
-    /// <summary>
     /// One file, start to finish: read it, lay <paramref name="value"/> over its text fields, and
-    /// write only if that changes something. Returns null for "nothing to do".
+    /// write the fields that changes - and nothing at all when it changes none. Returns null for
+    /// "nothing to do".
     ///
     /// <para>The write goes through <paramref name="execute"/>, the host's own route to the file - so
     /// a file that is PLAYING is deferred rather than failed, exactly as a save from the editor is.</para>
@@ -126,6 +129,8 @@ public static class EditorialWrite
     /// <para>(!) The transform is applied to what the FILE says right now, not to whatever a preview
     /// captured earlier. The file is the truth, and it is read here anyway.</para>
     /// </summary>
+    /// <exception cref="IOException">The file could not be read. Nothing is written to it: an overlay
+    /// on an empty read would be an overlay on nothing.</exception>
     public static TagWriteOutcome? One(string path, IMetadataReader reader, IMetadataWriter writer,
                                        TagWriteExecutor execute, Func<TagField, string?, string?> value)
     {
@@ -133,13 +138,21 @@ public static class EditorialWrite
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(execute);
 
-        var current = reader.Read(path);
+        var current = reader.ReadEditable(path);
+        if (current.ReadFailed) throw CouldNotRead(path);
+
         var next = Over(current, value);
+        var fields = EditableTags.Differences(next, current);
 
-        if (!Changes(next, current)) return null;
+        if (fields == EditableField.None) return null;
 
-        return execute(path, p => writer.WriteEditable(p, next, CoverAction.Keep, null, null));
+        return execute(path, p => writer.WriteEditable(p, next, fields, CoverAction.Keep, null, null));
     }
+
+    /// <summary>The one wording for "this file could not be read, so it was not written" - a batch
+    /// counts it as failed and shows the first reason.</summary>
+    public static IOException CouldNotRead(string path) =>
+        new($"Could not read \"{Path.GetFileName(path)}\" - it was not written.");
 
     /// <summary>Null and "" are the same thing in a tag field - a box someone emptied and a box that
     /// was never set must not read as a change.</summary>

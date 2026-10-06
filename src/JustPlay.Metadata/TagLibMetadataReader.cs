@@ -78,20 +78,63 @@ public sealed class TagLibMetadataReader : IMetadataReader
             return new EditableTags
             {
                 Title       = Clean(tag.Title),
-                Artist      = Clean(tag.FirstPerformer),
+                Artist      = Clean(AllValues(file, static t => t.Performers)),
                 Album       = Clean(tag.Album),
-                AlbumArtist = Clean(tag.FirstAlbumArtist),
-                Genre       = Clean(tag.FirstGenre),
+                AlbumArtist = Clean(AllValues(file, static t => t.AlbumArtists)),
+                Genre       = Clean(StoredV23Genre(filePath) ?? AllValues(file, static t => t.Genres)),
                 Year        = tag.Year,
                 TrackNumber = tag.Track,
                 Comment     = Clean(tag.Comment),
             };
         }
-        catch
+        catch (Exception ex)
         {
             // Corrupt/unsupported file - return empty snapshot rather than surfacing an exception.
-            return new EditableTags();
+            // An IO failure is flagged on top, exactly as Read does: nothing was seen, and a write
+            // built on this snapshot would be built on nothing.
+            return new EditableTags { ReadFailed = ex is IOException or UnauthorizedAccessException };
         }
+    }
+
+    /// <summary>
+    /// The genre of a leading ID3v2.3 tag as the frame stores it. TagLib# splits a v2.3 TCON on '/'
+    /// AND ';', so no join can tell which one stood there - see <see cref="Id3v23Genre"/>. Left to
+    /// TagLib# when the text leads with ID3v1 index references ("(17)"), which it maps to names.
+    /// </summary>
+    private static string? StoredV23Genre(string path) =>
+        Id3v23Genre.Read(path) is { } s && !s.StartsWith('(') && !byte.TryParse(s, out _) ? s : null;
+
+    /// <summary>
+    /// Every value of a multi-value field, as ONE string - what a tag editor shows and what it writes
+    /// back only if the user edits it. Two rules, because there are two reasons a field reads as
+    /// several values:
+    /// <list type="bullet">
+    ///   <item>ID3v2.3 (and older): TagLib# SPLITS the frame on '/' - "AC/DC" reads as "AC" + "DC".
+    ///     It keeps every character but the slash, so joining with "/" gives back the frame's text
+    ///     exactly. (A v2.3 genre is split on ';' too, which no join can undo; ReadEditable reads
+    ///     that one from the frame's bytes - see <see cref="StoredV23Genre"/>.)</item>
+    ///   <item>Everything else (ID3v2.4 null-separated values, repeated Xiph fields in a FLAC, MP4):
+    ///     the values really are separate. They are joined with "; " - foobar2000's display form -
+    ///     so all of them are visible and none can be mistaken for part of another.</item>
+    /// </list>
+    /// The first tag that carries the field answers, in TagLib#'s own order - the same tag
+    /// <c>FirstPerformer</c> and friends read from - so the rule is chosen by where the values came
+    /// from, not by the file type.
+    /// </summary>
+    internal static string? AllValues(TagLib.File file, Func<TagLib.Tag, string[]?> pick)
+    {
+        IEnumerable<TagLib.Tag?> tags = file.Tag is TagLib.CombinedTag combined ? combined.Tags : [file.Tag];
+
+        foreach (var t in tags)
+        {
+            if (t is null || pick(t) is not { Length: > 0 } values) continue;
+
+            return t is TagLib.Id3v2.Tag { Version: < 4 }
+                ? string.Join("/", values)
+                : string.Join("; ", values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()));
+        }
+
+        return null;
     }
 
     private static string? Clean(string? value) =>

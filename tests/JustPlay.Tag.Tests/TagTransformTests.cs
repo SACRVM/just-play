@@ -25,12 +25,14 @@ namespace JustPlay.Tag.Tests;
 /// </summary>
 public class TagTransformTests
 {
-    /// <summary>A tag store in memory. Records every write, so "was this file touched at all?" is a
-    /// question the test can ask - which is the whole point of the skip.</summary>
+    /// <summary>A tag store in memory. Records every write and the fields it named, so "was this file
+    /// touched at all?" and "which fields did it write?" are questions the test can ask - the skip
+    /// and the mask are the whole point.</summary>
     private sealed class FakeTags : IMetadataReader, IMetadataWriter
     {
         public readonly Dictionary<string, TrackMetadata> Files = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> Writes = [];
+        public readonly List<EditableField> Masks = [];
 
         public TrackMetadata Read(string filePath) =>
             Files.TryGetValue(filePath, out var m) ? m : Blank(filePath);
@@ -40,21 +42,28 @@ public class TagTransformTests
 
         public EditableTags ReadEditable(string filePath) => EditorialWrite.From(Read(filePath));
 
-        public void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
-                                  byte[]? newCover, string? coverMimeType)
+        /// <summary>Like the real writer: a field outside the mask keeps what the file had.</summary>
+        public void WriteEditable(string filePath, EditableTags tags, EditableField fields,
+                                  CoverAction coverAction, byte[]? newCover, string? coverMimeType)
         {
             Writes.Add(filePath);
-            Files[filePath] = new TrackMetadata
+            Masks.Add(fields);
+
+            var was = Read(filePath);
+            bool On(EditableField f) => (fields & f) != 0;
+
+            Files[filePath] = was with
             {
-                FallbackName = System.IO.Path.GetFileName(filePath),
-                Title = tags.Title,
-                Artist = tags.Artist,
-                Album = tags.Album,
-                AlbumArtist = tags.AlbumArtist,
-                Genre = tags.Genre,
-                Comment = tags.Comment,
-                Year = tags.Year == 0 ? null : tags.Year,
-                TrackNumber = tags.TrackNumber == 0 ? null : tags.TrackNumber,
+                Title       = On(EditableField.Title) ? tags.Title : was.Title,
+                Artist      = On(EditableField.Artist) ? tags.Artist : was.Artist,
+                Album       = On(EditableField.Album) ? tags.Album : was.Album,
+                AlbumArtist = On(EditableField.AlbumArtist) ? tags.AlbumArtist : was.AlbumArtist,
+                Genre       = On(EditableField.Genre) ? tags.Genre : was.Genre,
+                Comment     = On(EditableField.Comment) ? tags.Comment : was.Comment,
+                Year        = On(EditableField.Year) ? (tags.Year == 0 ? null : tags.Year) : was.Year,
+                TrackNumber = On(EditableField.TrackNumber)
+                              ? (tags.TrackNumber == 0 ? null : tags.TrackNumber)
+                              : was.TrackNumber,
             };
         }
 
@@ -196,8 +205,8 @@ public class TagTransformTests
         Assert.Equal(1, report.Unchanged);
     }
 
-    /// <summary>An editorial write hands over a COMPLETE set of tags and clears what it is not given,
-    /// so every field the transform is not pointed at has to survive by being carried through.</summary>
+    /// <summary>Every field the transform is not pointed at has to survive - and since the write names
+    /// only the fields it changes, it survives by never being written at all.</summary>
     [Fact]
     public async Task Fields_the_transform_is_not_pointed_at_survive()
     {
@@ -225,6 +234,25 @@ public class TagTransformTests
         Assert.Equal("keep me", after.Comment);
         Assert.Equal(2017u, after.Year);
         Assert.Equal(3u, after.TrackNumber);
+
+        // ARTIST is the one field that changed (TITLE already read that way) - and the only one named.
+        Assert.Equal(EditableField.Artist, Assert.Single(store.Masks));
+    }
+
+    /// <summary>A file that could not be READ is not written: the overlay would be laid over nothing,
+    /// and the run counts it as failed with a reason, rather than as unchanged.</summary>
+    [Fact]
+    public async Task A_file_that_cannot_be_read_is_failed_and_never_written()
+    {
+        var (store, vm) = Setup(Track(artist: "PERC"));
+        store.Files["C:/music/0.mp3"] = store.Files["C:/music/0.mp3"] with { ReadFailed = true };
+
+        vm.Operation = vm.Operations.First(o => o.Value == TextOperation.TitleCase);
+        var report = await vm.ApplyAsync();
+
+        Assert.Empty(store.Writes);
+        Assert.Equal(1, report.Failed);
+        Assert.Contains("0.mp3", report.FirstError);
     }
 
     [Fact]
@@ -266,23 +294,20 @@ public class TagTransformTests
     // -- The shared overlay ----------------------------------------------------------------------
 
     [Fact]
-    public void Changes_is_blind_to_null_versus_empty()
+    public void Differences_is_blind_to_null_versus_empty()
     {
-        var current = new TrackMetadata { FallbackName = "t.mp3", Artist = "Perc", Comment = "" };
-        var next = EditorialWrite.From(current);
+        var current = new EditableTags { Artist = "Perc", Comment = "" };
 
-        Assert.False(EditorialWrite.Changes(next, current));
-        Assert.False(EditorialWrite.Changes(next with { Comment = null }, current));
-        Assert.True(EditorialWrite.Changes(next with { Artist = "Ansome" }, current));
+        Assert.Equal(EditableField.None, EditableTags.Differences(current, current));
+        Assert.Equal(EditableField.None, EditableTags.Differences(current with { Comment = null }, current));
+        Assert.Equal(EditableField.Artist,
+                     EditableTags.Differences(current with { Artist = "Ansome" }, current));
     }
 
     [Fact]
     public void Over_only_touches_the_text_fields()
     {
-        var current = new TrackMetadata
-        {
-            FallbackName = "t.mp3", Artist = "perc", Year = 2017, TrackNumber = 3,
-        };
+        var current = new EditableTags { Artist = "perc", Year = 2017, TrackNumber = 3 };
         var next = EditorialWrite.Over(current,
                                        (f, v) => f == UiTagField.Artist ? v?.ToUpperInvariant() : v);
 

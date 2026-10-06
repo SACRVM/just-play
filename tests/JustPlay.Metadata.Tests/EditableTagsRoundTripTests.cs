@@ -46,7 +46,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
             Comment     = "Test comment",
         };
 
-        _writer.WriteEditable(_tempFile, tags, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, tags, EditableField.All, CoverAction.Keep, null, null);
 
         var back = _reader.ReadEditable(_tempFile);
         Assert.Equal("Test Title",        back.Title);
@@ -73,7 +73,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
             TrackNumber = 3,
         };
 
-        _writer.WriteEditable(_tempFile, tags, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, tags, EditableField.All, CoverAction.Keep, null, null);
 
         var back = _reader.Read(_tempFile);
         Assert.Equal("Via Read",          back.Title);
@@ -91,11 +91,11 @@ public sealed class EditableTagsRoundTripTests : IDisposable
     public void WriteEditable_YearZero_ClearsYearTag()
     {
         // Seed a year first.
-        _writer.WriteEditable(_tempFile, new EditableTags { Year = 1999 }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags { Year = 1999 }, EditableField.Year, CoverAction.Keep, null, null);
         Assert.Equal(1999u, _reader.ReadEditable(_tempFile).Year);
 
         // Year = 0 must clear.
-        _writer.WriteEditable(_tempFile, new EditableTags { Year = 0 }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags { Year = 0 }, EditableField.Year, CoverAction.Keep, null, null);
         var back = _reader.ReadEditable(_tempFile);
         Assert.Equal(0u, back.Year);
 
@@ -107,11 +107,11 @@ public sealed class EditableTagsRoundTripTests : IDisposable
     public void WriteEditable_TrackNumberZero_ClearsTrackTag()
     {
         // Seed a track number first.
-        _writer.WriteEditable(_tempFile, new EditableTags { TrackNumber = 5 }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags { TrackNumber = 5 }, EditableField.TrackNumber, CoverAction.Keep, null, null);
         Assert.Equal(5u, _reader.ReadEditable(_tempFile).TrackNumber);
 
         // TrackNumber = 0 must clear.
-        _writer.WriteEditable(_tempFile, new EditableTags { TrackNumber = 0 }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags { TrackNumber = 0 }, EditableField.TrackNumber, CoverAction.Keep, null, null);
         var back = _reader.ReadEditable(_tempFile);
         Assert.Equal(0u, back.TrackNumber);
 
@@ -127,7 +127,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         // A minimal valid JPEG (SOI + EOI marker).
         var fakeJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 };
 
-        _writer.WriteEditable(_tempFile, new EditableTags(), CoverAction.Replace, fakeJpeg, "image/jpeg");
+        _writer.WriteEditable(_tempFile, new EditableTags(), EditableField.None, CoverAction.Replace, fakeJpeg, "image/jpeg");
 
         var back = _reader.Read(_tempFile);
         Assert.NotNull(back.CoverArt);
@@ -141,11 +141,11 @@ public sealed class EditableTagsRoundTripTests : IDisposable
     {
         // First embed a cover.
         var fakeJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 };
-        _writer.WriteEditable(_tempFile, new EditableTags(), CoverAction.Replace, fakeJpeg, "image/jpeg");
+        _writer.WriteEditable(_tempFile, new EditableTags(), EditableField.None, CoverAction.Replace, fakeJpeg, "image/jpeg");
         Assert.NotNull(_reader.Read(_tempFile).CoverArt);
 
         // Now remove it.
-        _writer.WriteEditable(_tempFile, new EditableTags(), CoverAction.Remove, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags(), EditableField.None, CoverAction.Remove, null, null);
         Assert.Null(_reader.Read(_tempFile).CoverArt);
     }
 
@@ -156,11 +156,11 @@ public sealed class EditableTagsRoundTripTests : IDisposable
     {
         // Embed a cover first.
         var fakeJpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 };
-        _writer.WriteEditable(_tempFile, new EditableTags(), CoverAction.Replace, fakeJpeg, "image/jpeg");
+        _writer.WriteEditable(_tempFile, new EditableTags(), EditableField.None, CoverAction.Replace, fakeJpeg, "image/jpeg");
         Assert.NotNull(_reader.Read(_tempFile).CoverArt);
 
         // A subsequent WriteEditable with Keep must leave the cover alone.
-        _writer.WriteEditable(_tempFile, new EditableTags { Title = "New Title" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags { Title = "New Title" }, EditableField.Title, CoverAction.Keep, null, null);
 
         var back = _reader.Read(_tempFile);
         Assert.Equal("New Title", back.Title);
@@ -201,7 +201,7 @@ public sealed class EditableTagsRoundTripTests : IDisposable
         Assert.Equal(8,     before.TaggedEnergy);
 
         // Now do an editorial write - must not touch analysis fields.
-        _writer.WriteEditable(_tempFile, new EditableTags { Title = "Edited" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(_tempFile, new EditableTags { Title = "Edited" }, EditableField.Title, CoverAction.Keep, null, null);
 
         var after = _reader.Read(_tempFile);
         Assert.Equal("Edited", after.Title);

@@ -39,7 +39,7 @@ public sealed class Id3WriteFormatTests : IDisposable
         var file = NewMp3(major: 4);
 
         _writer.ConfigureId3WriteFormat(Id3WriteFormat.KeepFileVersion);
-        _writer.WriteEditable(file, new EditableTags { Title = "kept" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(file, new EditableTags { Title = "kept" }, EditableField.Title, CoverAction.Keep, null, null);
 
         Assert.Equal(4, MajorVersionOf(file));
     }
@@ -50,7 +50,7 @@ public sealed class Id3WriteFormatTests : IDisposable
         var file = NewMp3(major: 3);
 
         _writer.ConfigureId3WriteFormat(Id3WriteFormat.KeepFileVersion);
-        _writer.WriteEditable(file, new EditableTags { Title = "kept" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(file, new EditableTags { Title = "kept" }, EditableField.Title, CoverAction.Keep, null, null);
 
         Assert.Equal(3, MajorVersionOf(file));
     }
@@ -60,14 +60,14 @@ public sealed class Id3WriteFormatTests : IDisposable
     {
         var up = NewMp3(major: 3);
         _writer.ConfigureId3WriteFormat(Id3WriteFormat.Id3v24Utf8);
-        _writer.WriteEditable(up, new EditableTags { Title = "up" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(up, new EditableTags { Title = "up" }, EditableField.Title, CoverAction.Keep, null, null);
         Assert.Equal(4, MajorVersionOf(up));
 
         // The DEFAULT-looking, "safe" mode is also the one that pulls a v2.4 file DOWN - the
         // direction that surprised us, and the reason converting is opt-in.
         var down = NewMp3(major: 4);
         _writer.ConfigureId3WriteFormat(Id3WriteFormat.Id3v23Utf16);
-        _writer.WriteEditable(down, new EditableTags { Title = "down" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(down, new EditableTags { Title = "down" }, EditableField.Title, CoverAction.Keep, null, null);
         Assert.Equal(3, MajorVersionOf(down));
     }
 
@@ -80,7 +80,7 @@ public sealed class Id3WriteFormatTests : IDisposable
         _writer.ConfigureId3WriteFormat(Id3WriteFormat.KeepFileVersion);
 
         var file = NewMp3(major: 4);
-        _writer.WriteEditable(file, new EditableTags { Title = "kept" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(file, new EditableTags { Title = "kept" }, EditableField.Title, CoverAction.Keep, null, null);
 
         Assert.Equal(4, MajorVersionOf(file));
         Assert.False(TagLib.Id3v2.Tag.ForceDefaultVersion);
@@ -94,7 +94,7 @@ public sealed class Id3WriteFormatTests : IDisposable
         var file = NewMp3(major: null);
 
         _writer.ConfigureId3WriteFormat(Id3WriteFormat.KeepFileVersion);
-        _writer.WriteEditable(file, new EditableTags { Title = "fresh" }, CoverAction.Keep, null, null);
+        _writer.WriteEditable(file, new EditableTags { Title = "fresh" }, EditableField.Title, CoverAction.Keep, null, null);
 
         Assert.Equal(3, MajorVersionOf(file));
     }

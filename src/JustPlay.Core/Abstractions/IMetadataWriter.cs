@@ -35,14 +35,24 @@ public interface IMetadataWriter
     void Restore(string filePath, TagRestore restore);
 
     /// <summary>
-    /// Write the editorial fields from <paramref name="tags"/> to the file and save.
+    /// Write the editorial fields named in <paramref name="fields"/> from <paramref name="tags"/> to
+    /// the file and save.
+    /// <para>
+    /// A field outside <paramref name="fields"/> is not assigned at all: its frame stays exactly as the
+    /// file has it. That is the whole contract, and it is not a nicety - re-assigning a field the user
+    /// never touched rewrites it from what a READ returned, and a read is lossy (ID3v2.3 splits
+    /// "AC/DC" on '/', a year drops a full date). Callers pass the fields the user changed and nothing
+    /// else; <see cref="EditableTags.Differences"/> is the shared way to work that out.
+    /// </para>
     /// <para>
     /// Analysis fields (BPM, key, energy, JUSTPLAY blob, ReplayGain, POPM) are
     /// intentionally NOT touched - this method is purely editorial.
     /// </para>
     /// </summary>
     /// <param name="filePath">Path to the audio file to update.</param>
-    /// <param name="tags">New editorial tag values.</param>
+    /// <param name="tags">New editorial tag values. Only the ones in <paramref name="fields"/> are read.</param>
+    /// <param name="fields">Which fields to write. A written text field becomes ONE value, whatever the
+    /// file held there before.</param>
     /// <param name="coverAction">
     /// What to do with embedded cover art: <see cref="CoverAction.Keep"/> leaves the
     /// Pictures array untouched; <see cref="CoverAction.Remove"/> clears it;
@@ -56,7 +66,7 @@ public interface IMetadataWriter
     /// MIME type of <paramref name="newCover"/> (e.g. "image/jpeg"); defaults to
     /// "image/jpeg" when null.
     /// </param>
-    void WriteEditable(string filePath, EditableTags tags, CoverAction coverAction,
+    void WriteEditable(string filePath, EditableTags tags, EditableField fields, CoverAction coverAction,
         byte[]? newCover, string? coverMimeType);
 
     /// <summary>
