@@ -71,6 +71,9 @@ public static class SmoothScroll
         var max = Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height);
         if (max <= 0) return;   // nothing to scroll: let the parent have the event
 
+        // A glide in progress extends from where it was heading; a new one starts from where the list
+        // IS - after arrowing 300 rows down, that is row 300, not wherever the last glide ended (and
+        // not 0, which is where a timer that was already running had it heading - see Glide).
         var state = Glide.For(scroll);
         var from  = state.Active ? state.Target : scroll.Offset.Y;
         state.Target = Math.Clamp(from - e.Delta.Y * PixelsPerNotch, 0, max);
@@ -95,7 +98,13 @@ public static class SmoothScroll
         {
             _scroll = scroll;
             // ~60 Hz, the same cadence the rest of this suite polls the UI at (see Vinyl.UpdateSpin).
-            _timer = new DispatcherTimer(TimeSpan.FromMilliseconds(16), DispatcherPriority.Render, Tick);
+            // (!) Not the (interval, priority, callback) constructor: that one STARTS the timer
+            // (release/12.0.3, src/Avalonia.Base/Threading/DispatcherTimer.cs - "This constructor
+            // immediately starts the timer"). The glide was then already "active" on the very first
+            // wheel notch a list ever got, with a Target of 0 - so a list arrowed 300 rows down glided
+            // back to the top on that notch. This one only starts in Start().
+            _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(16) };
+            _timer.Tick += Tick;
         }
 
         public static Glide For(ScrollViewer scroll)
@@ -114,13 +123,12 @@ public static class SmoothScroll
 
         private void Tick(object? sender, EventArgs e)
         {
-            var current   = _scroll.Offset.Y;
-            var remaining = Target - current;
-
-            // Someone else moved the view (keyboard cursor, bring-into-view, a new folder): drop the
-            // glide rather than yanking the list back to where the wheel was heading.
+            // The list may have shrunk under the glide (a new folder, a filter): never aim past its end.
             var max = Math.Max(0, _scroll.Extent.Height - _scroll.Viewport.Height);
             if (Target > max) Target = max;
+
+            var current   = _scroll.Offset.Y;
+            var remaining = Target - current;
 
             if (Math.Abs(remaining) <= Done)
             {
