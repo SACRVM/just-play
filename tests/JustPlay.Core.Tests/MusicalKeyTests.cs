@@ -75,6 +75,39 @@ public class MusicalKeyTests
         Assert.Equal(new MusicalKey(pitchClass, mode), key);
     }
 
+    /// <summary>
+    /// The real music signs (U+266F sharp, U+266D flat) parse exactly like '#' and 'b'. They were
+    /// lost once when the source went ASCII-only: the literal sign became a second '#' / 'b', and
+    /// "F\u266Fm" quietly stopped parsing. Every form is pinned so that cannot recur unnoticed.
+    /// </summary>
+    [Theory]
+    [InlineData("F\u266Fm", 6, KeyMode.Minor)]        // sharp, short minor
+    [InlineData("F\u266F minor", 6, KeyMode.Minor)]   // sharp, long minor
+    [InlineData("F\u266F", 6, KeyMode.Major)]         // sharp, bare major
+    [InlineData("C\u266F major", 1, KeyMode.Major)]   // sharp, long major
+    [InlineData("C\u266Fmaj", 1, KeyMode.Major)]      // sharp, short major
+    [InlineData("B\u266Dm", 10, KeyMode.Minor)]       // flat, short minor
+    [InlineData("B\u266D minor", 10, KeyMode.Minor)]  // flat, long minor
+    [InlineData("E\u266D", 3, KeyMode.Major)]         // flat, bare major
+    [InlineData("A\u266D major", 8, KeyMode.Major)]   // flat, long major
+    [InlineData("D\u266Dmaj", 1, KeyMode.Major)]      // flat, short major
+    [InlineData("C\u266D", 11, KeyMode.Major)]        // flat wraps below C to B
+    public void TryParse_UnderstandsTheMusicSigns(string text, int pitchClass, KeyMode mode)
+    {
+        Assert.Equal(new MusicalKey(pitchClass, mode), MusicalKey.TryParse(text));
+    }
+
+    /// <summary>The sign and its ASCII stand-in name the same key.</summary>
+    [Theory]
+    [InlineData("F\u266Fm", "F#m")]
+    [InlineData("B\u266D minor", "Bb minor")]
+    [InlineData("A\u266Dmaj", "Abmaj")]
+    public void TryParse_TheSignAndItsAsciiFormAgree(string sign, string ascii)
+    {
+        Assert.NotNull(MusicalKey.TryParse(sign));
+        Assert.Equal(MusicalKey.TryParse(ascii), MusicalKey.TryParse(sign));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

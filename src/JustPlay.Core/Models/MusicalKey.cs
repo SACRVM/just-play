@@ -92,6 +92,12 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
         return null;
     }
 
+    // The real music signs, which tags written by hand or by some tools carry instead of '#' / 'b'.
+    // Spelled as code points rather than as literals: the source is ASCII-only, and a literal sign
+    // is exactly what an ASCII conversion once turned into a second '#' and a second 'b'.
+    private const char SharpSign = (char)0x266F; // U+266F MUSIC SHARP SIGN
+    private const char FlatSign  = (char)0x266D; // U+266D MUSIC FLAT SIGN
+
     private static MusicalKey? TryParseMusical(string s)
     {
         var pc = char.ToUpperInvariant(s[0]) switch
@@ -102,8 +108,8 @@ public readonly record struct MusicalKey(int PitchClass, KeyMode Mode)
         if (pc < 0) return null;
 
         var i = 1;
-        if (i < s.Length && s[i] is '#' or '#') { pc = (pc + 1) % 12; i++; }
-        else if (i < s.Length && s[i] is 'b' or 'b') { pc = (pc + 11) % 12; i++; }
+        if (i < s.Length && s[i] is '#' or SharpSign) { pc = (pc + 1) % 12; i++; }
+        else if (i < s.Length && s[i] is 'b' or FlatSign) { pc = (pc + 11) % 12; i++; }
 
         var rest = s[i..].Trim().ToLowerInvariant();
         var mode = rest.Length == 0 || rest.StartsWith("maj") ? KeyMode.Major
