@@ -9,6 +9,7 @@ using Avalonia.Layout;
 // Screen lives in Avalonia.Platform (Avalonia.Controls only carries the Screens COLLECTION) -
 // verified against Avalonia release/12.0.3, src/Avalonia.Controls/Screen.cs.
 using Avalonia.Platform;
+using Avalonia.Threading;
 using JustPlay.Core.Storage;
 
 namespace JustPlay.UI.Behaviors;
@@ -61,20 +62,42 @@ public static class WindowPlacement
             latest = new WindowBounds(window.Position.X, window.Position.Y, window.Width, window.Height);
         }
 
+        // A capture is taken once the change has SETTLED, not inside the event that announced it.
+        // Windows reports a maximize as a resize first and the state change second - Avalonia.Win32's
+        // WM_SIZE handler raises Resized before WindowStateChanged (release/12.0.3,
+        // src/Windows/Avalonia.Win32/WindowImpl.AppWndProc.cs), and Window.HandleResized writes the
+        // new size into Width/Height (src/Avalonia.Controls/Window.cs). Captured synchronously, the
+        // maximized size arrived while WindowState still said Normal and was kept as the normal size.
+        // Posted, the capture runs after the whole message has been handled and sees the real state.
+        var capturePending = false;
+        void ScheduleCapture()
+        {
+            if (capturePending) return;
+            capturePending = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!capturePending) return;   // already taken by Closing
+                capturePending = false;
+                Capture();
+            }, DispatcherPriority.Background);
+        }
+
         window.Opened += (_, _) =>
         {
             FollowOwnerScreen(window);   // an overlay belongs on the screen you are working on
             EnsureVisible(window);       // clamp to the monitors that exist NOW
         };
-        window.PositionChanged += (_, _) => Capture();
+        window.PositionChanged += (_, _) => ScheduleCapture();
         window.PropertyChanged += (_, e) =>
         {
             if (e.Property == Layoutable.WidthProperty || e.Property == Layoutable.HeightProperty
                 || e.Property == Window.WindowStateProperty)
-                Capture();
+                ScheduleCapture();
         };
         window.Closing += (_, _) =>
         {
+            // A change from this same turn has not been looked at yet - look now, with the same guards.
+            if (capturePending) { capturePending = false; Capture(); }
             if (latest is null) return;
             Cache[key] = latest;
             Save();
