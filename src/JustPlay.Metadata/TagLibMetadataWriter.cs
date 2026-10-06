@@ -25,6 +25,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
+        var genre = Id3v23Genre.Read(filePath);   // before TagLib# parses it - see Id3v23Genre
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
 
@@ -68,6 +69,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
             TagCustomFields.Set(file, "REPLAYGAIN_TRACK_PEAK",
                 pk.ToString("0.000000", CultureInfo.InvariantCulture));
 
+        Id3v23Genre.Pin(file, genre);
         file.Save();
     }
 
@@ -81,6 +83,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
+        var genre = Id3v23Genre.Read(filePath);   // before TagLib# parses it - see Id3v23Genre
         using var file = TagLib.File.Create(filePath);
         var tag = file.Tag;
 
@@ -138,6 +141,7 @@ public sealed class TagLibMetadataWriter : IMetadataWriter
         if (restore.CommentCaptured)
             tag.Comment = string.IsNullOrEmpty(restore.Comment) ? null : restore.Comment;
 
+        Id3v23Genre.Pin(file, genre);
         file.Save();
     }
 
