@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
@@ -96,34 +97,83 @@ public sealed class ProgressRing : Control
     private SuiteFramePump? _pump;
     private double _shown;      // eased 0..1
     private double _spinAngle;  // degrees
+    private bool _attached;
+    private bool _onScreen;     // attached AND effectively visible, as of the last UpdatePump
+
+    /// <summary>Every ring currently in a visual tree - the ones an IsVisible change may concern.</summary>
+    private static readonly List<ProgressRing> Attached = [];
 
     static ProgressRing()
     {
         AffectsRender<ProgressRing>(
             ProgressProperty, RingThicknessProperty, TrackBrushProperty,
             ArcBrushProperty, LabelBrushProperty, ShowPercentProperty);
+
+        // A new value may need easing toward - or, settled, need nothing at all.
+        ProgressProperty.Changed.AddClassHandler<ProgressRing>((ring, _) => ring.UpdatePump());
+
+        // (!) A ring must only pump while it can be SEEN. The busy overlay keeps its ring attached
+        // inside a hidden panel for the whole life of the window, and an indeterminate ring invalidated
+        // itself on every vsync in there - an invisible animation in the finder, JUST TAG, Organise and
+        // Transform, all the time. "Can be seen" is Visual.IsEffectivelyVisible, which has no public
+        // change notification (IsEffectivelyVisibleChanged is internal - release/12.0.3,
+        // src/Avalonia.Base/Visual.cs). What drives it is IsVisible on the ring or any ancestor, so
+        // that is what is watched. Visual.OnPropertyChanged updates the whole subtree's
+        // IsEffectivelyVisible BEFORE class handlers run (AvaloniaObject.RaisePropertyChanged calls
+        // OnPropertyChangedCore, then property.NotifyChanged - src/Avalonia.Base/AvaloniaObject.cs), so
+        // the value read here is already the new one. IsVisible changes are rare, and there are only
+        // ever a handful of rings, so checking them all is cheaper than finding out which one it was.
+        IsVisibleProperty.Changed.AddClassHandler<Visual>((_, _) =>
+        {
+            for (var i = 0; i < Attached.Count; i++) Attached[i].UpdatePump();
+        });
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-
-        // Jump to the current value on appear - easing UP from zero every time the overlay opens
-        // would read as a replay of work that is already done.
-        _shown = Math.Clamp(Progress ?? 0, 0, 1);
-
-        if (TopLevel.GetTopLevel(this) is { } top)
-        {
-            _pump = new SuiteFramePump(top, OnFrame);
-            _pump.Start();
-        }
+        _attached = true;
+        Attached.Add(this);
+        UpdatePump();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        _pump?.Stop();
-        _pump = null;
+        _attached = false;
+        Attached.Remove(this);
+        UpdatePump();
         base.OnDetachedFromVisualTree(e);
+    }
+
+    /// <summary>
+    /// Run the frame pump exactly while there is something to animate that can be seen: the ring is on
+    /// screen, and it is either travelling (no value) or still easing toward its value.
+    /// </summary>
+    private void UpdatePump()
+    {
+        var onScreen = _attached && IsEffectivelyVisible;
+        if (onScreen && !_onScreen)
+        {
+            // Jump to the current value on appear - easing UP from zero every time the overlay opens
+            // would read as a replay of work that is already done.
+            _shown = Math.Clamp(Progress ?? 0, 0, 1);
+            InvalidateVisual();
+        }
+        _onScreen = onScreen;
+
+        var moving = onScreen && (Progress is not { } p || Math.Clamp(p, 0, 1) != _shown);
+        if (moving && _pump is null && TopLevel.GetTopLevel(this) is { } top)
+        {
+            // A fresh pump each time rather than restarting the old one: a stopped pump's last frame
+            // request may still be in flight, and re-arming that instance would run two chains.
+            _pump = new SuiteFramePump(top, OnFrame);
+            _pump.Start();
+        }
+        else if (!moving && _pump is not null)
+        {
+            _pump.Stop();
+            _pump = null;
+        }
     }
 
     private void OnFrame(double dt)
@@ -153,6 +203,7 @@ public sealed class ProgressRing : Control
         }
 
         if (dirty) InvalidateVisual();
+        UpdatePump();   // settled on its value: nothing left to animate until the value moves again
     }
 
     // -- Drawing --------------------------------------------------------------
