@@ -61,7 +61,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     // _tagWriteRetryQueue (JustPlay.Core.Playback.PendingTagWriteQueue) is a SEPARATE queue from
     // PlaybackController._deferred on purpose - re-adding to _deferred would busy-loop, since its
     // flush is keyed to the MAIN CurrentTrack changing, which may never happen for an unrelated
-    // lock. _tagWriteRetryTimer polls it every 15s (capped ~20 attempts / ~5 min per file - see
+    // lock. _tagWriteRetryTimer polls it every 15s (capped ~20 attempts / ~5 min per request - see
     // PendingTagWriteQueue's defaults) until the handle frees or it gives up and surfaces the
     // failure via EventLog (see OnTagWriteGiveUp).
     private readonly PendingTagWriteQueue _tagWriteRetryQueue = new();
@@ -2132,11 +2132,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             : $"Tag write failed - \"{name}\": {ex.Message}");
     }
 
-    /// <summary>Called by <see cref="_tagWriteRetryQueue"/> the FIRST time a file's write hits a lock
-    /// (i.e. it wasn't the main engine's current track - <see cref="PlaybackController"/> already
-    /// handles that case silently - so this is specifically the pre-cue-engine / external-app case).
-    /// A single "will retry" line so the wait before a possible <see cref="OnTagWriteGiveUp"/> isn't
-    /// silent.</summary>
+    /// <summary>Called by <see cref="_tagWriteRetryQueue"/> each time a write request is queued instead
+    /// of landing (i.e. it wasn't the main engine's current track - <see cref="PlaybackController"/>
+    /// already handles that case silently - so this is specifically the pre-cue-engine / external-app
+    /// case). One "will retry" line per request, so the wait before a possible
+    /// <see cref="OnTagWriteGiveUp"/> isn't silent.</summary>
     private void OnTagWriteDeferred(string path) =>
         EventLog.Append($"Tag write deferred - \"{Path.GetFileName(path)}\" is in use by another app, retrying...");
 
@@ -2191,19 +2191,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
             return TagWriteOutcome.Deferred;
         }
 
-        var deferred = false;
-        var failed = false;
-        _tagWriteRetryQueue.EnqueueAndTryNow(
-            path,
-            () => WriteThenRefresh(path, write),
-            onGiveUp: (p, ex) => { failed = true; OnTagWriteGiveUp(p, ex); },
-            onDeferred: p => { deferred = true; OnTagWriteDeferred(p); });
-
-        // onDeferred fires synchronously the first time a file is locked, and onGiveUp does the same
-        // for a non-retryable failure - so by here both flags are settled for this attempt.
-        return failed ? TagWriteOutcome.Failed
-             : deferred ? TagWriteOutcome.Deferred
-             : TagWriteOutcome.Written;
+        // The queue says what became of THIS request. It used to be pieced together from callbacks,
+        // and those only fire on a file's first failure - so a second save of a file that was still
+        // locked (e.g. by the pre-cue) came back as Written: "Saved", dirty cleared, a rename tried on
+        // the locked file, and the edit could later be given up on behind the user's back.
+        return _tagWriteRetryQueue.EnqueueAndTryNow(
+                   path, () => WriteThenRefresh(path, write), OnTagWriteGiveUp, OnTagWriteDeferred) switch
+        {
+            QueuedWriteOutcome.Written  => TagWriteOutcome.Written,
+            QueuedWriteOutcome.Deferred => TagWriteOutcome.Deferred,
+            _                           => TagWriteOutcome.Failed,
+        };
     }
 
     /// <summary>The editor's write plus the row refresh - a corrected artist has to show up in the

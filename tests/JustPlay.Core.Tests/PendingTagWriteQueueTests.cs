@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using JustPlay.Core.Playback;
 using Xunit;
@@ -172,38 +173,119 @@ public class PendingTagWriteQueueTests
     }
 
     // =========================================================================
-    // 7. Re-queuing the same path replaces the payload ("last write wins",
-    //    mirrors PreCueFinderViewModel._pendingLikes) without resetting the
-    //    retry budget - a second analysis of a still-locked file shouldn't
-    //    grant it a fresh 20-attempt/5-minute allowance.
+    // 7. Re-queuing the same path APPENDS: one entry, and once the file frees
+    //    up both writes land, oldest first. A later save carries only what
+    //    changed since the earlier one, so replacing would lose the earlier edit.
     // =========================================================================
 
     [Fact]
-    public void Enqueue_SamePath_LastWriteWins_BudgetNotReset()
+    public void Enqueue_SamePath_Appends_BothLandInOrder()
     {
-        var queue = new PendingTagWriteQueue(maxAttempts: 2);
-        var aRuns = 0;
-        var bRuns = 0;
+        var queue = new PendingTagWriteQueue();
+        var locked = true;
+        var landed = new List<string>();
 
-        // Attempt #1 for the file: write A runs (for real - it IS the first attempt) and fails.
-        queue.EnqueueAndTryNow("C:\\track.mp3", () => { aRuns++; throw new IOException("locked"); });
-        Assert.Equal(1, aRuns);
+        Action Write(string name) => () =>
+        {
+            if (locked) throw new IOException("locked");
+            landed.Add(name);
+        };
+
+        queue.EnqueueAndTryNow("C:\\track.mp3", Write("key"));
+        queue.Enqueue("C:\\track.mp3", Write("title"));
         Assert.Equal(1, queue.Count);
 
-        // A fresh write request lands for the SAME path before the first one ever succeeded
-        // (e.g. re-analysis completed while the file was still locked) - replaces the payload,
-        // still ONE queued entry, and must NOT reset the attempt count back to 0.
-        queue.Enqueue("C:\\track.mp3", () => bRuns++);
-        Assert.Equal(1, queue.Count);
+        locked = false;
+        queue.RetryAll();
 
-        queue.RetryAll();   // attempt #2 for the file - runs the REPLACEMENT write, which succeeds
-        Assert.Equal(1, aRuns); // the stale first write never ran again
-        Assert.Equal(1, bRuns); // the replacement write is what actually executed, exactly once
+        Assert.Equal(["key", "title"], landed);
         Assert.False(queue.IsPending("C:\\track.mp3"));
     }
 
     // =========================================================================
-    // 8. THE required simulated repro: hold a real OS file lock via FileStream,
+    // 8. Every request gets its REAL outcome back - not one inferred from
+    //    callbacks that only fire on a file's first failure.
+    // =========================================================================
+
+    [Fact]
+    public void EnqueueAndTryNow_ReportsWrittenDeferredAndFailed()
+    {
+        var queue = new PendingTagWriteQueue();
+
+        Assert.Equal(QueuedWriteOutcome.Written,
+            queue.EnqueueAndTryNow("C:\\free.mp3", () => { }));
+        Assert.Equal(QueuedWriteOutcome.Deferred,
+            queue.EnqueueAndTryNow("C:\\locked.mp3", () => throw new IOException("locked")));
+        Assert.Equal(QueuedWriteOutcome.Failed,
+            queue.EnqueueAndTryNow("C:\\corrupt.mp3", () => throw new InvalidDataException("corrupt")));
+    }
+
+    [Fact]
+    public void SecondSave_OfAStillLockedFile_IsDeferred_NotWritten()
+    {
+        // The regression: the second save came back as Written (onDeferred only fired on the file's
+        // FIRST failure), so the editor said "Saved", cleared its dirty state and renamed a locked file.
+        var queue = new PendingTagWriteQueue();
+        var deferredCalls = 0;
+
+        var first = queue.EnqueueAndTryNow("C:\\cued.mp3", () => throw new IOException("locked"),
+                                           onDeferred: _ => deferredCalls++);
+        var second = queue.EnqueueAndTryNow("C:\\cued.mp3", () => throw new IOException("locked"),
+                                            onDeferred: _ => deferredCalls++);
+
+        Assert.Equal(QueuedWriteOutcome.Deferred, first);
+        Assert.Equal(QueuedWriteOutcome.Deferred, second);
+        Assert.Equal(2, deferredCalls);
+        Assert.True(queue.IsPending("C:\\cued.mp3"));
+    }
+
+    [Fact]
+    public void SecondSave_RestartsTheGiveUpBudget()
+    {
+        // The budget belongs to the request: a save accepted at 4:50 must not be dropped at 5:00
+        // because an EARLIER save of the same file started the clock.
+        var now = new DateTime(2026, 7, 13, 0, 0, 0, DateTimeKind.Utc);
+        var queue = new PendingTagWriteQueue(maxAttempts: 1000, maxAge: TimeSpan.FromMinutes(5), clock: () => now);
+        var gaveUp = 0;
+
+        queue.EnqueueAndTryNow("C:\\cued.mp3", () => throw new IOException("locked"));
+        now = now.AddMinutes(4).AddSeconds(50);
+        queue.EnqueueAndTryNow("C:\\cued.mp3", () => throw new IOException("locked"));
+
+        now = now.AddSeconds(20);   // 5:10 after the first save, 0:20 after the second
+        queue.RetryAll(onGiveUp: (_, _) => gaveUp++);
+        Assert.True(queue.IsPending("C:\\cued.mp3"));
+        Assert.Equal(0, gaveUp);
+
+        now = now.AddMinutes(5);    // past the SECOND save's budget
+        queue.RetryAll(onGiveUp: (_, _) => gaveUp++);
+        Assert.False(queue.IsPending("C:\\cued.mp3"));
+        Assert.Equal(1, gaveUp);
+    }
+
+    [Fact]
+    public void Save_WhileAnAttemptIsRunning_IsDeferred_AndLandsInTheSamePass()
+    {
+        // A second request arriving while another thread is mid-attempt on the same file. Simulated
+        // without threads: the running write itself makes the second request.
+        var queue = new PendingTagWriteQueue();
+        var landed = new List<string>();
+        QueuedWriteOutcome? inner = null;
+
+        var outer = queue.EnqueueAndTryNow("C:\\track.mp3", () =>
+        {
+            inner = queue.EnqueueAndTryNow("C:\\track.mp3", () => landed.Add("second"));
+            landed.Add("first");
+        });
+
+        Assert.Equal(QueuedWriteOutcome.Deferred, inner);   // not written when it returned...
+        Assert.Equal(QueuedWriteOutcome.Written, outer);
+        Assert.Equal(["first", "second"], landed);          // ...but run straight after, not at the next tick
+        Assert.False(queue.IsPending("C:\\track.mp3"));
+    }
+
+    // =========================================================================
+    // 9. THE required simulated repro: hold a real OS file lock via FileStream,
     //    enqueue a write that itself needs an exclusive handle (mirrors TagLib#
     //    opening the file), release the lock, and assert the write lands on retry.
     // =========================================================================
