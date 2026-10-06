@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Models;
+using JustPlay.Core.Streaming;
 using ManagedBass.Enc;
 
 namespace JustPlay.Audio.Bass;
@@ -105,9 +106,10 @@ public sealed class BassBroadcastService : IBroadcastService
     // recover from a drop in a live club set) - INDEFINITELY, until a retry succeeds or the user hits DISCONNECT. Between attempts the public state stays
     // Reconnecting (no Error flicker); every attempt is visible in the console log. A running
     // set recording is a separate encoder on the mixer and is never touched by any of this.
+    // Which loop is at work - and that every loop retires when it ends - is ReconnectGate's job,
+    // so those rules are unit-tested without BASS.
     private StreamServerProfile? _lastProfile;
-    private CancellationTokenSource? _reconnectCts;
-    private readonly object _reconnectSync = new(); // guards _reconnectCts start/cancel
+    private readonly ReconnectGate _reconnect = new();
     private readonly object _connectSync = new();   // serializes ConnectCore/StopEncoder across threads
 
     public BassBroadcastService(IBassMixerSource source)
@@ -222,18 +224,22 @@ public sealed class BassBroadcastService : IBroadcastService
         // -- Step 2: Register connection-dropped notification --------------
         // EncodeNotifyStatus.CastServerConnectionDied -> transition to Error/Reconnecting.
         // The delegate is pinned as a field (GC safety).
-        _notifyProc = (_, status, _) =>
+        _notifyProc = (handle, status, _) =>
         {
             // Called on a BASS internal thread - do NOT call UI APIs here.
             if (status == EncodeNotifyStatus.CastServerConnectionDied ||
                 status == EncodeNotifyStatus.EncoderDied)
             {
+                // A notice from an encoder that is no longer ours - already replaced by a retry,
+                // or stopped by DISCONNECT - is history, not a new drop.
+                if (handle != _encoder) return;
+
                 _lastError = $"Connection lost ({status}).";
                 Console.WriteLine("[Broadcast] " + _lastError);
                 // Auto-reconnect instead of giving up: EncoderDied is included deliberately -
                 // the retry rebuilds encoder + cast from scratch either way, and a permanent
-                // local failure just keeps backing off at 60 s until the user disconnects.
-                BeginReconnect();
+                // local failure just keeps backing off at 30 s until the user disconnects.
+                BeginReconnect(handle);
             }
         };
         BassEnc.EncodeSetNotify(_encoder, _notifyProc);
@@ -338,74 +344,95 @@ public sealed class BassBroadcastService : IBroadcastService
 
     // -- Auto-reconnect machinery -----------------------------------------
 
-    /// <summary>Enter Reconnecting and start the retry loop (no-op if one is already running).
+    /// <summary>Enter Reconnecting and start the retry loop. When one is already at work the gate
+    /// records the drop instead, so that loop cannot stop on a connection that has just died.
     /// Called from the BASS notify thread - must not block.</summary>
-    private void BeginReconnect()
+    private void BeginReconnect(int droppedEncoder)
     {
-        lock (_reconnectSync)
+        var profile = _lastProfile;
+        if (profile is null)
         {
-            if (_reconnectCts is { IsCancellationRequested: false })
-                return; // a loop is already at work
-            if (_lastProfile is null)
-            {
-                SetState(BroadcastState.Error); // nothing to reconnect TO - shouldn't happen
-                return;
-            }
-            var cts = new CancellationTokenSource();
-            _reconnectCts = cts;
-            SetState(BroadcastState.Reconnecting);
-            _ = Task.Run(() => ReconnectLoopAsync(_lastProfile, cts.Token));
+            SetState(BroadcastState.Error); // nothing to reconnect TO - shouldn't happen
+            return;
         }
+
+        var ticket = _reconnect.TryBegin(droppedEncoder, () => SetState(BroadcastState.Reconnecting));
+        if (ticket is null) return; // a loop is already at work, and now knows about this drop
+
+        _ = Task.Run(() => ReconnectLoopAsync(profile, ticket));
     }
 
     /// <summary>
     /// Retry with exponential backoff - 2/4/8/16 s, then capped at 30 s - indefinitely,
     /// until an attempt succeeds or <see cref="CancelReconnect"/> (user CONNECT/DISCONNECT)
     /// stops the loop. Failed attempts stay in Reconnecting; details go to the console log.
+    ///
+    /// <para>(!!) However it ends, the loop retires itself (<c>finally</c> -> <c>End</c>). A loop
+    /// that returned on success without doing so left the gate reading "at work", and the next
+    /// drop in the same session then reconnected nothing while the UI still showed ON AIR.</para>
     /// </summary>
-    private async Task ReconnectLoopAsync(StreamServerProfile profile, CancellationToken ct)
+    private async Task ReconnectLoopAsync(StreamServerProfile profile, ReconnectGate.Ticket ticket)
     {
-        for (var attempt = 1; !ct.IsCancellationRequested; attempt++)
+        var ct = ticket.Token;
+        try
         {
-            var delay = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt)));
-            Console.WriteLine($"[Broadcast] Reconnect attempt {attempt} in {delay.TotalSeconds:0} s...");
-            try { await Task.Delay(delay, ct); }
-            catch (OperationCanceledException) { return; }
-            if (ct.IsCancellationRequested) return;
+            for (var attempt = 1; !ct.IsCancellationRequested; attempt++)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt)));
+                Console.WriteLine($"[Broadcast] Reconnect attempt {attempt} in {delay.TotalSeconds:0} s...");
+                try { await Task.Delay(delay, ct); }
+                catch (OperationCanceledException) { return; }
+                if (ct.IsCancellationRequested) return;
 
-            bool ok;
-            lock (_connectSync)
-            {
-                try
+                bool ok;
+                int encoder;
+                lock (_connectSync)
                 {
-                    ok = ConnectCore(profile, ct, fromReconnect: true);
+                    try
+                    {
+                        ok = ConnectCore(profile, ct, fromReconnect: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Same guard as ConnectAsync: a throwing attempt is a FAILED attempt,
+                        // not an unobserved-task crash from the background loop.
+                        _lastError = ex.Message;
+                        Console.WriteLine($"[Broadcast] Reconnect attempt failed: {ex.Message}");
+                        ok = false;
+                    }
+                    encoder = _encoder;
                 }
-                catch (Exception ex)
+
+                if (ok)
                 {
-                    // Same guard as ConnectAsync: a throwing attempt is a FAILED attempt,
-                    // not an unobserved-task crash from the background loop.
-                    _lastError = ex.Message;
-                    Console.WriteLine($"[Broadcast] Reconnect attempt failed: {ex.Message}");
-                    ok = false;
+                    if (_reconnect.Finish(ticket, encoder))
+                    {
+                        Console.WriteLine("[Broadcast] Reconnected.");
+                        return;
+                    }
+                    Console.WriteLine("[Broadcast] The new connection dropped as it came up - retrying.");
                 }
+
+                // Stay visibly reconnecting between attempts - unless the user's CONNECT or
+                // DISCONNECT has taken over meanwhile, whose state must not be overwritten.
+                _reconnect.IfCurrent(ticket, () => SetState(BroadcastState.Reconnecting));
             }
-            if (ok)
-            {
-                Console.WriteLine("[Broadcast] Reconnected.");
-                return;
-            }
-            SetState(BroadcastState.Reconnecting); // stay visibly reconnecting between attempts
+        }
+        catch (Exception ex)
+        {
+            // Nothing above is expected to throw past the per-attempt guard. If something does, the
+            // loop is gone, and "Reconnecting" would be a promise nobody keeps.
+            _lastError = ex.Message;
+            Console.WriteLine($"[Broadcast] Reconnect loop stopped: {ex}");
+            _reconnect.IfCurrent(ticket, () => SetState(BroadcastState.Error));
+        }
+        finally
+        {
+            _reconnect.End(ticket);
         }
     }
 
-    private void CancelReconnect()
-    {
-        lock (_reconnectSync)
-        {
-            _reconnectCts?.Cancel();
-            _reconnectCts = null;
-        }
-    }
+    private void CancelReconnect() => _reconnect.Cancel();
 
     /// <inheritdoc/>
     /// <remarks>
