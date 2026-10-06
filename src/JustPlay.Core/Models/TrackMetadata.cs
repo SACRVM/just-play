@@ -80,6 +80,18 @@ public sealed record TrackMetadata
     /// </summary>
     public bool IsFavorite { get; init; }
 
+    /// <summary>
+    /// True when the file could not be READ at all - locked by another app, the share unreachable,
+    /// the file gone - as opposed to read fine but carrying no usable tags. Everything else on this
+    /// record is then only the bare fallback, NOT the file's tags.
+    ///
+    /// <para>Playback can ignore it: a bare record still plays. Anything that PERSISTS or WRITES
+    /// what it read - an index row, a tag write built on top of the read - must skip the file
+    /// instead, or a momentary SMB hiccup becomes blank BPM/key in the index or empty fields
+    /// written into the file.</para>
+    /// </summary>
+    public bool ReadFailed { get; init; }
+
     /// <summary>Fallback display name when no title tag exists (the file name).</summary>
     public required string FallbackName { get; init; }
 

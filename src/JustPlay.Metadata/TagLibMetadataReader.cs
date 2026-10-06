@@ -55,10 +55,15 @@ public sealed class TagLibMetadataReader : IMetadataReader
                 IsFavorite = ReadPopm(file),
             };
         }
-        catch
+        catch (Exception ex)
         {
-            // Corrupt/unsupported tags must never stop playback - return the bare minimum.
-            return new TrackMetadata { FallbackName = fallback };
+            // Corrupt/unsupported tags must never stop playback - return the bare minimum. An IO
+            // failure is flagged on top: the file may be perfectly tagged, we just could not see it.
+            return new TrackMetadata
+            {
+                FallbackName = fallback,
+                ReadFailed = ex is IOException or UnauthorizedAccessException,
+            };
         }
     }
 
