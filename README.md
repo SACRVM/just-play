@@ -5,20 +5,20 @@ Camelot key, BPM and energy detected on the spot — no library to build, no sig
 
 *Part of **J.U.S.T.** — Just Useful Sound Tools. **From DJs to DJs**: built and gig-tested by a working DJ.*
 
-> **v0.6.0 beta.** Daily driver on Windows, still pre-1.0. macOS and Linux share the codebase and
+> **v0.6.0.** Daily driver on Windows, still pre-1.0. macOS and Linux share the codebase and
 > are not validated. [What isn't finished](#not-finished-yet) is named below rather than left for
 > you to find.
 
 ## Install
 
-[**Download the installer**](https://github.com/SACRVM/just-play/releases/tag/v0.6.0-beta.1) —
+[**Download the installer**](https://github.com/SACRVM/just-play/releases/latest) —
 per-user, no admin prompt. One install, four tools, one shared runtime:
 
 | | |
 |---|---|
 | **JUST PLAY** | the player — analysis, Harmonic Sort, DSP rack, Icecast |
 | **JUST STREAM** | the broadcaster — capture one app, broadcast DSP, listener count |
-| **JUST TAG** | the tag editor — one file or three hundred, every write previewed |
+| **JUST TAG** | the tag editor — one file or three hundred, every rename, move and delete previewed |
 | **JustPlayCLI** | headless scan / analyse / tag / sort, for scripts and agents |
 
 They share one look by design: frameless rounded windows, a theme-gradient icon that repaints on
@@ -101,13 +101,19 @@ Older releases: [the Releases page](https://github.com/SACRVM/just-play/releases
   no app. The index catches up when you press Scan.
 - **A scan indexes; it does not analyse.** The batch runner exists and has no screen — use
   right-click → Analyse, or the CLI.
-- **The tag-write policy has no settings screen.** What 0.6 writes by default is byte-for-byte what
-  0.5 wrote, pinned by SHA-256 goldens.
+- **The tag-write policy has no settings screen, and JUST TAG's Analyse writes without a preview.**
+  Analyse puts BPM, key, energy, ReplayGain and the analysis record into every selected file, over
+  whatever another tool wrote there. What 0.6 writes by default is byte-for-byte what 0.5 wrote,
+  pinned by SHA-256 goldens.
 - **"In how many sets is this track?"** — the index has no playlist-membership table.
 - **The analysis light lies about old lossless files.** Builds up to v0.4.0 handed the sample-based
   analyzers interleaved stereo as "mono" on FLAC / WAV / AIFF. Key and BPM were unaffected. The fix
   landed without a detector-version bump, so the staleness check **cannot find those files for you**
   — re-analyse them by hand.
+- **Genres an older build rewrote stay rewritten.** Up to the 0.6.0 beta, every tag write to an
+  ID3v2.3 file turned the `/` in its genre into `;` — "Techno (Peak Time / Driving)" came back as
+  "Techno (Peak Time ; Driving)". 0.6.0 writes a genre back exactly as stored, but it cannot tell
+  which `;` used to be a `/`. JUST TAG's Replace fixes them in one previewed pass.
 - **macOS / Linux are not validated.** Cross-platform code, no real-hardware run. There is a macOS
   publish script and no Linux one.
 
