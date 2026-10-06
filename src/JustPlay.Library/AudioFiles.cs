@@ -83,6 +83,22 @@ public static class AudioFiles
     /// files exist and the index only supplies what is already known about them.
     /// </param>
     public static IEnumerable<ScannedFile> EnumerateWithKeys(string root, bool recursive = true) =>
+        // macOS/SMB: protected subfolders (e.g. TemporaryItems, .Trashes) throw
+        // UnauthorizedAccess and would abort the whole walk without ignoreInaccessible.
+        Walk(root, recursive, ignoreInaccessible: true);
+
+    /// <summary>
+    /// ONE folder's tracks, or an exception - never an empty list - when the folder cannot be listed.
+    ///
+    /// <para>The form to use whenever a short or empty result would be taken as evidence that files
+    /// are GONE. The leniency that keeps <see cref="EnumerateWithKeys"/> from aborting on a protected
+    /// .Trashes also turns an access-denied share root into an empty listing, and an empty listing
+    /// reads exactly like "every file in it was deleted".</para>
+    /// </summary>
+    public static List<ScannedFile> ListFolderStrict(string folder) =>
+        [.. Walk(folder, recursive: false, ignoreInaccessible: false)];
+
+    private static IEnumerable<ScannedFile> Walk(string root, bool recursive, bool ignoreInaccessible) =>
         new System.IO.Enumeration.FileSystemEnumerable<ScannedFile>(
             root,
             (ref System.IO.Enumeration.FileSystemEntry entry) => new ScannedFile(
@@ -90,9 +106,7 @@ public static class AudioFiles
             new EnumerationOptions
             {
                 RecurseSubdirectories = recursive,
-                // macOS/SMB: protected subfolders (e.g. TemporaryItems, .Trashes) throw
-                // UnauthorizedAccess and would abort the whole walk without this.
-                IgnoreInaccessible = true,
+                IgnoreInaccessible = ignoreInaccessible,
                 AttributesToSkip = FileAttributes.None,
             })
         {

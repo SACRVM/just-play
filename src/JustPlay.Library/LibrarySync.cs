@@ -19,7 +19,10 @@ namespace JustPlay.Library;
 /// analysed here - DSP needs the BASS adapter, and this project stays platform-agnostic.</para>
 ///
 /// <para>A file that vanished is flagged, never deleted (<see cref="LibraryDb.MarkMissing"/>) -
-/// an offline share or a renamed folder must not silently shrink the library.</para>
+/// an offline share or a renamed folder must not silently shrink the library. And only a file
+/// PROVEN gone is flagged, because a flagged track disappears from the library views: "could not
+/// look" (a sleeping NAS, an access-denied folder) is unknown, never gone - see
+/// <see cref="FolderListing"/>. Every file a pass does see on disk loses its flag again.</para>
 /// </summary>
 public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
 {
@@ -52,24 +55,34 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         var seen  = new HashSet<string>(known.Count, StringComparer.OrdinalIgnoreCase);
 
         var changed   = new List<AudioFiles.ScannedFile>();
+        var flagged   = new List<string>();
         var unchanged = 0;
-        var recovered = 0;
 
         foreach (var file in onDisk)
         {
             seen.Add(file.Path);
 
-            if (known.TryGetValue(file.Path, out var key) &&
-                key.Matches(file.SizeBytes, file.ModifiedUtc))
+            if (!known.TryGetValue(file.Path, out var key))
+            {
+                changed.Add(file);
+                continue;
+            }
+
+            // On disk, so not missing - whatever happens next. A changed file whose re-read then
+            // fails keeps its old row, and must not keep the flag along with it.
+            if (key.Missing) flagged.Add(file.Path);
+
+            if (key.Matches(file.SizeBytes, file.ModifiedUtc))
             {
                 unchanged++;
-                // It was flagged missing and is back - a one-statement UPDATE, no re-read.
-                if (key.Missing && db.ClearMissing(file.Path)) recovered++;
                 continue;
             }
 
             changed.Add(file);
         }
+
+        // Flagged missing and back: one batch of UPDATEs, no re-read.
+        var recovered = flagged.Count > 0 ? db.ClearMissing(flagged) : 0;
 
         // -- 3. Only now do we open anything ----------------------------------
         var tagWatch  = Stopwatch.StartNew();
@@ -138,11 +151,16 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         var markedMissing = 0;
         if (opt.MarkMissing)
         {
-            var gone = known
-                .Where(kv => !kv.Value.Missing && !seen.Contains(kv.Key))
+            // Only what lives under THIS root. The index also holds tracks that a playlist or a
+            // browsed folder brought in from elsewhere, and a walk of the root says nothing about them.
+            var under  = WithTrailingSeparator(Path.GetFullPath(root));
+            var unseen = known
+                .Where(kv => !kv.Value.Missing && !seen.Contains(kv.Key) &&
+                             kv.Key.StartsWith(under, StringComparison.OrdinalIgnoreCase))
                 .Select(kv => kv.Key)
                 .ToList();
 
+            var gone = ConfirmGone(root, unseen, ct);
             if (gone.Count > 0) markedMissing = db.MarkMissing(gone);
         }
 
@@ -177,19 +195,34 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     /// <para>Cheap enough to run behind every folder open: 0.12-0.25 ms per file, measured over SMB
     /// (276 ms for the 1,092-file folder, ~18 ms for a normal one) - but only because it is NOT on
     /// the path that paints the list.</para>
+    ///
+    /// <para>Throws when the folder cannot be listed (share asleep, access denied, folder gone), and
+    /// then has compared, flagged and recorded nothing.</para>
     /// </summary>
     public FolderVerifyResult VerifyFolder(
         string folder, SyncOptions? options = null, CancellationToken ct = default)
     {
         var opt = options ?? SyncOptions.Default;
 
-        var files = AudioFiles.EnumerateWithKeys(folder, recursive: false).ToList();
+        // STRICT on purpose. The lenient walk lists an access-denied share as EMPTY, which reads as
+        // "every file in it was deleted" - and would then be stored as the folder's fingerprint.
+        var files = AudioFiles.ListFolderStrict(folder);
         var live  = FolderFingerprint.FromFiles(files);
 
         ct.ThrowIfCancellationRequested();
 
+        // Everything just listed is on disk, so none of it may stay flagged missing, however the flag
+        // got there (a check while the share slept, a file moved away and back). Before the early-out
+        // on purpose: an unchanged folder is exactly where such a flag would outlive its cause.
+        var recovered = db.ClearMissing(files.Select(f => f.Path));
+
         if (db.FolderState(folder) is { } stored && stored.Matches(live))
-            return new FolderVerifyResult { Folder = folder, Changed = false };
+        {
+            return new FolderVerifyResult
+            {
+                Folder = folder, Changed = recovered > 0, Recovered = recovered,
+            };
+        }
 
         // Something moved. Compare per file - the fingerprint says THAT it changed, not WHAT.
         var known = db.LookupMany(files.Select(f => f.Path));
@@ -249,10 +282,11 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         return new FolderVerifyResult
         {
             Folder            = folder,
-            Changed           = added > 0 || updated > 0 || markedMissing > 0,
+            Changed           = added > 0 || updated > 0 || markedMissing > 0 || recovered > 0,
             Added             = added,
             Updated           = updated,
             MarkedMissing     = markedMissing,
+            Recovered         = recovered,
             QueuedForAnalysis = queued,
         };
     }
@@ -265,16 +299,21 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     /// next to a tag read: measured 2026-07-30 over SMB, <b>1.58 ms per file against ~57 ms to open
     /// one</b> - 36x cheaper, so a 100-track playlist verifies in ~160 ms in the background instead
     /// of costing six seconds of reads up front.</para>
+    ///
+    /// <para>A track is only flagged missing when its own folder lists without it. A playlist can
+    /// point anywhere, including a share that is asleep right now - see <see cref="Stat"/>.</para>
     /// </summary>
     public TrackVerifyResult VerifyTracks(
         IReadOnlyList<string> paths, SyncOptions? options = null, CancellationToken ct = default)
     {
-        var opt   = options ?? SyncOptions.Default;
-        var known = db.LookupMany(paths);
+        var opt      = options ?? SyncOptions.Default;
+        var known    = db.LookupMany(paths);
+        var listings = new Dictionary<string, FolderListing>(StringComparer.OrdinalIgnoreCase);
 
         var batch   = new List<TrackIndexEntry>();
         var queued  = new List<string>();
         var gone    = new List<string>();
+        var present = new List<string>(paths.Count);
         var added   = 0;
         var updated = 0;
 
@@ -282,26 +321,11 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
         {
             ct.ThrowIfCancellationRequested();
 
-            long size;
-            DateTime modified;
-            try
-            {
-                // One FileInfo = one stat; the properties are served from its cached state.
-                var info = new FileInfo(path);
-                if (!info.Exists)
-                {
-                    if (known.ContainsKey(path)) gone.Add(path);
-                    continue;
-                }
-                size     = info.Length;
-                modified = info.LastWriteTimeUtc;
-            }
-            catch (Exception)
-            {
-                // A playlist can point anywhere, including a share that is not mounted right now.
-                if (known.ContainsKey(path)) gone.Add(path);
-                continue;
-            }
+            var presence = Stat(path, listings, out var size, out var modified);
+            if (presence == Presence.Absent && known.ContainsKey(path)) gone.Add(path);
+            if (presence != Presence.Present) continue;
+
+            present.Add(path);
 
             var existing = known.GetValueOrDefault(path);
             if (existing is not null && existing.LooksUnchanged(size, modified) && existing.TagsAreCurrent)
@@ -316,6 +340,9 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
             if (existing is null) added++; else updated++;
         }
 
+        // Every track found on disk sheds a missing flag, including the unchanged ones the loop
+        // skipped - a track moved away and back is unchanged, and would otherwise stay hidden.
+        var recovered = db.ClearMissing(present);
         if (batch.Count > 0) db.UpsertMany(batch);
 
         var markedMissing = 0;
@@ -323,13 +350,103 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
 
         return new TrackVerifyResult
         {
-            Changed           = added > 0 || updated > 0 || markedMissing > 0,
+            Changed           = added > 0 || updated > 0 || markedMissing > 0 || recovered > 0,
             Added             = added,
             Updated           = updated,
             MarkedMissing     = markedMissing,
+            Recovered         = recovered,
             QueuedForAnalysis = queued,
         };
     }
+
+    private enum Presence { Present, Absent, Unknown }
+
+    /// <summary>
+    /// One file's size and mtime - or proof that it is gone, or "nobody can say".
+    ///
+    /// <para><c>FileInfo.Exists</c> alone may not hand out a missing verdict: it returns false for a
+    /// share that is asleep or unreachable exactly as for a deleted file. So a false only becomes
+    /// ABSENT once a strict listing of the file's own folder succeeded without it (one listing per
+    /// folder, and only for folders where a stat came back empty-handed). A folder that cannot be
+    /// listed, or is not there at all - which is also what an unmounted share looks like on macOS -
+    /// leaves the file UNKNOWN. A folder that really was renamed is the full sweep's call, which
+    /// has walked the root and knows the share is there.</para>
+    /// </summary>
+    private static Presence Stat(
+        string path, Dictionary<string, FolderListing> listings, out long size, out DateTime modifiedUtc)
+    {
+        size        = 0;
+        modifiedUtc = default;
+
+        try
+        {
+            // One FileInfo = one stat; the properties are served from its cached state.
+            var info = new FileInfo(path);
+            if (info.Exists)
+            {
+                size        = info.Length;
+                modifiedUtc = info.LastWriteTimeUtc;
+                return Presence.Present;
+            }
+        }
+        catch (Exception)
+        {
+            return Presence.Unknown;
+        }
+
+        var folder = Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(folder)) return Presence.Unknown;
+
+        if (!listings.TryGetValue(folder, out var listing))
+            listings[folder] = listing = FolderListing.Of(folder);
+
+        if (listing.State != FolderListing.Outcome.Listed) return Presence.Unknown;
+        if (!listing.TryGet(path, out var file)) return Presence.Absent;
+
+        // The stat missed it but the listing has it - a hiccup between the two looks. The listing's
+        // own entry is just as good a cheap key.
+        size        = file.SizeBytes;
+        modifiedUtc = file.ModifiedUtc;
+        return Presence.Present;
+    }
+
+    /// <summary>
+    /// Narrows what a walk of <paramref name="root"/> did NOT see down to what is provably gone.
+    ///
+    /// <para>Not being seen is no evidence on its own: the walk skips folders it may not read, and a
+    /// root that refuses to be listed walks as empty. So each candidate's own folder is listed
+    /// strictly, once. Listed without the file = gone. Not there at all = gone too, because this
+    /// pass just walked the root, so the share is mounted - checked again at the end, since a share
+    /// that drops mid-pass makes every folder under it "not found". Unreadable = unknown.</para>
+    /// </summary>
+    private static List<string> ConfirmGone(string root, List<string> unseen, CancellationToken ct)
+    {
+        if (unseen.Count == 0) return [];
+
+        // A root that cannot be listed walked as empty - nothing under it was really looked at.
+        if (!FolderListing.CanList(root)) return [];
+
+        var gone     = new List<string>();
+        var vanished = new List<string>();
+
+        foreach (var inFolder in unseen.GroupBy(
+                     p => Path.GetDirectoryName(p) ?? "", StringComparer.OrdinalIgnoreCase))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var listing = FolderListing.Of(inFolder.Key);
+            if (listing.State == FolderListing.Outcome.Listed)
+                gone.AddRange(inFolder.Where(p => !listing.TryGet(p, out _)));
+            else if (listing.State == FolderListing.Outcome.NotFound)
+                vanished.AddRange(inFolder);
+        }
+
+        if (vanished.Count > 0 && FolderListing.CanList(root)) gone.AddRange(vanished);
+        return gone;
+    }
+
+    private static string WithTrailingSeparator(string path) =>
+        Path.EndsInDirectorySeparator(path) ? path : path + Path.DirectorySeparatorChar;
 
     private enum ReadOutcome
     {
@@ -348,10 +465,10 @@ public sealed class LibrarySync(LibraryDb db, IMetadataReader metadata)
     ///
     /// <para>(!) A failed read must never reach the index. <see cref="IMetadataReader.Read"/> does
     /// not throw: for a locked file or an SMB hiccup it returns a bare record with
-    /// <see cref="Core.Models.TrackMetadata.ReadFailed"/> set. Indexed as "not analysed", that record would
-    /// blank BPM, key and tags under the file's CURRENT size and mtime - and the cheap key would then
-    /// match on every later pass, so the row would never be read again. Leaving the old row alone
-    /// keeps its key stale, which is exactly what gets the file retried next time.</para>
+    /// <see cref="Core.Models.TrackMetadata.ReadFailed"/> set. Indexed as "not analysed", that
+    /// record would blank BPM, key and tags under the file's CURRENT size and mtime - and the cheap
+    /// key would then match on every later pass, so the row would never be read again. Leaving the
+    /// old row alone keeps its key stale, which is exactly what gets the file retried next time.</para>
     /// </summary>
     private ReadOutcome ReadEntry(
         string path, long size, DateTime modifiedUtc, SyncOptions opt, out TrackIndexEntry? entry)
@@ -411,12 +528,15 @@ public sealed record FolderVerifyResult
 {
     public required string Folder { get; init; }
 
-    /// <summary>False = the fingerprint matched, nothing was read or written.</summary>
+    /// <summary>False = the index already matched the folder; nothing was written.</summary>
     public bool Changed { get; init; }
 
     public int Added { get; init; }
     public int Updated { get; init; }
     public int MarkedMissing { get; init; }
+
+    /// <summary>Tracks that were flagged missing and are on disk after all.</summary>
+    public int Recovered { get; init; }
 
     /// <summary>Files in this folder that still need a real analysis run.</summary>
     public IReadOnlyList<string> QueuedForAnalysis { get; init; } = [];
@@ -431,6 +551,9 @@ public sealed record TrackVerifyResult
     public int Added { get; init; }
     public int Updated { get; init; }
     public int MarkedMissing { get; init; }
+
+    /// <summary>Listed tracks that were flagged missing and are on disk after all.</summary>
+    public int Recovered { get; init; }
 
     /// <summary>Listed tracks that still need a real analysis run.</summary>
     public IReadOnlyList<string> QueuedForAnalysis { get; init; } = [];

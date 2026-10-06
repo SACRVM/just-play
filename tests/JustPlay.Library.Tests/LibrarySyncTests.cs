@@ -63,6 +63,27 @@ public sealed class LibrarySyncTests : IDisposable
         public EditableTags ReadEditable(string filePath) => new();
     }
 
+    /// <summary>
+    /// Moves a file or folder, waiting out the moment a virus scanner or the search indexer holds a
+    /// just-written file open - Windows refuses to move a folder with an open file inside it.
+    /// </summary>
+    private static void Move(string from, string to)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(from)) Directory.Move(from, to);
+                else File.Move(from, to);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException && attempt < 40)
+            {
+                Thread.Sleep(50);
+            }
+        }
+    }
+
     private static TrackAnalysisState Blob(int version = TrackAnalysisState.CurrentVersion) =>
         new()
         {
@@ -362,6 +383,137 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Single(_db.Query(new LibraryQuery()));
     }
 
+    [Fact]
+    public void A_flagged_file_that_is_back_loses_the_flag_even_when_its_re_read_fails()
+    {
+        var path = MakeFile(@"a.mp3", blob: Blob());
+        _sync.Reconcile(_root);
+        _db.MarkMissing([path]);
+
+        File.WriteAllText(path, "changed while it was away");   // owed a read...
+        _tags.ReadFails.Add(path);                               // ...that fails
+
+        var report = _sync.Reconcile(_root);
+
+        Assert.Equal(1, report.Recovered);
+        Assert.Equal(1, report.TagReadFailed);
+        Assert.Single(_db.Query(new LibraryQuery()));            // on disk = visible, old analysis kept
+    }
+
+    [Fact]
+    public void A_sweep_only_judges_what_lives_under_its_root()
+    {
+        MakeFile(@"GENRES\a.mp3", blob: Blob());
+        // A playlist brought this one in. "GENRES2" also guards the prefix trap: it starts with
+        // "GENRES" without being under it.
+        var elsewhere = MakeFile(@"GENRES2\x.mp3", blob: Blob());
+        _sync.VerifyTracks([elsewhere]);
+
+        var report = _sync.Reconcile(Path.Combine(_root, "GENRES"));
+
+        Assert.Equal(0, report.MarkedMissing);
+        Assert.Equal(2, _db.Query(new LibraryQuery()).Count);
+    }
+
+    [Fact]
+    public void A_renamed_folder_is_still_flagged_by_the_sweep()
+    {
+        var old = MakeFile(@"GENRES\Old\a.mp3", blob: Blob());
+        _sync.Reconcile(_root);
+
+        Move(Path.Combine(_root, "GENRES", "Old"), Path.Combine(_root, "GENRES", "New"));
+        var report = _sync.Reconcile(_root);
+
+        Assert.Equal(1, report.MarkedMissing);                   // the walk saw the root: proof enough
+        Assert.NotNull(_db.TryGet(old));                         // flagged, not dropped
+        Assert.NotNull(_db.TryGet(Path.Combine(_root, "GENRES", "New", "a.mp3")));
+    }
+
+    // -- "Could not look" is not "gone" (Windows: an ACL makes a folder unreadable) ----
+
+    [Fact]
+    public void A_root_that_refuses_to_be_listed_flags_nothing()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var lib = Path.Combine(_root, "lib");
+        MakeFile(@"lib\a.mp3", blob: Blob());
+        MakeFile(@"lib\Sub\b.mp3", blob: Blob());
+        _sync.Reconcile(lib);
+
+        using (DenyListing(lib))
+        {
+            var report = _sync.Reconcile(lib);
+
+            Assert.Equal(0, report.Scanned);          // the walk saw nothing...
+            Assert.Equal(0, report.MarkedMissing);    // ...and that is not evidence
+        }
+
+        Assert.Equal(2, _db.Query(new LibraryQuery()).Count);
+    }
+
+    [Fact]
+    public void A_subfolder_that_refuses_to_be_listed_is_not_judged_but_a_real_delete_still_is()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var deleted = MakeFile(@"GENRES\deleted.mp3", blob: Blob());
+        var locked  = MakeFile(@"GENRES\Locked\a.mp3", blob: Blob());
+        _sync.Reconcile(_root);
+        File.Delete(deleted);
+
+        using (DenyListing(Path.Combine(_root, "GENRES", "Locked")))
+        {
+            var report = _sync.Reconcile(_root);
+            Assert.Equal(1, report.MarkedMissing);    // the deleted one only
+        }
+
+        Assert.Equal([locked], _db.Query(new LibraryQuery()).Select(e => e.FilePath));
+    }
+
+    [Fact]
+    public void VerifyFolder_on_a_folder_that_refuses_to_be_listed_throws_and_records_nothing()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.Reconcile(_root);                       // indexed, but this folder never fingerprinted
+
+        using (DenyListing(folder))
+            Assert.ThrowsAny<UnauthorizedAccessException>(() => _sync.VerifyFolder(folder));
+
+        Assert.Null(_db.FolderState(folder));         // no empty fingerprint stored for it
+        Assert.Single(_db.Query(new LibraryQuery()));
+    }
+
+    /// <summary>Denies the current user the right to list <paramref name="folder"/> until disposed.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static IDisposable DenyListing(string folder)
+    {
+        var dir  = new DirectoryInfo(folder);
+        var rule = new System.Security.AccessControl.FileSystemAccessRule(
+            System.Security.Principal.WindowsIdentity.GetCurrent().User!,
+            System.Security.AccessControl.FileSystemRights.ListDirectory,
+            System.Security.AccessControl.AccessControlType.Deny);
+
+        var acl = dir.GetAccessControl();
+        acl.AddAccessRule(rule);
+        dir.SetAccessControl(acl);
+
+        return new Undo(() =>
+        {
+            var restored = dir.GetAccessControl();
+            restored.RemoveAccessRule(rule);
+            dir.SetAccessControl(restored);
+        });
+    }
+
+    private sealed class Undo(Action undo) : IDisposable
+    {
+        public void Dispose() => undo();
+    }
+
     // -- What is not library content -------------------------------------------
 
     [Fact]
@@ -507,6 +659,46 @@ public sealed class LibrarySyncTests : IDisposable
     }
 
     [Fact]
+    public void Tracks_flagged_while_the_share_slept_reappear_when_their_unchanged_folder_is_checked()
+    {
+        // The second half of a refresh-while-asleep: the share is back, nothing in the folder changed,
+        // so the fingerprint matches - and the early-out used to leave every flag in place.
+        var folder = Path.Combine(_root, "SETS");
+        var a = MakeFile(@"SETS\a.mp3", blob: Blob());
+        var b = MakeFile(@"SETS\b.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+        _db.MarkMissing([a, b]);
+        Assert.Empty(_db.Query(new LibraryQuery()));
+        _tags.Opened.Clear();
+
+        var result = _sync.VerifyFolder(folder);
+
+        Assert.True(result.Changed);                 // so the finder repaints from the index
+        Assert.Equal(2, result.Recovered);
+        Assert.Empty(_tags.Opened);
+        Assert.Equal(2, _db.Query(new LibraryQuery()).Count);
+    }
+
+    [Fact]
+    public void VerifyFolder_recovers_a_file_that_was_moved_away_and_back()
+    {
+        var folder = Path.Combine(_root, "GENRES");
+        MakeFile(@"GENRES\stays.mp3", blob: Blob());
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyFolder(folder);
+
+        var parked = Path.Combine(_root, "parked.mp3");
+        Move(a, parked);
+        Assert.Equal(1, _sync.VerifyFolder(folder).MarkedMissing);
+
+        Move(parked, a);
+        var back = _sync.VerifyFolder(folder);
+
+        Assert.Equal(1, back.Recovered);
+        Assert.Equal(2, _db.Query(new LibraryQuery()).Count);
+    }
+
+    [Fact]
     public void A_folder_check_ignores_what_is_below_it()
     {
         var folder = Path.Combine(_root, "GENRES");
@@ -568,6 +760,46 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal(1, result.MarkedMissing);
         Assert.NotNull(_db.TryGet(a));       // flagged, not dropped
         Assert.Null(_db.TryGet(stranger));   // never indexed, nothing invented
+    }
+
+    [Fact]
+    public void VerifyTracks_does_not_flag_tracks_whose_share_is_not_there_right_now()
+    {
+        // A playlist Refresh while the NAS sleeps. To a path, a sleeping share and an unmounted one
+        // look the same: neither the file nor its folder can be found.
+        var share = Path.Combine(_root, "share");
+        var a = MakeFile(@"share\SETS\a.mp3", blob: Blob());
+        var b = MakeFile(@"share\SETS\b.mp3", blob: Blob());
+        _sync.VerifyTracks([a, b]);
+
+        Move(share, share + "-asleep");
+        var asleep = _sync.VerifyTracks([a, b]);
+
+        Assert.Equal(0, asleep.MarkedMissing);
+        Assert.Equal(2, _db.Query(new LibraryQuery()).Count);    // still in the library views
+
+        Move(share + "-asleep", share);
+        Assert.False(_sync.VerifyTracks([a, b]).Changed);
+    }
+
+    [Fact]
+    public void VerifyTracks_recovers_a_track_that_was_moved_away_and_back()
+    {
+        var a = MakeFile(@"GENRES\a.mp3", blob: Blob());
+        _sync.VerifyTracks([a]);
+
+        var parked = Path.Combine(_root, "parked.mp3");
+        Move(a, parked);
+        Assert.Equal(1, _sync.VerifyTracks([a]).MarkedMissing);  // its folder lists without it: gone
+
+        Move(parked, a);                                    // back, same size and mtime
+        _tags.Opened.Clear();
+        var back = _sync.VerifyTracks([a]);
+
+        Assert.True(back.Changed);
+        Assert.Equal(1, back.Recovered);
+        Assert.Empty(_tags.Opened);                              // unchanged: no re-read needed
+        Assert.Single(_db.Query(new LibraryQuery()));
     }
 
     // -- Staleness is a separate question from the filesystem ------------------

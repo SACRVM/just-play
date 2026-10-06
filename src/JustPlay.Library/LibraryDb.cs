@@ -357,15 +357,46 @@ public sealed class LibraryDb : IDisposable
         }
     }
 
-    /// <summary>Clears the missing flag for a file that turned up again (cheap - no re-read).</summary>
-    public bool ClearMissing(string path)
+    /// <summary>
+    /// Clears the missing flag on every one of <paramref name="paths"/> that carries it - files a check
+    /// just SAW on disk, so no re-read is needed. Returns how many were flagged.
+    ///
+    /// <para>Reads before it writes: almost always none of them is flagged, and a plain read never
+    /// takes the write lock that JUST TAG or the CLI may be holding on the same file.</para>
+    /// </summary>
+    public int ClearMissing(IEnumerable<string> paths)
     {
         lock (_gate)
         {
+            var flagged = new List<string>();
+            using (var find = _cx.CreateCommand())
+            {
+                find.CommandText = "SELECT 1 FROM tracks WHERE path=$path AND missing=1;";
+                var p = find.Parameters.Add("$path", SqliteType.Text);
+                foreach (var path in paths)
+                {
+                    p.Value = path;
+                    if (find.ExecuteScalar() is not null) flagged.Add(path);
+                }
+            }
+
+            if (flagged.Count == 0) return 0;
+
+            using var tx  = _cx.BeginTransaction();
             using var cmd = _cx.CreateCommand();
+            cmd.Transaction = tx;
             cmd.CommandText = "UPDATE tracks SET missing=0 WHERE path=$path AND missing=1;";
-            cmd.Parameters.AddWithValue("$path", path);
-            return cmd.ExecuteNonQuery() > 0;
+            var q = cmd.Parameters.Add("$path", SqliteType.Text);
+
+            var cleared = 0;
+            foreach (var path in flagged)
+            {
+                q.Value = path;
+                cleared += cmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+            return cleared;
         }
     }
 
