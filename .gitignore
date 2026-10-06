@@ -18,6 +18,10 @@ artifacts/
 # ── Local agent / memory ────────────────────────────────────────────────────
 # Claude Code's per-project memory (personal notes, not project artefacts).
 # .claude/   # Firepit: blanket ignore disabled — it hid the shared config
+# This repo is public and its .claude/ holds private notes, reports and tools, so
+# everything in it stays local except the shared Claude Code settings file.
+.claude/*
+!.claude/settings.json
 # Other co-pilot scratch dirs.
 # .firepit/   # Firepit: blanket ignore disabled — it hid the shared config
 
@@ -54,6 +58,7 @@ dist/
 .firepit/inbox/
 .firepit/runs/
 .firepit/knowledge.db*
+.firepit/artifacts.json
 !.firepit/config.json
 .claude/settings.local.json
 .claude/*.lock
