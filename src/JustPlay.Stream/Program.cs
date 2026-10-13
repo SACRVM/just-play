@@ -54,12 +54,15 @@ internal sealed class Program
 
         // Per-process "capture a specific APP" provider (Phase 0, Path A). Windows gets the real
         // WASAPI process-loopback capturer; macOS 14.4+ the Core Audio process-tap capturer
-        // (native shim, see research/macos-app-audio-capture.md); everything else the Null
+        // (native shim, see research/macos-app-audio-capture.md); Linux the PipeWire capturer
+        // (pw-record + pw-link, reports unsupported when PipeWire is absent); everything else the Null
         // provider (the "App" source is then hidden). Injected into the capture engine below.
         if (OperatingSystem.IsWindows())
             services.AddSingleton<IProcessAudioCapture, WasapiProcessLoopbackCapture>();
         else if (OperatingSystem.IsMacOSVersionAtLeast(14, 4))
             services.AddSingleton<IProcessAudioCapture, MacProcessAudioCapture>();
+        else if (OperatingSystem.IsLinux())
+            services.AddSingleton<IProcessAudioCapture, PipeWireProcessAudioCapture>();
         else
             services.AddSingleton<IProcessAudioCapture, NullProcessAudioCapture>();
 
