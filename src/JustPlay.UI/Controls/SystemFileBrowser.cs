@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
+using Tmds.DBus.Protocol;
 
 namespace JustPlay.UI.Controls;
 
@@ -77,11 +79,48 @@ public static class SystemFileBrowser
                 return;
             }
 
+            if (OperatingSystem.IsLinux())
+            {
+                _ = RevealLinux(filePath);
+                return;
+            }
+
             OpenFolder(Path.GetDirectoryName(filePath) ?? "");
         }
         catch (Exception)
         {
             // Same rule as above.
         }
+    }
+
+    /// <summary>
+    /// org.freedesktop.FileManager1.ShowItems - the "open the folder and select this" call Dolphin,
+    /// Nautilus, Nemo and Thunar all answer on the session bus. A desktop whose file manager does
+    /// not (or no session bus at all) gets the folder opened through xdg-open instead.
+    /// </summary>
+    private static async Task RevealLinux(string filePath)
+    {
+        try
+        {
+            var bus = DBusConnection.Session;
+            await bus.CallMethodAsync(ShowItems(bus, new Uri(Path.GetFullPath(filePath)).AbsoluteUri));
+        }
+        catch (Exception)
+        {
+            OpenFolder(Path.GetDirectoryName(filePath) ?? "");
+        }
+    }
+
+    // The writer is a ref struct and cannot live across an await, so the message is built here.
+    private static MessageBuffer ShowItems(DBusConnection bus, string uri)
+    {
+        using var w = bus.GetMessageWriter();
+        w.WriteMethodCallHeader("org.freedesktop.FileManager1", "/org/freedesktop/FileManager1",
+                                "org.freedesktop.FileManager1", "ShowItems", "ass", MessageFlags.None);
+        var uris = w.WriteArrayStart(DBusType.String);
+        w.WriteString(uri);
+        w.WriteArrayEnd(uris);
+        w.WriteString("");   // startup id: none
+        return w.CreateMessage();
     }
 }

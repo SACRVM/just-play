@@ -22,6 +22,11 @@
          alternative was hand-rolling 390 lines of a hot-path view model into a second INPC dialect,
          which is the exact drift this move exists to end. -->
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
+    <!-- The session D-Bus client behind KeepAwake on Linux (screensaver + suspend inhibitors).
+         NOT a new binary: Avalonia.Desktop already ships this exact package in every app's output
+         (Avalonia.X11 -> Avalonia.FreeDesktop -> Tmds.DBus.Protocol 0.92.0); this only lets the
+         shared UI library call it directly. Keep the version in step with Avalonia's. -->
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
   </ItemGroup>
 
   <ItemGroup>

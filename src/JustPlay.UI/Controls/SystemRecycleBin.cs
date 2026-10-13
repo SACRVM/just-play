@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using JustPlay.Core.Abstractions;
 using JustPlay.Core.Organise;
@@ -8,7 +9,8 @@ using JustPlay.Core.Organise;
 namespace JustPlay.UI.Controls;
 
 /// <summary>
-/// The operating system's own bin - Windows' Recycle Bin, the Mac's Trash.
+/// The operating system's own bin - Windows' Recycle Bin, the Mac's Trash, the freedesktop Trash
+/// that every Linux file manager shares.
 ///
 /// <para>It lives here, beside <see cref="SystemFileBrowser"/>, for the same reason that one does:
 /// it is a platform shim with a runtime <c>OperatingSystem.Is...</c> switch, and the layers below
@@ -31,9 +33,10 @@ public sealed class SystemRecycleBin : IRecycleBin
     /// <summary>One instance is enough - it holds nothing.</summary>
     public static readonly SystemRecycleBin Instance = new();
 
-    /// <summary>Windows and macOS both have one. Everywhere else this is false, and a delete is
-    /// planned - and previewed - as a permanent one (see the class remarks).</summary>
-    public bool IsAvailable => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS();
+    /// <summary>Windows and macOS both have one; Linux has one wherever GLib's <c>gio</c> is
+    /// installed (every desktop that has a file manager). Everywhere else this is false, and a
+    /// delete is planned - and previewed - as a permanent one (see the class remarks).</summary>
+    public bool IsAvailable => OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() || LinuxGio.Value;
 
     /// <summary>False for a file on a network share (Windows and macOS) or a removable drive
     /// (Windows) - see <see cref="RecycleBinReach"/>. Never throws.</summary>
@@ -42,8 +45,8 @@ public sealed class SystemRecycleBin : IRecycleBin
     /// <summary>The words this platform uses. The confirmation says them out loud, so nobody has to
     /// wonder whether the track is gone or filed.</summary>
     public string Name =>
-        OperatingSystem.IsMacOS() ? "Trash"
-        : OperatingSystem.IsWindows() ? "Recycle Bin"
+        OperatingSystem.IsWindows() ? "Recycle Bin"
+        : OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() ? "Trash"
         : "recycle bin";
 
     public void Send(string path)
@@ -62,6 +65,7 @@ public sealed class SystemRecycleBin : IRecycleBin
 
         if (OperatingSystem.IsWindows()) { SendWindows(path); return; }
         if (OperatingSystem.IsMacOS()) { SendMac(path); return; }
+        if (OperatingSystem.IsLinux() && LinuxGio.Value) { SendLinux(path); return; }
 
         // Nothing calls this here - a plan built against IsAvailable == false is a permanent delete
         // and never comes through the bin. It throws rather than pretending, so a future caller that
@@ -85,11 +89,12 @@ public sealed class SystemRecycleBin : IRecycleBin
             if (OperatingSystem.IsWindows())
                 return RecycleBinReach.OnWindows(full, WindowsDriveType);
 
-            // macOS: DriveInfo asks statfs about the volume holding ANY path - it does not have to
-            // be the mount point - and maps the file system name to a type (smbfs, afpfs, nfs and
-            // webdav read as Network). A USB stick does have a Trash on the Mac, so only the share
-            // is refused here.
-            if (OperatingSystem.IsMacOS())
+            // macOS and Linux: DriveInfo asks statfs about the volume holding ANY path - it does
+            // not have to be the mount point - and maps the file system to a type (smbfs/cifs,
+            // afpfs, nfs, webdav and an automounted share read as Network). A USB stick does have
+            // a Trash on both (gio makes a .Trash-<uid> on it), so only the share is refused here:
+            // a trash on the NAS would be one no other machine's file manager shows.
+            if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
                 return new DriveInfo(full).DriveType == DriveType.Network
                     ? NoBinReason.NetworkShare
                     : NoBinReason.None;
@@ -234,6 +239,46 @@ public sealed class SystemRecycleBin : IRecycleBin
         if (process.ExitCode != 0)
             throw new IOException(
                 $"The Finder would not move this to the Trash: {error.Trim()}");
+
+        if (File.Exists(path))
+            throw new IOException("The file is still there after the Trash reported success.");
+    }
+
+    // -- Linux -------------------------------------------------------------------------------
+    //
+    // `gio trash` is GLib's implementation of the freedesktop Trash specification - the same
+    // trash Dolphin, Nautilus and Thunar show, with a .trashinfo that makes "Restore" work. It
+    // picks the right trash itself (the home trash, or $topdir/.Trash-<uid> on another disk) and,
+    // when there is none it can use, FAILS - it has no fall-back to a permanent delete. Writing the
+    // spec by hand would mean re-doing that per-mount trash lookup; GLib is on every desktop.
+
+    private static readonly Lazy<bool> LinuxGio = new(() =>
+        OperatingSystem.IsLinux()
+        && (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Any(dir => File.Exists(Path.Combine(dir, "gio"))));
+
+    private static void SendLinux(string path)
+    {
+        var start = new ProcessStartInfo
+        {
+            FileName = "gio",
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+        };
+        start.ArgumentList.Add("trash");
+        start.ArgumentList.Add("--");   // a file name that starts with '-' is a name, not an option
+        start.ArgumentList.Add(path);
+
+        using var process = Process.Start(start)
+            ?? throw new IOException("Could not ask gio to move this to the Trash.");
+
+        var error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode != 0)
+            throw new IOException($"This could not be moved to the Trash: {error.Trim()}");
 
         if (File.Exists(path))
             throw new IOException("The file is still there after the Trash reported success.");
