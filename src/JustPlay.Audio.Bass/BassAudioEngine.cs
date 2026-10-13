@@ -180,6 +180,8 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource, IDuckableA
 
     public BassAudioEngine()
     {
+        BassPlugins.EnsureLoaded();
+
         // Default device, 44.1 kHz. Throws if the device can't be opened.
         if (!ManagedBass.Bass.Init())
         {
@@ -229,7 +231,7 @@ public sealed class BassAudioEngine : IAudioEngine, IBassMixerSource, IDuckableA
         // Real playback devices start at index 1 (index 0 is BASS's "No sound" device).
         for (var i = 1; ManagedBass.Bass.GetDeviceInfo(i, out var info); i++)
         {
-            if (!info.IsEnabled) continue;
+            if (!info.IsEnabled || !BassDevices.IsListed(info.Driver)) continue;
             result.Add(new AudioOutputDevice(i, info.Name, info.IsDefault));
         }
         // Append device 0 = BASS "No sound" as an explicit STREAMING-ONLY option: the mixer runs

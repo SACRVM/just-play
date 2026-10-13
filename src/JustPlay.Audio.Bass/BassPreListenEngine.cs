@@ -79,6 +79,7 @@ public sealed class BassPreListenEngine : IPreListenEngine
         // Ensure BASS is initialised for at least the default device. BassAudioEngine has already
         // done this in normal startup order, but this guard makes construction-order-independent.
         // Errors.Already = BASS already running on this device -> treat as success.
+        BassPlugins.EnsureLoaded();
         if (!ManagedBass.Bass.Init())
         {
             var err = ManagedBass.Bass.LastError;
@@ -231,7 +232,7 @@ public sealed class BassPreListenEngine : IPreListenEngine
         var result = new List<AudioOutputDevice>();
         for (var i = 1; ManagedBass.Bass.GetDeviceInfo(i, out var info); i++)
         {
-            if (!info.IsEnabled) continue;
+            if (!info.IsEnabled || !BassDevices.IsListed(info.Driver)) continue;
             result.Add(new AudioOutputDevice(i, info.Name, info.IsDefault));
         }
         return result;

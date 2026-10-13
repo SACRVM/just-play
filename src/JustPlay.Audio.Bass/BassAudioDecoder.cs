@@ -15,6 +15,8 @@ public sealed class BassAudioDecoder : IAudioDecoder
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(targetSampleRate);
 
+        BassPlugins.EnsureLoaded();
+
         // Decode (no playback) + downmix to mono + 32-bit float samples.
         var handle = ManagedBass.Bass.CreateStream(
             filePath, 0, 0, BassFlags.Decode | BassFlags.Float | BassFlags.Mono);

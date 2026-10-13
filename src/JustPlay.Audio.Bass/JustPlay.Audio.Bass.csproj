@@ -19,7 +19,7 @@
   <!--
     Native BASS libraries (from un4seen.com, free for non-commercial use).
     Copied flat to the output dir next to the executable, where ManagedBass loads them.
-    win-x64 only for now; add native/win-arm64, native/osx, native/linux here later.
+    win-x64, osx (universal) and linux-x64; win-arm64 / linux-arm64 are not shipped yet.
   -->
   <ItemGroup>
     <None Include="native\win-x64\*.dll">
@@ -30,6 +30,13 @@
          (decode/BPM/key) plus the mix/enc add-ons (mixer-based playback, streaming,
          recording). Only per-APP capture stays Windows-only (WASAPI process loopback). -->
     <None Include="native\osx\*.dylib">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- Linux x86_64: the same seven libraries from un4seen's *-linux.zip packages (libs/x86_64).
+         The add-ons carry RPATH=$ORIGIN, so they find libbass.so next to them without
+         LD_LIBRARY_PATH. Per-APP capture has no Linux adapter yet; device capture works. -->
+    <None Include="native\linux-x64\*.so">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

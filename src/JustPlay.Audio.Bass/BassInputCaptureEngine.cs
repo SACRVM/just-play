@@ -189,7 +189,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         var list = new List<AudioInputDevice>();
         for (int i = 0; ManagedBass.Bass.RecordGetDeviceInfo(i, out var info); i++)
         {
-            if (!info.IsEnabled) continue;
+            if (!info.IsEnabled || !BassDevices.IsListed(info.Driver)) continue;
             list.Add(new AudioInputDevice(i, info.Name ?? $"Device {i}", info.IsLoopback, info.IsDefault));
         }
         return list;
@@ -209,7 +209,7 @@ public sealed class BassInputCaptureEngine : IAudioInputEngine, IBassMixerSource
         var list = new List<AudioOutputDevice>();
         for (int i = 1; ManagedBass.Bass.GetDeviceInfo(i, out var info); i++)
         {
-            if (!info.IsEnabled) continue;
+            if (!info.IsEnabled || !BassDevices.IsListed(info.Driver)) continue;
             list.Add(new AudioOutputDevice(i, info.Name ?? $"Device {i}", info.IsDefault));
         }
         list.Add(new AudioOutputDevice(0, NoOutputDeviceName, false));

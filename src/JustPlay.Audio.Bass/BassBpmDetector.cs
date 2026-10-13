@@ -27,6 +27,7 @@ public sealed class BassBpmDetector : IBpmDetector
         // BASS may or may not be initialised already (BassAudioEngine does it in
         // its ctor; if the detector resolves first we have to do it ourselves).
         // Already-initialised is fine; anything else is fatal.
+        BassPlugins.EnsureLoaded();
         if (!ManagedBass.Bass.Init())
         {
             var err = ManagedBass.Bass.LastError;
