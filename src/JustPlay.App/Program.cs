@@ -287,6 +287,11 @@ sealed class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // No global-menu export on Linux. JUST windows draw their own chrome, so there is no menu
+            // bar to export - and on a desktop without com.canonical.AppMenu.Registrar (KDE Plasma 6
+            // on Wayland) Avalonia's RegisterWindow call fails unawaited and comes back as an
+            // "unobserved background-task exception" error report (traced with dbus-monitor).
+            .With(new X11PlatformOptions { UseDBusMenu = false })
             .WithInterFont()
             .LogToTrace();
 }

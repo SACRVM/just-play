@@ -100,6 +100,8 @@ internal sealed class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // No global-menu export on Linux - see JustPlay.App's BuildAvaloniaApp for why.
+            .With(new X11PlatformOptions { UseDBusMenu = false })
             .WithInterFont()
             .LogToTrace();
 
