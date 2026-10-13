@@ -1,74 +1,77 @@
 {
   "version": 1,
   "id": "just-play",
-  "quickLinks": [
-  ],
+  "quickLinks": [],
   "commands": [
     {
-      "name": "VS",
-      "type": "Shell",
-      "command": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\devenv.exe",
+      "name": "VS Code",
+      "type": "shell",
+      "command": "code",
       "args": [
-        "JustPlay.slnx"
+        "."
       ],
       "window": "new"
     },
     {
       "name": "Play",
-      "type": "Shell",
+      "type": "shell",
       "icon": "play",
-      "command": "powershell",
+      "command": "bash",
       "args": [
-        "-Command",
-        "dotnet run --project src/JustPlay.App; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+        "-c",
+        "dotnet run --project src/JustPlay.App || { rc=$?; echo; read -rp \"Exit code $rc - Enter zum Schlie\u00dfen \"; }"
       ],
       "window": "new"
     },
     {
       "name": "Stream",
-      "type": "Shell",
+      "type": "shell",
       "icon": "play",
-      "command": "powershell",
+      "command": "bash",
       "args": [
-        "-Command",
-        "dotnet run --project src/JustPlay.Stream; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+        "-c",
+        "dotnet run --project src/JustPlay.Stream || { rc=$?; echo; read -rp \"Exit code $rc - Enter zum Schlie\u00dfen \"; }"
       ],
       "window": "new"
     },
     {
       "name": "Bootleg",
-      "type": "Shell",
+      "type": "shell",
       "icon": "play",
-      "command": "powershell",
+      "command": "bash",
       "args": [
-        "-Command",
-        "dotnet run --project ../just-edit/src/JustEdit.App -c Release; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+        "-c",
+        "dotnet run --project ../just-edit/src/JustEdit.App -c Release || { rc=$?; echo; read -rp \"Exit code $rc - Enter zum Schlie\u00dfen \"; }"
       ],
       "window": "new"
     },
     {
       "name": "Beat",
-      "type": "Shell",
+      "type": "shell",
       "icon": "play",
-      "command": "powershell",
+      "command": "bash",
       "args": [
-        "-Command",
-        "dotnet run --project ../just-edit/src/JustBeat.App -c Release; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+        "-c",
+        "dotnet run --project ../just-edit/src/JustBeat.App -c Release || { rc=$?; echo; read -rp \"Exit code $rc - Enter zum Schlie\u00dfen \"; }"
       ],
       "window": "new"
     },
     {
       "name": "Tag",
-      "type": "Shell",
+      "type": "shell",
       "icon": "play",
-      "command": "powershell",
+      "command": "bash",
       "args": [
-        "-Command",
-        "dotnet run --project src/JustPlay.Tag; if ($LASTEXITCODE -ne 0) { Read-Host \u0027Exit code\u0027 $LASTEXITCODE \u0027- Enter zum Schlie\u00DFen\u0027 }"
+        "-c",
+        "dotnet run --project src/JustPlay.Tag || { rc=$?; echo; read -rp \"Exit code $rc - Enter zum Schlie\u00dfen \"; }"
       ],
       "window": "new"
+    },
+    {
+      "name": "GitHub",
+      "type": "url",
+      "icon": "\ud83d\udc19",
+      "url": "https://github.com/SACRVM/just-play"
     }
-  ,
-    { "name": "GitHub", "type": "url", "url": "https://github.com/SACRVM/just-play", "icon": "🐙" }
   ]
 }
