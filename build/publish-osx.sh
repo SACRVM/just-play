@@ -139,6 +139,8 @@ for app in "${APPS[@]}"; do
 
         "$DOTNET" publish "$PROJ" -c Release -r "$RID" --self-contained true \
             -o "$MACOS" -v quiet /p:DebugType=none
+        # The BASS adapter copies the Linux natives too (a plain build has no RID to choose by).
+        find "$MACOS" -maxdepth 1 -name '*.so' -delete
         write_plist "$BUNDLE/Contents/Info.plist"
         make_icns "$ICO" "$RES/AppIcon.icns"
 

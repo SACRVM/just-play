@@ -69,6 +69,10 @@ if ($LASTEXITCODE -ne 0) { throw "TAG publish failed ($LASTEXITCODE)" }
 # ~100 MB of .pdb that have no place in a release drop.
 Get-ChildItem $out -Filter *.pdb -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
 
+# The BASS adapter copies the macOS and Linux natives too (a plain build has no RID to choose
+# by) - a Windows drop has no use for them.
+Get-ChildItem $out -Include *.dylib, *.so -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force
+
 $files = Get-ChildItem $out -File
 $total = ($files | Measure-Object Length -Sum).Sum
 Write-Host ""
