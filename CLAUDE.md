@@ -268,7 +268,11 @@ Release.
 xUnit projects under `tests/`. `JustPlay.Core.Tests` and
 `JustPlay.Analysis.Tests` exist — both are *unit* level (no Avalonia, no
 BASS). UI/XAML doesn't have a test project; visual regressions are caught
-by running the app and using DevTools. Run all tests:
+by running the app and using DevTools. The suite runs on Windows AND Linux:
+a test that spells a Windows path goes through `TestPath.Local(...)`, and one
+about something only one OS has uses `[WindowsOnlyFact]` / `[LinuxOnlyFact]`
+(all in `tests/Shared/CrossPlatform.cs`, linked into each test project) -
+never an early `return`, which reports a skipped check as Passed. Run all tests:
 
 ```powershell
 dotnet test
@@ -279,12 +283,39 @@ dotnet test
 ```powershell
 dotnet run --project src/JustPlay.App   # debug
 .\build\publish-win-x64.ps1             # self-contained single-file release
+./build/publish-linux.sh                # Linux x64 folder + tarball with install.sh
 ```
 
 The `JustPlay.App.csproj` sets `InvariantGlobalization=true` and the
 code stays reflection-free / trim-safe so the project can flip to NativeAOT
 later without source-level changes. Don't introduce reflection or unbounded
 `ResourceManager` lookups without a flag-day discussion.
+
+## Linux (KDE/GNOME on PipeWire) - what differs
+
+Everything builds and runs on Linux; these are the places it is not just "the same code":
+
+- **BASS natives** live in `src/JustPlay.Audio.Bass/native/linux-x64/` (un4seen's
+  `*-linux.zip`, `libs/x86_64`). Linux has no OS codecs, so FLAC / AAC / M4A / Opus need
+  the decoder PLUGINS bassflac / bass_aac / bassopus - `BassPlugins.EnsureLoaded()` loads
+  them, and every site that opens a FILE stream must call it first. WMA does not decode.
+- **Device pickers** go through `BassDevices.IsListed`: BASS lists ALSA PCM definitions on
+  Linux, most of which are plugins, not devices. Only `default` and `hw:` cards are offered.
+- **Per-app capture** (JUST STREAM) = `PipeWireProcessAudioCapture`: an unlinked
+  `pw-record` whose input ports we link to the app's output ports with `pw-link`. The pure
+  part (pw-dump parsing, Master-pair link plan) is `Core/Audio/PipeWireGraph.cs`, tested.
+- **Keep-awake** = the XDG portal's Inhibit over the session bus (Tmds.DBus.Protocol, which
+  Avalonia already ships). KDE ignores logind idle inhibitors, and its power daemon shows a
+  new inhibitor only after a ~5 s debounce - wait before concluding it did not work.
+- **Trash** = `gio trash`; **reveal** = `org.freedesktop.FileManager1.ShowItems`.
+- **Volumes**: every Unix path's root is "/", so `SystemFileProbe.VolumeKey` uses the mount
+  point - otherwise a move onto the NAS mount looks like a rename and skips copy-verify.
+- Every app's `BuildAvaloniaApp` sets `X11PlatformOptions { UseDBusMenu = false }` - a new JUST
+  app must too. Avalonia otherwise registers each window with com.canonical.AppMenu.Registrar,
+  which KDE Plasma 6 on Wayland does not run; the failed call is never awaited and lands in the
+  error reporter as an "unobserved background-task exception".
+- Window WM_CLASS is the assembly name (`JustPlay`, `JustStream`, `JustTag`); the launcher
+  entries `install.sh` writes match it with `StartupWMClass`.
 
 ## When porting from `.design/`
 
