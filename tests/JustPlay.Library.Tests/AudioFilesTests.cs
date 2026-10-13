@@ -51,7 +51,7 @@ public sealed class AudioFilesTests : IDisposable
     [InlineData(@"C:\m\a.jpg",   false)]
     [InlineData(@"C:\m\a.m3u",   false)]
     public void IsAudio_agrees_with_the_enumeration(string path, bool expected) =>
-        Assert.Equal(expected, AudioFiles.IsAudio(path));
+        Assert.Equal(expected, AudioFiles.IsAudio(TestPath.Local(path)));
 
     [Fact]
     public void EnumerateWithKeys_can_stay_in_one_folder()

@@ -38,11 +38,9 @@ public sealed class CleanCommentsBackupTests
     [Fact]
     public void A_share_root_still_names_the_run()
     {
-        if (!OperatingSystem.IsWindows()) return;   // a UNC path only parses as one on Windows
-
         // A UNC share root has no file name of its own; the share's name is what identifies it.
         var path = CleanCommentsCommand.BackupPathFor(
-            null, @"\\nas\music\", sourceIsPlaylist: false, Started);
+            null, TestPath.Local(@"\\nas\music\"), sourceIsPlaylist: false, Started);
 
         Assert.Equal(Path.Combine(Backups, "tag-clean-20261006-142233-music.json"), path);
     }

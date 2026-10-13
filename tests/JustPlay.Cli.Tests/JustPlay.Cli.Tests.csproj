@@ -16,6 +16,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="JustPlay.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- TestPath.Local and the WindowsOnly attributes, shared by the test projects. -->
+    <Compile Include="..\Shared\CrossPlatform.cs" Link="Shared\CrossPlatform.cs" />
   </ItemGroup>
 
   <ItemGroup>

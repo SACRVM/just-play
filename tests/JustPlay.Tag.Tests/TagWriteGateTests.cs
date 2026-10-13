@@ -37,7 +37,7 @@ public class TagWriteGateTests
     [Fact]
     public void A_write_that_throws_is_Failed_and_named_in_the_log()
     {
-        var outcome = Gate().Execute(@"C:\music\locked.mp3",
+        var outcome = Gate().Execute(TestPath.Local(@"C:\music\locked.mp3"),
             _ => throw new UnauthorizedAccessException("Access to the path is denied."));
 
         Assert.Equal(TagWriteOutcome.Failed, outcome);
@@ -135,7 +135,7 @@ public class TagWriteGateTests
         var touched = false;
         gate.ShutAsync();
 
-        var outcome = gate.Execute(@"C:\music\next.mp3", _ => touched = true);
+        var outcome = gate.Execute(TestPath.Local(@"C:\music\next.mp3"), _ => touched = true);
 
         Assert.Equal(TagWriteOutcome.Failed, outcome);
         Assert.False(touched);

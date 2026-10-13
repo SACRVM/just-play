@@ -11,6 +11,8 @@ namespace JustPlay.Core.Tests;
 /// </summary>
 public sealed class OrganisePlannerTests
 {
+    // The paths below are written the Windows way. The fake disk and the Plan helpers hand the
+    // planner TestPath.Local of each, so the same table runs where "C:\music" is not even rooted.
     private const string Src = @"C:\music\inbox";
     private const string SrcShouting = @"C:\MUSIC\INBOX";
     private const string Dst = @"C:\music\GENRES\Hard Techno";
@@ -28,12 +30,13 @@ public sealed class OrganisePlannerTests
 
         public FakeDisk WithFile(string path, long bytes = 1024)
         {
+            path = TestPath.Local(path);
             Files[path] = bytes;
             Folders.Add(Path.GetDirectoryName(path)!);
             return this;
         }
 
-        public FakeDisk WithFolder(string path) { Folders.Add(path); return this; }
+        public FakeDisk WithFolder(string path) { Folders.Add(TestPath.Local(path)); return this; }
 
         public bool FileExists(string path) => Files.ContainsKey(path);
 
@@ -60,8 +63,10 @@ public sealed class OrganisePlannerTests
         OrganisePlanner.Plan(new OrganiseRequest
         {
             Action              = action,
-            Sources             = sources,
-            Destination         = action == OrganiseAction.Delete ? null : destination,
+            Sources             = sources.Select(TestPath.Local).ToList(),
+            Destination         = action == OrganiseAction.Delete || destination is null
+                                      ? null
+                                      : TestPath.Local(destination),
             Collisions          = policy,
             RecycleBinAvailable = bin,
         }, disk);
@@ -78,7 +83,7 @@ public sealed class OrganisePlannerTests
     /// D:\repos\just-play\a.mp3 with the app started from there. A COPY would have put the file in
     /// the wrong folder; a MOVE would have taken it out of the library to get it there.</para>
     /// </summary>
-    [Theory]
+    [WindowsOnlyTheory("a drive letter, and \"E:\" as a drive-relative path, exist only there")]
     [InlineData(@"E:\")]
     [InlineData("E:")]
     public void A_drive_root_destination_stays_rooted(string picked)
@@ -108,8 +113,8 @@ public sealed class OrganisePlannerTests
 
         var plan = Plan(disk, OrganiseAction.Copy, [@"\\nas\music\a.mp3"], destination: @"\\nas\other\");
 
-        Assert.Equal(@"\\nas\other", plan.Destination);
-        Assert.Equal(@"\\nas\other\a.mp3", plan.Items[0].DestinationPath);
+        Assert.Equal(TestPath.Local(@"\\nas\other"), plan.Destination);
+        Assert.Equal(TestPath.Local(@"\\nas\other\a.mp3"), plan.Items[0].DestinationPath);
     }
 
     // -- The happy path --------------------------------------------------------------------------
@@ -128,7 +133,7 @@ public sealed class OrganisePlannerTests
         Assert.Equal(2, plan.RunCount);
         Assert.Equal(0, plan.SkipCount);
         Assert.Equal(350, plan.TotalBytes);
-        Assert.Equal($@"{Dst}\a.mp3", plan.Items[0].DestinationPath);
+        Assert.Equal(TestPath.Local($@"{Dst}\a.mp3"), plan.Items[0].DestinationPath);
         Assert.All(plan.Items, i => Assert.Equal(OrganiseItemStatus.Ready, i.Status));
     }
 
@@ -189,7 +194,7 @@ public sealed class OrganisePlannerTests
                         policy: CollisionPolicy.KeepBoth);
 
         Assert.Equal(OrganiseItemStatus.KeepBoth, plan.Items[0].Status);
-        Assert.Equal($@"{Dst}\a (3).mp3", plan.Items[0].DestinationPath);
+        Assert.Equal(TestPath.Local($@"{Dst}\a (3).mp3"), plan.Items[0].DestinationPath);
         Assert.True(plan.Items[0].WillRun);
     }
 
@@ -221,8 +226,8 @@ public sealed class OrganisePlannerTests
         var plan = Plan(disk, OrganiseAction.Move, [@"C:\music\one\a.mp3", @"C:\music\two\a.mp3"],
                         policy: CollisionPolicy.KeepBoth);
 
-        Assert.Equal($@"{Dst}\a.mp3", plan.Items[0].DestinationPath);
-        Assert.Equal($@"{Dst}\a (2).mp3", plan.Items[1].DestinationPath);
+        Assert.Equal(TestPath.Local($@"{Dst}\a.mp3"), plan.Items[0].DestinationPath);
+        Assert.Equal(TestPath.Local($@"{Dst}\a (2).mp3"), plan.Items[1].DestinationPath);
         Assert.Equal(2, plan.RunCount);
     }
 
@@ -302,7 +307,7 @@ public sealed class OrganisePlannerTests
     public void A_destination_that_refuses_writes_blocks_everything()
     {
         var disk = new FakeDisk().WithFile($@"{Src}\a.mp3").WithFolder(Dst);
-        disk.ReadOnly.Add(Dst);
+        disk.ReadOnly.Add(TestPath.Local(Dst));
 
         var plan = Plan(disk, OrganiseAction.Copy, [$@"{Src}\a.mp3"]);
 
@@ -362,7 +367,7 @@ public sealed class OrganisePlannerTests
     public void A_move_to_another_volume_is_flagged()
     {
         var disk = new FakeDisk().WithFile($@"{Src}\a.mp3").WithFolder(@"\\nas\music\GENRES");
-        disk.Volumes[@"\\nas\music"] = @"\\NAS\MUSIC";
+        disk.Volumes[TestPath.Local(@"\\nas\music")] = @"\\NAS\MUSIC";
 
         var plan = Plan(disk, OrganiseAction.Move, [$@"{Src}\a.mp3"],
                         destination: @"\\nas\music\GENRES");
@@ -380,8 +385,8 @@ public sealed class OrganisePlannerTests
         var plan = OrganisePlanner.Plan(new OrganiseRequest
         {
             Action      = OrganiseAction.Move,
-            Sources     = [$@"{Src}\a.mp3"],
-            Destination = Dst,
+            Sources     = [TestPath.Local($@"{Src}\a.mp3")],
+            Destination = TestPath.Local(Dst),
         }, probe);
 
         Assert.True(plan.Items[0].CrossVolume);
@@ -458,7 +463,7 @@ public sealed class OrganisePlannerTests
         var plan = OrganisePlanner.Plan(new OrganiseRequest
         {
             Action              = OrganiseAction.Delete,
-            Sources             = [$@"{Src}\a.mp3"],
+            Sources             = [TestPath.Local($@"{Src}\a.mp3")],
             RecycleBinAvailable = NoRecycleBin.Instance.IsAvailable,
         }, disk);
 
@@ -475,6 +480,8 @@ public sealed class OrganisePlannerTests
     /// <summary>A bin that, like the real one on Windows, cannot take a file on a share.</summary>
     private sealed class ShareBlindBin : IRecycleBin
     {
+        private static readonly string Share = TestPath.Local(@"\\nas\");
+
         public readonly List<string> Asked = [];
 
         public bool IsAvailable => true;
@@ -484,7 +491,7 @@ public sealed class OrganisePlannerTests
         public bool CanRecycle(string path)
         {
             Asked.Add(path);
-            return !path.StartsWith(@"\\", StringComparison.Ordinal);
+            return !path.StartsWith(Share, StringComparison.Ordinal);
         }
 
         public void Send(string path) => throw new InvalidOperationException("the planner never sends");
@@ -494,7 +501,7 @@ public sealed class OrganisePlannerTests
         OrganisePlanner.Plan(new OrganiseRequest
         {
             Action              = OrganiseAction.Delete,
-            Sources             = sources,
+            Sources             = sources.Select(TestPath.Local).ToList(),
             RecycleBinAvailable = bin.IsAvailable,
             CanRecycle          = bin.CanRecycle,
         }, disk);
@@ -539,7 +546,7 @@ public sealed class OrganisePlannerTests
         PlanDelete(disk, bin, $@"{Src}\a.mp3", $@"{Src}\gone.mp3", $@"{Src}\album");
 
         // A missing file and a folder already have their answer; only the real file is asked about.
-        Assert.Equal(new[] { $@"{Src}\a.mp3" }, bin.Asked);
+        Assert.Equal(new[] { TestPath.Local($@"{Src}\a.mp3") }, bin.Asked);
     }
 
     [Fact]
@@ -550,7 +557,7 @@ public sealed class OrganisePlannerTests
         var plan = OrganisePlanner.Plan(new OrganiseRequest
         {
             Action              = OrganiseAction.Delete,
-            Sources             = [@"\\nas\music\a.mp3"],
+            Sources             = [TestPath.Local(@"\\nas\music\a.mp3")],
             RecycleBinAvailable = false,
             CanRecycle          = _ => throw new InvalidOperationException("asked about a permanent delete"),
         }, disk);

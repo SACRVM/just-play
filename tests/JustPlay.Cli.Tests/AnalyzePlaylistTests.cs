@@ -160,7 +160,7 @@ public sealed class AnalyzePlaylistTests
     {
         // A host that cannot exist - the point is that the SPELLING survives resolution, and an
         // unreachable path lands in MISSING rather than vanishing. Never a real share.
-        const string unc = @"\\jp-no-such-host-9f2a\music\GENRES\Hardcore\Missing Track.mp3";
+        var unc = TestPath.Local(@"\\jp-no-such-host-9f2a\music\GENRES\Hardcore\Missing Track.mp3");
 
         var dir = Directory.CreateTempSubdirectory("jp-analyze-unc").FullName;
         try
@@ -181,7 +181,7 @@ public sealed class AnalyzePlaylistTests
     public void ResolvePaths_KeepsAUncLineExactly()
     {
         // The parse half of the same guarantee, with no file system involved at all.
-        const string unc = @"\\nas\music\GENRES\Techno\Track.flac";
+        var unc = TestPath.Local(@"\\nas\music\GENRES\Techno\Track.flac");
 
         var dir = Directory.CreateTempSubdirectory("jp-analyze-unc2").FullName;
         try
@@ -266,24 +266,27 @@ public sealed class AnalyzePlaylistTests
     // Which library database a rootless list may touch
     // =====================================================================
 
+    /// <summary>Windows-written roots and files in the shape of the OS running the test - on Linux
+    /// "\\nas\music" is not a path at all, and every root would contain nothing.</summary>
+    private static string[] Local(params string[] paths) => [.. paths.Select(TestPath.Local)];
+
     [Fact]
     public void RegistryRootCovering_AllFilesUnderOneRegisteredRoot_ReturnsThatRoot()
     {
-        string[] roots = [@"\\nas\music\GENRES", @"D:\Local"];
-        string[] files =
-        [
+        var roots = Local(@"\\nas\music\GENRES", @"D:\Local");
+        var files = Local(
             @"\\nas\music\GENRES\Techno\a.mp3",
-            @"\\nas\music\GENRES\Hardcore\Sub\b.flac",
-        ];
+            @"\\nas\music\GENRES\Hardcore\Sub\b.flac");
 
-        Assert.Equal(@"\\nas\music\GENRES", AnalyzeCommand.RegistryRootCovering(files, roots));
+        Assert.Equal(TestPath.Local(@"\\nas\music\GENRES"),
+                     AnalyzeCommand.RegistryRootCovering(files, roots));
     }
 
     [Fact]
     public void RegistryRootCovering_FilesSpanTwoRoots_ReturnsNull()
     {
-        string[] roots = [@"\\nas\music\GENRES", @"D:\Local"];
-        string[] files = [@"\\nas\music\GENRES\Techno\a.mp3", @"D:\Local\b.mp3"];
+        var roots = Local(@"\\nas\music\GENRES", @"D:\Local");
+        var files = Local(@"\\nas\music\GENRES\Techno\a.mp3", @"D:\Local\b.mp3");
 
         // Two roots means two databases; picking one would put a folder's index out of step
         // with its own folder, so the run stays index-only.
@@ -293,8 +296,8 @@ public sealed class AnalyzePlaylistTests
     [Fact]
     public void RegistryRootCovering_OneFileOutsideEveryRoot_ReturnsNull()
     {
-        string[] roots = [@"\\nas\music\GENRES"];
-        string[] files = [@"\\nas\music\GENRES\Techno\a.mp3", @"C:\Downloads\b.mp3"];
+        var roots = Local(@"\\nas\music\GENRES");
+        var files = Local(@"\\nas\music\GENRES\Techno\a.mp3", @"C:\Downloads\b.mp3");
 
         Assert.Null(AnalyzeCommand.RegistryRootCovering(files, roots));
     }
@@ -302,7 +305,7 @@ public sealed class AnalyzePlaylistTests
     [Fact]
     public void RegistryRootCovering_NothingRegistered_ReturnsNull()
     {
-        Assert.Null(AnalyzeCommand.RegistryRootCovering([@"\\nas\music\GENRES\a.mp3"], []));
-        Assert.Null(AnalyzeCommand.RegistryRootCovering([], [@"\\nas\music\GENRES"]));
+        Assert.Null(AnalyzeCommand.RegistryRootCovering(Local(@"\\nas\music\GENRES\a.mp3"), []));
+        Assert.Null(AnalyzeCommand.RegistryRootCovering([], Local(@"\\nas\music\GENRES")));
     }
 }

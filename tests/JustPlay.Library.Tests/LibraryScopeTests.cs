@@ -27,9 +27,11 @@ public sealed class LibraryScopeTests : IDisposable
         try { Directory.Delete(_tmp, recursive: true); } catch (IOException) { }
     }
 
+    // Paths are written the Windows way and stored in the shape of the OS running the test - the
+    // prefix query splits on the local separator, and on Linux "C:\music\a.mp3" holds none.
     private static TrackIndexEntry Track(string path, double? bpm = 128) => new()
     {
-        FilePath = path,
+        FilePath = TestPath.Local(path),
         ContentHash = "",
         AnalysedAt = "2026-07-30T12:00:00.0000000Z",
         DetectionVersion = TrackIndex.CurrentDetectionVersion,
@@ -37,6 +39,10 @@ public sealed class LibraryScopeTests : IDisposable
         Success = true,
         Bpm = bpm,
     };
+
+    /// <summary>The finder's LIBRARY scope on <paramref name="folder"/>.</summary>
+    private static LibraryQuery Under(string folder) =>
+        new() { PathPrefix = TestPath.Local(folder) };
 
     // -- Recursive scope -------------------------------------------------------
 
@@ -50,13 +56,13 @@ public sealed class LibraryScopeTests : IDisposable
             Track(@"\\nas\music\SETS\d.mp3"),
         ]);
 
-        var techno = _db.Query(new LibraryQuery { PathPrefix = @"\\nas\music\GENRES\Techno" });
+        var techno = _db.Query(Under(@"\\nas\music\GENRES\Techno"));
         Assert.Equal(2, techno.Count);
 
-        var genres = _db.Query(new LibraryQuery { PathPrefix = @"\\nas\music\GENRES" });
+        var genres = _db.Query(Under(@"\\nas\music\GENRES"));
         Assert.Equal(3, genres.Count);
 
-        var all = _db.Query(new LibraryQuery { PathPrefix = @"\\nas\music" });
+        var all = _db.Query(Under(@"\\nas\music"));
         Assert.Equal(4, all.Count);
     }
 
@@ -65,8 +71,8 @@ public sealed class LibraryScopeTests : IDisposable
     {
         _db.Upsert(Track(@"C:\music\Techno\a.mp3"));
 
-        Assert.Single(_db.Query(new LibraryQuery { PathPrefix = @"C:\music\Techno" }));
-        Assert.Single(_db.Query(new LibraryQuery { PathPrefix = @"C:\music\Techno\" }));
+        Assert.Single(_db.Query(Under(@"C:\music\Techno")));
+        Assert.Single(_db.Query(Under(@"C:\music\Techno\")));
     }
 
     [Fact]
@@ -76,7 +82,7 @@ public sealed class LibraryScopeTests : IDisposable
 
         // The finder's root comes from settings, the paths come from enumeration - their spelling
         // must not have to match.
-        Assert.Single(_db.Query(new LibraryQuery { PathPrefix = @"\\NAS\Music\genres" }));
+        Assert.Single(_db.Query(Under(@"\\NAS\Music\genres")));
     }
 
     [Fact]
@@ -87,10 +93,10 @@ public sealed class LibraryScopeTests : IDisposable
             Track(@"C:\music\TechnoHard\b.mp3"),   // NOT below "Techno"
         ]);
 
-        var hits = _db.Query(new LibraryQuery { PathPrefix = @"C:\music\Techno" });
+        var hits = _db.Query(Under(@"C:\music\Techno"));
 
         Assert.Single(hits);
-        Assert.EndsWith(@"Techno\a.mp3", hits[0].FilePath);
+        Assert.EndsWith(TestPath.Local(@"Techno\a.mp3"), hits[0].FilePath);
     }
 
     [Fact]
@@ -101,10 +107,10 @@ public sealed class LibraryScopeTests : IDisposable
             Track(@"C:\music\HardXTechno\b.mp3"),
         ]);
 
-        var hits = _db.Query(new LibraryQuery { PathPrefix = @"C:\music\Hard_Techno" });
+        var hits = _db.Query(Under(@"C:\music\Hard_Techno"));
 
         Assert.Single(hits);
-        Assert.EndsWith(@"Hard_Techno\a.mp3", hits[0].FilePath);
+        Assert.EndsWith(TestPath.Local(@"Hard_Techno\a.mp3"), hits[0].FilePath);
     }
 
     [Fact]
@@ -132,12 +138,12 @@ public sealed class LibraryScopeTests : IDisposable
 
         var hits = _db.Query(new LibraryQuery
         {
-            PathPrefix = @"C:\music\Techno",
+            PathPrefix = TestPath.Local(@"C:\music\Techno"),
             BpmMin = 140,
         });
 
         Assert.Single(hits);
-        Assert.EndsWith(@"Techno\fast.mp3", hits[0].FilePath);
+        Assert.EndsWith(TestPath.Local(@"Techno\fast.mp3"), hits[0].FilePath);
     }
 
     // -- Row -> app models, without opening the file ----------------------------

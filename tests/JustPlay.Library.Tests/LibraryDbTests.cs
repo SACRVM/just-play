@@ -131,8 +131,8 @@ public sealed class LibraryDbTests : IDisposable
         });
 
         Assert.Equal(
-            ["also-fits.mp3", "fits.mp3"],
-            hits.Select(h => Path.GetFileName(h.FilePath)).OrderBy(n => n).ToArray());
+            [@"C:\m\also-fits.mp3", @"C:\m\fits.mp3"],
+            hits.Select(h => h.FilePath).OrderBy(p => p, StringComparer.Ordinal).ToArray());
     }
 
     [Fact]
@@ -244,7 +244,8 @@ public sealed class LibraryDbTests : IDisposable
     [InlineData(@"\\nas\music", @"\\nas\music\")]
     [InlineData(@"\\nas\music", @"\\NAS\Music")]
     public void DefaultPathFor_is_stable_across_spelling_of_the_same_root(string a, string b) =>
-        Assert.Equal(LibraryDb.DefaultPathFor(a), LibraryDb.DefaultPathFor(b));
+        Assert.Equal(LibraryDb.DefaultPathFor(TestPath.Local(a)),
+                     LibraryDb.DefaultPathFor(TestPath.Local(b)));
 
     [Fact]
     public void DefaultPathFor_separates_different_roots()

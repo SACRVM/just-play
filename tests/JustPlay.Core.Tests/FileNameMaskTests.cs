@@ -195,7 +195,8 @@ public class FileNameMaskTests
     public void A_mask_can_reach_into_the_folder()
     {
         const string mask = "%genre%/%artist% - %title%";
-        var subject = FileNameMask.SubjectFor(mask, @"\\nas\music\GENRES\Hard Techno\Perc - Gob.mp3");
+        var subject = FileNameMask.SubjectFor(
+            mask, TestPath.Local(@"\\nas\music\GENRES\Hard Techno\Perc - Gob.mp3"));
 
         Assert.Equal("Hard Techno/Perc - Gob", subject);
 
@@ -208,7 +209,8 @@ public class FileNameMaskTests
     [Fact]
     public void A_mask_may_be_typed_with_either_slash()
     {
-        var subject = FileNameMask.SubjectFor(@"%album%\%title%", @"C:\music\Bulk EP\Stowaway.flac");
+        var subject = FileNameMask.SubjectFor(
+            @"%album%\%title%", TestPath.Local(@"C:\music\Bulk EP\Stowaway.flac"));
         var r = FileNameMask.Parse(@"%album%\%title%", subject);
 
         Assert.Equal("Bulk EP", r!["album"]);
@@ -220,7 +222,8 @@ public class FileNameMaskTests
     {
         Assert.Equal(1, FileNameMask.SegmentCount("%artist% - %title%"));
         Assert.Equal("Perc - Gob",
-                     FileNameMask.SubjectFor("%artist% - %title%", @"C:\music\Techno\Perc - Gob.mp3"));
+                     FileNameMask.SubjectFor("%artist% - %title%",
+                                             TestPath.Local(@"C:\music\Techno\Perc - Gob.mp3")));
     }
 
     [Fact]

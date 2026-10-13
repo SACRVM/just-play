@@ -154,7 +154,8 @@ public sealed class OrganiseRunnerTests : IDisposable
         Assert.Equal(before, Sha(Path.Combine(_to, "a.mp3")));
     }
 
-    [Fact]
+    [WindowsOnlyFact("an open FileShare.None handle refuses a rename only there; on Linux the lock " +
+                     "is advisory and a same-volume move renames the file regardless")]
     public async Task A_source_that_cannot_be_read_is_reported_and_left_alone()
     {
         var good = Write(_from, "good.mp3");

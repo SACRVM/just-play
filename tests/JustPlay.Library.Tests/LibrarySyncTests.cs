@@ -98,10 +98,13 @@ public sealed class LibrarySyncTests : IDisposable
             },
         };
 
-    /// <summary>Creates a file with deterministic content and returns its path.</summary>
+    /// <summary>
+    /// Creates a file with deterministic content and returns its path. <paramref name="relative"/> is
+    /// written with backslashes; on Linux "GENRES\a.mp3" would otherwise be ONE file in the root.
+    /// </summary>
     private string MakeFile(string relative, string content = "audio", TrackAnalysisState? blob = null)
     {
-        var path = Path.Combine(_root, relative);
+        var path = Path.Combine(_root, TestPath.Local(relative));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content);
 
@@ -431,11 +434,10 @@ public sealed class LibrarySyncTests : IDisposable
 
     // -- "Could not look" is not "gone" (Windows: an ACL makes a folder unreadable) ----
 
-    [Fact]
+    [WindowsOnlyFact("the folder is made unlistable with a Windows ACL")]
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public void A_root_that_refuses_to_be_listed_flags_nothing()
     {
-        if (!OperatingSystem.IsWindows()) return;
-
         var lib = Path.Combine(_root, "lib");
         MakeFile(@"lib\a.mp3", blob: Blob());
         MakeFile(@"lib\Sub\b.mp3", blob: Blob());
@@ -452,11 +454,10 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal(2, _db.Query(new LibraryQuery()).Count);
     }
 
-    [Fact]
+    [WindowsOnlyFact("the folder is made unlistable with a Windows ACL")]
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public void A_subfolder_that_refuses_to_be_listed_is_not_judged_but_a_real_delete_still_is()
     {
-        if (!OperatingSystem.IsWindows()) return;
-
         var deleted = MakeFile(@"GENRES\deleted.mp3", blob: Blob());
         var locked  = MakeFile(@"GENRES\Locked\a.mp3", blob: Blob());
         _sync.Reconcile(_root);
@@ -471,11 +472,10 @@ public sealed class LibrarySyncTests : IDisposable
         Assert.Equal([locked], _db.Query(new LibraryQuery()).Select(e => e.FilePath));
     }
 
-    [Fact]
+    [WindowsOnlyFact("the folder is made unlistable with a Windows ACL")]
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public void VerifyFolder_on_a_folder_that_refuses_to_be_listed_throws_and_records_nothing()
     {
-        if (!OperatingSystem.IsWindows()) return;
-
         var folder = Path.Combine(_root, "GENRES");
         MakeFile(@"GENRES\a.mp3", blob: Blob());
         _sync.Reconcile(_root);                       // indexed, but this folder never fingerprinted

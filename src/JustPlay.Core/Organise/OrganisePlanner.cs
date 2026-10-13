@@ -300,6 +300,13 @@ public static class OrganisePlanner
         }
     }
 
+    /// <summary>
+    /// Case-insensitive on every OS, Linux included - a decision, not a Windows leftover. The library
+    /// index keys a track by its path COLLATE NOCASE, so the planner has to agree with it about which
+    /// spellings are one file, and a library on an SMB-mounted NAS ignores case on Linux as well. On a
+    /// case-sensitive disk the cost is caution only: two names that differ in case are treated as one
+    /// - left alone or kept apart, never overwritten.
+    /// </summary>
     private static bool PathsEqual(string a, string b) =>
         string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
