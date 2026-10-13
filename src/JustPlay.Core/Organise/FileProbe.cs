@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading;
 
 namespace JustPlay.Core.Organise;
 
@@ -75,6 +77,12 @@ public sealed class SystemFileProbe : IFileProbe
     /// <para><c>Path.GetPathRoot</c> gives "C:\" for a local path and "\\server\share" for UNC,
     /// which is exactly the granularity that decides whether <c>File.Move</c> is a rename: two
     /// shares on the same NAS are different volumes as far as the filesystem is concerned.</para>
+    ///
+    /// <para>(!) On Linux and macOS the root of EVERY path is "/", so the root says nothing - the
+    /// volume there is the mount point the path lives under (a NAS share at /mnt/music, a stick
+    /// under /run/media, a separate /home). It matters for more than speed: .NET's File.Move
+    /// quietly falls back to copy-then-delete across mounts, which would skip the runner's
+    /// copy - verify - remove.</para>
     /// </summary>
     public static string? VolumeKey(string path)
     {
@@ -82,13 +90,48 @@ public sealed class SystemFileProbe : IFileProbe
 
         try
         {
-            var root = Path.GetPathRoot(Path.GetFullPath(path));
+            var full = Path.GetFullPath(path);
+            var root = Path.GetPathRoot(full);
+            if (root == "/") return MountPointOf(full);
             return string.IsNullOrEmpty(root) ? null : root.TrimEnd('\\', '/').ToUpperInvariant();
         }
         catch (Exception)
         {
             return null;
         }
+    }
+
+    private static string[]? _mountPoints;
+    private static long _mountPointsAt;
+
+    /// <summary>
+    /// The deepest mount point that contains <paramref name="fullPath"/>. The mount table is read
+    /// at most every two seconds: a plan asks once per file, and a mount appearing between the
+    /// preview and the run is caught by the runner asking again (see OrganiseRunner.MoveAsync).
+    /// </summary>
+    private static string MountPointOf(string fullPath)
+    {
+        var now = Environment.TickCount64;
+        var mounts = _mountPoints;
+        if (mounts is null || now - Volatile.Read(ref _mountPointsAt) > 2000)
+        {
+            mounts = DriveInfo.GetDrives()
+                .Select(d => d.RootDirectory.FullName)
+                .OrderByDescending(m => m.Length)
+                .ToArray();
+            _mountPoints = mounts;
+            Volatile.Write(ref _mountPointsAt, now);
+        }
+
+        foreach (var mount in mounts) // deepest first
+        {
+            var m = mount.TrimEnd('/');
+            if (m.Length == 0) return "/";
+            if (fullPath.Length == m.Length ? fullPath == m
+                : fullPath.StartsWith(m, StringComparison.Ordinal) && fullPath[m.Length] == '/')
+                return m;
+        }
+        return "/";
     }
 
     /// <summary>
